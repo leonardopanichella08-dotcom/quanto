@@ -16,7 +16,8 @@
     { "src": "/api/v2/(.*)", "dest": "backend/api/index.py" },
     { "src": "/docs", "dest": "backend/api/index.py" },
     { "src": "/openapi.json", "dest": "backend/api/index.py" },
-    { "handle": "filesystem" },
-    { "src": "/(.*)", "dest": "frontend/index.html" }
+    { "src": "/assets/(.*)", "dest": "/frontend/assets/$1" },
+    { "src": "/(.*\\..*)", "dest": "/frontend/$1" },
+    { "src": "/(.*)", "dest": "/frontend/index.html" }
   ]
 }
