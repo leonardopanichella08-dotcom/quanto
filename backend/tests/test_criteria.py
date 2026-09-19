@@ -110,9 +110,9 @@ def test_c17_c18_pro_rata_temporis_depreciation():
 
 
 def test_c19_new_asset_requirement():
-    assert run(X(is_new=False)).status == S.REJECTED
-    assert run(X(is_new=True)).status == S.APPROVED
-    assert run(X(is_new=False), R(requires_new_asset=False)).status == S.APPROVED
+    assert run(X(is_new=False), R(requires_new_asset=True)).status == S.REJECTED
+    assert run(X(is_new=True), R(requires_new_asset=True)).status == S.APPROVED
+    assert run(X(is_new=False)).status == S.APPROVED     # regola assente nel bando: non valutata
 
 
 def test_c20_iot_interconnection():
@@ -215,7 +215,7 @@ def test_c35_unauthorized_subcontracting():
 
 def test_c36_overhead_share_and_flat_rate_of_personnel():
     p = personnel("P", ral=30000.0, fte=1.0)                                   # costo pieno 41.499,00
-    flat, _ = budget([p, X("OVERHEAD", 10000.0, "O")], R(max_overhead_percentage=0.5, overhead_flat_rate_of_personnel_pct=0.15))
+    flat, _ = budget([p, X("OVERHEAD", 10000.0, "O")], R(max_overhead_percentage=0.5, overhead_flat_rate_pct=0.15))
     assert flat[1].computed_cost_eur == 6224.85 and failed(flat[1], 36)        # 15% x 41.499
     share, _ = budget([p, X("OVERHEAD", 10000.0, "O")])
     assert share[1].computed_cost_eur / (share[0].computed_cost_eur + share[1].computed_cost_eur) <= 0.07

@@ -12,6 +12,7 @@ from __future__ import annotations
 import hashlib
 import json
 import re
+import time
 from dataclasses import dataclass, field
 from decimal import ROUND_DOWN, ROUND_HALF_UP, Decimal
 from itertools import product
@@ -21,7 +22,7 @@ from app.core.criteria_catalog import CRITERIA_TITLES, applicable_criteria
 from app.core.fonte_b import FIXED_TERM_SURCHARGE_PCT, OCCASIONAL_INCOME_LIMIT_EUR, lookup_ccnl, table_ref
 from app.models.schemas import (
     ActivityType, AssetNature, BudgetCheck, CCNLType, ContractType, CostBreakdown, CostCategory, CostItemInput,
-    CostItemValidated, ExpenseSubtype, GrantRuleSet, ItemValidationStatus as S,
+    CostItemValidated, ExpenseSubtype, FlatBase, GrantRuleSet, ItemValidationStatus as S, MerkleView, PipelineStage, TraceStep,
 )
 
 ZERO = Decimal("0.00")
@@ -73,6 +74,7 @@ class _Line:
     checked: List[int] = field(default_factory=list)
     failed: List[int] = field(default_factory=list)
     breakdown: Dict = field(default_factory=dict)
+    adjustments: List[Dict] = field(default_factory=list)
 
     @property
     def is_live(self) -> bool:
@@ -99,9 +101,12 @@ class _Line:
 
     def reject(self, n: int, reason: str, rule: str, status: S = S.REJECTED) -> None:
         """Respinge (o sospende) l'intera riga: l'importo ammesso diventa zero."""
+        before = self.approved if self.is_live else ZERO
         self._fail(n, reason, rule)
         self.approved = ZERO
         self._escalate(status)
+        self.adjustments.append({"criterion": n, "kind": "SUSPENDED" if status == S.MISSING_DOCUMENTS else "REJECTED",
+                                 "delta": -before, "note": reason})
 
     def cut(self, n: int, excess: Decimal, reason: str, rule: str) -> Decimal:
         """Decurta l'ammesso di ``excess`` (mai sotto zero). Restituisce l'importo effettivamente tolto."""
@@ -110,6 +115,7 @@ class _Line:
         self.approved -= taken
         if self.is_live:
             self._escalate(S.CAP_EXCEEDED_ADJUSTED)
+        self.adjustments.append({"criterion": n, "kind": "ADJUSTED", "delta": -taken, "note": reason})
         return taken
 
 
@@ -184,22 +190,24 @@ class DeterministicEngine:
                      f"CRITERION_06_SUPERMINIMO_EXCLUDED:{fmt(superminimo_excluded)}")
 
         # Criterio 7 — tetto orario (confronto senza divisione: annual/ore > cap  <=>  annual > cap*ore).
-        line.check(7)
-        cap = dec(rules.max_hourly_rate_personnel)
-        line.hourly_cap = cap
-        if annual_eff > cap * Decimal(hours):
-            line.cut(7, q(annual_eff * fte * ratio) - q(cap * Decimal(hours) * fte * ratio),
-                     f"Costo orario calcolato ({line.hourly} €/h) superiore al tetto ammissibile dal bando "
-                     f"({rules.max_hourly_rate_personnel} €/h). Applicata decurtazione automatica al massimale.",
-                     f"CRITERION_07_HOURLY_CAP_EXCEEDED:CAP_{rules.max_hourly_rate_personnel}_EUR/H")
-        else:
-            line.rules.append("CRITERION_07_HOURLY_RATE_COMPLIANT")
+        # Se il bando non definisce un tetto orario il criterio NON viene eseguito (nessun default inventato).
+        cap: Optional[Decimal] = dec(rules.max_hourly_rate_personnel) if rules.max_hourly_rate_personnel is not None else None
+        if cap is not None:
+            line.check(7)
+            line.hourly_cap = cap
+            if annual_eff > cap * Decimal(hours):
+                line.cut(7, q(annual_eff * fte * ratio) - q(cap * Decimal(hours) * fte * ratio),
+                         f"Costo orario calcolato ({line.hourly} €/h) superiore al tetto ammissibile dal bando "
+                         f"({rules.max_hourly_rate_personnel} €/h). Applicata decurtazione automatica al massimale.",
+                         f"CRITERION_07_HOURLY_CAP_EXCEEDED:CAP_{rules.max_hourly_rate_personnel}_EUR/H")
+            else:
+                line.rules.append("CRITERION_07_HOURLY_RATE_COMPLIANT")
 
         hourly_exact = annual_eff / Decimal(hours)
         line.breakdown.update(
             ral_eur=_f(effective), social_charges_pct=float(params.social_charges_pct + surcharge), social_charges_eur=_f(social),
             tfr_pct=float(params.tfr_pct), tfr_eur=_f(tfr), annual_cost_eur=_f(annual_eff), working_hours=hours,
-            fte_allocation=item.fte_allocation, duration_months=item.duration_months, hourly_cap_eur=_f(cap),
+            fte_allocation=item.fte_allocation, duration_months=item.duration_months, hourly_cap_eur=_f(cap) if cap is not None else None,
         )
 
         if item.travel_allowance_eur is not None:                                        # criterio 9
@@ -287,11 +295,21 @@ class DeterministicEngine:
         line.rules.append(f"CRITERION_16_NATURE_CLASSIFIED:{it.category.value}")
         if it.category == CostCategory.CAPITAL_ASSETS and it.asset_nature == AssetNature.SERVICE:
             line.reject(16, "Un servizio non è classificabile come bene strumentale.", "CRITERION_16_MISCLASSIFIED:SERVICE_AS_CAPITAL_ASSET")
+        if it.asset_nature is not None and it.asset_nature in rules.excluded_asset_natures:
+            line.reject(16, f"Natura del bene ({it.asset_nature.value}) esclusa dal bando.", f"CRITERION_16_ASSET_NATURE_EXCLUDED:{it.asset_nature.value}")
+        if rules.requires_eu_origin and it.category == CostCategory.CAPITAL_ASSETS and it.origin_eu is not None:
+            if it.origin_eu:
+                line.rules.append("CRITERION_16_EU_ORIGIN_OK")
+            else:
+                line.reject(16, "Il bando richiede beni prodotti in UE/SEE: origine non ammissibile.", "CRITERION_16_NON_EU_ORIGIN")
         if not it.source_c_ref.strip():
             line.reject(16, "Pezza d'appoggio (Fonte C) mancante: riga sospesa.", "CRITERION_16_SOURCE_DOCUMENT_MISSING", S.MISSING_DOCUMENTS)
 
         vat_left = vat                                                                    # criteri 53-54, 25
-        if it.vat_eur is not None and it.vat_recoverable is not None:
+        if rules.vat_never_eligible and vat > 0:
+            line.cut(54, vat, "Il bando ammette solo costi al netto di IVA: IVA esclusa.", "CRITERION_54_VAT_EXCLUDED_BY_BANDO")
+            vat_left = ZERO
+        elif it.vat_eur is not None and it.vat_recoverable is not None:
             if it.vat_recoverable:
                 line.cut(54, vat, "IVA recuperabile: esclusa dai costi ammissibili.", f"CRITERION_54_RECOVERABLE_VAT_EXCLUDED:{fmt(vat)}")
                 vat_left = ZERO
@@ -347,6 +365,9 @@ class DeterministicEngine:
                         f"CRITERION_22_PRICE_ABOVE_BENCHMARK:LIMIT_{fmt(limit)}")
             else:
                 line.ok(22, "CRITERION_22_PRICE_CONGRUENT")
+        if rules.equipment_depreciation_only and it.depreciation_rate_pct is None:
+            line.reject(17, "Il bando ammette solo l'ammortamento del bene: indicare l'aliquota d'ammortamento.",
+                        "CRITERION_17_DEPRECIATION_RATE_REQUIRED", S.MISSING_DOCUMENTS)
         if it.depreciation_rate_pct is not None:                                          # criteri 17-18
             line.ok(17, f"CRITERION_17_DEPRECIATION_RATE:{q(dec(it.depreciation_rate_pct) * 100)}%")
             eligible = q(state["net"] * dec(it.depreciation_rate_pct) * Decimal(it.duration_months) / TWELVE)
@@ -430,7 +451,10 @@ class DeterministicEngine:
         sub = it.expense_subtype
         if sub is None:
             return
-        if sub in (ExpenseSubtype.PENALTY, ExpenseSubtype.LEGAL_DISPUTE):                 # criterio 41
+        if sub == ExpenseSubtype.FINANCIAL_CHARGES:
+            line.reject(16, "Interessi, oneri del debito, perdite di cambio e spese bancarie non sono costi ammissibili.",
+                        "CRITERION_16_FINANCIAL_CHARGES_EXCLUDED")
+        elif sub in (ExpenseSubtype.PENALTY, ExpenseSubtype.LEGAL_DISPUTE):                 # criterio 41
             line.reject(41, "Sanzioni, penali e contenziosi legali non sono ammissibili.", f"CRITERION_41_EXCLUDED:{sub.value}")
         elif sub == ExpenseSubtype.REPRESENTATION:                                        # criterio 44
             if it.project_related:
@@ -471,6 +495,13 @@ class DeterministicEngine:
     @classmethod
     def _general(cls, line: _Line, rules: GrantRuleSet) -> None:
         it = line.item
+        if rules.eligible_categories is not None:                                         # criterio 16: categoria ammessa dal bando
+            if it.category in rules.eligible_categories:
+                line.ok(16, f"CRITERION_16_CATEGORY_ELIGIBLE:{it.category.value}")
+            else:
+                line.reject(16, f"La categoria {it.category.value} non è ammissibile in questo bando "
+                                f"(ammesse: {', '.join(c.value for c in rules.eligible_categories)}).",
+                            f"CRITERION_16_CATEGORY_NOT_ELIGIBLE:{it.category.value}")
         if it.expense_date is not None and (rules.eligibility_start or rules.eligibility_end):  # criterio 46
             before = rules.eligibility_start and it.expense_date < rules.eligibility_start
             after = rules.eligibility_end and it.expense_date > rules.eligibility_end
@@ -569,23 +600,56 @@ class DeterministicEngine:
         return c, o
 
     @classmethod
-    def _apply_share_caps(cls, lines: List[_Line], rules: GrantRuleSet) -> None:
+    def _apply_share_caps(cls, lines: List[_Line], rules: GrantRuleSet) -> List[Dict]:
+        """Tasso forfettario (crit. 36) e massimali % sul totale finale (crit. 26, 31, 36, 37). Restituisce il dettaglio per il trace."""
+        spec: Dict[str, Tuple[int, Decimal]] = {}
+        if rules.max_consulting_percentage is not None:
+            spec["CONSULTING"] = (31, dec(rules.max_consulting_percentage))
+        if rules.max_overhead_percentage is not None:
+            spec["OVERHEAD"] = (36, dec(rules.max_overhead_percentage))
+        if rules.max_communication_pct is not None:
+            spec["COMMUNICATION"] = (37, dec(rules.max_communication_pct))
+        if rules.max_immaterial_pct is not None:
+            spec["IMMATERIAL"] = (26, dec(rules.max_immaterial_pct))
+
         def group_of(ln: _Line) -> Optional[str]:
             it = ln.item
-            if it.expense_subtype == ExpenseSubtype.COMMUNICATION and rules.max_communication_pct is not None:
+            if "COMMUNICATION" in spec and it.expense_subtype == ExpenseSubtype.COMMUNICATION:
                 return "COMMUNICATION"
-            if it.category == CostCategory.CAPITAL_ASSETS and it.asset_nature in (AssetNature.SOFTWARE, AssetNature.IMMATERIAL) \
-                    and rules.max_immaterial_pct is not None:
+            if "IMMATERIAL" in spec and it.category == CostCategory.CAPITAL_ASSETS and it.asset_nature in (AssetNature.SOFTWARE, AssetNature.IMMATERIAL):
                 return "IMMATERIAL"
-            if it.category == CostCategory.CONSULTING:
+            if "CONSULTING" in spec and it.category == CostCategory.CONSULTING:
                 return "CONSULTING"
-            if it.category == CostCategory.OVERHEAD:
+            if "OVERHEAD" in spec and it.category == CostCategory.OVERHEAD:
                 return "OVERHEAD"
             return None
 
-        spec = {"CONSULTING": (31, dec(rules.max_consulting_percentage)), "OVERHEAD": (36, dec(rules.max_overhead_percentage)),
-                "COMMUNICATION": (37, dec(rules.max_communication_pct or 0)), "IMMATERIAL": (26, dec(rules.max_immaterial_pct or 0))}
         live = [ln for ln in lines if ln.is_live]
+
+        # Criterio 36 — tasso forfettario: le spese generali non superano una quota di una base di costi diretti.
+        flat = rules.overhead_flat_rate_pct
+        overhead_lines = [ln for ln in live if ln.item.category == CostCategory.OVERHEAD]
+        if flat is not None and overhead_lines:
+            if rules.overhead_flat_base == FlatBase.PERSONNEL:
+                base_amount = sum((ln.approved for ln in live if ln.item.category == CostCategory.PERSONNEL), ZERO)
+                base_label = "dei costi di personale"
+            else:
+                base_amount = sum((ln.approved for ln in live if ln.item.category != CostCategory.OVERHEAD and not ln.item.subcontracted), ZERO)
+                base_label = "dei costi diretti (esclusi i subappalti)"
+            limit = q_down(base_amount * dec(flat))
+            current = sum((ln.approved for ln in overhead_lines), ZERO)
+            for ln in overhead_lines:
+                ln.check(36)
+            if current > limit:
+                for ln, new in zip(overhead_lines, cls._apportion([ln.approved for ln in overhead_lines], limit)):
+                    if new != ln.approved:
+                        ln.cut(36, ln.approved - new, f"Spese generali forfettarie limitate al {q(dec(flat) * 100)}% {base_label}.",
+                               f"CRITERION_36_FLAT_RATE:MAX_{q(dec(flat) * 100)}%_OF_{rules.overhead_flat_base.value}")
+            else:
+                for ln in overhead_lines:
+                    ln.rules.append(f"CRITERION_36_FLAT_RATE_COMPLIANT:MAX_{q(dec(flat) * 100)}%")
+            live = [ln for ln in lines if ln.is_live]
+
         members: Dict[str, List[_Line]] = {k: [] for k in spec}
         base = ZERO
         for ln in live:
@@ -595,23 +659,15 @@ class DeterministicEngine:
             else:
                 base += ln.approved
 
-        # Criterio 36 — variante forfettaria: le spese generali non superano una quota dei costi di personale.
-        flat = rules.overhead_flat_rate_of_personnel_pct
-        if flat is not None and members["OVERHEAD"]:
-            personnel_total = sum((ln.approved for ln in live if ln.item.category == CostCategory.PERSONNEL), ZERO)
-            limit = q_down(personnel_total * dec(flat))
-            group = members["OVERHEAD"]
-            current = sum((ln.approved for ln in group), ZERO)
-            if current > limit:
-                for ln, new in zip(group, cls._apportion([ln.approved for ln in group], limit)):
-                    ln.cut(36, ln.approved - new, f"Spese generali forfettarie limitate al {q(dec(flat) * 100)}% dei costi di personale.",
-                           f"CRITERION_36_FLAT_RATE_OF_PERSONNEL:MAX_{q(dec(flat) * 100)}%")
-
         names = [k for k in spec if members[k]]
         amounts = [(sum((ln.approved for ln in members[k]), ZERO), spec[k][1]) for k in names]
         new_totals = cls.solve_share_caps(base, amounts) if names else []
+        info: List[Dict] = []
+        total_final = base + sum(new_totals, ZERO)
         for k, (old, pct), new in zip(names, amounts, new_totals):
             criterion = spec[k][0]
+            info.append({"group": k, "criterion": criterion, "cap_pct": float(pct), "requested_eur": _f(old), "allowed_eur": _f(new),
+                         "base_eur": _f(base), "total_final_eur": _f(total_final)})
             for ln in members[k]:
                 ln.check(criterion)
                 ln.breakdown["budget_cap_pct"] = float(pct)
@@ -624,6 +680,7 @@ class DeterministicEngine:
                     ln.cut(criterion, ln.approved - amount,
                            f"Voce {k} riportata al massimale del {q(pct * 100)}% del budget totale previsto dal bando (importo ammesso {fmt(amount)} €).",
                            f"CRITERION_{criterion}_{k}_CAP_EXCEEDED:MAX_{q(pct * 100)}%_OF_TOTAL_BUDGET")
+        return info
 
     @classmethod
     def _apply_fte_aggregation(cls, lines: List[_Line]) -> None:
@@ -719,15 +776,74 @@ class DeterministicEngine:
         cls._general(line, rules)
         return line
 
+    _SHARE_CAP_CRITERIA = {26, 31, 36, 37}
+
+    @classmethod
+    def _build_steps(cls, lines: List[_Line]) -> List[TraceStep]:
+        """Ordina i controlli di ogni riga nell'ordine di valutazione e ricostruisce l'importo dopo ciascun passo."""
+        steps: List[TraceStep] = []
+        for ln in lines:
+            by_crit: Dict[int, List[Dict]] = {}
+            for a in ln.adjustments:
+                by_crit.setdefault(a["criterion"], []).append(a)
+            running = ln.original
+            sequence: List[Tuple[int, Optional[Dict]]] = []
+            for n in ln.checked:
+                adjs = by_crit.pop(n, None)
+                if adjs:
+                    sequence.extend((n, a) for a in adjs)
+                else:
+                    sequence.append((n, None))
+            for n, adjs in by_crit.items():
+                sequence.extend((n, a) for a in adjs)
+            for n, adj in sequence:
+                stage = "SHARE_CAPS" if n in cls._SHARE_CAP_CRITERIA else "LINE_CRITERIA"
+                if adj is None:
+                    steps.append(TraceStep(seq=0, stage=stage, item_id=ln.item.item_id, criterion=n, outcome="PASS", delta_eur=0.0,
+                                           amount_after_eur=_f(running), note=CRITERIA_TITLES.get(n, "")))
+                else:
+                    running += adj["delta"]
+                    steps.append(TraceStep(seq=0, stage=stage, item_id=ln.item.item_id, criterion=n, outcome=adj["kind"],
+                                           delta_eur=_f(adj["delta"]), amount_after_eur=_f(running), note=adj["note"]))
+        for i, st in enumerate(steps, 1):
+            st.seq = i
+        return steps
+
+    @classmethod
+    def analyze_budget(cls, items: List[CostItemInput], rules: GrantRuleSet, entity_liquidity_eur: Optional[float] = None,
+                       baseline_totals: Optional[Dict[CostCategory, float]] = None
+                       ) -> Tuple[List[CostItemValidated], List[BudgetCheck], Dict]:
+        """Pipeline completa con traccia: criteri di riga -> FTE cumulato -> massimali -> criteri di budget -> sigillo hash.
+
+        Restituisce (righe, controlli di budget, trace parziale con fasi, passi e dettagli dei massimali).
+        """
+        stages: List[PipelineStage] = []
+        last = time.perf_counter()
+
+        def mark(key: str, label: str, detail: str) -> None:
+            nonlocal last
+            now = time.perf_counter()
+            stages.append(PipelineStage(key=key, label=label, duration_ms=round((now - last) * 1000, 3), detail=detail))
+            last = now
+
+        lines = [cls._compute_line(item, rules) for item in items]
+        mark("LINE_CRITERIA", "Criteri di riga (Fonte A, B, C)", f"{len(lines)} righe · {sum(len(ln.checked) for ln in lines)} controlli eseguiti")
+        cls._apply_fte_aggregation(lines)
+        mark("FTE", "Somma FTE per lavoratore (criterio 8)", f"{sum(1 for ln in lines if 8 in ln.failed)} righe respinte")
+        caps = cls._apply_share_caps(lines, rules)
+        mark("SHARE_CAPS", "Massimali % sul totale finale (criteri 26, 31, 36, 37)", f"{len(caps)} gruppi di spesa risolti")
+        checks = cls._budget_checks(lines, rules, entity_liquidity_eur, baseline_totals)
+        mark("BUDGET_CHECKS", "Controlli sull'intero budget (48, 49, 55, 56, 60)", f"{sum(1 for c in checks if c.status != 'NOT_EVALUATED')} su {len(checks)} valutati")
+        steps = cls._build_steps(lines)
+        sealed = [cls._seal(ln, rules) for ln in lines]
+        mark("HASH", "Hash SHA-256 di riga (foglie Merkle)", f"{len(sealed)} hash canonici")
+        return sealed, checks, {"stages": stages, "steps": steps, "share_caps": caps}
+
     @classmethod
     def evaluate_budget(cls, items: List[CostItemInput], rules: GrantRuleSet, entity_liquidity_eur: Optional[float] = None,
                         baseline_totals: Optional[Dict[CostCategory, float]] = None) -> Tuple[List[CostItemValidated], List[BudgetCheck]]:
-        """Pipeline completa: criteri di riga -> FTE cumulato -> massimali di budget -> criteri di budget -> sigillo hash."""
-        lines = [cls._compute_line(item, rules) for item in items]
-        cls._apply_fte_aggregation(lines)
-        cls._apply_share_caps(lines, rules)
-        checks = cls._budget_checks(lines, rules, entity_liquidity_eur, baseline_totals)
-        return [cls._seal(ln, rules) for ln in lines], checks
+        sealed, checks, _ = cls.analyze_budget(items, rules, entity_liquidity_eur, baseline_totals)
+        return sealed, checks
 
     @classmethod
     def validate_budget(cls, items: List[CostItemInput], rules: GrantRuleSet, **kwargs) -> List[CostItemValidated]:

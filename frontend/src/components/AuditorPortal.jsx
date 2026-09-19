@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react'
 import { AlertOctagon, CheckCircle2, HelpCircle, ShieldCheck } from 'lucide-react'
 import { api } from '../lib/api'
+import PageIntro from './PageIntro'
 
 function Verdict({ r }) {
   if (!r.registration_found) {
@@ -75,6 +76,8 @@ export default function AuditorPortal({ request, defaultProject, defaultRoot }) 
   })
 
   return (
+    <div className="space-y-6">
+    <PageIntro title="Auditor Portal" tips={['“Verifica radice”: confronta l’impronta presentata (es. dal QR di un documento) con quella registrata.', '“Ricalcola dai dati originali”: rifà tutti i 60 criteri e la radice, poi confronta col registro.', 'Prova la manomissione: cambiare anche un solo euro rende la verifica negativa.']}>Pagina per revisori e ispettori: verifica che un budget non sia stato alterato dopo la registrazione.</PageIntro>
     <div className="card p-6 space-y-5">
       <div className="pb-3 border-b border-neutral-800">
         <h3 className="font-bold text-lg flex items-center gap-2"><ShieldCheck className="w-5 h-5 text-emerald-400" />Auditor Portal — asseverazione crittografica</h3>
@@ -90,7 +93,7 @@ export default function AuditorPortal({ request, defaultProject, defaultRoot }) 
 
       <div className="flex flex-wrap items-center gap-3">
         <button onClick={verifyRoot} disabled={loading || !projectId || !root} className="px-5 py-2.5 bg-emerald-500 hover:bg-emerald-400 text-black font-bold text-xs rounded-xl transition disabled:opacity-50">Verifica radice</button>
-        <button onClick={recompute} disabled={loading || !projectId} className="px-5 py-2.5 border border-emerald-500/50 text-emerald-300 hover:bg-emerald-500/10 font-bold text-xs rounded-xl transition disabled:opacity-50">Ricalcola dai dati originali</button>
+        <button onClick={recompute} disabled={loading || !projectId || !request.grant_rules || !request.cost_items.length} className="px-5 py-2.5 border border-emerald-500/50 text-emerald-300 hover:bg-emerald-500/10 font-bold text-xs rounded-xl transition disabled:opacity-50">Ricalcola dai dati originali</button>
         <label className="text-xs text-neutral-400 flex items-center gap-2 cursor-pointer">
           <input type="checkbox" checked={tamper} onChange={(e) => setTamper(e.target.checked)} />
           Simula manomissione (+1 € sulla prima riga)
@@ -128,6 +131,7 @@ export default function AuditorPortal({ request, defaultProject, defaultRoot }) 
           Registra prima un budget dalla vista Budget Canvas, poi verificalo qui — anche con la manomissione simulata.
         </div>
       )}
+    </div>
     </div>
   )
 }

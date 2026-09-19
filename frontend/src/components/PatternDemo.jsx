@@ -2,6 +2,7 @@ import React, { useState } from 'react'
 import { BarChart3 } from 'lucide-react'
 import { api } from '../lib/api'
 import { SEED_PATTERN } from '../data/mockSeed'
+import PageIntro from './PageIntro'
 
 const FIELDS = [
   ['personnel_pct', 'Personale'],
@@ -24,6 +25,8 @@ export default function PatternDemo() {
   }
 
   return (
+    <div className="space-y-6">
+    <PageIntro title="Demo comparativa (pattern matching)" tips={['Inserisci come ripartisci il budget tra le quattro macro-categorie.', 'Il coseno misura quanto la tua ripartizione somiglia a quella dei budget premiati; lo scostamento in punti percentuali è il segnale operativo.']}>Confronta la struttura del tuo budget con gli archetipi di budget storicamente premiati. Non stima la probabilità di vincita.</PageIntro>
     <div className="card p-6 space-y-5">
       <div className="pb-3 border-b border-neutral-800">
         <h3 className="font-bold text-lg flex items-center gap-2"><BarChart3 className="w-5 h-5 text-[#deffac]" />Demo comparativa — Pattern Matching</h3>
@@ -68,6 +71,7 @@ export default function PatternDemo() {
           </div>
         </div>
       )}
+    </div>
     </div>
   )
 }

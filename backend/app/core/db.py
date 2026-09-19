@@ -37,6 +37,64 @@ CREATE TABLE IF NOT EXISTS bandi (
     extraction_status TEXT NOT NULL DEFAULT 'NOT_STARTED',
     requested_by_clients INTEGER NOT NULL DEFAULT 0
 );
+CREATE TABLE IF NOT EXISTS events (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    ts TEXT NOT NULL,
+    op TEXT NOT NULL,
+    status TEXT NOT NULL,
+    actor TEXT NOT NULL,
+    project_id TEXT,
+    bando_id TEXT,
+    duration_ms REAL,
+    summary TEXT NOT NULL,
+    details TEXT,
+    run_id INTEGER
+);
+CREATE INDEX IF NOT EXISTS idx_events_ts ON events (id DESC);
+CREATE TABLE IF NOT EXISTS runs (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    ts TEXT NOT NULL,
+    kind TEXT NOT NULL,                -- VALIDATE | ALLOCATION
+    project_id TEXT,
+    bando_id TEXT,
+    merkle_root TEXT,
+    request_json TEXT NOT NULL,
+    response_json TEXT NOT NULL
+);
+CREATE TABLE IF NOT EXISTS documents (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    ts TEXT NOT NULL,
+    kind TEXT NOT NULL,                -- BANDO_TEXT | BANDO_PDF | EXPORT_XLSX | EXPORT_PDF | IMPORT_XLSX | ATTESTATION
+    name TEXT NOT NULL,
+    sha256 TEXT NOT NULL,
+    size_bytes INTEGER NOT NULL,
+    bando_id TEXT,
+    project_id TEXT,
+    meta TEXT
+);
+CREATE TABLE IF NOT EXISTS bando_meta (
+    bando_id TEXT PRIMARY KEY,
+    meta TEXT NOT NULL                 -- JSON: stato, riferimenti normativi, fonti, beneficio, note
+);
+CREATE TABLE IF NOT EXISTS requirements (
+    bando_id TEXT NOT NULL,
+    seq INTEGER NOT NULL,
+    topic TEXT NOT NULL,
+    kind TEXT NOT NULL,                -- OBBLIGO | DIVIETO | LIMITE | INFO | DA_REVISIONARE
+    text TEXT NOT NULL,
+    criteria TEXT NOT NULL,            -- JSON: numeri dei criteri collegati
+    source_ref TEXT,
+    origin TEXT NOT NULL,              -- CURATED_SOURCE | STRUCTURED_PARSING
+    PRIMARY KEY (bando_id, seq)
+);
+CREATE TABLE IF NOT EXISTS bando_sources (
+    bando_id TEXT NOT NULL,
+    ts TEXT NOT NULL,
+    name TEXT NOT NULL,
+    sha256 TEXT NOT NULL,
+    text TEXT NOT NULL,
+    PRIMARY KEY (bando_id, sha256)
+);
 CREATE TABLE IF NOT EXISTS rules (
     bando_id TEXT NOT NULL,
     rule_key TEXT NOT NULL,

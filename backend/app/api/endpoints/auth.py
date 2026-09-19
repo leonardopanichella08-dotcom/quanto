@@ -4,7 +4,7 @@ from urllib.parse import parse_qs
 
 from fastapi import APIRouter, HTTPException, Request, status
 
-from app.core import auth
+from app.core import auth, events
 
 router = APIRouter()
 
@@ -24,6 +24,8 @@ async def token(request: Request) -> dict:
     try:
         if not auth.authenticate_client(str(data.get("client_id", "")), str(data.get("client_secret", ""))):
             raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail={"error": "invalid_client"})
-        return auth.issue_token(str(data["client_id"]))
+        token = auth.issue_token(str(data["client_id"]))
+        events.record("auth.token", f"Token emesso a {data['client_id']}", actor=f"client:{data['client_id']}")
+        return token
     except auth.AuthConfigError:
         raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="OAuth non configurato sul server") from None

@@ -15,7 +15,7 @@ from decimal import ROUND_HALF_UP, Decimal
 from enum import Enum
 from typing import Any, Dict, List, Optional
 
-from pydantic import BaseModel, Field, field_validator, model_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 
 def money(value: Any) -> float:
@@ -63,6 +63,7 @@ class ExpenseSubtype(str, Enum):
     UTILITIES = "UTILITIES"
     MAINTENANCE_ORDINARY = "MAINTENANCE_ORDINARY"
     MAINTENANCE_EXTRAORDINARY = "MAINTENANCE_EXTRAORDINARY"
+    FINANCIAL_CHARGES = "FINANCIAL_CHARGES"  # interessi, oneri del debito, perdite di cambio, spese bancarie
 
 
 class AssetNature(str, Enum):
@@ -70,6 +71,14 @@ class AssetNature(str, Enum):
     SOFTWARE = "SOFTWARE"
     SERVICE = "SERVICE"
     IMMATERIAL = "IMMATERIAL"
+    REAL_ESTATE = "REAL_ESTATE"  # terreni e fabbricati
+
+
+class FlatBase(str, Enum):
+    """Base di calcolo del tasso forfettario dei costi indiretti."""
+
+    PERSONNEL = "PERSONNEL"
+    DIRECT_EXCL_SUBCONTRACTING = "DIRECT_EXCL_SUBCONTRACTING"
 
 
 class ActivityType(str, Enum):
@@ -81,6 +90,8 @@ class ActivityType(str, Enum):
 # --------------------------------------------------------------------------- input
 class CostItemInput(BaseModel):
     """Riga di spesa grezza da sottoporre a validazione deterministica."""
+
+    model_config = ConfigDict(extra="forbid")  # un refuso nel nome di un campo deve dare errore, non essere ignorato
 
     item_id: str = Field(..., min_length=1, max_length=64, examples=["LINE-001"])
     description: str = Field(..., max_length=200, examples=["Project Manager Junior"])
@@ -121,6 +132,7 @@ class CostItemInput(BaseModel):
     asset_nature: Optional[AssetNature] = None
     depreciation_rate_pct: Optional[float] = Field(default=None, gt=0, le=1, description="Aliquota d'ammortamento annua (criteri 17-18)")
     is_new: Optional[bool] = None
+    origin_eu: Optional[bool] = Field(default=None, description="Bene prodotto in UE/SEE (requisito di origine)")
     iot_interconnected: Optional[bool] = None
     energy_saving_pct: Optional[float] = Field(default=None, ge=0, le=1)
     market_benchmark_eur: Optional[float] = Field(default=None, gt=0, description="Prezzo di mercato di riferimento (Fonte B, criterio 22)")
@@ -178,31 +190,40 @@ class CostItemInput(BaseModel):
 class GrantRuleSet(BaseModel):
     """Regole normativo-finanziarie del bando (Fonte A). Le regole ``None`` non sono definite dal bando."""
 
+    model_config = ConfigDict(extra="forbid")
+
     bando_id: str = Field(..., examples=["TRANSIZIONE-5.0-2026"])
     bando_name: str = Field(..., examples=["Piano Transizione 5.0 - Efficienza Energetica"])
-    max_hourly_rate_personnel: float = Field(default=35.0, gt=0, description="Tetto costo orario (€/ora)")
-    max_consulting_percentage: float = Field(default=0.20, ge=0, le=1)
-    max_overhead_percentage: float = Field(default=0.07, ge=0, le=1)
+    # None = il bando non definisce la regola: il criterio corrispondente risulta "non valutato" (nessun default inventato)
+    max_hourly_rate_personnel: Optional[float] = Field(default=None, gt=0, description="Tetto costo orario (€/ora)")
+    max_consulting_percentage: Optional[float] = Field(default=None, ge=0, le=1)
+    max_overhead_percentage: Optional[float] = Field(default=None, ge=0, le=1)
+    eligible_categories: Optional[List[CostCategory]] = Field(default=None, description="Categorie di spesa ammesse dal bando (None = tutte)")
     rule_version_hash: str = Field(..., min_length=8, examples=["a8f3b129c9e840134012480a2"])
 
     # personale
     overtime_allowed: bool = False
     payroll_tolerance_pct: float = Field(default=0.01, ge=0, le=1)
     # beni
-    requires_new_asset: bool = True
+    requires_new_asset: bool = False
+    vat_never_eligible: bool = Field(default=False, description="Il bando ammette solo costi al netto di IVA")
     requires_iot: bool = False
     min_energy_saving_pct: Optional[float] = Field(default=None, ge=0, le=1)
     max_price_deviation_pct: Optional[float] = Field(default=None, ge=0)
     max_installation_pct: Optional[float] = Field(default=None, ge=0)
     requires_dnsh: bool = False
-    appraisal_threshold_eur: Optional[float] = Field(default=None, gt=0)
+    appraisal_threshold_eur: Optional[float] = Field(default=None, ge=0, description="Soglia oltre cui serve la perizia asseverata (0 = sempre)")
+    excluded_asset_natures: List[AssetNature] = Field(default_factory=list)
+    equipment_depreciation_only: bool = Field(default=False, description="Ammesso solo l'ammortamento dei beni (es. Horizon Europe)")
+    requires_eu_origin: bool = False
     max_immaterial_pct: Optional[float] = Field(default=None, ge=0, le=1)
     min_durability_months: Optional[int] = Field(default=None, ge=0)
     # consulenze / spese generali
     require_independent_supplier: bool = True
     allowed_ateco_prefixes: List[str] = Field(default_factory=list)
     subcontracting_allowed: bool = False
-    overhead_flat_rate_of_personnel_pct: Optional[float] = Field(default=None, ge=0, le=1)
+    overhead_flat_rate_pct: Optional[float] = Field(default=None, ge=0, le=1, description="Tasso forfettario massimo dei costi indiretti")
+    overhead_flat_base: FlatBase = FlatBase.PERSONNEL
     max_communication_pct: Optional[float] = Field(default=None, ge=0, le=1)
     guarantee_costs_eligible: Optional[bool] = None
     max_audit_cost_eur: Optional[float] = Field(default=None, gt=0)
@@ -222,7 +243,7 @@ class GrantRuleSet(BaseModel):
 
     @model_validator(mode="after")
     def _caps_feasible(self) -> "GrantRuleSet":
-        shares = self.max_consulting_percentage + self.max_overhead_percentage
+        shares = (self.max_consulting_percentage or 0) + (self.max_overhead_percentage or 0)
         shares += self.max_communication_pct or 0
         shares += self.max_immaterial_pct or 0
         if shares >= 1:
@@ -317,6 +338,48 @@ class BudgetCheck(BaseModel):
     message: str
 
 
+class TraceStep(BaseModel):
+    """Un passo dell'algoritmo: un criterio valutato su una riga, con effetto sull'importo."""
+
+    seq: int
+    stage: str
+    item_id: Optional[str] = None
+    criterion: Optional[int] = None
+    outcome: str = Field(..., description="PASS | ADJUSTED | REJECTED | SUSPENDED")
+    delta_eur: float = 0.0
+    amount_after_eur: Optional[float] = None
+    note: str = ""
+
+
+class PipelineStage(BaseModel):
+    key: str
+    label: str
+    duration_ms: float
+    detail: str
+
+
+class ShareCapInfo(BaseModel):
+    group: str
+    criterion: int
+    cap_pct: float
+    requested_eur: float
+    allowed_eur: float
+    base_eur: float
+    total_final_eur: float
+
+
+class MerkleView(BaseModel):
+    leaf_item_ids: List[str]
+    levels: List[List[str]] = Field(..., description="Hash troncati (12 caratteri): livello 0 = foglie, ultimo = radice")
+
+
+class AlgorithmTrace(BaseModel):
+    stages: List[PipelineStage]
+    steps: List[TraceStep]
+    share_caps: List[ShareCapInfo] = Field(default_factory=list)
+    merkle: Optional[MerkleView] = None
+
+
 class BudgetValidationResponse(BaseModel):
     project_id: str
     bando_id: str
@@ -327,6 +390,8 @@ class BudgetValidationResponse(BaseModel):
     total_rejected_eur: float
     items: List[CostItemValidated]
     budget_checks: List[BudgetCheck] = Field(default_factory=list)
+    trace: Optional[AlgorithmTrace] = None
+    run_id: Optional[int] = Field(default=None, description="Identificativo dell'esecuzione nella memoria (HQ)")
     merkle_root: str
     cep_id: str = Field(..., description="Identificativo del Cryptographic Evidence Package")
     llm_explanation_summary: str

@@ -1,10 +1,10 @@
 """Registro di asseverazione (catena di hash firmata) e Auditor Portal."""
 import logging
 
-from fastapi import APIRouter, BackgroundTasks, Body, Depends, HTTPException, Query, status
+from fastapi import APIRouter, BackgroundTasks, Body, Depends, HTTPException, Query, Request, status
 
-from app.api.deps import auditor_engine, require_auth
-from app.core import webhooks
+from app.api.deps import actor_of, auditor_engine, require_auth
+from app.core import events, webhooks
 from app.core.budget_service import cep_id_for
 from app.core.registry import (AlreadyRegisteredError, Registry, attestation_dict, current_public_key, project_key,
                                trusted_public_keys, verify_attestation)
@@ -15,6 +15,15 @@ router = APIRouter()
 logger = logging.getLogger("quanto.registry")
 
 ROOT_PATTERN = r"^(0x)?[0-9a-fA-F]{64}$"
+
+
+def _log_verify(op: str, res: AuditVerificationResponse, http: Request, timer) -> None:
+    verdict = "VALIDO e inalterato" if res.is_valid_and_unaltered else ("NON registrato" if not res.registration_found else "NON valido")
+    events.record(op, f"Verifica: {verdict}" + (" (ricalcolo dai dati)" if res.recomputed_from_data else ""),
+                  status="OK" if res.is_valid_and_unaltered else ("NOT_FOUND" if not res.registration_found else "FAIL"),
+                  project_id=res.project_id, actor=actor_of(http), duration_ms=timer.ms,
+                  details={"valid": res.is_valid_and_unaltered, "signature_valid": res.signature_valid, "chain_intact": res.chain_intact,
+                           "recomputed": res.recomputed_from_data, "provided_root": res.provided_merkle_root, "registered_root": res.registered_merkle_root})
 
 
 def _response(project_id: str, att) -> RegistrationResponse:
@@ -38,15 +47,21 @@ def public_key() -> dict:
 
 @router.post("/register", response_model=RegistrationResponse, status_code=status.HTTP_201_CREATED,
              dependencies=[Depends(require_auth)], summary="Registra la Merkle Root di un budget nel registro firmato")
-def register_merkle_root(request: RegistrationRequest, background: BackgroundTasks) -> RegistrationResponse:
+def register_merkle_root(request: RegistrationRequest, background: BackgroundTasks, http: Request) -> RegistrationResponse:
+    timer = events.Timer()
     try:
         att = Registry.register(request.project_id, request.merkle_root)
     except AlreadyRegisteredError as exc:
+        events.record("registry.register", "Registrazione respinta: progetto già registrato" + (" (stessa radice)" if exc.same_root else " con radice diversa"),
+                      status="CONFLICT", project_id=request.project_id, actor=actor_of(http), duration_ms=timer.ms, details={"same_root": exc.same_root})
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail={
             "message": "Budget già registrato per questo progetto", "already_registered": True,
             "same_root": exc.same_root, "existing_merkle_root": "0x" + exc.existing_root}) from exc
     except ValueError as exc:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+    events.record("registry.register", f"Registrata la radice {att.merkle_root[:14]}… come voce n. {att.seq}", project_id=request.project_id,
+                  actor=actor_of(http), duration_ms=timer.ms,
+                  details={"seq": att.seq, "merkle_root": "0x" + att.merkle_root, "entry_hash": att.entry_hash, "prev_hash": att.prev_hash, "key_id": att.key_id})
     background.add_task(webhooks.emit, "event.budget.registered", {"project_key": att.project_key, "merkle_root": "0x" + att.merkle_root, "seq": att.seq})
     return _response(request.project_id, att)
 
@@ -60,20 +75,29 @@ def get_attestation(project_id: str) -> RegistrationResponse:
 
 
 @router.get("/verify/{project_id}", response_model=AuditVerificationResponse, summary="Verifica una Merkle Root contro il registro (Auditor Portal)")
-def verify_root(project_id: str, merkle_root: str = Query(..., pattern=ROOT_PATTERN)) -> AuditVerificationResponse:
-    return auditor_engine.verify_root(project_id, merkle_root)
+def verify_root(project_id: str, http: Request, merkle_root: str = Query(..., pattern=ROOT_PATTERN)) -> AuditVerificationResponse:
+    timer = events.Timer()
+    res = auditor_engine.verify_root(project_id, merkle_root)
+    _log_verify("registry.verify_root", res, http, timer)
+    return res
 
 
 @router.post("/verify/recompute", response_model=AuditVerificationResponse, summary="Ricalcola la Merkle Root dai dati originali e la verifica")
-def verify_from_original_data(request: AuditRecomputeRequest) -> AuditVerificationResponse:
+def verify_from_original_data(request: AuditRecomputeRequest, http: Request) -> AuditVerificationResponse:
+    timer = events.Timer()
     if not request.cost_items:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Nessuna riga di costo da ricalcolare.")
-    return auditor_engine.verify_from_data(request.project_id, request.cost_items, request.grant_rules,
-                                           entity_liquidity_eur=request.entity_liquidity_eur, baseline_totals=request.baseline_totals)
+    res = auditor_engine.verify_from_data(request.project_id, request.cost_items, request.grant_rules,
+                                          entity_liquidity_eur=request.entity_liquidity_eur, baseline_totals=request.baseline_totals)
+    _log_verify("registry.verify_recompute", res, http, timer)
+    return res
 
 
 @router.post("/verify/attestation", summary="Verifica OFFLINE di un'attestazione con la sola chiave pubblica di fiducia")
-def verify_attestation_offline(attestation: dict = Body(...)) -> dict:
+def verify_attestation_offline(http: Request, attestation: dict = Body(...)) -> dict:
+    timer = events.Timer()
     valid = verify_attestation({k: attestation.get(k) for k in ("seq", "project_key", "merkle_root", "registered_at", "prev_hash", "key_id", "entry_hash", "public_key", "signature")}
                                | {"merkle_root": str(attestation.get("merkle_root", "")).removeprefix("0x")}, trusted_public_keys())
+    events.record("registry.verify_attestation", "Attestazione " + ("valida" if valid else "NON valida"), status="OK" if valid else "FAIL",
+                  actor=actor_of(http), duration_ms=timer.ms, details={"valid": valid})
     return {"valid": valid, "trusted_key_ids": [current_public_key()["key_id"]]}

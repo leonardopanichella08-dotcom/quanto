@@ -16,6 +16,7 @@ from __future__ import annotations
 import hashlib
 import json
 import re
+from enum import Enum
 from dataclasses import dataclass
 from datetime import date, datetime
 from decimal import Decimal, InvalidOperation
@@ -24,6 +25,7 @@ from typing import Any, Dict, List, Optional
 from pydantic import TypeAdapter, ValidationError
 
 from app.core.db import connect
+from app.core.requirements_extractor import extract_more_rules, extract_requirements
 from app.models.schemas import GrantRuleSet
 
 IDENTITY_FIELDS = {"bando_id", "bando_name", "rule_version_hash"}
@@ -94,9 +96,13 @@ def normalize_value(rule_key: str, value: Any) -> str:
         raise ValueError(f"Valore non valido per {rule_key}: {exc.errors()[0]['msg']}") from None
     if isinstance(parsed, (int, float, Decimal)) and not isinstance(parsed, bool):
         return format(Decimal(str(parsed)).normalize(), "f")
+    if isinstance(parsed, Enum):
+        return str(parsed.value)
     if isinstance(parsed, (date, datetime)):
         return parsed.isoformat()
-    return json.dumps(parsed, sort_keys=True) if isinstance(parsed, (list, dict)) else str(parsed).lower() if isinstance(parsed, bool) else str(parsed)
+    if isinstance(parsed, (list, dict)):
+        return json.dumps(parsed, sort_keys=True, default=lambda o: o.value if isinstance(o, Enum) else str(o))
+    return str(parsed).lower() if isinstance(parsed, bool) else str(parsed)
 
 
 def extract_deterministic(text: str) -> Dict[str, str]:
@@ -118,6 +124,12 @@ def extract_deterministic(text: str) -> Dict[str, str]:
                 found[key] = normalize_value(key, convert(m))
             except (ValueError, InvalidOperation):
                 continue
+    for key, value in extract_more_rules(text).items():
+        if key not in found:
+            try:
+                found[key] = normalize_value(key, value)
+            except ValueError:
+                continue
     return found
 
 
@@ -127,6 +139,7 @@ class ExtractionOutcome:
     pending_review: List[str]
     cache_hit: bool
     coverage_activated: bool
+    requirements: Optional[List[dict]] = None
 
 
 class Ingestion:
@@ -169,7 +182,8 @@ class Ingestion:
                 raise KeyError(bando_id)
             existing = {r["rule_key"]: r for r in conn.execute("SELECT * FROM rules WHERE bando_id=?", (bando_id,)).fetchall()}
             cache_hit = any(r["status"] == "PUBLISHED" for r in existing.values())
-            had_core = all(k in existing and existing[k]["status"] == "PUBLISHED" for k in CORE_KEYS)
+            had_complete = cache_hit and not any(r["status"] == "PENDING_REVIEW" for r in existing.values())
+            reqs: List[dict] = []
 
             def put(key: str, value: Optional[str], origin: str, status: str, passes: Optional[list] = None) -> None:
                 conn.execute(
@@ -187,6 +201,12 @@ class Ingestion:
                         put(key, value, "STRUCTURED_PARSING", "PUBLISHED")
                         published[key] = value
                         existing[key] = {"status": "PUBLISHED"}
+                reqs = extract_requirements(source_text)
+                conn.execute("DELETE FROM requirements WHERE bando_id=? AND origin='STRUCTURED_PARSING'", (bando_id,))
+                base = conn.execute("SELECT COALESCE(MAX(seq), 0) m FROM requirements WHERE bando_id=?", (bando_id,)).fetchone()["m"]
+                for i, r in enumerate(reqs, base + 1):
+                    conn.execute("INSERT INTO requirements (bando_id, seq, topic, kind, text, criteria, source_ref, origin) VALUES (?,?,?,?,?,?,?,?)",
+                                 (bando_id, i, r["topic"], r["kind"], r["text"], json.dumps(r["criteria"]), source_ref or r["source_ref"], "STRUCTURED_PARSING"))
 
             if ai_passes:                                              # Stadio 3: il confronto lo fa il codice
                 keys = sorted({k for p in ai_passes for k in p})
@@ -208,10 +228,12 @@ class Ingestion:
                         put(key, None, "MULTI_PASS_AGREEMENT", "PENDING_REVIEW", normalized)
                         pending.append(key)
 
-            core_ok = all(is_published(k) for k in CORE_KEYS)
+            any_published = any(r["status"] == "PUBLISHED" for r in existing.values())
+            still_pending = bool(pending) or any(r["status"] == "PENDING_REVIEW" for r in existing.values())
+            complete = any_published and not still_pending
             conn.execute("UPDATE bandi SET extraction_status=?, catalog_status='MATCHED' WHERE bando_id=?",
-                         ("COMPLETED" if core_ok else "PARTIAL", bando_id))
-        return ExtractionOutcome(published, pending, cache_hit, coverage_activated=core_ok and not had_core)
+                         ("COMPLETED" if complete else "PARTIAL", bando_id))
+        return ExtractionOutcome(published, pending, cache_hit, coverage_activated=complete and not had_complete, requirements=reqs)
 
     # ------------------------------------------------------------------ revisione umana
     @staticmethod
@@ -228,8 +250,8 @@ class Ingestion:
             if row is None:
                 raise KeyError(rule_key)
             conn.execute("UPDATE rules SET value=?, origin='HUMAN_REVIEW', status='PUBLISHED' WHERE bando_id=? AND rule_key=?", (normalized, bando_id, rule_key))
-            core_ok = all(conn.execute("SELECT 1 FROM rules WHERE bando_id=? AND rule_key=? AND status='PUBLISHED'", (bando_id, k)).fetchone() for k in CORE_KEYS)
-            conn.execute("UPDATE bandi SET extraction_status=? WHERE bando_id=?", ("COMPLETED" if core_ok else "PARTIAL", bando_id))
+            pending_left = conn.execute("SELECT COUNT(*) c FROM rules WHERE bando_id=? AND status='PENDING_REVIEW'", (bando_id,)).fetchone()["c"]
+            conn.execute("UPDATE bandi SET extraction_status=? WHERE bando_id=?", ("PARTIAL" if pending_left else "COMPLETED", bando_id))
         return normalized
 
     # ------------------------------------------------------------------ stato e composizione del GrantRuleSet
@@ -250,21 +272,21 @@ class Ingestion:
             "rules_with_pass_agreement": sum(1 for r in published if r["origin"] == "MULTI_PASS_AGREEMENT"),
             "rules_pending_human_review": sum(1 for r in rows if r["status"] == "PENDING_REVIEW"),
             "rules_human_reviewed": sum(1 for r in published if r["origin"] == "HUMAN_REVIEW"),
+            "rules_from_curated_source": sum(1 for r in published if r["origin"] == "CURATED_SOURCE"),
             "requested_by_clients_count": bando["requested_by_clients"],
         }
 
     @classmethod
     def build_rule_set(cls, bando_id: str) -> tuple[Optional[GrantRuleSet], List[str]]:
-        """Compone il ``GrantRuleSet`` dalle regole pubblicate. Se mancano le regole di base restituisce (None, mancanti)."""
+        """Compone il ``GrantRuleSet`` dalle sole regole pubblicate (le altre restano ``None``: nessun default inventato)."""
         bando = cls.get_bando(bando_id)
         if bando is None:
             raise KeyError(bando_id)
         with connect() as conn:
             rows = conn.execute("SELECT rule_key, value FROM rules WHERE bando_id=? AND status='PUBLISHED' ORDER BY rule_key", (bando_id,)).fetchall()
         values = {r["rule_key"]: r["value"] for r in rows}
-        missing = [k for k in CORE_KEYS if k not in values]
-        if missing:
-            return None, missing
+        if not values:
+            return None, ["nessuna regola pubblicata"]
         version = hashlib.sha256(json.dumps(values, sort_keys=True, separators=(",", ":")).encode("utf-8")).hexdigest()[:32]
         parsed: Dict[str, Any] = {}
         for k, v in values.items():

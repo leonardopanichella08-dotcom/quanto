@@ -55,6 +55,21 @@ class MerkleTreeEngine:
         return level[0]
 
     @classmethod
+    def build_levels(cls, leaf_hashes: List[str]) -> List[List[str]]:
+        """Tutti i livelli dell'albero (foglie -> radice), per la visualizzazione. Stessa costruzione di ``compute_merkle_root``."""
+        if not leaf_hashes:
+            return [[EMPTY_ROOT]]
+        level = [cls.hash_leaf(h) for h in leaf_hashes]
+        levels = [level]
+        while len(level) > 1:
+            nxt = [cls._combine(level[i], level[i + 1]) for i in range(0, len(level) - 1, 2)]
+            if len(level) % 2:
+                nxt.append(level[-1])
+            levels.append(nxt)
+            level = nxt
+        return levels
+
+    @classmethod
     def generate_merkle_proof(cls, leaf_hashes: List[str], target_hash: str) -> List[Dict[str, str]]:
         """Prova di inclusione: nodi fratelli dal basso verso la radice ([] se la foglia non c'è)."""
         if target_hash not in leaf_hashes:

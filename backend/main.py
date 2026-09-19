@@ -17,7 +17,7 @@ app = FastAPI(
 _origins = [o.strip() for o in os.getenv("QUANTO_CORS_ORIGINS", "http://localhost:5173,http://127.0.0.1:5173").split(",") if o.strip()]
 app.add_middleware(
     CORSMiddleware, allow_origins=_origins, allow_credentials=False,
-    allow_methods=["GET", "POST"], allow_headers=["Content-Type", "Authorization", "X-Quanto-Timestamp", "X-Quanto-Signature"],
+    allow_methods=["GET", "POST"], allow_headers=["Content-Type", "Authorization", "X-Quanto-Timestamp", "X-Quanto-Signature", "X-HQ-Token"],
 )
 
 app.include_router(api_router)

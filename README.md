@@ -14,7 +14,7 @@ frontend/  React + Vite + Tailwind (nessun calcolo monetario lato client)
 ```bash
 cd backend && python -m venv .venv && .venv/Scripts/activate   # Linux/mac: source .venv/bin/activate
 pip install -r requirements-dev.txt
-python -m pytest                                               # 165 test
+python -m pytest                                               # 223 test
 uvicorn main:app --reload --port 8000                          # http://localhost:8000/docs
 
 cd ../frontend && npm install && npm run dev                   # http://localhost:5173 (proxy /api -> :8000)
@@ -23,6 +23,33 @@ cd ../frontend && npm install && npm run dev                   # http://localhos
 Configurazione: `backend/.env.example`. **In produzione impostare almeno `QUANTO_SIGNING_KEY`, `QUANTO_PII_KEY`,
 `QUANTO_DB_PATH` (volume persistente) e `QUANTO_AUTH_REQUIRED=1`.** Senza `QUANTO_SIGNING_KEY` il server usa una chiave di
 sviluppo e la UI lo segnala: le attestazioni non hanno valore probatorio.
+
+## Le pagine dell'app
+
+| Pagina | A cosa serve |
+|---|---|
+| **Bandi** | Libreria dei bandi: per ciascuno le regole con fonte e livello di confidenza, i **gap dichiarati** e la copertura dei 60 criteri (regola del bando / solo dati / non attivo). Da qui si "usa" un bando nel Budget; si può caricare il testo o il PDF di un bando nuovo, da cui un estrattore deterministico ricava i requisiti (quelli non classificabili restano *da revisionare*). |
+| **Budget** | Elenco voci di costo (tutte le categorie: personale, beni, consulenze, spese generali, formazione). Demo *realistica* (15 voci) o *stress* (46 voci che attivano tutti i 60 criteri), import/template Excel, editor di riga guidato dal catalogo campi; ogni modifica ri-valida. Registrazione della Merkle Root. |
+| **Algoritmo** | Vista grafica di ciò che fa il motore: pipeline a stadi con tempi, mappa criteri×voci, cascata degli importi, passi per voce (PASS / ADJUSTED / REJECTED / SUSPENDED con delta), massimali risolti in forma chiusa, albero di Merkle. Riproduzione animata. |
+| **Allocazione** | MILP (HiGHS) che distribuisce il budget sui fondi rispettando tetti, quote, non cumulabilità, de minimis e finestre mensili; what-if e tre obiettivi. |
+| **Pattern** | Confronto della ripartizione tra macro-categorie con archetipi di budget premiati (coseno + scostamento in pp). Non stima la probabilità di vincita. |
+| **Auditor** | Verifica che un budget non sia stato alterato: confronto radice presentata/ricalcolata con il registro firmato; simula manomissione. |
+| **Quartier Generale** | Area manager con codice (`QUANTO_HQ_CODE`, default `QUANTO_1`): panoramica KPI, timeline di ogni operazione, mappa delle operazioni, fascicoli per progetto, documenti e bandi lavorati, esplorazione (sola lettura) del database, ripresa di una run nell'Algoritmo. |
+
+### Quartier Generale e memoria
+Ogni operazione (validazione, registrazione, ingestion, allocazione, import…) viene scritta in `events`; ogni validazione
+salva la *traccia completa* dell'algoritmo in `runs` (rivedibile dall'HQ; run identiche non sono duplicate). Le descrizioni sono
+ripulite da IBAN/CF prima del salvataggio. Il codice HQ è verificato **lato server** (confronto a tempo costante, blocco dopo
+5 tentativi/10 min, token HMAC in `X-HQ-Token`); il database è esposto solo in lettura e solo per tabelle in whitelist.
+**Il default `QUANTO_1` è un segreto debole e pubblico in questo README: impostare `QUANTO_HQ_CODE` in produzione.**
+
+### Bandi: cosa è (e cosa non è) la "comprensione" del bando
+Il catalogo (`app/data/bandi_catalog.py`) contiene 6 bandi con regole compilate a mano da **fonti secondarie/ufficiali
+consultate**, ognuna con fonte e confidenza. Non è una lettura automatica garantita del testo: l'estrattore sui bandi caricati
+è deterministico (tassonomia → criteri) e segnala come *da revisionare* ciò che non sa classificare. FNC3-2024 è **parziale**.
+Un caso reale: un riepilogo automatico dava Horizon al 15% di indiretti, il documento ufficiale dice 25% — per questo le regole
+vanno verificate sul testo ufficiale prima dell'uso operativo. Se un bando non definisce una regola, il criterio è "non
+valutato": nessun default inventato.
 
 ## Come funziona l'asseverazione (senza blockchain)
 
@@ -52,7 +79,8 @@ che `head_hash` (`/registry/status`) sia pubblicato periodicamente (PEC, reposit
 | Autenticazione ERP: OAuth 2.0 client-credentials (JWT HS256) o firma HMAC delle richieste | ✅ — attiva con `QUANTO_AUTH_REQUIRED=1` |
 | Validatore Numerico + LLM Renderer | ✅ — nessun client LLM di default (`LLMClient` è il punto di estensione) |
 | **Dati illustrativi**: tabelle CCNL/oneri/TFR (Fonte B), maggiorazione tempo determinato, limite occasionali, archetipi del pattern matching | ⚠️ da sostituire con fonti ufficiali |
-| Persistenza | ⚠️ SQLite (`QUANTO_DB_PATH`). PostgreSQL/pgvector non implementati; su Vercel il filesystem è volatile |
+| Quartier Generale, timeline, memoria (eventi/run/documenti/bandi), Algoritmo grafico, libreria Bandi, demo a 46 voci su tutte le categorie, import/template Excel | ✅ |
+| Persistenza | ⚠️ SQLite (`QUANTO_DB_PATH`). PostgreSQL/pgvector non implementati; su Vercel il filesystem è volatile: **la memoria dell'HQ si azzera ai cold start** finché non si collega un DB esterno |
 | Ingestione Fonte B da portali istituzionali, parser OCR di buste paga/F24 (Fonte C), Reparto consulenza, assicurazione | ❌ non implementati |
 
 ## Scelte che divergono dalla specifica (e perché)
@@ -75,6 +103,5 @@ che `head_hash` (`/registry/status`) sia pubblicato periodicamente (PEC, reposit
 
 `vercel.json` in root espone il frontend statico e le API FastAPI come funzione Python. Repository, remote e variabili
 (`vercel env add …`) vanno creati/collegati manualmente: chiavi e segreti solo in Vercel/GitHub Secrets, mai nel codice.
-La CI (`.github/workflows/ci.yml`) presuppone che `quanto/` sia la root del repository. Il routing Vercel **non è stato
-verificato con un deploy reale**; poiché il registro deve persistere, su Vercel serve un database esterno (l'adattatore SQLite
+La CI (`.github/workflows/ci.yml`) presuppone che `quanto/` sia la root del repository. Poiché il registro deve persistere, su Vercel serve un database esterno (l'adattatore SQLite
 in `app/core/db.py` va sostituito) — con SQLite in `/tmp` le registrazioni si perdono a ogni cold start.

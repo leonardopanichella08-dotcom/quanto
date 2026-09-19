@@ -1,0 +1,93 @@
+"""Catalogo di TUTTE le operazioni fattibili nell'app, con le fasi di ciascun processo.
+
+Alimenta la "Mappa delle operazioni" del Quartier Generale: per ogni operazione mostra a cosa serve, quali fasi
+attraversa (nell'ordine in cui il motore le esegue), quali criteri coinvolge e quante volte è stata eseguita.
+I nomi (``id``) coincidono con il campo ``op`` degli eventi registrati.
+"""
+from __future__ import annotations
+
+from typing import Any, Dict, List
+
+OPERATIONS: List[Dict[str, Any]] = [
+    {"id": "bandi.select", "area": "Bandi", "title": "Selezionare un bando",
+     "description": "Sceglie il bando su cui lavorare: carica le regole pubblicate, ne calcola la versione (hash) e la copertura dei 60 criteri.",
+     "stages": ["Legge le regole pubblicate", "Compone il GrantRuleSet (hash di versione)", "Calcola la copertura dei 60 criteri", "Registra la scelta"],
+     "endpoint": "POST /bandi/{id}/select", "criteria": []},
+    {"id": "bando.upload", "area": "Bandi", "title": "Caricare e analizzare un bando (testo o PDF)",
+     "description": "Comprende un bando nuovo: estrae le regole numeriche, l'ambito delle categorie e tutti i requisiti, collegandoli ai criteri.",
+     "stages": ["Ricezione del file e hash SHA-256", "Estrazione del testo (PDF)", "Regole numeriche deterministiche", "Ambito delle categorie ammesse",
+                "Tassonomia dei requisiti → 60 criteri", "Obblighi non classificati in revisione umana", "Salvataggio della fonte e dei requisiti"],
+     "endpoint": "POST /bandi/upload", "criteria": list(range(1, 61))},
+    {"id": "ingestion.catalog", "area": "Ingestion", "title": "Censire un bando nel catalogo",
+     "description": "Stadio 1: registra i soli metadati del bando (nome, ente, scadenza), senza toccare regole.",
+     "stages": ["Validazione dei metadati", "Upsert nel catalogo"], "endpoint": "POST /ingestion/catalog", "criteria": []},
+    {"id": "ingestion.confirm", "area": "Ingestion", "title": "Confermare un bando (trigger estrazione / cache)",
+     "description": "Il cliente conferma il bando: incrementa le richieste e dice se le regole sono già in cache.",
+     "stages": ["Incrementa il contatore richieste", "Verifica le regole già pubblicate (cache)"], "endpoint": "POST /ingestion/confirm/{id}", "criteria": []},
+    {"id": "ingestion.extract", "area": "Ingestion", "title": "Estrarre le regole (Stadi 2 e 3)",
+     "description": "Estrazione deterministica dal testo e confronto tra passaggi indipendenti; i disaccordi vanno alla coda di verifica umana.",
+     "stages": ["Cache: regole già pubblicate?", "Stadio 2: parsing deterministico", "Stadio 3: confronto dei passaggi (fatto dal codice)", "Pubblicazione / coda di revisione", "Stato del bando"],
+     "endpoint": "POST /ingestion/extract", "criteria": []},
+    {"id": "ingestion.review", "area": "Ingestion", "title": "Risolvere un disaccordo (revisione umana)",
+     "description": "Un consulente indica il valore corretto di una regola in disaccordo: viene pubblicata come HUMAN_REVIEW.",
+     "stages": ["Validazione del valore", "Pubblicazione della regola", "Aggiornamento dello stato del bando"], "endpoint": "POST /ingestion/review", "criteria": []},
+    {"id": "budget.demo", "area": "Missione Uno", "title": "Caricare uno scenario demo",
+     "description": "Genera un budget di esempio adattato alle regole del bando: 46 voci (stress-test) o 15 voci (progetto realistico).",
+     "stages": ["Legge le regole del bando", "Adatta le date alla finestra di ammissibilità", "Compone le voci per categoria"],
+     "endpoint": "GET /budget/demo", "criteria": list(range(1, 61))},
+    {"id": "budget.import", "area": "Missione Uno", "title": "Importare le voci da Excel/CSV",
+     "description": "Legge un file .xlsx/.csv, converte le celle nei tipi del modello e segnala gli errori riga per riga.",
+     "stages": ["Lettura del file e hash", "Mappatura delle colonne", "Conversione dei tipi", "Validazione riga per riga", "Restituzione di voci ed errori"],
+     "endpoint": "POST /budget/import", "criteria": []},
+    {"id": "budget.template", "area": "Missione Uno", "title": "Scaricare il template Excel",
+     "description": "Foglio con tutte le colonne (una per campo), righe d'esempio e guida ai campi con i criteri collegati.",
+     "stages": ["Legge il catalogo dei campi", "Compone il foglio Voci e la Guida"], "endpoint": "GET /budget/template.xlsx", "criteria": []},
+    {"id": "budget.validate", "area": "Missione Uno", "title": "Validare il budget",
+     "description": "Applica i 60 criteri a ogni voce, risolve i massimali sul totale, esegue i controlli sull'intero budget e sigilla ogni riga con un hash.",
+     "stages": ["Validazione dello schema", "Criteri di riga (Fonte A, B, C)", "Somma FTE per lavoratore (criterio 8)", "Massimali % sul totale finale (26, 31, 36, 37)",
+                "Controlli sull'intero budget (48, 49, 55, 56, 60)", "Hash SHA-256 di riga", "Albero di Merkle e radice", "Sintesi con validatore numerico", "Salvataggio nella memoria"],
+     "endpoint": "POST /budget/validate", "criteria": list(range(1, 61))},
+    {"id": "budget.export_xlsx", "area": "Missione Uno", "title": "Esportare il budget in Excel",
+     "description": "Rivalida il budget e produce un XLSX con CEP-ID, radice di Merkle e QR verso l'Auditor Portal.",
+     "stages": ["Rivalidazione deterministica", "Radice e CEP-ID", "QR verso l'Auditor Portal", "Impaginazione", "Registrazione del documento"],
+     "endpoint": "POST /budget/export/xlsx", "criteria": []},
+    {"id": "budget.export_pdf", "area": "Missione Uno", "title": "Esportare il budget in PDF",
+     "description": "Come l'export Excel, in PDF con tabella, controlli di budget e QR.",
+     "stages": ["Rivalidazione deterministica", "Radice e CEP-ID", "QR verso l'Auditor Portal", "Impaginazione", "Registrazione del documento"],
+     "endpoint": "POST /budget/export/pdf", "criteria": []},
+    {"id": "registry.register", "area": "Registro", "title": "Registrare la Merkle Root",
+     "description": "Scrive l'impronta del budget nel registro append-only a catena di hash, con firma Ed25519.",
+     "stages": ["Normalizzazione della radice", "Collegamento alla voce precedente (prev_hash)", "Hash della voce", "Firma Ed25519", "Scrittura append-only"],
+     "endpoint": "POST /registry/register", "criteria": []},
+    {"id": "registry.verify_root", "area": "Registro", "title": "Verificare una radice (Auditor Portal)",
+     "description": "Confronta la radice presentata con quella registrata; controlla la firma e l'intera catena.",
+     "stages": ["Cerca la registrazione", "Confronta le radici", "Verifica la firma", "Verifica l'integrità della catena"],
+     "endpoint": "GET /registry/verify/{id}", "criteria": []},
+    {"id": "registry.verify_recompute", "area": "Registro", "title": "Ricalcolare dai dati originali",
+     "description": "Ricalcola l'albero dai dati di costo con lo stesso motore e lo confronta con il registro.",
+     "stages": ["Ricalcolo dei 60 criteri", "Ricalcolo della radice di Merkle", "Confronto con il registro", "Verifica di firma e catena"],
+     "endpoint": "POST /registry/verify/recompute", "criteria": list(range(1, 61))},
+    {"id": "registry.verify_attestation", "area": "Registro", "title": "Verificare un'attestazione offline",
+     "description": "Controlla hash e firma di un'attestazione con la sola chiave pubblica di fiducia.",
+     "stages": ["Ricalcola l'hash della voce", "Verifica la chiave di fiducia", "Verifica la firma Ed25519"],
+     "endpoint": "POST /registry/verify/attestation", "criteria": []},
+    {"id": "allocation.optimize", "area": "Missione Due", "title": "Ottimizzare l'allocazione annuale",
+     "description": "Risolve un problema di ottimizzazione vincolata (MILP) che assegna le spese ai fondi minimizzando la spesa netta.",
+     "stages": ["Espansione in sotto-voci mensili", "Coppie voce × fondo ammissibili", "MILP: stadio 1 (massimo risparmio)", "Stadi successivi (obiettivo scelto)",
+                "Riparazione in centesimi interi", "Composizione del piano e della timeline"],
+     "endpoint": "POST /allocation/optimize", "criteria": [46, 47, 49]},
+    {"id": "pattern.match", "area": "Demo", "title": "Confrontare con i budget vincenti",
+     "description": "Similarità del coseno tra la ripartizione del budget e gli archetipi; indica lo scostamento principale.",
+     "stages": ["Normalizzazione delle quote", "Coseno con i 4 archetipi", "Scostamento principale"], "endpoint": "POST /pattern/match", "criteria": []},
+    {"id": "auth.token", "area": "Sicurezza", "title": "Ottenere un token OAuth 2.0",
+     "description": "Client-credentials per l'integrazione con ERP e gestionali.", "stages": ["Verifica client_id e secret", "Emissione del bearer JWT"],
+     "endpoint": "POST /auth/token", "criteria": []},
+    {"id": "hq.login", "area": "Sicurezza", "title": "Accedere al Quartier Generale",
+     "description": "Verifica del codice manager, con blocco temporaneo dopo tentativi errati.", "stages": ["Controllo del blocco", "Confronto del codice a tempo costante", "Emissione del token HQ"],
+     "endpoint": "POST /hq/login", "criteria": []},
+]
+_BY_ID = {o["id"]: o for o in OPERATIONS}
+
+
+def get(op_id: str) -> Dict[str, Any]:
+    return _BY_ID.get(op_id, {"id": op_id, "area": "Altro", "title": op_id, "stages": []})
