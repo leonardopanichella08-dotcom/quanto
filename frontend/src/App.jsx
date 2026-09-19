@@ -1,5 +1,4 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react'
-import { Activity, BarChart3, BookOpen, CalendarRange, FileText, Lock, ShieldCheck } from 'lucide-react'
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import BandiLibrary from './components/BandiLibrary'
 import BudgetCanvas from './components/BudgetCanvas'
 import AlgorithmLab from './components/AlgorithmLab'
@@ -8,11 +7,13 @@ import PatternDemo from './components/PatternDemo'
 import AuditorPortal from './components/AuditorPortal'
 import RegistrationModal from './components/RegistrationModal'
 import HQ from './components/hq/HQ'
+import Guida from './components/Guida'
+import { NavContext } from './lib/nav'
 import { api, download, fileToBase64 } from './lib/api'
 
 const TABS = [
-  ['bandi', 'Bandi', BookOpen], ['canvas', 'Budget', FileText], ['lab', 'Algoritmo', Activity], ['allocation', 'Allocazione', CalendarRange],
-  ['pattern', 'Pattern', BarChart3], ['auditor', 'Auditor', ShieldCheck], ['hq', 'Quartier Generale', Lock],
+  ['bandi', 'Bandi'], ['canvas', 'Budget'], ['lab', 'Algoritmo'], ['allocation', 'Allocazione'],
+  ['pattern', 'Confronto'], ['auditor', 'Verifica'], ['guida', 'Guida'], ['hq', 'Quartier Generale'],
 ]
 
 const params = new URLSearchParams(window.location.search)
@@ -34,6 +35,7 @@ export default function App() {
   const [importInfo, setImportInfo] = useState(null)
   const [modalOpen, setModalOpen] = useState(false)
   const [registry, setRegistry] = useState(null)
+  const [guideAnchor, setGuideAnchor] = useState(null)
   const seq = useRef(0)
   const debounce = useRef(null)
 
@@ -117,42 +119,44 @@ export default function App() {
   }
 
   const openReplay = (response) => { setReplay(response); setTab('lab') }
+  const nav = useMemo(() => ({ go: (t, anchor) => { setGuideAnchor(anchor || null); setTab(t); window.scrollTo({ top: 0 }) } }), [])
 
-  const banner = registry?.offline ? { dot: 'bg-neutral-600', text: 'Backend non raggiungibile', tone: 'text-neutral-400' }
-    : !registry ? { dot: 'bg-neutral-600', text: 'Connessione al registro…', tone: 'text-neutral-400' }
-      : !registry.intact ? { dot: 'bg-red-500', text: `Registro di asseverazione: CATENA NON INTEGRA (voce ${registry.broken_at_seq})`, tone: 'text-red-400' }
-        : registry.is_dev_key ? { dot: 'bg-amber-500', text: `Registro attivo (${registry.entries} voci) — chiave di firma di SVILUPPO`, tone: 'text-amber-400' }
-          : { dot: 'bg-emerald-500', text: `Registro di asseverazione integro (${registry.entries} voci) · chiave ${registry.key_id}`, tone: 'text-emerald-400' }
+  const banner = registry?.offline ? { dot: 'bg-neutral-600', text: 'Il server non risponde', tone: 'text-neutral-400' }
+    : !registry ? { dot: 'bg-neutral-600', text: 'Mi collego al registro…', tone: 'text-neutral-400' }
+      : !registry.intact ? { dot: 'bg-red-500', text: `Attenzione: il registro delle certificazioni è stato alterato (voce ${registry.broken_at_seq})`, tone: 'text-red-400' }
+        : registry.is_dev_key ? { dot: 'bg-amber-500', text: `Registro attivo (${registry.entries} registrazioni) · chiave di prova: le certificazioni non valgono come prova`, tone: 'text-amber-400' }
+          : { dot: 'bg-emerald-500', text: `Registro delle certificazioni integro · ${registry.entries} registrazioni`, tone: 'text-neutral-400' }
 
   const labData = replay || validation
 
   return (
-    <div className="min-h-screen bg-[#0e0e0e] text-neutral-100">
-      <header className="border-b border-neutral-800 bg-neutral-900/60 backdrop-blur-xl sticky top-0 z-40 px-4 md:px-8 py-3 flex flex-wrap items-center justify-between gap-3">
+    <NavContext.Provider value={nav}>
+    <div className="min-h-screen bg-[#0c0c0c] text-neutral-100">
+      <header className="border-b border-neutral-800 bg-[#0c0c0c]/90 backdrop-blur sticky top-0 z-40 px-4 md:px-8 pt-3">
         <div className="flex items-center gap-3">
-          <div className="h-9 w-9 bg-[#deffac] text-black font-black rounded-xl flex items-center justify-center text-xl shadow-[0_0_20px_rgba(222,255,172,0.2)]">Q</div>
+          <div className="h-8 w-8 rounded-lg border border-[#deffac]/60 text-[#deffac] font-bold flex items-center justify-center">Q</div>
           <div>
-            <h1 className="text-lg font-extrabold tracking-tight text-[#deffac] leading-none">QUANTO</h1>
-            <p className="text-[10px] text-neutral-400 uppercase tracking-widest font-mono">Financial Knowledge OS</p>
+            <h1 className="text-base font-semibold tracking-tight leading-none">QUANTO</h1>
+            <p className="text-xs text-neutral-500 mt-1">Controllo dei budget per i bandi</p>
           </div>
         </div>
-        <nav className="flex items-center gap-1 bg-neutral-950 border border-neutral-800 p-1 rounded-xl overflow-x-auto max-w-full">
-          {TABS.map(([id, label, Icon]) => (
-            <button key={id} onClick={() => setTab(id)}
-              className={`px-3 py-2 text-xs font-bold rounded-lg transition flex items-center gap-1.5 whitespace-nowrap ${tab === id ? 'bg-[#deffac] text-black' : 'text-neutral-400 hover:text-white'}`}>
-              <Icon className="w-3.5 h-3.5" />{label}
+        <nav className="flex items-center gap-5 overflow-x-auto max-w-full mt-3 -mb-px" aria-label="Pagine">
+          {TABS.map(([id, label]) => (
+            <button key={id} onClick={() => nav.go(id)} aria-current={tab === id ? 'page' : undefined}
+              className={`pb-2.5 text-sm whitespace-nowrap border-b-2 transition ${tab === id ? 'border-[#deffac] text-white font-medium' : 'border-transparent text-neutral-400 hover:text-white'}`}>
+              {label}
             </button>
           ))}
         </nav>
       </header>
 
       <main className="p-4 md:p-8 max-w-7xl mx-auto space-y-6">
-        <div className="card p-3 px-5 flex flex-wrap items-center justify-between gap-2">
-          <div className="flex items-center gap-3">
-            <div className={`h-2.5 w-2.5 rounded-full ${banner.dot}`} />
-            <span className={`text-xs font-mono ${banner.tone}`}>{banner.text}</span>
+        <div className="flex flex-wrap items-center justify-between gap-2 text-xs">
+          <div className="flex items-center gap-2">
+            <div className={`h-2 w-2 rounded-full ${banner.dot}`} />
+            <span className={banner.tone}>{banner.text}</span>
           </div>
-          <span className="text-[11px] text-neutral-500 font-mono">{bando ? `Bando attivo: ${bando.name}` : 'Nessun bando selezionato'}</span>
+          <span className="text-neutral-500">{bando ? `Bando in uso: ${bando.name}` : 'Nessun bando scelto'}</span>
         </div>
 
         {tab === 'bandi' && <BandiLibrary bandi={bandi} selectedId={bando?.bando_id} onSelect={selectBando} onReload={loadBandi} />}
@@ -164,9 +168,9 @@ export default function App() {
         )}
         {tab === 'lab' && (
           <div className="space-y-4">
-            {replay && <div className="p-3 rounded-xl border border-fuchsia-500/30 bg-fuchsia-500/10 text-fuchsia-200 text-xs flex items-center justify-between gap-3">
-              <span>Stai rivedendo un’esecuzione salvata nella memoria ({replay.project_id} · {replay.bando_id}).</span>
-              <button onClick={() => setReplay(null)} className="font-bold underline">Torna alla validazione corrente</button></div>}
+            {replay && <div className="p-3 rounded-lg border border-[#deffac]/30 bg-[#deffac]/5 text-neutral-200 text-xs flex flex-wrap items-center justify-between gap-3">
+              <span>Stai rivedendo un’esecuzione salvata ({replay.project_id} · {replay.bando_id}).</span>
+              <button onClick={() => setReplay(null)} className="font-semibold text-[#deffac] underline">Torna al controllo corrente</button></div>}
             <AlgorithmLab validation={labData} title={labData?.project_id} criteriaTitles={criteriaTitles} />
           </div>
         )}
@@ -176,6 +180,7 @@ export default function App() {
           <AuditorPortal request={request} defaultProject={params.get('project') || validation?.project_id || request.project_id}
             defaultRoot={params.get('root') || validation?.merkle_root} />
         )}
+        {tab === 'guida' && <Guida anchor={guideAnchor} />}
         {tab === 'hq' && <HQ bandi={bandi} onReplay={openReplay} />}
       </main>
 
@@ -184,5 +189,6 @@ export default function App() {
           cepId={validation.cep_id} registry={registry} attestation={attestation} onRegistered={(a) => { setAttestation(a); loadRegistry() }} />
       )}
     </div>
+    </NavContext.Provider>
   )
 }

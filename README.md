@@ -14,7 +14,7 @@ frontend/  React + Vite + Tailwind (nessun calcolo monetario lato client)
 ```bash
 cd backend && python -m venv .venv && .venv/Scripts/activate   # Linux/mac: source .venv/bin/activate
 pip install -r requirements-dev.txt
-python -m pytest                                               # 223 test
+python -m pytest                                               # 242 test
 uvicorn main:app --reload --port 8000                          # http://localhost:8000/docs
 
 cd ../frontend && npm install && npm run dev                   # http://localhost:5173 (proxy /api -> :8000)
@@ -32,8 +32,9 @@ sviluppo e la UI lo segnala: le attestazioni non hanno valore probatorio.
 | **Budget** | Elenco voci di costo (tutte le categorie: personale, beni, consulenze, spese generali, formazione). Demo *realistica* (15 voci) o *stress* (46 voci che attivano tutti i 60 criteri), import/template Excel, editor di riga guidato dal catalogo campi; ogni modifica ri-valida. Registrazione della Merkle Root. |
 | **Algoritmo** | Vista grafica di ciò che fa il motore: pipeline a stadi con tempi, mappa criteri×voci, cascata degli importi, passi per voce (PASS / ADJUSTED / REJECTED / SUSPENDED con delta), massimali risolti in forma chiusa, albero di Merkle. Riproduzione animata. |
 | **Allocazione** | MILP (HiGHS) che distribuisce il budget sui fondi rispettando tetti, quote, non cumulabilità, de minimis e finestre mensili; what-if e tre obiettivi. |
-| **Pattern** | Confronto della ripartizione tra macro-categorie con archetipi di budget premiati (coseno + scostamento in pp). Non stima la probabilità di vincita. |
-| **Auditor** | Verifica che un budget non sia stato alterato: confronto radice presentata/ricalcolata con il registro firmato; simula manomissione. |
+| **Confronto** (ex Pattern) | Confronto della ripartizione tra macro-categorie con archetipi di budget premiati (coseno + scostamento in pp). Non stima la probabilità di vincita. |
+| **Verifica** (ex Auditor) | Verifica che un budget non sia stato alterato: confronto radice presentata/ricalcolata con il registro firmato; simula manomissione. |
+| **Guida** | Spiegazioni in parole semplici: percorso rapido, **Merkle Root passo passo** (demo interattiva con l'algoritmo vero, `POST /registry/merkle-lab`), ogni funzione con un esempio, glossario. In ogni pagina: striscia "come si usa" e icone `?` / parole sottolineate con spiegazione ed esempio (testi in `frontend/src/data/help.js`). |
 | **Quartier Generale** | Area manager con codice (`QUANTO_HQ_CODE`, default `QUANTO_1`): panoramica KPI, timeline di ogni operazione, mappa delle operazioni, fascicoli per progetto, documenti e bandi lavorati, esplorazione (sola lettura) del database, ripresa di una run nell'Algoritmo. |
 
 ### Quartier Generale e memoria

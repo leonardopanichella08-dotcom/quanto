@@ -31,7 +31,7 @@ def validate_budget(request: BudgetValidationRequest, llm: Optional[LLMClient] =
     leaf_hashes = [i.item_hash_sha256 for i in items]
     levels = MerkleTreeEngine.build_levels(leaf_hashes)
     root = "0x" + MerkleTreeEngine.compute_merkle_root(leaf_hashes)
-    stages.append(PipelineStage(key="MERKLE", label="Albero di Merkle e radice", duration_ms=round((time.perf_counter() - t) * 1000, 3),
+    stages.append(PipelineStage(key="MERKLE", label="Albero di Merkle e Merkle Root", duration_ms=round((time.perf_counter() - t) * 1000, 3),
                                 detail=f"{len(leaf_hashes)} foglie · {len(levels)} livelli · radice {root[:14]}…"))
 
     requested = _sum(i.original_cost_eur for i in items)
@@ -48,8 +48,8 @@ def validate_budget(request: BudgetValidationRequest, llm: Optional[LLMClient] =
     }
     ctx = budget_context(totals)
     text, source = render_with_grounding(ctx, static_budget_summary(ctx), llm)
-    stages.append(PipelineStage(key="EXPLAIN", label="Sintesi testuale con validazione numerica", duration_ms=round((time.perf_counter() - t) * 1000, 3),
-                                detail=f"sorgente: {source} (ogni cifra confrontata con il JSON bloccato)"))
+    stages.append(PipelineStage(key="EXPLAIN", label="Riassunto scritto, con cifre verificate", duration_ms=round((time.perf_counter() - t) * 1000, 3),
+                                detail=f"fonte: {source} — ogni cifra è confrontata con i risultati veri"))
 
     trace = AlgorithmTrace(
         stages=stages, steps=partial["steps"], share_caps=[ShareCapInfo(**c) for c in partial["share_caps"]],

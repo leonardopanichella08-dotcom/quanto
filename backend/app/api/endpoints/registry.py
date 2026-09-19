@@ -1,10 +1,12 @@
 """Registro di asseverazione (catena di hash firmata) e Auditor Portal."""
 import logging
+from typing import List, Optional
 
 from fastapi import APIRouter, BackgroundTasks, Body, Depends, HTTPException, Query, Request, status
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from app.api.deps import actor_of, auditor_engine, require_auth
-from app.core import events, webhooks
+from app.core import events, merkle_lab, webhooks
 from app.core.budget_service import cep_id_for
 from app.core.registry import (AlreadyRegisteredError, Registry, attestation_dict, current_public_key, project_key,
                                trusted_public_keys, verify_attestation)
@@ -40,7 +42,28 @@ def registry_status() -> ChainStatusResponse:
                                reason=chain.reason, key_id=key["key_id"], public_key=key["public_key"], is_dev_key=key["is_dev_key"])
 
 
-@router.get("/public-key", summary="Chiave pubblica Ed25519 di firma (radice di fiducia: da fissare fuori banda)")
+class MerkleLabRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    rows: List[str] = Field(..., min_length=1, max_length=merkle_lab.MAX_ROWS, description="Testi delle righe (l'impronta di riga è lo SHA-256 del testo)")
+    prove_index: Optional[int] = Field(None, ge=0, description="Riga di cui mostrare la prova di inclusione")
+
+    @field_validator("rows")
+    @classmethod
+    def _rows_ok(cls, v: List[str]) -> List[str]:
+        if any(not r.strip() or len(r) > 200 for r in v):
+            raise ValueError("ogni riga deve avere da 1 a 200 caratteri")
+        return v
+
+
+@router.post("/merkle-lab", summary="Didattica: calcola la Merkle Root passo passo su righe di esempio (stesso algoritmo del sistema)")
+def merkle_lab_endpoint(request: MerkleLabRequest) -> dict:
+    try:
+        return merkle_lab.explain(request.rows, request.prove_index)
+    except ValueError as e:
+        raise HTTPException(status_code=422, detail=str(e)) from e
+
+
+@router.get("/public-key",summary="Chiave pubblica Ed25519 di firma (radice di fiducia: da fissare fuori banda)")
 def public_key() -> dict:
     return current_public_key()
 

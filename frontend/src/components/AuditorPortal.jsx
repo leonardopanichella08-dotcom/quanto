@@ -1,16 +1,18 @@
 import React, { useEffect, useState } from 'react'
-import { AlertOctagon, CheckCircle2, HelpCircle, ShieldCheck } from 'lucide-react'
+import { AlertOctagon, CheckCircle2, HelpCircle } from 'lucide-react'
 import { api } from '../lib/api'
-import PageIntro from './PageIntro'
+import { useNav } from '../lib/nav'
+import Guide from './Guide'
+import { Hint } from './Help'
 
 function Verdict({ r }) {
   if (!r.registration_found) {
     return (
-      <div className="p-4 bg-amber-500/10 border border-amber-500/30 rounded-xl flex items-center gap-3">
-        <HelpCircle className="w-8 h-8 text-amber-400 shrink-0" />
+      <div className="p-4 border border-amber-500/30 rounded-xl flex items-center gap-3">
+        <HelpCircle className="w-7 h-7 text-amber-400 shrink-0" />
         <div>
-          <h4 className="font-bold text-amber-400 text-sm">Nessuna registrazione trovata per questo progetto</h4>
-          <p className="text-xs text-amber-300/80">Il registro non contiene alcuna Merkle Root: l’integrità non può essere attestata.</p>
+          <h4 className="font-semibold text-amber-300 text-sm">Nessuna registrazione trovata per questo progetto</h4>
+          <p className="text-xs text-amber-200/80">Nel registro non c’è nessuna impronta per questo progetto: non posso confermare che il budget sia integro.</p>
         </div>
       </div>
     )
@@ -18,37 +20,38 @@ function Verdict({ r }) {
   const ok = r.is_valid_and_unaltered
   const Icon = ok ? CheckCircle2 : AlertOctagon
   const t = ok
-    ? { box: 'bg-emerald-500/10 border-emerald-500/30', icon: 'text-emerald-400', title: 'text-emerald-400', text: 'text-emerald-300/80', pill: 'text-emerald-400 bg-emerald-500/20' }
-    : { box: 'bg-red-500/10 border-red-500/30', icon: 'text-red-400', title: 'text-red-400', text: 'text-red-300/80', pill: 'text-red-400 bg-red-500/20' }
-  let why = 'La Merkle Root ricalcolata coincide al 100% con quella registrata; firma e catena del registro sono integre.'
+    ? { box: 'border-emerald-500/30', icon: 'text-emerald-400', title: 'text-emerald-300', text: 'text-emerald-200/80', pill: 'text-emerald-300 border-emerald-500/30' }
+    : { box: 'border-red-500/30', icon: 'text-red-400', title: 'text-red-300', text: 'text-red-200/80', pill: 'text-red-300 border-red-500/30' }
+  let why = 'L’impronta ricalcolata coincide con quella registrata; la firma e la catena del registro sono integre.'
   if (!ok) {
-    if (!r.chain_intact) why = 'La catena del registro NON è integra: il registro è stato alterato dopo la registrazione.'
-    else if (!r.signature_valid) why = 'La firma della voce non è valida o proviene da una chiave non di fiducia.'
-    else why = 'La Merkle Root presentata è diversa da quella registrata: il budget è stato modificato dopo la registrazione o è un altro documento.'
+    if (!r.chain_intact) why = 'Il registro è stato alterato dopo la registrazione.'
+    else if (!r.signature_valid) why = 'La firma non è valida oppure è di una chiave di cui non ci si fida.'
+    else why = 'L’impronta è diversa da quella registrata: il budget è stato modificato dopo la registrazione, oppure è un altro budget.'
   }
   return (
-    <div className={`p-4 border rounded-xl flex items-center justify-between gap-4 ${t.box}`}>
-      <div className="flex items-center gap-3">
-        <Icon className={`w-8 h-8 shrink-0 ${t.icon}`} />
-        <div>
-          <h4 className={`font-bold text-sm ${t.title}`}>{ok ? 'Budget asseverato e inalterato' : 'ATTENZIONE: verifica fallita'}</h4>
+    <div className={`p-4 border rounded-xl flex flex-wrap items-center justify-between gap-4 ${t.box}`}>
+      <div className="flex items-center gap-3 min-w-0">
+        <Icon className={`w-7 h-7 shrink-0 ${t.icon}`} />
+        <div className="min-w-0">
+          <h4 className={`font-semibold text-sm ${t.title}`}>{ok ? 'Budget certificato e non modificato' : 'ATTENZIONE: verifica non superata'}</h4>
           <p className={`text-xs ${t.text}`}>{why}</p>
         </div>
       </div>
-      <span className={`text-xs font-mono px-3 py-1 rounded-full whitespace-nowrap ${t.pill}`}>{r.verification_time_seconds}s</span>
+      <span className={`text-xs font-mono px-3 py-1 rounded-full whitespace-nowrap border ${t.pill}`}>{r.verification_time_seconds}s</span>
     </div>
   )
 }
 
 function Chip({ ok, label }) {
   return (
-    <span className={`px-2 py-1 rounded-lg text-[11px] font-semibold border ${ok ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-300' : 'bg-red-500/10 border-red-500/30 text-red-300'}`}>
+    <span className={`px-2 py-1 rounded-lg text-xs font-medium border ${ok ? 'border-emerald-500/30 text-emerald-300' : 'border-red-500/30 text-red-300'}`}>
       {ok ? '✓' : '✗'} {label}
     </span>
   )
 }
 
 export default function AuditorPortal({ request, defaultProject, defaultRoot }) {
+  const nav = useNav()
   const [projectId, setProjectId] = useState(defaultProject || '')
   const [root, setRoot] = useState(defaultRoot || '')
   const [tamper, setTamper] = useState(false)
@@ -77,61 +80,66 @@ export default function AuditorPortal({ request, defaultProject, defaultRoot }) 
 
   return (
     <div className="space-y-6">
-    <PageIntro title="Auditor Portal" tips={['“Verifica radice”: confronta l’impronta presentata (es. dal QR di un documento) con quella registrata.', '“Ricalcola dai dati originali”: rifà tutti i 60 criteri e la radice, poi confronta col registro.', 'Prova la manomissione: cambiare anche un solo euro rende la verifica negativa.']}>Pagina per revisori e ispettori: verifica che un budget non sia stato alterato dopo la registrazione.</PageIntro>
-    <div className="card p-6 space-y-5">
-      <div className="pb-3 border-b border-neutral-800">
-        <h3 className="font-bold text-lg flex items-center gap-2"><ShieldCheck className="w-5 h-5 text-emerald-400" />Auditor Portal — asseverazione crittografica</h3>
-        <p className="text-xs text-neutral-400 mt-0.5">Confronto tra la Merkle Root presentata (o ricalcolata dai dati originali) e quella nel registro firmato; verifica di firma e integrità della catena.</p>
-      </div>
+      <Guide page="auditor" />
+      <div className="card p-6 space-y-5">
+        <div className="pb-3 border-b border-neutral-800">
+          <h3 className="font-semibold text-lg">Il budget è stato cambiato dopo la certificazione?</h3>
+          <p className="text-xs text-neutral-400 mt-0.5 leading-relaxed">Confronta l’impronta che hai in mano (o quella ricalcolata dai dati originali) con quella scritta nel registro, e controlla la firma e l’integrità del registro.</p>
+        </div>
 
-      <div className="grid md:grid-cols-2 gap-4">
-        <label className="space-y-1"><span className="label">ID progetto</span>
-          <input value={projectId} onChange={(e) => setProjectId(e.target.value)} className="w-full bg-neutral-950 border border-neutral-800 rounded-xl px-3 py-2 font-mono text-xs" /></label>
-        <label className="space-y-1"><span className="label">Merkle Root presentata</span>
-          <input value={root} onChange={(e) => setRoot(e.target.value)} placeholder="0x…" className="w-full bg-neutral-950 border border-neutral-800 rounded-xl px-3 py-2 font-mono text-xs" /></label>
-      </div>
+        <div className="grid md:grid-cols-2 gap-4">
+          <label className="space-y-1"><span className="label">Progetto</span>
+            <input value={projectId} onChange={(e) => setProjectId(e.target.value)} className="field font-mono" /></label>
+          <label className="space-y-1"><span className="label">Impronta presentata (Merkle Root)</span>
+            <input value={root} onChange={(e) => setRoot(e.target.value)} placeholder="0x…" className="field font-mono" /></label>
+        </div>
 
-      <div className="flex flex-wrap items-center gap-3">
-        <button onClick={verifyRoot} disabled={loading || !projectId || !root} className="px-5 py-2.5 bg-emerald-500 hover:bg-emerald-400 text-black font-bold text-xs rounded-xl transition disabled:opacity-50">Verifica radice</button>
-        <button onClick={recompute} disabled={loading || !projectId || !request.grant_rules || !request.cost_items.length} className="px-5 py-2.5 border border-emerald-500/50 text-emerald-300 hover:bg-emerald-500/10 font-bold text-xs rounded-xl transition disabled:opacity-50">Ricalcola dai dati originali</button>
-        <label className="text-xs text-neutral-400 flex items-center gap-2 cursor-pointer">
-          <input type="checkbox" checked={tamper} onChange={(e) => setTamper(e.target.checked)} />
-          Simula manomissione (+1 € sulla prima riga)
-        </label>
-      </div>
+        <div className="flex flex-wrap items-center gap-3">
+          <button onClick={verifyRoot} disabled={loading || !projectId || !root} className="btn-primary">Verifica impronta</button>
+          <Hint id="auditor_verifica" />
+          <button onClick={recompute} disabled={loading || !projectId || !request.grant_rules || !request.cost_items.length} className="btn !border-[#deffac]/40 !text-[#deffac]">Ricalcola dai dati originali</button>
+          <Hint id="auditor_ricalcola" />
+          <label className="text-xs text-neutral-400 flex items-center gap-2 cursor-pointer">
+            <input type="checkbox" checked={tamper} onChange={(e) => setTamper(e.target.checked)} />
+            Simula una manomissione (+1 € sulla prima riga)
+            <Hint id="auditor_manomissione" />
+          </label>
+        </div>
 
-      {error && <div className="p-3 rounded-xl border border-red-500/30 bg-red-500/10 text-red-300 text-xs">{error}</div>}
+        {error && <div className="p-3 rounded-xl border border-red-500/30 text-red-300 text-xs">{error}</div>}
 
-      {result ? (
-        <div className="space-y-4">
-          <Verdict r={result} />
-          {result.registration_found && (
-            <div className="flex flex-wrap gap-2">
-              <Chip ok={result.registered_merkle_root === result.provided_merkle_root} label="Merkle Root coincidente" />
-              <Chip ok={result.signature_valid} label="Firma Ed25519 valida" />
-              <Chip ok={result.chain_intact} label={`Catena integra (${result.chain_entries} voci)`} />
+        {result ? (
+          <div className="space-y-4">
+            <Verdict r={result} />
+            {result.registration_found && (
+              <div className="flex flex-wrap gap-2">
+                <Chip ok={result.registered_merkle_root === result.provided_merkle_root} label="Impronta coincidente" />
+                <Chip ok={result.signature_valid} label="Firma digitale valida" />
+                <Chip ok={result.chain_intact} label={`Registro integro (${result.chain_entries} registrazioni)`} />
+              </div>
+            )}
+            <div className="grid md:grid-cols-2 gap-4 text-xs font-mono">
+              <div className="p-4 bg-neutral-950 border border-neutral-800 rounded-xl space-y-1 min-w-0">
+                <span className="text-neutral-500 font-sans">{result.recomputed_from_data ? 'Impronta ricalcolata dai dati' : 'Impronta presentata'}</span>
+                <p className="text-[#deffac] break-all p-2 bg-neutral-900 rounded">{result.provided_merkle_root}</p>
+              </div>
+              <div className="p-4 bg-neutral-950 border border-neutral-800 rounded-xl space-y-1 min-w-0">
+                <span className="text-neutral-500 font-sans">Impronta registrata</span>
+                <p className="text-emerald-400 break-all p-2 bg-neutral-900 rounded">{result.registered_merkle_root || '—'}</p>
+              </div>
             </div>
-          )}
-          <div className="grid md:grid-cols-2 gap-4 text-xs font-mono">
-            <div className="p-4 bg-neutral-950 border border-neutral-800 rounded-xl space-y-1">
-              <span className="text-neutral-500">{result.recomputed_from_data ? 'Radice ricalcolata dai dati' : 'Radice presentata'}</span>
-              <p className="text-[#deffac] break-all p-2 bg-neutral-900 rounded">{result.provided_merkle_root}</p>
-            </div>
-            <div className="p-4 bg-neutral-950 border border-neutral-800 rounded-xl space-y-1">
-              <span className="text-neutral-500">Radice registrata</span>
-              <p className="text-emerald-400 break-all p-2 bg-neutral-900 rounded">{result.registered_merkle_root || '—'}</p>
-            </div>
+            {result.registration_found && (
+              <p className="text-[11px] text-neutral-500 font-mono break-all">Registrazione n. {result.seq} del {result.registered_at} · chiave {result.key_id} · impronta della registrazione {result.entry_hash}</p>
+            )}
           </div>
-          {result.registration_found && (
-            <p className="text-[11px] text-neutral-500 font-mono break-all">Voce n. {result.seq} del {result.registered_at} · chiave {result.key_id} · hash {result.entry_hash}</p>
-          )}
-        </div>
-      ) : (
-        <div className="p-10 text-center text-neutral-500 text-sm italic bg-neutral-950 rounded-xl border border-neutral-800">
-          Registra prima un budget dalla vista Budget Canvas, poi verificalo qui — anche con la manomissione simulata.
-        </div>
-      )}
-    </div>
+        ) : (
+          <div className="p-10 text-center text-neutral-500 text-sm bg-neutral-950 rounded-xl border border-neutral-800">
+            Registra prima un budget dalla pagina Budget, poi verificalo qui — anche simulando una manomissione.
+          </div>
+        )}
+
+        <button type="button" onClick={() => nav.go('guida', 'merkle')} className="text-xs text-[#deffac] hover:underline">Come si costruisce l’impronta? Guarda la spiegazione passo passo →</button>
+      </div>
     </div>
   )
 }

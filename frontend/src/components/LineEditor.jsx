@@ -3,14 +3,26 @@ import { ChevronDown, ChevronRight, Copy, Trash2 } from 'lucide-react'
 import { CATEGORY_LABEL } from '../lib/format'
 
 const REQUIRED = new Set(['item_id', 'description', 'category', 'source_c_ref'])
-const inputCls = 'w-full bg-neutral-950 border border-neutral-800 rounded-lg px-2 py-1.5 text-xs font-mono focus:border-[#deffac] outline-none'
+const inputCls = 'field !px-2 !py-1.5 font-mono'
+
+// Nomi leggibili per i valori tecnici dei menu (il valore inviato al server resta quello originale).
+const OPTION_LABEL = {
+  PERSONNEL: 'Personale', CAPITAL_ASSETS: 'Beni strumentali', CONSULTING: 'Consulenze', OVERHEAD: 'Spese generali', TRAINING: 'Formazione',
+  TERZO_SETTORE: 'Terzo settore', METALMECCANICA: 'Metalmeccanica', COMMERCIO: 'Commercio', CREDITO: 'Credito',
+  PERMANENT: 'Tempo indeterminato', FIXED_TERM: 'Tempo determinato', OCCASIONAL: 'Occasionale',
+  PROJECT: 'Progetto', B2B: 'Verso altre imprese (B2B)', B2G: 'Verso la pubblica amministrazione (B2G)',
+  HARDWARE: 'Hardware', SOFTWARE: 'Software', SERVICE: 'Servizio', IMMATERIAL: 'Bene immateriale', REAL_ESTATE: 'Immobile',
+  COMMUNICATION: 'Comunicazione', GUARANTEE: 'Fideiussione/assicurazione', AUDIT: 'Revisione contabile', PENALTY: 'Sanzioni/penali', LEGAL_DISPUTE: 'Contenzioso legale',
+  REPRESENTATION: 'Rappresentanza', RENT: 'Affitto', UTILITIES: 'Utenze', MAINTENANCE_ORDINARY: 'Manutenzione ordinaria', MAINTENANCE_EXTRAORDINARY: 'Manutenzione straordinaria',
+  FINANCIAL_CHARGES: 'Oneri finanziari', BANK_TRANSFER: 'Bonifico', CARD: 'Carta', CASH: 'Contanti', CHECK: 'Assegno',
+}
 
 function Field({ field, value, onChange }) {
   const set = (v) => onChange(field.name, v)
   const label = (
-    <span className="flex items-center gap-1.5 text-[11px] text-neutral-400 mb-1">
+    <span className="flex items-center gap-1.5 text-xs text-neutral-400 mb-1">
       {field.label}
-      {field.criteria.map((c) => <span key={c} className="font-mono text-[9px] text-[#deffac]/80">#{c}</span>)}
+      {field.criteria.map((c) => <span key={c} className="font-mono text-[10px] text-[#deffac]/80">#{c}</span>)}
     </span>
   )
   let control
@@ -24,7 +36,7 @@ function Field({ field, value, onChange }) {
     control = (
       <select value={value ?? ''} onChange={(e) => set(e.target.value === '' ? undefined : e.target.value)} className={inputCls}>
         {!REQUIRED.has(field.name) && <option value="">— non indicato</option>}
-        {field.options.map((o) => <option key={o} value={o}>{o}</option>)}
+        {field.options.map((o) => <option key={o} value={o}>{OPTION_LABEL[o] || o}</option>)}
       </select>
     )
   } else if (field.type === 'number') {
@@ -40,7 +52,7 @@ function Field({ field, value, onChange }) {
   } else {
     control = <input type="text" value={value ?? ''} onChange={(e) => set(REQUIRED.has(field.name) ? e.target.value : e.target.value === '' ? undefined : e.target.value)} className={inputCls} />
   }
-  return <label className="block" title={field.help}>{label}{control}{field.help && <span className="block text-[9px] text-neutral-600 mt-0.5">{field.help}</span>}</label>
+  return <label className="block" title={field.help}>{label}{control}{field.help && <span className="block text-[11px] text-neutral-500 mt-0.5">{field.help}</span>}</label>
 }
 
 export default function LineEditor({ item, fields, onChange, onDelete, onDuplicate }) {
@@ -69,12 +81,12 @@ export default function LineEditor({ item, fields, onChange, onDelete, onDuplica
           <button onClick={onDelete} title="Elimina" className="p-1.5 rounded-lg border border-red-500/40 text-red-300 hover:bg-red-500/10"><Trash2 className="w-3.5 h-3.5" /></button>
         </div>
       </div>
-      <p className="text-[10px] text-neutral-500">Ogni campo compilato attiva i criteri indicati (#N). I campi vuoti non vengono valutati: non contano come superati.</p>
+      <p className="text-[11px] text-neutral-500">I numeri #N sono i controlli che quel campo attiva. Un campo vuoto non viene valutato: non conta come superato.</p>
       {groups.map(([group, fs]) => (
         <div key={group} className="border border-neutral-800 rounded-xl overflow-hidden">
           <button onClick={() => setOpen({ ...open, [group]: !open[group] })} className="w-full flex items-center justify-between px-3 py-2 bg-neutral-950 text-xs font-bold text-neutral-200">
             <span className="flex items-center gap-1.5">{open[group] ? <ChevronDown className="w-3.5 h-3.5" /> : <ChevronRight className="w-3.5 h-3.5" />}{group}</span>
-            <span className="font-mono text-[10px] text-neutral-500">{filled(fs)}/{fs.length}</span>
+            <span className="font-mono text-[11px] text-neutral-500">{filled(fs)}/{fs.length}</span>
           </button>
           {open[group] && (
             <div className="p-3 grid grid-cols-1 sm:grid-cols-2 gap-3 bg-neutral-900/50">

@@ -827,16 +827,16 @@ class DeterministicEngine:
             last = now
 
         lines = [cls._compute_line(item, rules) for item in items]
-        mark("LINE_CRITERIA", "Criteri di riga (Fonte A, B, C)", f"{len(lines)} righe · {sum(len(ln.checked) for ln in lines)} controlli eseguiti")
+        mark("LINE_CRITERIA", "Controlli su ogni voce (regole, tabelle, documenti)", f"{len(lines)} voci · {sum(len(ln.checked) for ln in lines)} controlli eseguiti")
         cls._apply_fte_aggregation(lines)
-        mark("FTE", "Somma FTE per lavoratore (criterio 8)", f"{sum(1 for ln in lines if 8 in ln.failed)} righe respinte")
+        mark("FTE", "Tempo dedicato per persona (controllo 8)", f"{sum(1 for ln in lines if 8 in ln.failed)} voci respinte")
         caps = cls._apply_share_caps(lines, rules)
-        mark("SHARE_CAPS", "Massimali % sul totale finale (criteri 26, 31, 36, 37)", f"{len(caps)} gruppi di spesa risolti")
+        mark("SHARE_CAPS", "Limiti in % sul totale finale (controlli 26, 31, 36, 37)", f"{len(caps)} gruppi di spesa risolti")
         checks = cls._budget_checks(lines, rules, entity_liquidity_eur, baseline_totals)
         mark("BUDGET_CHECKS", "Controlli sull'intero budget (48, 49, 55, 56, 60)", f"{sum(1 for c in checks if c.status != 'NOT_EVALUATED')} su {len(checks)} valutati")
         steps = cls._build_steps(lines)
         sealed = [cls._seal(ln, rules) for ln in lines]
-        mark("HASH", "Hash SHA-256 di riga (foglie Merkle)", f"{len(sealed)} hash canonici")
+        mark("HASH", "Impronta di ogni voce (SHA-256)", f"{len(sealed)} impronte")
         return sealed, checks, {"stages": stages, "steps": steps, "share_caps": caps}
 
     @classmethod

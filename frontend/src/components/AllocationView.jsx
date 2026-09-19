@@ -1,9 +1,9 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react'
-import { CalendarRange } from 'lucide-react'
 import { api } from '../lib/api'
 import { fmtEur, fmtNum } from '../lib/format'
 import { SEED_ALLOCATION } from '../data/mockSeed'
-import PageIntro from './PageIntro'
+import Guide from './Guide'
+import { Hint } from './Help'
 
 const PALETTE = ['#38bdf8', '#a78bfa', '#f472b6', '#34d399', '#fbbf24', '#fb7185']
 
@@ -44,9 +44,9 @@ function Sankey({ plan }) {
 }
 
 const TARGETS = [
-  ['MINIMIZE_NET_COST', 'Minimizzare la spesa netta'],
-  ['MAXIMIZE_COVERED_ITEMS', 'Massimizzare le voci coperte'],
-  ['MINIMIZE_FUNDS_INVOLVED', 'Minimizzare il numero di fonti'],
+  ['MINIMIZE_NET_COST', 'Pagare il meno possibile di tasca propria'],
+  ['MAXIMIZE_COVERED_ITEMS', 'Coprire più spese possibile'],
+  ['MINIMIZE_FUNDS_INVOLVED', 'Usare meno fondi possibile'],
 ]
 
 export default function AllocationView() {
@@ -78,88 +78,88 @@ export default function AllocationView() {
 
   return (
     <div className="space-y-6">
-      <PageIntro title="Allocazione annuale (Missione Due)" tips={['Il solutore (MILP) assegna ogni spesa ai fondi rispettando tetti di dotazione, quote per categoria, non cumulabilità e plafond de minimis.', 'Escludi una fonte per vedere subito l’alternativa (what-if): il piano si ricalcola sul server.', 'Il diagramma mostra dove va ogni euro: fondi o carico diretto dell’ente.']}>
-        Pianifica il prossimo esercizio: quali spese correnti possono essere coperte da quali fondi pubblici, minimizzando la spesa netta.
-      </PageIntro>
+      <Guide page="allocation" />
       <div className="card p-6 space-y-4">
         <div className="pb-3 border-b border-neutral-800 flex flex-wrap items-center justify-between gap-3">
-          <div>
-            <h3 className="font-bold text-lg flex items-center gap-2"><CalendarRange className="w-5 h-5 text-[#deffac]" />Allocazione annuale multi-fonte (Missione Due)</h3>
-            <p className="text-xs text-neutral-400 mt-0.5">Ottimizzazione vincolata (MILP) su tetti di fondo, massimali per categoria, non cumulabilità e plafond de minimis.</p>
+          <div className="max-w-xl">
+            <h3 className="font-semibold text-lg">Chi paga cosa, nell’anno</h3>
+            <p className="text-xs text-neutral-400 mt-0.5 leading-relaxed">Il programma prova le combinazioni possibili e sceglie la migliore, rispettando i tetti dei fondi, i limiti per categoria, i fondi che non si possono cumulare e il limite de minimis.</p>
           </div>
-          <select value={target} onChange={(e) => setTarget(e.target.value)} className="bg-neutral-950 border border-neutral-700 rounded-xl px-3 py-2 text-xs">
-            {TARGETS.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
-          </select>
+          <label className="flex items-center gap-2 text-xs text-neutral-400 w-full md:w-auto min-w-0">Obiettivo <Hint id="alloc_obiettivo" />
+            <select value={target} onChange={(e) => setTarget(e.target.value)} className="field !w-full md:!w-auto min-w-0">
+              {TARGETS.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+            </select>
+          </label>
         </div>
 
         <div className="flex flex-wrap gap-2 items-center">
-          <span className="label mr-2">What-if: escludi fonte</span>
+          <span className="label mr-1 inline-flex items-center gap-1.5">Prova a togliere un fondo <Hint id="alloc_whatif" /></span>
           {SEED_ALLOCATION.available_funding_lines.map((f) => (
-            <button key={f.fund_id} onClick={() => toggle(f.fund_id)}
-              className={`px-3 py-1.5 rounded-lg text-xs font-semibold border transition ${excluded.includes(f.fund_id) ? 'border-red-500/40 bg-red-500/10 text-red-300 line-through' : 'border-neutral-700 text-neutral-300 hover:border-neutral-500'}`}>
+            <button key={f.fund_id} onClick={() => toggle(f.fund_id)} aria-pressed={excluded.includes(f.fund_id)}
+              className={`px-3 py-1.5 rounded-lg text-xs font-medium border transition ${excluded.includes(f.fund_id) ? 'border-red-500/40 text-red-300 line-through' : 'border-neutral-700 text-neutral-300 hover:border-neutral-500'}`}>
               {f.name}
             </button>
           ))}
         </div>
-        {error && <div className="p-3 rounded-xl border border-red-500/30 bg-red-500/10 text-red-300 text-xs">{error}</div>}
+        {error && <div className="p-3 rounded-xl border border-red-500/30 text-red-300 text-xs">{error}</div>}
       </div>
 
       {plan && (
         <>
           <div className={`grid grid-cols-2 md:grid-cols-4 gap-4 transition ${loading ? 'opacity-50' : ''}`}>
-            {[['Spesa lorda', fmtEur(plan.total_gross_expense_eur), 'text-neutral-100'],
-              ['Coperta da fondi', fmtEur(plan.covered_by_public_funds_eur), 'text-emerald-400'],
-              ['Netto a carico ente', fmtEur(plan.net_cost_to_entity_eur), 'text-amber-400'],
-              ['Copertura', `${fmtNum(plan.overall_coverage_percentage, 1)}%`, 'text-[#deffac]']].map(([l, v, tone]) => (
-              <div key={l} className="card p-5"><span className="label">{l}</span><div className={`text-xl font-bold font-mono mt-2 ${tone}`}>{v}</div></div>
+            {[['Spesa totale', fmtEur(plan.total_gross_expense_eur), 'text-neutral-100'],
+              ['Coperta dai fondi', fmtEur(plan.covered_by_public_funds_eur), 'text-emerald-400'],
+              ['A carico dell’ente', fmtEur(plan.net_cost_to_entity_eur), 'text-amber-400'],
+              ['Quota coperta', `${fmtNum(plan.overall_coverage_percentage, 1)}%`, 'text-[#deffac]']].map(([l, v, tone]) => (
+              <div key={l} className="card p-5 min-w-0"><span className="label">{l}</span><div className={`text-base sm:text-xl font-semibold font-mono mt-2 break-all ${tone}`}>{v}</div></div>
             ))}
           </div>
 
-          <div className="card p-6 space-y-3"><span className="label">Flusso delle spese</span><Sankey plan={plan} /></div>
+          <div className="card p-6 space-y-3"><span className="label inline-flex items-center gap-1.5">Da dove arrivano i soldi, spesa per spesa <Hint id="alloc_flusso" /></span><Sankey plan={plan} /></div>
 
           <div className="grid lg:grid-cols-3 gap-6">
             <div className="lg:col-span-2 card p-6 space-y-3">
-              <span className="label">Piano per voce</span>
+              <span className="label">Il piano, voce per voce</span>
               {plan.allocation_plan.map((l) => (
                 <div key={l.item_id} className="p-4 bg-neutral-950 border border-neutral-800 rounded-xl text-xs space-y-2">
-                  <div className="flex justify-between font-mono"><span className="font-semibold text-sm font-sans">{l.item_id} <span className="text-neutral-500">· {l.category}</span></span><span>{fmtEur(l.gross_amount_eur)}</span></div>
+                  <div className="flex justify-between gap-3 font-mono"><span className="font-medium text-sm font-sans min-w-0 break-words">{l.item_id} <span className="text-neutral-500">· {l.category}</span></span><span>{fmtEur(l.gross_amount_eur)}</span></div>
                   {l.coverage.length ? l.coverage.map((c) => (
-                    <div key={c.fund_id} className="flex justify-between text-emerald-300 font-mono"><span>{c.fund_id}</span><span>{fmtEur(c.covered_amount_eur)} ({fmtNum(c.coverage_percentage, 1)}%)</span></div>
-                  )) : <div className="text-neutral-500">Nessuna fonte compatibile: a carico diretto dell’ente</div>}
-                  <div className="flex justify-between text-amber-300 font-mono border-t border-neutral-800 pt-2"><span>Netto ente</span><span>{fmtEur(l.net_cost_to_entity_eur)}</span></div>
+                    <div key={c.fund_id} className="flex justify-between gap-3 text-emerald-300 font-mono"><span className="min-w-0 break-words">{c.fund_id}</span><span className="shrink-0">{fmtEur(c.covered_amount_eur)} ({fmtNum(c.coverage_percentage, 1)}%)</span></div>
+                  )) : <div className="text-neutral-500">Nessun fondo adatto: la paga direttamente l’ente</div>}
+                  <div className="flex justify-between text-amber-300 font-mono border-t border-neutral-800 pt-2"><span>A carico dell’ente</span><span>{fmtEur(l.net_cost_to_entity_eur)}</span></div>
                 </div>
               ))}
             </div>
 
             <div className="space-y-6">
               <div className="card p-6 space-y-3">
-                <span className="label">Utilizzo fondi</span>
+                <span className="label inline-flex items-center gap-1.5">Quanto si usa di ogni fondo <Hint id="alloc_uso" /></span>
                 {plan.fund_usage.map((u) => (
                   <div key={u.fund_id} className="text-xs font-mono space-y-0.5">
-                    <div className="flex justify-between"><span className="text-neutral-300">{u.fund_id}</span><span>{fmtEur(u.used_eur)}</span></div>
-                    <div className="text-neutral-500">{u.cap_eur != null ? `dotazione ${fmtEur(u.cap_eur)} · margine ${fmtNum(u.safety_margin_pct, 1)}%` : 'nessun tetto di dotazione'}</div>
+                    <div className="flex justify-between gap-3"><span className="text-neutral-300 min-w-0 break-words">{u.fund_id}</span><span>{fmtEur(u.used_eur)}</span></div>
+                    <div className="text-neutral-500">{u.cap_eur != null ? `disponibili ${fmtEur(u.cap_eur)} · margine ${fmtNum(u.safety_margin_pct, 1)}%` : 'nessun limite di importo'}</div>
                   </div>
                 ))}
                 {plan.de_minimis_residual_eur != null && (
-                  <div className="text-xs font-mono pt-2 border-t border-neutral-800 text-neutral-400">De minimis usato {fmtEur(plan.de_minimis_used_eur)} · residuo {fmtEur(plan.de_minimis_residual_eur)}</div>
+                  <div className="text-xs font-mono pt-2 border-t border-neutral-800 text-neutral-400">De minimis usato {fmtEur(plan.de_minimis_used_eur)} · ancora disponibile {fmtEur(plan.de_minimis_residual_eur)}</div>
                 )}
               </div>
               <div className="card p-6 space-y-2">
-                <span className="label">Timeline 12 mesi</span>
+                <span className="label inline-flex items-center gap-1.5">Mese per mese <Hint id="alloc_mesi" /></span>
                 <div className="flex items-end gap-1 h-28">
                   {plan.monthly_plan.map((m) => (
-                    <div key={m.month} className="flex-1 flex flex-col justify-end h-full" title={`Mese ${m.month}: lordo ${fmtEur(m.gross_eur)}, coperto ${fmtEur(m.covered_eur)}`}>
+                    <div key={m.month} className="flex-1 flex flex-col justify-end h-full" title={`Mese ${m.month}: totale ${fmtEur(m.gross_eur)}, coperto ${fmtEur(m.covered_eur)}`}>
                       <div className="bg-amber-400/70" style={{ height: `${(m.net_eur / maxMonth) * 100}%` }} />
                       <div className="bg-emerald-400/70" style={{ height: `${(m.covered_eur / maxMonth) * 100}%` }} />
                     </div>
                   ))}
                 </div>
-                <div className="flex justify-between text-[10px] text-neutral-500 font-mono"><span>Gen</span><span>Dic</span></div>
-                <p className="text-[10px] text-neutral-500"><span className="text-emerald-400">■</span> coperto <span className="text-amber-400 ml-2">■</span> netto ente</p>
+                <div className="flex justify-between text-[11px] text-neutral-500 font-mono"><span>Gen</span><span>Dic</span></div>
+                <p className="text-[11px] text-neutral-500"><span className="text-emerald-400">■</span> coperto dai fondi <span className="text-amber-400 ml-2">■</span> a carico dell’ente</p>
               </div>
             </div>
           </div>
-          <p className="text-[11px] text-neutral-500 font-mono">{plan.summary} · {plan.solver} · {plan.status}</p>
+          <p className="text-[11px] text-neutral-600 font-mono break-words">Dettagli tecnici: {plan.summary} · {plan.solver} · {plan.status}</p>
         </>
       )}
     </div>

@@ -4,18 +4,20 @@
 
 @layer base {
   body {
-    @apply bg-[#0e0e0e] text-neutral-100 font-sans antialiased selection:bg-[#deffac] selection:text-black;
+    @apply bg-[#0c0c0c] text-neutral-100 font-sans antialiased selection:bg-[#deffac] selection:text-black;
   }
 }
 
 @layer components {
   .card { @apply bg-neutral-900 border border-neutral-800 rounded-2xl; }
-  .btn-primary { @apply px-4 py-2 bg-[#deffac] hover:bg-[#a8fd00] text-black font-bold text-xs rounded-xl transition disabled:opacity-50; }
-  .label { @apply text-xs font-semibold text-neutral-400 uppercase tracking-wider; }
+  .btn-primary { @apply px-4 py-2 bg-[#deffac] hover:bg-[#c9f58a] text-black font-semibold text-xs rounded-lg transition disabled:opacity-50; }
+  .btn { @apply px-3 py-2 rounded-lg border border-neutral-700 text-neutral-200 hover:border-neutral-500 text-xs font-medium inline-flex items-center gap-1.5 transition disabled:opacity-50; }
+  .label { @apply text-xs font-medium text-neutral-400; }
+  .field { @apply w-full bg-neutral-950 border border-neutral-800 rounded-lg px-3 py-2 text-xs focus:border-neutral-500 outline-none; }
   .num-btn { @apply font-mono underline decoration-dotted decoration-neutral-600 underline-offset-4 hover:text-[#deffac] hover:decoration-[#deffac] cursor-pointer transition; }
 }
 
 ::-webkit-scrollbar { width: 6px; height: 6px; }
-::-webkit-scrollbar-track { background: #131313; }
+::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb { background: #262626; border-radius: 3px; }
 ::-webkit-scrollbar-thumb:hover { background: #404040; }

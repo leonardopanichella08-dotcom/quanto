@@ -57,6 +57,7 @@ export const api = {
   validateBudget: (req) => post('/budget/validate', req),
   exportXlsx: (req) => blob('/budget/export/xlsx', req),
   exportPdf: (req) => blob('/budget/export/pdf', req),
+  merkleLab: (rows, prove_index) => post('/registry/merkle-lab', { rows, ...(prove_index != null ? { prove_index } : {}) }),
   // --- altre missioni
   matchPattern: (body) => post('/pattern/match', body),
   optimizeAllocation: (body) => post('/allocation/optimize', body),

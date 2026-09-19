@@ -59,16 +59,16 @@ def budget_context(response_like: Dict[str, Any]) -> Dict[str, Any]:
 
 def static_budget_summary(ctx: Dict[str, Any]) -> str:
     parts = [
-        f"Validazione completata per il bando '{ctx['bando_name']}' (ID: {ctx['bando_id']}). "
-        f"Processate {ctx['items_total']} voci: {eur(ctx['total_approved_eur'])} € ammessi su {eur(ctx['total_requested_eur'])} € richiesti "
-        f"(rettifiche per {eur(ctx['total_reduced_eur'])} €).",
-        f"Conformity Score: {ctx['conformity_score']}/100.",
+        f"Controllo completato per il bando '{ctx['bando_name']}' (ID: {ctx['bando_id']}). "
+        f"Esaminate {ctx['items_total']} voci: {eur(ctx['total_approved_eur'])} € ammessi su {eur(ctx['total_requested_eur'])} € richiesti "
+        f"(ridotti o esclusi: {eur(ctx['total_reduced_eur'])} €).",
+        f"Punteggio di conformità: {ctx['conformity_score']}/100.",
     ]
     if ctx["items_adjusted"]:
-        parts.append(f"Voci decurtate al massimale di bando: {ctx['items_adjusted']}.")
+        parts.append(f"Voci ridotte al limite del bando: {ctx['items_adjusted']}.")
     if ctx["items_blocked"]:
-        parts.append(f"Voci respinte o sospese: {ctx['items_blocked']}.")
-    parts.append(f"Merkle Root: {ctx['merkle_root'][:18]}…")
+        parts.append(f"Voci respinte o in attesa di documento: {ctx['items_blocked']}.")
+    parts.append(f"Impronta del budget (Merkle Root): {ctx['merkle_root'][:18]}…")
     return " ".join(parts)
 
 

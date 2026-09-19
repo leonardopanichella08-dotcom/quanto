@@ -12,7 +12,7 @@ export const STATUS_STYLE = {
   REJECTED: 'bg-red-500/20 text-red-400 border-red-500/30',
   MISSING_DOCUMENTS: 'bg-sky-500/20 text-sky-300 border-sky-500/30',
 }
-export const STATUS_LABEL = { APPROVED: 'Approvata', CAP_EXCEEDED_ADJUSTED: 'Decurtata', REJECTED: 'Respinta', MISSING_DOCUMENTS: 'Sospesa' }
+export const STATUS_LABEL = { APPROVED: 'Ammessa', CAP_EXCEEDED_ADJUSTED: 'Ridotta', REJECTED: 'Respinta', MISSING_DOCUMENTS: 'In attesa' }
 
 export const CATEGORY_LABEL = {
   PERSONNEL: 'Personale', CAPITAL_ASSETS: 'Beni strumentali', CONSULTING: 'Consulenze', OVERHEAD: 'Spese generali', TRAINING: 'Formazione',
@@ -34,5 +34,5 @@ export const KIND_STYLE = {
 // blocchi dei 60 criteri (Modulo 11)
 export const CRITERIA_BLOCKS = [
   { from: 1, to: 15, label: 'Personale' }, { from: 16, to: 30, label: 'Beni strumentali' },
-  { from: 31, to: 45, label: 'Consulenze e spese generali' }, { from: 46, to: 60, label: 'Tempo, cumulo, tracciabilità' },
+  { from: 31, to: 45, label: 'Consulenze e spese generali' }, { from: 46, to: 60, label: 'Date, cumulo, tracciabilità' },
 ]
