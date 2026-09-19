@@ -1,0 +1,2 @@
+# Vercel installa da qui; la fonte di verità è backend/requirements.txt
+-r backend/requirements.txt
