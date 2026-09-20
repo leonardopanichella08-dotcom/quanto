@@ -424,13 +424,19 @@ def search_web(name: str, hint: str = "", supplied: Optional[List[str]] = None) 
     queries = build_queries(name, hint)
     raw: List[Dict[str, str]] = []
     errors: List[str] = []
+    per_query: List[Dict[str, Any]] = []
     with ThreadPoolExecutor(max_workers=4) as pool:
-        for hits, err in pool.map(_search_one, queries):
+        for q, (hits, err) in zip(queries, pool.map(_search_one, queries)):
             raw.extend(hits)
+            per_query.append({"query": q, "hits": len(hits), "error": err})
             if err and err not in errors:
                 errors.append(err)
     ranked = rank_results(name, raw, supplied)
-    return {"queries": queries, "candidates": ranked, "engine_errors": errors if not raw else []}
+    # diagnostica: se il motore risponde ma nulla è pertinente (o risponde con altro), si vede perché
+    diagnostics = {"raw_hits": len(raw), "kept": len(ranked), "per_query": per_query, "sample": [f"{h.get('title', '')[:70]} — {h['url'][:80]}" for h in raw[:5]]}
+    if not ranked and raw:
+        errors.append("Il motore ha risposto ma nessun risultato nomina il bando")
+    return {"queries": queries, "candidates": ranked, "engine_errors": errors if not ranked else [], "diagnostics": diagnostics}
 
 
 # ------------------------------------------------------------------ download di un documento
