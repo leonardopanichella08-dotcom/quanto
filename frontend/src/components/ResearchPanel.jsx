@@ -1,0 +1,199 @@
+import React, { useRef, useState } from 'react'
+import { AlertTriangle, CheckCircle2, ExternalLink, FileUp, Loader2, Plus, Search, XCircle } from 'lucide-react'
+import { api, fileToBase64 } from '../lib/api'
+import { Hint } from './Help'
+
+const MAX_DOCS = 16          // documenti scaricati per ricerca
+const MAX_DEPTH = 2          // pagina → sue pagine/PDF → loro allegati
+const norm = (u) => u.replace(/^https?:\/\/(www\.)?/, '').replace(/[#?].*$/, '').replace(/\/$/, '').toLowerCase()
+const TIER_LABEL = { UFFICIALE: 'ufficiale', SECONDARIA: 'secondaria' }
+const TIER_STYLE = { UFFICIALE: 'text-emerald-300 border-emerald-500/30', SECONDARIA: 'text-amber-300 border-amber-500/30' }
+
+function Step({ n, state, title, children }) {
+  const icon = state === 'run' ? <Loader2 className="w-4 h-4 animate-spin text-[#deffac]" /> : state === 'done' ? <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+    : state === 'fail' ? <XCircle className="w-4 h-4 text-red-400" /> : <span className="w-4 h-4 rounded-full border border-neutral-700 text-[10px] text-neutral-500 flex items-center justify-center">{n}</span>
+  return (
+    <div className={`space-y-1.5 ${state === 'todo' ? 'opacity-50' : ''}`}>
+      <div className="flex items-center gap-2 text-sm font-medium">{icon}{title}</div>
+      {children && <div className="pl-6 text-xs text-neutral-400 space-y-1">{children}</div>}
+    </div>
+  )
+}
+
+export default function ResearchPanel({ onDone }) {
+  const [name, setName] = useState('')
+  const [hint, setHint] = useState('')
+  const [urls, setUrls] = useState('')
+  const [phase, setPhase] = useState('idle')          // idle | search | fetch | analyze | done | error
+  const [error, setError] = useState(null)
+  const [search, setSearch] = useState(null)
+  const [docs, setDocs] = useState([])                // {key,url,title,status,tier,kind,chars,pages,message,warnings}
+  const [result, setResult] = useState(null)
+  const [busyExtra, setBusyExtra] = useState(null)
+  const [manual, setManual] = useState({ text: '', file: null, open: false })
+  const bandoRef = useRef(null)
+
+  const patchDoc = (key, patch) => setDocs((d) => d.map((x) => (x.key === key ? { ...x, ...patch } : x)))
+
+  const analyze = async (bandoId) => {
+    setPhase('analyze')
+    const res = await api.researchAnalyze({ bando_id: bandoId })
+    setResult(res)
+    setPhase('done')
+    await onDone(bandoId)
+    return res
+  }
+
+  const run = async () => {
+    setError(null); setResult(null); setDocs([]); setSearch(null); setPhase('search')
+    try {
+      const supplied = urls.split('\n').map((u) => u.trim()).filter(Boolean)
+      const s = await api.researchSearch({ name: name.trim(), hint: hint.trim(), urls: supplied })
+      setSearch(s); bandoRef.current = s.bando_id
+      const queue = s.candidates.filter((c) => c.preselected).map((c) => ({ url: c.url, title: c.title, tier: c.tier, score: c.user_supplied ? 500 : 200, depth: 0 }))
+      if (!queue.length) {
+        setPhase('error')
+        setError(s.engine_errors?.length ? `Non sono riuscito a usare il motore di ricerca (${s.engine_errors[0]}). Incolla qui sotto il link della pagina ufficiale del bando e riprova.`
+          : 'Non ho trovato pagine ufficiali per questo nome. Prova con altre parole, oppure incolla il link della pagina ufficiale.')
+        return
+      }
+      setPhase('fetch')
+      const seen = new Set(); let ok = 0; let attempts = 0
+      while (queue.length && ok < MAX_DOCS && attempts < MAX_DOCS + 8) {
+        queue.sort((a, b) => b.score - a.score)         // prima i risultati della ricerca, poi PDF e atti di legge trovati nelle pagine
+        const item = queue.shift()
+        if (seen.has(norm(item.url))) continue
+        seen.add(norm(item.url)); attempts += 1
+        const key = norm(item.url)
+        setDocs((d) => [...d, { key, url: item.url, title: item.title, tier: item.tier, status: 'run', depth: item.depth }])
+        try {
+          const r = await api.researchFetch({ bando_id: s.bando_id, url: item.url })
+          ok += 1
+          patchDoc(key, { status: 'ok', title: r.source.name, tier: r.source.tier, kind: r.source.kind, chars: r.source.chars, pages: r.source.pages, warnings: r.source.warnings, url: r.source.url })
+          seen.add(norm(r.source.url))
+          if (item.depth < MAX_DEPTH) r.links.slice(0, 8).forEach((l) => queue.push({ url: l.url, title: l.title, tier: 'UFFICIALE', score: l.score - 20 * item.depth, depth: item.depth + 1 }))
+        } catch (e) {
+          patchDoc(key, { status: 'error', message: e.message })
+        }
+      }
+      if (!ok) { setPhase('error'); setError('Non sono riuscito a scaricare nessun documento. Puoi aggiungerne uno a mano qui sotto.'); return }
+      await analyze(s.bando_id)
+    } catch (e) {
+      setPhase('error'); setError(e.message)
+    }
+  }
+
+  // aggiunge una fonte tra quelle trovate ma non scaricate (di solito secondarie), poi rilegge tutto
+  const addCandidate = async (c) => {
+    setBusyExtra(c.url); setError(null)
+    try {
+      const key = norm(c.url)
+      setDocs((d) => [...d, { key, url: c.url, title: c.title, tier: c.tier, status: 'run', depth: 0 }])
+      try {
+        const r = await api.researchFetch({ bando_id: bandoRef.current, url: c.url })
+        patchDoc(key, { status: 'ok', title: r.source.name, tier: r.source.tier, kind: r.source.kind, chars: r.source.chars, pages: r.source.pages, warnings: r.source.warnings })
+      } catch (e) { patchDoc(key, { status: 'error', message: e.message }); return }
+      await analyze(bandoRef.current)
+    } catch (e) { setError(e.message) } finally { setBusyExtra(null) }
+  }
+
+  const addManual = async () => {
+    setBusyExtra('manual'); setError(null)
+    try {
+      const body = { name: name.trim(), bando_id: bandoRef.current || undefined, filename: manual.file?.name || 'testo-incollato.txt' }
+      if (manual.file) body.content_base64 = await fileToBase64(manual.file)
+      else body.text = manual.text
+      const res = await api.bandoUpload(body)
+      bandoRef.current = res.bando_id
+      setManual({ text: '', file: null, open: false })
+      setResult(await analyze(res.bando_id))
+    } catch (e) { setError(e.message) } finally { setBusyExtra(null) }
+  }
+
+  const running = ['search', 'fetch', 'analyze'].includes(phase)
+  const okDocs = docs.filter((d) => d.status === 'ok')
+  const notFetched = (search?.candidates || []).filter((c) => !docs.some((d) => d.key === norm(c.url)))
+
+  return (
+    <div className="card p-5 space-y-4">
+      <h3 className="font-semibold text-base flex items-center gap-2"><Search className="w-4 h-4 text-[#deffac]" />Cerca un bando sul web <Hint id="bando_ricerca" /></h3>
+      <p className="text-xs text-neutral-400 leading-relaxed max-w-3xl">Scrivi il nome del bando. QUANTO lo cerca su internet, scarica le pagine e i PDF ufficiali (decreti, avvisi, circolari, atti della Gazzetta Ufficiale), li salva in memoria e li legge tutti. Le fonti ufficiali hanno la precedenza.</p>
+
+      <div className="grid md:grid-cols-2 gap-3">
+        <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Nome del bando (es. Resto al Sud)" aria-label="Nome del bando" className="field" disabled={running} />
+        <input value={hint} onChange={(e) => setHint(e.target.value)} placeholder="Parole in più, facoltative (es. 2025, Invitalia)" aria-label="Parole in più" className="field" disabled={running} />
+      </div>
+      <textarea value={urls} onChange={(e) => setUrls(e.target.value)} rows={2} disabled={running} aria-label="Link ufficiali"
+        placeholder="Facoltativo: link ufficiali che conosci già (uno per riga). Se la ricerca non trova nulla, incollali qui." className="field font-mono" />
+      <div className="flex flex-wrap items-center gap-3">
+        <button onClick={run} disabled={running || name.trim().length < 3} className="btn-primary flex items-center gap-2">
+          {running && <Loader2 className="w-3.5 h-3.5 animate-spin" />}{running ? 'Ricerca in corso…' : 'Cerca e scarica'}
+        </button>
+        {phase === 'done' && <span className="text-xs text-emerald-300">Fatto: il bando è in memoria.</span>}
+      </div>
+      {error && <div className="p-3 rounded-xl border border-red-500/30 text-red-300 text-xs leading-relaxed">{error}</div>}
+
+      {phase !== 'idle' && (
+        <div className="space-y-4 pt-2 border-t border-neutral-800">
+          <Step n={1} state={phase === 'search' ? 'run' : search ? 'done' : 'todo'} title="Cerco sul web">
+            {search && <p>{search.candidates.length} risultati pertinenti ({search.candidates.filter((c) => c.tier === 'UFFICIALE').length} ufficiali) da {search.queries.length} ricerche.</p>}
+          </Step>
+
+          <Step n={2} state={phase === 'fetch' ? 'run' : ['analyze', 'done'].includes(phase) ? 'done' : phase === 'error' && docs.length ? 'fail' : 'todo'} title={`Scarico i documenti${docs.length ? ` (${okDocs.length} salvati)` : ''}`}>
+            <ul className="space-y-1">
+              {docs.map((d) => (
+                <li key={d.key} className="flex flex-wrap items-center gap-x-2 gap-y-0.5" style={{ paddingLeft: d.depth * 12 }}>
+                  {d.status === 'run' ? <Loader2 className="w-3 h-3 animate-spin text-[#deffac] shrink-0" /> : d.status === 'ok' ? <CheckCircle2 className="w-3 h-3 text-emerald-400 shrink-0" /> : <XCircle className="w-3 h-3 text-red-400 shrink-0" />}
+                  <a href={d.url} target="_blank" rel="noreferrer" className="text-neutral-200 hover:underline truncate max-w-[60vw] md:max-w-md inline-flex items-center gap-1">{d.title || d.url}<ExternalLink className="w-3 h-3 shrink-0" /></a>
+                  {d.tier && <span className={`px-1.5 rounded border text-[10px] ${TIER_STYLE[d.tier]}`}>{TIER_LABEL[d.tier]}</span>}
+                  {d.status === 'ok' && <span className="text-neutral-500">{d.kind}{d.pages ? ` · ${d.pages} pag.` : ''} · {d.chars.toLocaleString('it-IT')} caratteri</span>}
+                  {d.status === 'error' && <span className="text-red-300">{d.message}</span>}
+                  {d.warnings?.map((w) => <span key={w} className="text-amber-300 flex items-center gap-1"><AlertTriangle className="w-3 h-3" />{w}</span>)}
+                </li>
+              ))}
+            </ul>
+          </Step>
+
+          <Step n={3} state={phase === 'analyze' ? 'run' : phase === 'done' ? 'done' : 'todo'} title="Leggo tutto e capisco cosa chiede il bando">
+            {result && (
+              <p><strong className="text-neutral-200">{result.requirements_total}</strong> requisiti letti (<strong className="text-neutral-200">{result.requirements_to_review}</strong> da rivedere a mano), <strong className="text-neutral-200">{Object.keys(result.rules_published).length}</strong> regole numeriche
+                pubblicate, <strong className="text-neutral-200">{result.legal_refs.length}</strong> atti di legge citati, da {result.sources} documenti.</p>
+            )}
+            {result && result.detail.rules.some((r) => r.status === 'PENDING_REVIEW') && (
+              <p className="text-amber-300">{result.detail.rules.filter((r) => r.status === 'PENDING_REVIEW').length} regole hanno numeri diversi in documenti diversi: non le ho scelte a caso, aspettano una tua decisione (Quartier Generale → Caricamento bandi).</p>
+            )}
+          </Step>
+        </div>
+      )}
+
+      {phase === 'done' && notFetched.length > 0 && (
+        <div className="space-y-2 pt-2 border-t border-neutral-800">
+          <p className="label">Altre pagine trovate ma non scaricate <span className="text-neutral-600">(di solito blog e portali: utili per capire, ma non sono la fonte ufficiale)</span></p>
+          <ul className="space-y-1.5">
+            {notFetched.slice(0, 8).map((c) => (
+              <li key={c.url} className="flex flex-wrap items-center gap-2 text-xs">
+                <span className={`px-1.5 rounded border text-[10px] ${TIER_STYLE[c.tier]}`}>{TIER_LABEL[c.tier]}</span>
+                <a href={c.url} target="_blank" rel="noreferrer" className="text-neutral-300 hover:underline truncate max-w-[55vw] md:max-w-lg">{c.title}</a>
+                <button onClick={() => addCandidate(c)} disabled={busyExtra !== null} className="btn !py-1 ml-auto">{busyExtra === c.url ? <Loader2 className="w-3 h-3 animate-spin" /> : <Plus className="w-3 h-3" />}Aggiungi</button>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
+      <div className="pt-2 border-t border-neutral-800 space-y-3">
+        <button type="button" onClick={() => setManual({ ...manual, open: !manual.open })} className="text-xs text-neutral-400 hover:text-white inline-flex items-center gap-1.5"><FileUp className="w-3.5 h-3.5" />Aggiungi un documento a mano (PDF o testo) <Hint id="bando_upload" /></button>
+        {manual.open && (
+          <div className="space-y-3">
+            <input type="file" accept=".pdf,.txt,.md" onChange={(e) => setManual({ ...manual, file: e.target.files?.[0] || null })} className="text-xs text-neutral-400 file:mr-3 file:rounded-lg file:border-0 file:bg-neutral-800 file:px-3 file:py-2 file:text-xs file:text-neutral-200" />
+            {!manual.file && <textarea value={manual.text} onChange={(e) => setManual({ ...manual, text: e.target.value })} rows={4} placeholder="…oppure incolla qui un testo (almeno 100 caratteri)" className="field font-mono" />}
+            <button onClick={addManual} disabled={busyExtra !== null || name.trim().length < 3 || (!manual.file && manual.text.trim().length < 100)} className="btn-primary flex items-center gap-2">
+              {busyExtra === 'manual' && <Loader2 className="w-3.5 h-3.5 animate-spin" />}Aggiungi e rileggi tutto
+            </button>
+            {name.trim().length < 3 && <p className="text-xs text-neutral-500">Scrivi prima il nome del bando in alto.</p>}
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}

@@ -67,6 +67,16 @@ TAXONOMY: List[Tuple[str, str, List[int]]] = [
     ("Rendicontazione per SAL", r"\bSAL\b|stato di avanzamento|rendicontazione intermedia|milestone", [57]),
     ("Vincolo di destinazione", r"vincolo di destinazione|mantenimento|stabilità delle operazioni|durabilità", [58]),
     ("Valuta estera", r"valuta estera|tasso di cambio|non euro", [59]),
+    # temi che non attivano un controllo del motore ma che un bando definisce sempre: si leggono e si mostrano (criteri = [])
+    ("Agevolazione: contributo e finanziamento", r"fondo perduto|contributo (?:in conto|pari|del|massimo)|finanziament\w+ agevolat\w+|agevolazion\w+|intensità di aiuto", []),
+    ("Importi massimi e minimi", r"(?:fino\s+a|massimo\s+di|non\s+superior\w+\s+a|importo\s+(?:massimo|minimo|complessivo))[^.\n]{0,40}(?:€|euro)|(?:€|euro)\s?\d", []),
+    ("Chi può presentare domanda", r"beneficiar\w+|destinatar\w+|possono\s+(?:presentare|accedere|beneficiare)|soggetti\s+(?:ammessi|proponenti|beneficiari)|requisiti\s+(?:soggettivi|di\s+ammissibilità)", []),
+    ("Età e condizione dei richiedenti", r"\b\d{2}\s*(?:e|-|ai|a)\s*\d{2}\s*anni|età\s+(?:compresa|non\s+superiore|inferiore|massima)|under\s?\d{2}|giovan\w+|disoccupat\w+|inoccupat\w+|donn\w+", []),
+    ("Territori ammessi", r"Abruzzo|Basilicata|Calabria|Campania|Molise|Puglia|Sardegna|Sicilia|Mezzogiorno|aree\s+(?:interne|del\s+cratere|sismic\w+)|zone\s+economiche\s+speciali|\bZES\b", []),
+    ("Domanda, scadenze e procedura", r"presentazione\s+(?:delle|della)\s+domand\w+|domanda\s+(?:di|deve|va|può)|sportello|click\s+day|scadenz\w+|procedura\s+(?:a\s+sportello|valutativa|negoziale)|piattaforma\s+(?:online|telematica)|a\s+partire\s+dal", []),
+    ("Erogazione e rendicontazione", r"erogazion\w+|rendicontazion\w+|saldo\b|stato\s+di\s+avanzamento", []),
+    ("Obblighi dopo la concessione", r"revoca|decadenza|restituzion\w+|ispezion\w+|obblighi\s+del\s+beneficiario", []),
+    ("Attività e settori", r"settor\w+\s+(?:esclus\w+|ammess\w+)|attività\s+(?:esclus\w+|ammess\w+|non\s+ammess\w+)|impres\w+\s+(?:in\s+difficoltà|di\s+nuova\s+costituzione|costituit\w+)", []),
 ]
 _TAX = [(t, re.compile(rx, re.I), c) for t, rx, c in TAXONOMY]
 
@@ -87,7 +97,7 @@ def split_sentences(text: str) -> List[str]:
     return [p.strip(" •-\t") for p in parts if len(p.strip()) >= 25]
 
 
-def extract_requirements(text: str, max_items: int = 150) -> List[Dict]:
+def extract_requirements(text: str, max_items: int = 150, source_ref: str = "testo caricato") -> List[Dict]:
     """Ogni frase con un tema noto o con un obbligo/divieto diventa un requisito tracciato."""
     out: List[Dict] = []
     seen: Set[str] = set()
@@ -97,6 +107,8 @@ def extract_requirements(text: str, max_items: int = 150) -> List[Dict]:
             continue
         seen.add(key)
         topics = [(t, c) for t, rx, c in _TAX if rx.search(sentence)]
+        if len(sentence) < 60 and not (_PROHIBIT.search(sentence) or _OBLIGE.search(sentence)):
+            continue  # titoli e voci di menu ("Il Mezzogiorno bello e buono"): non sono requisiti
         if _LIMIT_STRONG.search(sentence) and not re.search(r"non\s+(?:sono\s+)?ammissibil", sentence, re.I):
             kind = "LIMITE"          # «non possono superare il 3%» è un limite, non un divieto
         elif _PROHIBIT.search(sentence):
@@ -110,10 +122,10 @@ def extract_requirements(text: str, max_items: int = 150) -> List[Dict]:
         if topics:
             criteria = sorted({n for _, cs in topics for n in cs})
             out.append({"topic": " / ".join(t for t, _ in topics[:3]), "kind": kind, "text": sentence[:600], "criteria": criteria,
-                        "source_ref": "testo caricato", "confidence": "PARSING"})
+                        "source_ref": source_ref, "confidence": "PARSING"})
         elif kind in ("DIVIETO", "OBBLIGO"):
             out.append({"topic": "Non classificato", "kind": "DA_REVISIONARE", "text": sentence[:600], "criteria": [],
-                        "source_ref": "testo caricato", "confidence": "PARSING"})
+                        "source_ref": source_ref, "confidence": "PARSING"})
         if len(out) >= max_items:
             break
     return out
@@ -212,3 +224,21 @@ def extract_more_rules(text: str) -> Dict[str, str]:
     if scope is not None:
         rules["eligible_categories"] = json.dumps(scope)
     return rules
+
+
+# ------------------------------------------------------------------ riferimenti normativi citati nel testo
+_LEGAL = re.compile(
+    r"(Decreto[- ]Legge|Decreto\s+Legislativo|Decreto\s+Ministeriale|Decreto\s+Direttoriale|Decreto\s+Interministeriale|DPCM|D\.\s?L\.|D\.\s?Lgs\.|Legge|Regolamento\s+\((?:UE|CE)\)|Circolare|Delibera)"
+    r"\s+(?:n\.?\s*)?(\d{1,4}(?:/\d{2,4})?)(?:\s*(?:del|dell['’]|,)\s*(\d{1,2}[/.\-]\d{1,2}[/.\-]\d{2,4}|\d{1,2}\s+[a-zà-ù]+\s+\d{4}))?", re.I)
+
+
+def extract_legal_refs(text: str, limit: int = 40) -> List[str]:
+    """Atti citati nel testo (decreti, leggi, regolamenti UE…), i più citati per primi."""
+    counts: Dict[str, int] = {}
+    for m in _LEGAL.finditer(text):
+        kind = re.sub(r"\s+", " ", m.group(1)).strip()
+        if not m.group(3) and "/" not in m.group(2):
+            continue  # "legge n. 27" senza data né anno: ambiguo, non è un riferimento utilizzabile
+        ref = f"{kind[:1].upper() + kind[1:]} n. {m.group(2)}" + (f" del {m.group(3)}" if m.group(3) else "")
+        counts[ref] = counts.get(ref, 0) + 1
+    return [r for r, _ in sorted(counts.items(), key=lambda kv: -kv[1])][:limit]

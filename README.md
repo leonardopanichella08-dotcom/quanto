@@ -14,7 +14,7 @@ frontend/  React + Vite + Tailwind (nessun calcolo monetario lato client)
 ```bash
 cd backend && python -m venv .venv && .venv/Scripts/activate   # Linux/mac: source .venv/bin/activate
 pip install -r requirements-dev.txt
-python -m pytest                                               # 242 test
+python -m pytest                                               # 272 test
 uvicorn main:app --reload --port 8000                          # http://localhost:8000/docs
 
 cd ../frontend && npm install && npm run dev                   # http://localhost:5173 (proxy /api -> :8000)
@@ -28,7 +28,7 @@ sviluppo e la UI lo segnala: le attestazioni non hanno valore probatorio.
 
 | Pagina | A cosa serve |
 |---|---|
-| **Bandi** | Libreria dei bandi: per ciascuno le regole con fonte e livello di confidenza, i **gap dichiarati** e la copertura dei 60 criteri (regola del bando / solo dati / non attivo). Da qui si "usa" un bando nel Budget; si può caricare il testo o il PDF di un bando nuovo, da cui un estrattore deterministico ricava i requisiti (quelli non classificabili restano *da revisionare*). |
+| **Bandi** | Libreria dei bandi con regole, fonti e lacune per ciascuno, e **ricerca sul web**: scrivi il nome di un bando (es. "Resto al Sud") e QUANTO lo cerca, scarica le pagine e i PDF ufficiali, li salva in memoria (testo integrale, ricercabile) e li legge tutti. Da qui si "usa" un bando nel Budget. |
 | **Budget** | Elenco voci di costo (tutte le categorie: personale, beni, consulenze, spese generali, formazione). Demo *realistica* (15 voci) o *stress* (46 voci che attivano tutti i 60 criteri), import/template Excel, editor di riga guidato dal catalogo campi; ogni modifica ri-valida. Registrazione della Merkle Root. |
 | **Algoritmo** | Vista grafica di ciò che fa il motore: pipeline a stadi con tempi, mappa criteri×voci, cascata degli importi, passi per voce (PASS / ADJUSTED / REJECTED / SUSPENDED con delta), massimali risolti in forma chiusa, albero di Merkle. Riproduzione animata. |
 | **Allocazione** | MILP (HiGHS) che distribuisce il budget sui fondi rispettando tetti, quote, non cumulabilità, de minimis e finestre mensili; what-if e tre obiettivi. |
@@ -51,6 +51,22 @@ consultate**, ognuna con fonte e confidenza. Non è una lettura automatica garan
 Un caso reale: un riepilogo automatico dava Horizon al 15% di indiretti, il documento ufficiale dice 25% — per questo le regole
 vanno verificate sul testo ufficiale prima dell'uso operativo. Se un bando non definisce una regola, il criterio è "non
 valutato": nessun default inventato.
+
+### Ricerca dei bandi sul web (`/bandi/research/*`)
+1. **Cerca** (`search`): 6 ricerche sul nome (Bing, DuckDuckGo Lite di riserva), scarto dei risultati che non nominano il bando, classificazione
+   **UFFICIALE** (Gazzetta Ufficiale, Normattiva, EUR-Lex, ministeri, Invitalia, INPS, regioni…) o **SECONDARIA** (blog, portali). Si preselezionano solo le ufficiali.
+2. **Scarica** (`fetch`, un indirizzo alla volta): pagina HTML, PDF o Word, con protezioni (solo http/https verso IP pubblici, redirect ricontrollati,
+   niente porte strane, limiti di dimensione e tempo, tetto di richieste). Il testo integrale va in memoria (`bando_sources`) con indirizzo, tipo di fonte e impronta.
+   L'interfaccia segue i collegamenti trovati (PDF, decreti, allegati, atti della Gazzetta) fino a 2 livelli, con priorità ai PDF e agli atti di legge.
+3. **Analizza** (`analyze`): legge tutte le fonti in memoria. Per i documenti lunghi (leggi, manuali) usa solo i passaggi che nominano il bando.
+   Requisiti collegati ai 60 controlli e temi come agevolazione, importi, chi può presentare domanda, età, territori, scadenze; atti di legge citati.
+   **Se documenti diversi — o lo stesso documento — danno valori diversi per la stessa regola (es. contributo 75% e 70%) la regola non si pubblica:
+   va in "da verificare a mano"** e diventa un controllo solo dopo la decisione di una persona.
+
+**Limiti dichiarati.** Le pagine costruite in JavaScript restituiscono poco testo; i PDF scansionati (immagini) non si leggono (nessun OCR); i motori di ricerca possono
+bloccare le richieste automatiche (da Vercel non è garantito: in quel caso si incolla il link ufficiale); PDF oltre 12 MB o oltre il tempo disponibile si leggono in parte o
+non si leggono (l'interfaccia lo segnala); la lettura è deterministica (pattern e tassonomia), non un LLM: i requisiti non classificati vanno in "da rivedere" e le regole
+lette in automatico hanno affidabilità `PARSING` e vanno verificate sul testo ufficiale. Su Vercel la memoria è volatile (vedi sotto).
 
 ## Come funziona l'asseverazione (senza blockchain)
 

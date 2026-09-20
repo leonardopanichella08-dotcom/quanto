@@ -9,6 +9,8 @@ from app.core.criteria_catalog import CRITERIA_TITLES
 from app.core.db import connect, db_path
 from app.core.demo import SANDBOX_RULES
 from app.core.ingestion import IDENTITY_FIELDS, Ingestion, normalize_value
+from app.core import research
+from app.core.requirements_extractor import extract_legal_refs
 from app.data.bandi_catalog import BANDI, REFERENCES
 
 # Quali criteri attiva ciascuna regola del bando.
@@ -149,25 +151,29 @@ def get_bando_detail(bando_id: str) -> Optional[Dict[str, Any]]:
         req_rows = conn.execute("SELECT * FROM requirements WHERE bando_id=? ORDER BY seq", (bando_id,)).fetchall()
         runs = conn.execute("SELECT id, ts, project_id, merkle_root FROM runs WHERE bando_id=? AND kind='VALIDATE' ORDER BY id DESC LIMIT 15", (bando_id,)).fetchall()
         docs = conn.execute("SELECT id, ts, kind, name, sha256, size_bytes FROM documents WHERE bando_id=? ORDER BY id DESC LIMIT 15", (bando_id,)).fetchall()
-        sources = conn.execute("SELECT ts, name, sha256, LENGTH(text) AS chars FROM bando_sources WHERE bando_id=? ORDER BY ts DESC", (bando_id,)).fetchall()
+        sources = conn.execute("SELECT ts, name, sha256, LENGTH(text) AS chars, url, tier, pages, origin, content_type, text FROM bando_sources WHERE bando_id=? "
+                               "ORDER BY CASE tier WHEN 'UFFICIALE' THEN 0 WHEN 'SECONDARIA' THEN 2 ELSE 1 END, ts DESC", (bando_id,)).fetchall()
     rules = [{
         "key": r["rule_key"], "value": _typed(r["value"]), "status": r["status"], "origin": r["origin"], "source_ref": r["source_ref"],
         "confidence": notes.get(r["rule_key"], {}).get("confidence") or ("PARSING" if r["origin"] == "STRUCTURED_PARSING" else r["origin"]),
         "criteria": RULE_CRITERIA.get(r["rule_key"], []), "passes": json.loads(r["passes"]) if r["passes"] else None,
     } for r in rule_rows]
+    source_rows = [dict(s) for s in sources]
+    found_refs = extract_legal_refs("\n".join(research.focus_text(s.pop("text") or "", b["name"]) for s in source_rows)) if source_rows else []
+    legal_refs = list(dict.fromkeys([*meta.get("legal_refs", []), *found_refs]))
     published_keys = [r["key"] for r in rules if r["status"] == "PUBLISHED"]
     cov = coverage(published_keys)
     rule_set, _ = Ingestion.build_rule_set(bando_id)
     return {
         "bando_id": bando_id, "name": b["name"], "issuer": b["issuer"], "status": meta.get("status"), "period": meta.get("period"),
-        "curated": bool(meta.get("curated")), "extraction_status": b["extraction_status"], "legal_refs": meta.get("legal_refs", []),
+        "curated": bool(meta.get("curated")), "extraction_status": b["extraction_status"], "legal_refs": legal_refs,
         "benefit": meta.get("benefit"), "sources": meta.get("sources", []), "not_specified": meta.get("not_specified", []),
         "rules": rules,
         "requirements": [{"seq": r["seq"], "topic": r["topic"], "kind": r["kind"], "text": r["text"], "criteria": json.loads(r["criteria"]),
                           "source_ref": r["source_ref"], "origin": r["origin"]} for r in req_rows],
         "coverage": cov, "coverage_summary": _summary(cov),
         "grant_rules": rule_set.model_dump(mode="json") if rule_set else None,
-        "usage": {"runs": [dict(r) for r in runs], "documents": [dict(d) for d in docs], "uploaded_sources": [dict(s) for s in sources]},
+        "usage": {"runs": [dict(r) for r in runs], "documents": [dict(d) for d in docs], "uploaded_sources": source_rows},
     }
 
 

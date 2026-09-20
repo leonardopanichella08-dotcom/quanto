@@ -1,8 +1,9 @@
-import React, { useCallback, useEffect, useState } from 'react'
+import React, { useCallback, useEffect, useMemo, useState } from 'react'
 import { AlertTriangle, CheckCircle2, ExternalLink, Loader2, Scale } from 'lucide-react'
-import { api, fileToBase64 } from '../lib/api'
+import { api } from '../lib/api'
 import { BANDO_STATUS_STYLE, KIND_STYLE, fmtTs } from '../lib/format'
 import Guide from './Guide'
+import ResearchPanel from './ResearchPanel'
 import { Hint, Term } from './Help'
 
 const COV_STYLE = {
@@ -15,6 +16,7 @@ const CONF_STYLE = {
 const KIND_LABEL = { OBBLIGO: 'obbligo', DIVIETO: 'divieto', LIMITE: 'limite', INFO: 'informazione', DA_REVISIONARE: 'da rivedere' }
 
 function Value({ v }) {
+  if (v == null) return <span className="text-amber-300">da decidere</span>
   if (Array.isArray(v)) return <span>{v.join(', ') || '—'}</span>
   if (typeof v === 'boolean') return <span>{v ? 'Sì' : 'No'}</span>
   return <span>{String(v)}</span>
@@ -38,43 +40,119 @@ function CoverageGrid({ coverage }) {
   )
 }
 
-function UploadPanel({ onDone }) {
-  const [name, setName] = useState('')
-  const [text, setText] = useState('')
-  const [file, setFile] = useState(null)
-  const [busy, setBusy] = useState(false)
+const TIER_STYLE = { UFFICIALE: 'text-emerald-300 border-emerald-500/30', SECONDARIA: 'text-amber-300 border-amber-500/30' }
+const esc = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+
+/** Testo integrale salvato in memoria: senza ricerca mostra l'inizio, con la ricerca mostra i passaggi che contengono le parole cercate. */
+function SourceViewer({ bandoId, source, onClose }) {
+  const [data, setData] = useState(null)
   const [error, setError] = useState(null)
-  const [result, setResult] = useState(null)
-
-  const run = async () => {
-    setBusy(true); setError(null); setResult(null)
-    try {
-      const body = { name, filename: file?.name || 'bando.txt' }
-      if (file) body.content_base64 = await fileToBase64(file)
-      else body.text = text
-      const res = await api.bandoUpload(body)
-      setResult(res)
-      onDone(res.bando_id)
-    } catch (e) { setError(e.message) } finally { setBusy(false) }
-  }
-
+  const [q, setQ] = useState('')
+  const [shown, setShown] = useState(6000)
+  useEffect(() => { api.sourceText(bandoId, source.sha256).then(setData).catch((e) => setError(e.message)) }, [bandoId, source.sha256])
+  const excerpts = useMemo(() => {
+    if (!data || q.trim().length < 2) return null
+    const rx = new RegExp(esc(q.trim()), 'gi'); const out = []; let m
+    while ((m = rx.exec(data.text)) && out.length < 40) {
+      out.push({ at: m.index, text: data.text.slice(Math.max(0, m.index - 160), m.index + q.length + 260).replace(/\s+/g, ' ') })
+      rx.lastIndex = m.index + 200
+    }
+    return out
+  }, [data, q])
+  const hl = (t) => t.split(new RegExp(`(${esc(q.trim())})`, 'gi')).map((part, i) => (i % 2 ? <mark key={i} className="bg-[#deffac]/30 text-white rounded px-0.5">{part}</mark> : part))
   return (
-    <div className="card p-5 space-y-3">
-      <h3 className="font-semibold text-sm flex items-center gap-2">Carica un bando nuovo <Hint id="bando_upload" /></h3>
-      <p className="text-xs text-neutral-400 leading-relaxed">Incolla il testo o carica il PDF. QUANTO estrae i numeri (limiti, percentuali), le categorie di spesa ammesse e ogni obbligo o divieto, e li collega ai controlli. Ciò che non riconosce va in “da rivedere”: niente viene ignorato in silenzio. Un PDF fatto di foto (scansione) non si può leggere.</p>
-      <div className="grid md:grid-cols-2 gap-3">
-        <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Nome del bando" aria-label="Nome del bando" className="field" />
-        <input type="file" accept=".pdf,.txt,.md" onChange={(e) => setFile(e.target.files?.[0] || null)} className="text-xs text-neutral-400 file:mr-3 file:rounded-lg file:border-0 file:bg-neutral-800 file:px-3 file:py-2 file:text-xs file:text-neutral-200" />
+    <div className="p-3 bg-neutral-950 border border-neutral-800 rounded-xl space-y-2">
+      <div className="flex flex-wrap items-center gap-2">
+        <span className="text-xs font-medium text-neutral-200 truncate max-w-full">{source.name}</span>
+        <button onClick={onClose} className="ml-auto text-xs text-neutral-400 hover:text-white">Chiudi</button>
       </div>
-      {!file && <textarea value={text} onChange={(e) => setText(e.target.value)} rows={5} placeholder="…oppure incolla qui il testo del bando" className="field font-mono" />}
-      <div className="flex flex-wrap items-center gap-3">
-        <button onClick={run} disabled={busy || name.trim().length < 3 || (!file && text.trim().length < 100)} className="btn-primary flex items-center gap-2">
-          {busy && <Loader2 className="w-3.5 h-3.5 animate-spin" />}Leggi il bando
-        </button>
-        {(!file && text.trim().length < 100) && <span className="text-xs text-neutral-500">Servono almeno 100 caratteri di testo, oppure un file.</span>}
-        {error && <span className="text-xs text-red-300">{error}</span>}
-        {result && <span className="text-xs text-emerald-300">Letti {result.characters_read.toLocaleString('it-IT')} caratteri · {Object.keys(result.rules_published).length} regole · {result.requirements_total} requisiti ({result.requirements_to_review} da rivedere)</span>}
+      {error && <p className="text-xs text-red-300">{error}</p>}
+      {!data && !error && <p className="text-xs text-neutral-500 flex items-center gap-2"><Loader2 className="w-3 h-3 animate-spin" />Carico il testo…</p>}
+      {data && (
+        <>
+          <input value={q} onChange={(e) => setQ(e.target.value)} placeholder={`Cerca nel testo (${data.chars.toLocaleString('it-IT')} caratteri), es. “fondo perduto”, “35 anni”`} aria-label="Cerca nel testo" className="field" />
+          {excerpts ? (
+            <div className="space-y-2 max-h-96 overflow-y-auto">
+              <p className="text-[11px] text-neutral-500">{excerpts.length === 40 ? 'Primi 40 passaggi' : `${excerpts.length} ${excerpts.length === 1 ? 'passaggio' : 'passaggi'}`} con “{q.trim()}”</p>
+              {excerpts.map((e) => <p key={e.at} className="text-xs text-neutral-300 leading-relaxed border-l-2 border-neutral-700 pl-3">…{hl(e.text)}…</p>)}
+              {excerpts.length === 0 && <p className="text-xs text-neutral-500">Nessun passaggio trovato.</p>}
+            </div>
+          ) : (
+            <div className="space-y-2">
+              <pre className="whitespace-pre-wrap text-xs text-neutral-300 leading-relaxed max-h-96 overflow-y-auto font-sans">{data.text.slice(0, shown)}</pre>
+              {shown < data.text.length && <button onClick={() => setShown(shown + 20000)} className="btn">Mostra altro testo</button>}
+            </div>
+          )}
+        </>
+      )}
+    </div>
+  )
+}
+
+function Sources({ bando }) {
+  const [open, setOpen] = useState(null)
+  const list = bando.usage.uploaded_sources
+  if (!list.length) return <p className="text-xs text-neutral-500">Nessun documento in memoria: cerca il bando sul web oppure aggiungi un documento a mano.</p>
+  return (
+    <div className="space-y-2">
+      <span className="label inline-flex items-center gap-1.5">Documenti in memoria ({list.length}) <Hint id="bando_fonti_scaricate" /></span>
+      <ul className="space-y-1.5">
+        {list.map((s) => (
+          <li key={s.sha256} className="space-y-1.5">
+            <div className="flex flex-wrap items-center gap-2">
+              {s.tier ? <span className={`px-1.5 py-0.5 rounded border text-[11px] font-medium ${TIER_STYLE[s.tier]}`}>{s.tier === 'UFFICIALE' ? 'ufficiale' : 'secondaria'}</span>
+                : <span className="px-1.5 py-0.5 rounded border border-neutral-700 text-[11px] text-neutral-400">caricato a mano</span>}
+              {s.url ? <a href={s.url} target="_blank" rel="noreferrer" className="text-sky-300 hover:underline inline-flex items-center gap-1 truncate max-w-[60vw] md:max-w-md">{s.name}<ExternalLink className="w-3 h-3 shrink-0" /></a>
+                : <span className="text-neutral-200 truncate max-w-[60vw] md:max-w-md">{s.name}</span>}
+              <span className="text-neutral-500">{s.pages ? `${s.pages} pag. · ` : ''}{s.chars.toLocaleString('it-IT')} caratteri · {fmtTs(s.ts)}</span>
+              <button onClick={() => setOpen(open === s.sha256 ? null : s.sha256)} className="btn !py-1 ml-auto">{open === s.sha256 ? 'Chiudi' : 'Leggi il testo'}</button>
+            </div>
+            {open === s.sha256 && <SourceViewer bandoId={bando.bando_id} source={s} onClose={() => setOpen(null)} />}
+          </li>
+        ))}
+      </ul>
+    </div>
+  )
+}
+
+function Requirements({ items }) {
+  const [topic, setTopic] = useState('')
+  const [q, setQ] = useState('')
+  const [limit, setLimit] = useState(40)
+  const topics = useMemo(() => {
+    const m = {}
+    items.forEach((r) => r.topic.split(' / ').forEach((t) => { m[t] = (m[t] || 0) + 1 }))
+    return Object.entries(m).sort((a, b) => b[1] - a[1])
+  }, [items])
+  const rows = items.filter((r) => (!topic || r.topic.split(' / ').includes(topic)) && (!q.trim() || `${r.text} ${r.topic}`.toLowerCase().includes(q.trim().toLowerCase())))
+  const link = (ref) => { const m = ref && ref.match(/^(.*?) — (https?:\/\/\S+)/); return m ? { label: m[1], url: m[2] } : null }
+  return (
+    <div className="space-y-3">
+      <input value={q} onChange={(e) => { setQ(e.target.value); setLimit(40) }} placeholder="Cerca nei requisiti (es. età, fondo perduto, CUP)" aria-label="Cerca nei requisiti" className="field" />
+      <div className="flex flex-wrap gap-1.5">
+        <button onClick={() => { setTopic(''); setLimit(40) }} className={`px-2 py-1 rounded-lg border text-[11px] ${!topic ? 'border-[#deffac] text-white' : 'border-neutral-700 text-neutral-400 hover:text-white'}`}>Tutti ({items.length})</button>
+        {topics.slice(0, 14).map(([t, n]) => (
+          <button key={t} onClick={() => { setTopic(t === topic ? '' : t); setLimit(40) }} className={`px-2 py-1 rounded-lg border text-[11px] ${topic === t ? 'border-[#deffac] text-white' : 'border-neutral-700 text-neutral-400 hover:text-white'}`}>{t} ({n})</button>
+        ))}
       </div>
+      <p className="text-[11px] text-neutral-500">{rows.length} di {items.length} requisiti</p>
+      {rows.slice(0, limit).map((r) => {
+        const l = link(r.source_ref)
+        return (
+          <div key={r.seq} className="p-3 bg-neutral-950 border border-neutral-800 rounded-xl text-xs space-y-1.5">
+            <div className="flex flex-wrap items-center gap-2">
+              <span className={`px-1.5 py-0.5 rounded border text-[11px] font-medium ${KIND_STYLE[r.kind]}`}>{KIND_LABEL[r.kind] || r.kind}</span>
+              <span className="font-medium text-neutral-100">{r.topic}</span>
+              {r.criteria.map((c) => <span key={c} className="font-mono text-[11px] text-[#deffac]">#{c}</span>)}
+            </div>
+            <p className="text-neutral-300 leading-relaxed">{r.text}</p>
+            {l ? <p className="text-[11px] text-neutral-500 truncate">Fonte: <a href={l.url} target="_blank" rel="noreferrer" className="hover:underline text-sky-300/80">{l.label}</a></p>
+              : r.source_ref && <p className="text-[11px] text-neutral-500">{r.source_ref}</p>}
+          </div>
+        )
+      })}
+      {rows.length > limit && <button onClick={() => setLimit(limit + 40)} className="btn">Mostra altri {Math.min(40, rows.length - limit)}</button>}
+      {rows.length === 0 && <p className="text-xs text-neutral-500">Nessun requisito con questi filtri.</p>}
     </div>
   )
 }
@@ -83,7 +161,7 @@ const TAB_HINT = { rules: 'bando_scheda_regole', reqs: 'bando_scheda_req', cov: 
 
 function Detail({ bando, onUse, using }) {
   const [tab, setTab] = useState('rules')
-  const tabs = [['rules', `Regole (${bando.rules.length})`], ['reqs', `Requisiti (${bando.requirements.length})`], ['cov', 'Controlli attivati'], ['src', 'Fonti e lacune']]
+  const tabs = [['rules', `Regole (${bando.rules.length})`], ['reqs', `Requisiti (${bando.requirements.length})`], ['cov', 'Controlli attivati'], ['src', 'Fonti e testi']]
   const toReview = bando.requirements.filter((r) => r.kind === 'DA_REVISIONARE').length
   return (
     <div className="card p-5 space-y-4">
@@ -126,7 +204,7 @@ function Detail({ bando, onUse, using }) {
               <div className="flex flex-wrap items-center gap-2 text-xs text-neutral-400">
                 <span className={`px-1.5 py-0.5 rounded border font-medium ${CONF_STYLE[r.confidence] || 'text-neutral-400 border-neutral-700'}`}>{r.confidence}</span>
                 {r.criteria.length > 0 && <span>controlli: {r.criteria.map((c) => `#${c}`).join(' ')}</span>}
-                {r.status === 'PENDING_REVIEW' && <span className="text-fuchsia-300">da controllare a mano</span>}
+                {r.status === 'PENDING_REVIEW' && <span className="text-fuchsia-300 inline-flex items-center gap-1.5">da controllare a mano{r.passes?.length > 0 && <span className="font-mono">· letture diverse: {r.passes.join(' ≠ ')}</span>}<Hint id="bando_regole_verifica" /></span>}
               </div>
               {r.source_ref && <p className="text-xs text-neutral-500 leading-relaxed">{r.source_ref}</p>}
             </div>
@@ -136,21 +214,7 @@ function Detail({ bando, onUse, using }) {
         </div>
       )}
 
-      {tab === 'reqs' && (
-        <div className="space-y-2">
-          {bando.requirements.map((r) => (
-            <div key={r.seq} className="p-3 bg-neutral-950 border border-neutral-800 rounded-xl text-xs space-y-1.5">
-              <div className="flex flex-wrap items-center gap-2">
-                <span className={`px-1.5 py-0.5 rounded border text-[11px] font-medium ${KIND_STYLE[r.kind]}`}>{KIND_LABEL[r.kind] || r.kind}</span>
-                <span className="font-medium text-neutral-100">{r.topic}</span>
-                {r.criteria.map((c) => <span key={c} className="font-mono text-[11px] text-[#deffac]">#{c}</span>)}
-              </div>
-              <p className="text-neutral-300 leading-relaxed">{r.text}</p>
-              {r.source_ref && <p className="text-[11px] text-neutral-500">{r.source_ref}</p>}
-            </div>
-          ))}
-        </div>
-      )}
+      {tab === 'reqs' && <Requirements items={bando.requirements} />}
 
       {tab === 'cov' && (
         <div className="space-y-3">
@@ -160,8 +224,9 @@ function Detail({ bando, onUse, using }) {
       )}
 
       {tab === 'src' && (
-        <div className="space-y-4 text-xs">
-          {bando.legal_refs?.length > 0 && <div><span className="label">Riferimenti di legge</span><ul className="mt-1 space-y-1 text-neutral-300 list-disc pl-4">{bando.legal_refs.map((l) => <li key={l}>{l}</li>)}</ul></div>}
+        <div className="space-y-5 text-xs">
+          <Sources bando={bando} />
+          {bando.legal_refs?.length > 0 && <div><span className="label">Atti di legge citati nei documenti</span><ul className="mt-1 space-y-1 text-neutral-300 list-disc pl-4">{bando.legal_refs.map((l) => <li key={l}>{l}</li>)}</ul></div>}
           {bando.sources?.length > 0 && (
             <div><span className="label">Fonti consultate</span>
               <ul className="mt-1 space-y-1.5">{bando.sources.map((s) => (
@@ -246,7 +311,7 @@ export default function BandiLibrary({ bandi, selectedId, onSelect, onReload }) 
           {detail ? <Detail bando={detail} onUse={use} using={using} /> : (
             <div className="card p-10 text-center text-sm text-neutral-500">Scegli un bando dall’elenco per vederne regole, requisiti e fonti.</div>
           )}
-          <UploadPanel onDone={async (id) => { await onReload(); await load(id) }} />
+          <ResearchPanel onDone={async (id) => { await onReload(); await load(id) }} />
         </div>
       </div>
     </div>

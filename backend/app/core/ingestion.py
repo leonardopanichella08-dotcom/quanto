@@ -20,7 +20,7 @@ from enum import Enum
 from dataclasses import dataclass
 from datetime import date, datetime
 from decimal import Decimal, InvalidOperation
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Tuple
 
 from pydantic import TypeAdapter, ValidationError
 
@@ -105,8 +105,11 @@ def normalize_value(rule_key: str, value: Any) -> str:
     return str(parsed).lower() if isinstance(parsed, bool) else str(parsed)
 
 
-def extract_deterministic(text: str) -> Dict[str, str]:
-    """Stadio 2: solo codice. Tabelle ``chiave: valore`` con chiavi di regola note + formule di prosa standard."""
+def extract_deterministic(text: str, ambiguous: Optional[Dict[str, List[str]]] = None) -> Dict[str, str]:
+    """Stadio 2: solo codice. Tabelle ``chiave: valore`` con chiavi di regola note + formule di prosa standard.
+
+    Se ``ambiguous`` è un dizionario, una formula che nello stesso testo dà valori DIVERSI (es. contributo 75% e 70%) non viene pubblicata:
+    i valori trovati finiscono in ``ambiguous`` e la decisione passa a una persona. Senza dizionario vale il primo valore (uso storico)."""
     found: Dict[str, str] = {}
     for line in text.splitlines():
         m = _KV_LINE.match(line)
@@ -118,12 +121,20 @@ def extract_deterministic(text: str) -> Dict[str, str]:
     for key, pattern, convert in PROSE_PATTERNS:
         if key in found:
             continue
-        m = pattern.search(text)
-        if m:
+        values: List[str] = []
+        for m in pattern.finditer(text):
             try:
-                found[key] = normalize_value(key, convert(m))
+                v = normalize_value(key, convert(m))
             except (ValueError, InvalidOperation):
                 continue
+            if v not in values:
+                values.append(v)
+            if ambiguous is None:
+                break
+        if len(values) > 1 and ambiguous is not None:
+            ambiguous[key] = values
+        elif values:
+            found[key] = values[0]
     for key, value in extract_more_rules(text).items():
         if key not in found:
             try:
@@ -174,7 +185,8 @@ class Ingestion:
     # ------------------------------------------------------------------ estrazione (Stadi 2 e 3)
     @classmethod
     def extract(cls, bando_id: str, source_text: Optional[str] = None, ai_passes: Optional[List[Dict[str, Any]]] = None,
-                source_ref: Optional[str] = None) -> ExtractionOutcome:
+                source_ref: Optional[str] = None, sources: Optional[List[Tuple[str, str]]] = None) -> ExtractionOutcome:
+        """``sources`` = [(riferimento, testo)] in ordine di fiducia (prima le ufficiali): regole e requisiti si leggono da tutte, ciascuno con la propria fonte."""
         published: Dict[str, str] = {}
         pending: List[str] = []
         with connect() as conn:
@@ -185,28 +197,58 @@ class Ingestion:
             had_complete = cache_hit and not any(r["status"] == "PENDING_REVIEW" for r in existing.values())
             reqs: List[dict] = []
 
-            def put(key: str, value: Optional[str], origin: str, status: str, passes: Optional[list] = None) -> None:
+            def put(key: str, value: Optional[str], origin: str, status: str, passes: Optional[list] = None, ref: Optional[str] = None) -> None:
                 conn.execute(
                     "INSERT INTO rules (bando_id, rule_key, value, origin, status, passes, source_ref) VALUES (?,?,?,?,?,?,?) "
                     "ON CONFLICT(bando_id, rule_key) DO UPDATE SET value=excluded.value, origin=excluded.origin, status=excluded.status, "
                     "passes=excluded.passes, source_ref=excluded.source_ref",
-                    (bando_id, key, value, origin, status, json.dumps(passes) if passes is not None else None, source_ref))
+                    (bando_id, key, value, origin, status, json.dumps(passes) if passes is not None else None, ref or source_ref))
 
             def is_published(key: str) -> bool:
                 return key in existing and existing[key]["status"] == "PUBLISHED"
 
-            if source_text:                                            # Stadio 2
-                for key, value in extract_deterministic(source_text).items():
-                    if not is_published(key):
-                        put(key, value, "STRUCTURED_PARSING", "PUBLISHED")
-                        published[key] = value
-                        existing[key] = {"status": "PUBLISHED"}
-                reqs = extract_requirements(source_text)
+            srcs = sources or ([(source_ref or "testo caricato", source_text)] if source_text else [])
+            if srcs:                                                   # Stadio 2
+                if sources is not None:
+                    # analisi su tutte le fonti in memoria: le regole lette in automatico si rifanno (le fonti possono essere cambiate);
+                    # quelle decise da una persona restano. L'estrazione classica da un solo testo non sovrascrive mai una regola pubblicata.
+                    conn.execute("DELETE FROM rules WHERE bando_id=? AND origin='STRUCTURED_PARSING'", (bando_id,))
+                    existing = {k: v for k, v in existing.items() if v["origin"] != "STRUCTURED_PARSING"}
+                found: Dict[str, List[Tuple[str, str]]] = {}
+                for ref, txt in srcs:
+                    amb: Dict[str, List[str]] = {}
+                    for key, value in extract_deterministic(txt, amb).items():
+                        found.setdefault(key, []).append((ref, value))
+                    for key, values in amb.items():
+                        found.setdefault(key, []).extend((ref, v) for v in values)
+                for key, hits in found.items():
+                    if is_published(key):
+                        continue
+                    values = list(dict.fromkeys(v for _, v in hits))
+                    if len(values) == 1:
+                        put(key, values[0], "STRUCTURED_PARSING", "PUBLISHED", ref=hits[0][0])
+                        published[key] = values[0]
+                        existing[key] = {"status": "PUBLISHED", "origin": "STRUCTURED_PARSING"}
+                    else:
+                        # fonti diverse danno valori diversi: una regola ambigua non diventa un controllo attivo, la decide una persona
+                        put(key, None, "STRUCTURED_PARSING", "PENDING_REVIEW", values, ref="; ".join(dict.fromkeys(r for r, _ in hits))[:300])
+                        pending.append(key)
+                        existing[key] = {"status": "PENDING_REVIEW", "origin": "STRUCTURED_PARSING"}
+                seen_req: set = set()
+                for ref, txt in srcs:
+                    for r in extract_requirements(txt, source_ref=ref):
+                        k = re.sub(r"\s+", " ", r["text"].lower())[:160]
+                        if k in seen_req or len(reqs) >= 300:
+                            continue
+                        if r["kind"] == "DA_REVISIONARE" and sum(1 for x in reqs if x["kind"] == "DA_REVISIONARE") >= 80:
+                            continue  # una persona non può rivedere centinaia di frasi: le prime 80 bastano a segnalare il problema
+                        seen_req.add(k)
+                        reqs.append(r)
                 conn.execute("DELETE FROM requirements WHERE bando_id=? AND origin='STRUCTURED_PARSING'", (bando_id,))
                 base = conn.execute("SELECT COALESCE(MAX(seq), 0) m FROM requirements WHERE bando_id=?", (bando_id,)).fetchone()["m"]
                 for i, r in enumerate(reqs, base + 1):
                     conn.execute("INSERT INTO requirements (bando_id, seq, topic, kind, text, criteria, source_ref, origin) VALUES (?,?,?,?,?,?,?,?)",
-                                 (bando_id, i, r["topic"], r["kind"], r["text"], json.dumps(r["criteria"]), source_ref or r["source_ref"], "STRUCTURED_PARSING"))
+                                 (bando_id, i, r["topic"], r["kind"], r["text"], json.dumps(r["criteria"]), r["source_ref"], "STRUCTURED_PARSING"))
 
             if ai_passes:                                              # Stadio 3: il confronto lo fa il codice
                 keys = sorted({k for p in ai_passes for k in p})
@@ -286,7 +328,14 @@ class Ingestion:
             rows = conn.execute("SELECT rule_key, value FROM rules WHERE bando_id=? AND status='PUBLISHED' ORDER BY rule_key", (bando_id,)).fetchall()
         values = {r["rule_key"]: r["value"] for r in rows}
         if not values:
-            return None, ["nessuna regola pubblicata"]
+            with connect() as conn:
+                shas = [r["sha256"] for r in conn.execute("SELECT sha256 FROM bando_sources WHERE bando_id=? ORDER BY sha256", (bando_id,)).fetchall()]
+            if not shas:
+                return None, ["nessuna regola pubblicata"]
+            # letto dal testo ma senza regole numeriche: si usa comunque, con i soli controlli che lavorano sui dati della voce (nessun default inventato)
+            version = hashlib.sha256(json.dumps(shas, separators=(",", ":")).encode("utf-8")).hexdigest()[:32]
+            return (GrantRuleSet.model_validate({"bando_id": bando_id, "bando_name": bando["name"], "rule_version_hash": version}),
+                    ["nessuna regola numerica: si eseguono solo i controlli sui dati delle voci"])
         version = hashlib.sha256(json.dumps(values, sort_keys=True, separators=(",", ":")).encode("utf-8")).hexdigest()[:32]
         parsed: Dict[str, Any] = {}
         for k, v in values.items():

@@ -4,7 +4,7 @@ import { api } from '../../lib/api'
 import { BANDO_STATUS_STYLE, fmtBytes, fmtEur, fmtTs } from '../../lib/format'
 
 const KIND_LABEL = {
-  BANDO_TEXT: 'Bando (testo)', BANDO_PDF: 'Bando (PDF)', EXPORT_XLSX: 'Export Excel', EXPORT_PDF: 'Export PDF', IMPORT_XLSX: 'Import voci', ATTESTATION: 'Certificazione',
+  BANDO_TEXT: 'Bando (testo)', BANDO_PDF: 'Bando (PDF)', BANDO_WEB: 'Bando (pagina web)', EXPORT_XLSX: 'Export Excel', EXPORT_PDF: 'Export PDF', IMPORT_XLSX: 'Import voci', ATTESTATION: 'Certificazione',
 }
 
 function useLoad(fn, deps) {

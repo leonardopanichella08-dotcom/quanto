@@ -112,6 +112,20 @@ def db_path() -> str:
     return os.getenv("QUANTO_DB_PATH") or os.path.join(tempfile.gettempdir(), "quanto.sqlite3")
 
 
+# colonne aggiunte dopo la prima versione (le tabelle esistenti vengono estese senza perdere dati)
+MIGRATIONS = {
+    "bando_sources": [("url", "TEXT"), ("tier", "TEXT"), ("content_type", "TEXT"), ("pages", "INTEGER"), ("origin", "TEXT")],
+}
+
+
+def _migrate(conn: sqlite3.Connection) -> None:
+    for table, cols in MIGRATIONS.items():
+        have = {r[1] for r in conn.execute(f"PRAGMA table_info({table})")}
+        for name, typ in cols:
+            if name not in have:
+                conn.execute(f"ALTER TABLE {table} ADD COLUMN {name} {typ}")
+
+
 @contextmanager
 def connect() -> Iterator[sqlite3.Connection]:
     """Connessione con transazione immediata (serializza le scritture della catena di hash)."""
@@ -120,6 +134,7 @@ def connect() -> Iterator[sqlite3.Connection]:
         conn.row_factory = sqlite3.Row
         try:
             conn.executescript(SCHEMA)
+            _migrate(conn)
             conn.execute("BEGIN IMMEDIATE")
             try:
                 yield conn

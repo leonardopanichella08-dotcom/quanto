@@ -97,12 +97,21 @@ def add_document(kind: str, name: str, data: bytes, bando_id: Optional[str] = No
         return None
 
 
-def save_bando_source(bando_id: str, name: str, text: str) -> str:
+def save_bando_source(bando_id: str, name: str, text: str, url: Optional[str] = None, tier: Optional[str] = None,
+                      content_type: Optional[str] = None, pages: Optional[int] = None, origin: str = "UPLOAD") -> str:
+    """Salva il testo integrale di una fonte del bando (caricata a mano o scaricata dal web) nella memoria."""
     digest = sha256_hex(text.encode("utf-8"))
     with connect() as conn:
-        conn.execute("INSERT OR REPLACE INTO bando_sources (bando_id, ts, name, sha256, text) VALUES (?,?,?,?,?)",
-                     (bando_id, now_iso(), name[:200], digest, text[:MAX_SOURCE_TEXT]))
+        conn.execute("INSERT OR REPLACE INTO bando_sources (bando_id, ts, name, sha256, text, url, tier, content_type, pages, origin) VALUES (?,?,?,?,?,?,?,?,?,?)",
+                     (bando_id, now_iso(), name[:200], digest, text[:MAX_SOURCE_TEXT], url, tier, content_type, pages, origin))
     return digest
+
+
+def list_bando_sources(bando_id: str) -> List[dict]:
+    """Fonti in memoria: prima le ufficiali, poi le altre (con il testo)."""
+    with connect() as conn:
+        rows = conn.execute("SELECT * FROM bando_sources WHERE bando_id=? ORDER BY CASE tier WHEN 'UFFICIALE' THEN 0 WHEN 'SECONDARIA' THEN 2 ELSE 1 END, ts", (bando_id,)).fetchall()
+    return [dict(r) for r in rows]
 
 
 def list_events(op: Optional[str] = None, project_id: Optional[str] = None, bando_id: Optional[str] = None,
