@@ -130,6 +130,9 @@ def list_bandi() -> List[Dict[str, Any]]:
             published = [r["rule_key"] for r in rules if r["status"] == "PUBLISHED"]
             reqs = conn.execute("SELECT COUNT(*) c, SUM(kind='DA_REVISIONARE') r FROM requirements WHERE bando_id=?", (bid,)).fetchone()
             runs = conn.execute("SELECT COUNT(*) c, MAX(ts) t FROM runs WHERE bando_id=? AND kind='VALIDATE'", (bid,)).fetchone()
+            n_src = conn.execute("SELECT COUNT(*) c FROM bando_sources WHERE bando_id=?", (bid,)).fetchone()["c"]
+            if not meta.get("curated") and not rules and not (reqs["c"] or 0) and not n_src and not runs["c"]:
+                continue  # ricerca senza esito: resta visibile solo al manager (Archivio bandi), non nell'elenco pubblico
             out.append({
                 "bando_id": bid, "name": b["name"], "issuer": b["issuer"], "status": meta.get("status") or ("IN LAVORAZIONE" if b["extraction_status"] != "COMPLETED" else "ESTRATTO"),
                 "period": meta.get("period"), "curated": bool(meta.get("curated")), "extraction_status": b["extraction_status"],

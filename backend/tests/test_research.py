@@ -537,3 +537,12 @@ def test_slow_catalog_does_not_block_the_search_and_is_cached_afterwards(monkeyp
     monkeypatch.setattr(discovery, "load_catalog", real_load)
     hits, info = discovery.search_catalogs("Nuova Sabatini")
     assert hits and hits[0]["url"].endswith("nuova-sabatini")
+
+
+def test_search_without_results_leaves_no_empty_bando_in_the_public_list(hq_headers=None):
+    r = client.post("/api/v2/bandi/research/search", json={"name": "Bando Che Non Esiste Affatto"}).json()
+    assert r["candidates"] == []
+    assert r["bando_id"] not in [b["bando_id"] for b in client.get("/api/v2/bandi").json()]
+    tok = client.post("/api/v2/hq/login", json={"code": "QUANTO_1"}).json()["token"]
+    mine = [b for b in client.get("/api/v2/hq/archive", headers={"X-HQ-Token": tok}).json()["bandi"] if b["bando_id"] == r["bando_id"]]
+    assert mine and mine[0]["sources"] == 0                                          # il manager la vede (e può eliminarla)
