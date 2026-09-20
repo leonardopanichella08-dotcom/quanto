@@ -46,6 +46,10 @@ RATE_LIMIT = (120, 600)          # richieste in uscita ogni 10 minuti, per proce
 OFFICIAL_SUFFIXES = (
     "gazzettaufficiale.it", "normattiva.it", "eur-lex.europa.eu", "europa.eu", "invitalia.it", "governo.it", "gov.it", "inps.it", "camera.it", "senato.it",
     "cdp.it", "mcc.it", "simest.it", "sace.it", "ismea.it", "unioncamere.it", "camcom.it", "anpal.gov.it", "bancaditalia.it", "cortecostituzionale.it",
+    # agenzie nazionali e ministeri con dominio proprio
+    "erasmusplus.it", "agenziagiovani.it", "indire.it", "eurodesk.it", "gse.it", "enea.it", "inail.it", "esteri.it", "ice.it", "istruzione.it", "difesa.it",
+    "giustizia.it", "reterurale.it", "agea.gov.it", "opencoesione.gov.it", "italiadomani.gov.it", "cordis.europa.eu", "eib.org", "eif.org", "acn.gov.it",
+    "fondimpresa.it", "fondoforte.it", "for.med.it", "formazienda.it", "sviluppoitalia.it", "confidi.eu", "artigiancassa.it", "bancaditalia.it",
 )
 _OFFICIAL_RE = re.compile(r"(^|\.)(regione|comune|provincia|cittametropolitana)\.[a-z0-9\-]+\.it$|(^|\.)regione\.[a-z\-]+\.it$")
 STOPWORDS = {"il", "lo", "la", "le", "gli", "un", "una", "di", "del", "della", "dei", "delle", "al", "alla", "ai", "alle", "per", "con", "in", "su", "the", "and", "bando", "avviso"}
@@ -75,8 +79,85 @@ def normalize_url(url: str) -> str:
     return urllib.parse.urlunparse((p.scheme.lower(), host + (f":{p.port}" if p.port and p.port not in (80, 443) else ""), p.path.rstrip("/") or "/", "", urllib.parse.urlencode(q), ""))
 
 
+def norm_hay(s: str) -> str:
+    """Testo confrontabile: minuscolo, «+» come spazio, «KA 152» e «KA-152» come «ka152»."""
+    s = s.lower().replace("+", " ")
+    s = re.sub(r"(?<=[a-zà-ù])[\s\-_/]+(?=\d)", "", s)
+    return re.sub(r"[\s\-_/]+", " ", s)
+
+
+def split_tokens(name: str) -> Tuple[List[str], List[str]]:
+    """(parole, sigle). Le sigle (KA152, 5.0→50, D.L. 34…) identificano un'azione DENTRO un programma: Erasmus KA152 = parola «erasmus» + sigla «ka152»."""
+    toks = re.findall(r"[a-zà-ù0-9]+", norm_hay(name))
+    codes = [t for t in toks if re.search(r"[a-z]", t) and re.search(r"\d", t)]
+    words = [t for t in toks if t not in codes and len(t) > 2 and t not in STOPWORDS and not t.isdigit()]
+    return words, codes
+
+
+def url_text(url: str) -> str:
+    """Percorso e parametri dell'indirizzo, senza dominio: «erasmusplus.it» non deve far passare qualunque pagina per «Erasmus»."""
+    p = urllib.parse.urlparse(url)
+    return urllib.parse.unquote(f"{p.path} {p.query}")
+
+
 def name_tokens(name: str) -> List[str]:
-    return [t for t in re.findall(r"[a-zà-ù0-9]+", name.lower()) if len(t) > 2 and t not in STOPWORDS] or [t for t in re.findall(r"[a-zà-ù0-9]+", name.lower())][:2]
+    words, codes = split_tokens(name)
+    return words + codes or [t for t in re.findall(r"[a-zà-ù0-9]+", name.lower())][:2]
+
+
+# Le sigle dei programmi europei portano al loro settore: sui portali ufficiali l'azione sta dentro una sezione (es. KA152 → «Gioventù»)
+_SECTOR_HINTS = [
+    (r"^ka15\d$|^you$", ["gioventù", "gioventu", "giovani", "youth", "scambi giovanili", "scambi di giovani"]),
+    (r"^ka13\d$|^ka17\d$|^hed$", ["istruzione superiore", "higher education", "università", "universita"]),
+    (r"^sch$", ["scuola", "istruzione scolastica", "school"]),
+    (r"^vet$", ["formazione professionale", "vocational"]),
+    (r"^adu$|^eda$", ["educazione degli adulti", "adult education"]),
+]
+
+
+# Come i documenti ufficiali chiamano le azioni con sigla: «KA152» compare quasi solo nei bandi, il testo della Guida dice «Youth Exchanges»
+CODE_SYNONYMS: Dict[str, List[str]] = {
+    "ka152": ["youth exchange", "scambi giovanili", "scambi di giovani"],
+    "ka153": ["mobility of youth workers", "youth workers mobility", "mobilità degli animatori giovanili"],
+    "ka154": ["youth participation activities", "attività di partecipazione giovanile"],
+    "ka210": ["small-scale partnership", "partenariati su piccola scala"],
+    "ka220": ["cooperation partnership", "partenariati di cooperazione"],
+}
+
+
+def hint_phrases(name: str) -> List[str]:
+    toks = re.findall(r"[a-zà-ù0-9]+", norm_hay(name))
+    out: List[str] = []
+    for rx, phrases in _SECTOR_HINTS:
+        if any(re.search(rx, t) for t in toks):
+            out += phrases
+    return out
+
+
+def match_score(name: str, text: str) -> Optional[int]:
+    """None = il testo non parla di questo bando; altrimenti un punteggio 60..100.
+
+    Le parole del nome devono esserci tutte (se sono 3 o più basta il 60%); la sigla (es. KA152) non è obbligatoria — la pagina può descrivere il programma
+    che la contiene — ma vale di più. Così «Resto del Carlino» non passa per «Resto al Sud», mentre la pagina Erasmus+ passa per «Erasmus KA152»."""
+    words, codes = split_tokens(name)
+    hay = norm_hay(text)
+    got_w = sum(1 for w in words if w in hay)
+    got_c = sum(1 for c in codes if c in hay)
+    if codes and got_c == len(codes):
+        return 90 + (10 if words and got_w == len(words) else 0)       # la sigla (es. KA152) è specifica: da sola identifica l'azione
+    if codes and any(s in hay for c in codes for s in CODE_SYNONYMS.get(c, [])):
+        return 88 + (10 if words and got_w == len(words) else 0)        # la pagina descrive l'azione con il suo nome esteso
+    hinted = any(h in hay for h in hint_phrases(name))
+    if hinted and not words:
+        return 65                                                      # solo il settore: pagina da cui si arriva all'azione
+    if words:
+        need = len(words) if len(words) <= 2 else max(1, int(len(words) * 0.6 + 0.999))
+        if got_w < need:
+            return None
+    else:
+        return None
+    score = 60 + (20 * got_w // max(len(words), 1) if words else 0) + (20 * got_c // len(codes) if codes else 0) + (10 if hinted else 0)
+    return min(100, score)
 
 
 # ------------------------------------------------------------------ protezioni e download
@@ -213,6 +294,20 @@ def _decode(raw: bytes, ctype_header: str = "") -> str:
 _JUNK = re.compile(r"cookie|accetta|rifiuta|privacy policy|javascript|salta al contenuto|torna su|seguici su", re.I)
 
 
+_GENERIC_TITLE = re.compile(r"^(?:select your language|choose your language|cookie|menu|home|homepage|skip to|accedi|login|sign in|search|cerca|benvenut)", re.I)
+
+
+def _best_title(title: str, h1: str) -> str:
+    """<title> senza il nome del sito («Pagina | Sito»); il primo <h1> solo se il titolo manca o è generico («Select your language»)."""
+    t = re.sub(r"\s+", " ", unescape(title)).strip()
+    t = re.split(r"\s+[|–—]\s+", t)[0].strip()
+    h = re.sub(r"\s+", " ", unescape(h1)).strip()
+    for cand in (h, t):
+        if len(cand) >= 4 and not _GENERIC_TITLE.match(cand):
+            return cand[:200]
+    return (h or t)[:200]
+
+
 def html_to_text(html: str) -> Tuple[str, str, List[Tuple[str, str]]]:
     """(testo pulito, titolo, collegamenti). Senza menu, piè di pagina, script e avvisi sui cookie."""
     p = _Page()
@@ -226,8 +321,7 @@ def html_to_text(html: str) -> Tuple[str, str, List[Tuple[str, str]]]:
         if not ln or (len(ln) < 300 and _JUNK.search(ln)) or (lines and lines[-1] == ln):
             continue
         lines.append(ln)
-    title = re.sub(r"\s+", " ", unescape(p.h1 or p.title)).strip()[:200]
-    return "\n".join(lines), title, p.links
+    return "\n".join(lines), _best_title(p.title, p.h1), p.links
 
 
 def pdf_to_text(data: bytes, budget: float = PDF_TIME_BUDGET) -> Tuple[str, int, int]:
@@ -249,12 +343,19 @@ def pdf_to_text(data: bytes, budget: float = PDF_TIME_BUDGET) -> Tuple[str, int,
 
 
 def _phrase_regex(name: str) -> Optional["re.Pattern[str]"]:
+    """Le espressioni che identificano il bando nel testo: il nome intero e le sigle (KA152 anche come «KA 152» o «KA-152»)."""
     words = re.findall(r"[\wà-ù]+", name)
     while words and re.fullmatch(r"\d+", words[-1]):
         words.pop()          # "Resto al Sud 2.0" -> anche le pagine che dicono solo "Resto al Sud"
-    if not words:
-        return None
-    return re.compile(r"[\s\-–]+".join(re.escape(w) for w in words), re.I)
+    alts: List[str] = []
+    if words:
+        alts.append(r"[\s\-–]+".join(re.escape(w) for w in words))
+    for code in split_tokens(name)[1]:
+        m = re.fullmatch(r"([a-zà-ù]+)(\d+)", code)
+        if m:
+            alts.append(re.escape(m.group(1)) + r"[\s\-–]?" + re.escape(m.group(2)))
+        alts += [re.escape(s).replace(r"\ ", r"[\s\-]+") for s in CODE_SYNONYMS.get(code, [])]
+    return re.compile("|".join(f"(?:{a})" for a in alts), re.I) if alts else None
 
 
 def focus_text(text: str, name: str, window_before: int = 1500, window_after: int = 3000) -> str:
@@ -288,8 +389,9 @@ _DOC_WORDS = re.compile(r"normativ|decret|avvis|bando|circolar|regolament|allega
 _BAD_LINK = re.compile(r"^(mailto|tel|javascript):|\.(jpe?g|png|gif|svg|webp|zip|rar|mp4|mp3|xlsx?|pptx?|css|js|ico)(\?|$)|/(login|accedi|area-riservata|newsletter|cookie|privacy|sitemap|accessibilit|rss|contatti|search|ricerca)(/|\?|$)|[?&](lang|language)=", re.I)
 
 
-def find_links(base_url: str, links: List[Tuple[str, str]], known: Optional[set] = None, limit: int = 25) -> List[Dict[str, Any]]:
-    """Collegamenti utili della pagina: PDF, decreti, avvisi, FAQ, atti della Gazzetta. Si seguono solo siti ufficiali."""
+def find_links(base_url: str, links: List[Tuple[str, str]], known: Optional[set] = None, limit: int = 25, focus: str = "") -> List[Dict[str, Any]]:
+    """Collegamenti utili della pagina: PDF, decreti, avvisi, FAQ, atti della Gazzetta. Si seguono solo siti ufficiali.
+    ``focus`` = nome del bando: i link che lo nominano (o nominano la sua sigla, es. KA152) passano avanti."""
     known = known or set()
     seen: Dict[str, Dict[str, Any]] = {}
     base_host = host_of(base_url)
@@ -306,8 +408,9 @@ def find_links(base_url: str, links: List[Tuple[str, str]], known: Optional[set]
             continue
         h = host_of(full)
         is_pdf = bool(re.search(r"\.pdf(\?|$)", full, re.I))
+        about = focus and match_score(focus, f"{text} {url_text(full)}") is not None
         score = (50 if is_pdf else 0) + (40 if any(h.endswith(x) for x in ("gazzettaufficiale.it", "normattiva.it", "eur-lex.europa.eu")) else 0) \
-            + (30 if _DOC_WORDS.search(text + " " + full) else 0) + (15 if h == base_host else 0)
+            + (30 if _DOC_WORDS.search(text + " " + full) else 0) + (15 if h == base_host else 0) + (45 if about else 0)
         if score < 45:
             continue
         seen[norm] = {"url": full, "title": (text or full)[:140], "score": score, "is_pdf": is_pdf, "host": h}
@@ -361,42 +464,78 @@ def parse_brave(data: Dict[str, Any]) -> List[Dict[str, str]]:
             for r in (data.get("web") or {}).get("results", []) if r.get("url")]
 
 
-def _search_brave(query: str, key: str) -> Tuple[List[Dict[str, str]], Optional[str]]:
-    _rate_check()
+def _engine_brave(query: str, key: str) -> Tuple[List[Dict[str, str]], Optional[str]]:
     try:
         r = httpx.get(BRAVE_URL, params={"q": query, "country": "IT", "search_lang": "it", "count": 20},
                       headers={"X-Subscription-Token": key, "Accept": "application/json"}, timeout=TIMEOUT)
-        if r.status_code != 200:
-            return [], f"Brave Search ha risposto {r.status_code}"
-        return parse_brave(r.json()), None
+        return (parse_brave(r.json()), None) if r.status_code == 200 else ([], f"risposta {r.status_code}")
     except (httpx.HTTPError, ValueError) as exc:
-        return [], f"Brave Search non raggiungibile ({type(exc).__name__})"
+        return [], f"non raggiungibile ({type(exc).__name__})"
 
 
-def _search_one(query: str) -> Tuple[List[Dict[str, str]], Optional[str]]:
-    key = os.getenv("QUANTO_BRAVE_API_KEY", "").strip()
-    if key:  # con una chiave l'API è la via affidabile (anche da server cloud); senza, si prova lo scraping dei motori gratuiti
-        hits, err = _search_brave(query, key)
-        if hits:
-            return hits, None
-    _rate_check()
+def _engine_serper(query: str, key: str) -> Tuple[List[Dict[str, str]], Optional[str]]:
+    try:
+        r = httpx.post("https://google.serper.dev/search", json={"q": query, "gl": "it", "hl": "it", "num": 20}, headers={"X-API-KEY": key}, timeout=TIMEOUT)
+        if r.status_code != 200:
+            return [], f"risposta {r.status_code}"
+        return [{"url": x.get("link", ""), "title": x.get("title", ""), "snippet": x.get("snippet", "")[:220]} for x in r.json().get("organic", []) if x.get("link")], None
+    except (httpx.HTTPError, ValueError) as exc:
+        return [], f"non raggiungibile ({type(exc).__name__})"
+
+
+def _engine_tavily(query: str, key: str) -> Tuple[List[Dict[str, str]], Optional[str]]:
+    try:
+        r = httpx.post("https://api.tavily.com/search", json={"api_key": key, "query": query, "max_results": 15, "search_depth": "basic"}, timeout=TIMEOUT)
+        if r.status_code != 200:
+            return [], f"risposta {r.status_code}"
+        return [{"url": x.get("url", ""), "title": x.get("title", ""), "snippet": (x.get("content") or "")[:220]} for x in r.json().get("results", []) if x.get("url")], None
+    except (httpx.HTTPError, ValueError) as exc:
+        return [], f"non raggiungibile ({type(exc).__name__})"
+
+
+def _engine_bing(query: str) -> Tuple[List[Dict[str, str]], Optional[str]]:
     try:
         r = httpx.get("https://www.bing.com/search", params={"q": query, "setlang": "it", "cc": "IT"},
                       headers={"User-Agent": UA, "Accept-Language": "it-IT,it;q=0.9"}, timeout=TIMEOUT, follow_redirects=True)
         hits = parse_bing(r.text)
-        if hits:
-            return hits, None
-        note = "Bing non ha restituito risultati leggibili (possibile blocco anti-robot)"
+        return (hits, None) if hits else ([], "nessun risultato leggibile (possibile blocco anti-robot)")
     except httpx.HTTPError as exc:
-        note = f"Bing non raggiungibile ({type(exc).__name__})"
-    try:  # ripiego
+        return [], f"non raggiungibile ({type(exc).__name__})"
+
+
+def _engine_ddg(query: str) -> Tuple[List[Dict[str, str]], Optional[str]]:
+    try:
         r = httpx.post("https://lite.duckduckgo.com/lite/", data={"q": query}, headers={"User-Agent": UA}, timeout=TIMEOUT, follow_redirects=True)
         hits = parse_ddg_lite(r.text)
-        if hits:
-            return hits, None
-        return [], note + "; anche DuckDuckGo non ha dato risultati"
-    except httpx.HTTPError:
-        return [], note
+        return (hits, None) if hits else ([], f"nessun risultato (risposta {r.status_code})")
+    except httpx.HTTPError as exc:
+        return [], f"non raggiungibile ({type(exc).__name__})"
+
+
+def _engines() -> List[Tuple[str, Any]]:
+    """Prima i motori con chiave (affidabili anche da server cloud), poi quelli gratuiti (spesso bloccati)."""
+    out: List[Tuple[str, Any]] = []
+    for env, name, fn in (("QUANTO_BRAVE_API_KEY", "brave", _engine_brave), ("QUANTO_SERPER_API_KEY", "serper", _engine_serper), ("QUANTO_TAVILY_API_KEY", "tavily", _engine_tavily)):
+        key = os.getenv(env, "").strip()
+        if key:
+            out.append((name, lambda q, fn=fn, key=key: fn(q, key)))
+    return out + [("bing", _engine_bing), ("duckduckgo", _engine_ddg)]
+
+
+def _relevant(name: Optional[str], hits: List[Dict[str, str]]) -> bool:
+    return name is None or any(match_score(name, f"{h.get('title', '')} {h.get('snippet', '')} {url_text(h['url'])}") is not None for h in hits)
+
+
+def _search_one(query: str, name: Optional[str] = None) -> Tuple[List[Dict[str, str]], Optional[str]]:
+    """Prova i motori in ordine e si ferma al primo che dà risultati PERTINENTI (da un server cloud Bing risponde spesso con risultati senza alcun legame)."""
+    notes: List[str] = []
+    for engine, fn in _engines():
+        _rate_check()
+        hits, err = fn(query)
+        if hits and _relevant(name, hits):
+            return [{**h, "engine": engine} for h in hits], None
+        notes.append(f"{engine}: {err or 'risultati non pertinenti'}")
+    return [], "; ".join(notes)
 
 
 # elenchi ufficiali di incentivi: non dipendono da un motore di ricerca e funzionano anche da server cloud
@@ -417,12 +556,10 @@ def _scan_directory(args: Tuple[str, str]) -> Tuple[List[Dict[str, str]], Dict[s
     except ResearchError as exc:
         info["error"] = str(exc)
         return [], info
-    tokens = name_tokens(name)
     found: List[Dict[str, str]] = []
     for href, text in links:
         full = urllib.parse.urljoin(final, href.split("#")[0])
-        hay = f"{text} {urllib.parse.unquote(full)}".lower().replace("-", " ").replace("_", " ")
-        if full.startswith("http") and sum(1 for t in tokens if t in hay) / max(len(tokens), 1) >= 0.99 and len(text) < 160:
+        if full.startswith("http") and len(text) < 160 and match_score(name, f"{text} {url_text(full)}") is not None:
             found.append({"url": full, "title": text or full, "snippet": f"Elenco ufficiale: {host_of(final)}"})
     info["matched"] = len(found)
     return found, info
@@ -453,28 +590,26 @@ def build_queries(name: str, hint: str = "") -> List[str]:
 
 def rank_results(name: str, raw: List[Dict[str, str]], supplied: Optional[List[str]] = None, max_results: int = 30) -> List[Dict[str, Any]]:
     """Unisce e ordina i risultati: prima le fonti ufficiali pertinenti al nome, poi le altre."""
-    tokens = name_tokens(name)
     merged: Dict[str, Dict[str, Any]] = {}
     for hit in raw:
         url = hit["url"]
         if not url.startswith(("http://", "https://")):
             continue
         norm = normalize_url(url)
-        hay = f"{hit.get('title', '')} {hit.get('snippet', '')} {url}".lower()
-        ratio = sum(1 for t in tokens if t in hay) / max(len(tokens), 1)
-        if ratio < 0.6:
+        rel = match_score(name, f"{hit.get('title', '')} {hit.get('snippet', '')} {url_text(url)}")
+        if rel is None:
             continue  # rumore: il nome del bando non compare (es. "Resto del Carlino" cercando "Resto al Sud")
         tier = classify_url(url)
         is_pdf = bool(re.search(r"\.pdf(\?|$)", url, re.I))
-        score = (100 if tier == "UFFICIALE" else 30) + int(ratio * 40) + (15 if is_pdf else 0) + (10 if re.search(r"normativ|decret|avvis|bando|regolament", url, re.I) else 0)
+        score = (100 if tier == "UFFICIALE" else 30) + rel // 2 + (15 if is_pdf else 0) + (10 if re.search(r"normativ|decret|avvis|bando|regolament", url, re.I) else 0)
         cur = merged.get(norm)
         if cur is None or score > cur["score"]:
             merged[norm] = {"url": url, "title": hit.get("title") or url, "snippet": hit.get("snippet", ""), "tier": tier, "score": score,
-                            "is_pdf": is_pdf, "host": host_of(url), "user_supplied": False, "preselected": False}
+                            "is_pdf": is_pdf, "host": host_of(url), "user_supplied": False, "preselected": False, "engine": hit.get("engine")}
     for u in supplied or []:
         norm = normalize_url(u)
         merged[norm] = {"url": u, "title": u, "snippet": "Indicato da te", "tier": classify_url(u), "score": 1000, "is_pdf": bool(re.search(r"\.pdf(\?|$)", u, re.I)),
-                        "host": host_of(u), "user_supplied": True, "preselected": True}
+                        "host": host_of(u), "user_supplied": True, "preselected": True, "engine": None}
     ordered = sorted(merged.values(), key=lambda x: -x["score"])[:max_results]
     picked = 0
     for c in ordered:
@@ -486,27 +621,27 @@ def rank_results(name: str, raw: List[Dict[str, str]], supplied: Optional[List[s
     return ordered
 
 
-def search_web(name: str, hint: str = "", supplied: Optional[List[str]] = None) -> Dict[str, Any]:
+def search_web(name: str, hint: str = "", supplied: Optional[List[str]] = None, discover: Any = None) -> Dict[str, Any]:
     queries = build_queries(name, hint)
     raw: List[Dict[str, str]] = []
     errors: List[str] = []
     per_query: List[Dict[str, Any]] = []
     with ThreadPoolExecutor(max_workers=4) as pool:
-        for q, (hits, err) in zip(queries, pool.map(_search_one, queries)):
+        for q, (hits, err) in zip(queries, pool.map(lambda q: _search_one(q, name), queries)):
             raw.extend(hits)
-            per_query.append({"query": q, "hits": len(hits), "error": err})
+            per_query.append({"query": q, "hits": len(hits), "engine": hits[0].get("engine") if hits else None, "error": err})
             if err and err not in errors:
                 errors.append(err)
-    dir_hits, dir_info = official_directory(name)
+    dir_hits, dir_info = (discover or official_directory)(name)
     ranked = rank_results(name, [*dir_hits, *raw], supplied)
     # diagnostica: se il motore risponde ma nulla è pertinente (o risponde con altro), si vede perché
     diagnostics = {"raw_hits": len(raw), "kept": len(ranked), "per_query": per_query, "directories": dir_info,
-                   "brave_key": bool(os.getenv("QUANTO_BRAVE_API_KEY", "").strip()), "sample": [f"{h.get('title', '')[:70]} — {h['url'][:80]}" for h in raw[:5]]}
+                   "keyed_engines": [n for n, _ in _engines() if n not in ("bing", "duckduckgo")], "sample": [f"{h.get('title', '')[:70]} — {h['url'][:80]}" for h in raw[:5]]}
     if not ranked:
         if raw:
             errors.append("Il motore ha risposto ma nessun risultato nomina il bando")
-        if not diagnostics["brave_key"]:
-            errors.append("Da un server cloud i motori di ricerca gratuiti sono spesso bloccati: con una chiave Brave Search (variabile QUANTO_BRAVE_API_KEY) la ricerca è affidabile")
+        if not any(os.getenv(k, "").strip() for k in ("QUANTO_BRAVE_API_KEY", "QUANTO_SERPER_API_KEY", "QUANTO_TAVILY_API_KEY")):
+            errors.append("Da un server cloud i motori di ricerca gratuiti sono spesso bloccati: con una chiave (QUANTO_BRAVE_API_KEY, QUANTO_SERPER_API_KEY o QUANTO_TAVILY_API_KEY, tutte con piano gratuito) la ricerca è affidabile")
     return {"queries": queries, "candidates": ranked, "engine_errors": errors if not ranked else [], "diagnostics": diagnostics}
 
 

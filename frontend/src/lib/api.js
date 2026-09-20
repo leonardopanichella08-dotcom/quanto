@@ -40,6 +40,10 @@ const blob = async (path, body) => (await call(path, { method: 'POST', headers: 
 
 // HQ: ogni chiamata porta il token; se scade (401) il chiamante torna al cancello.
 const hqGet = (path) => call(`/hq${path}`, { headers: { 'X-HQ-Token': hqToken.get() || '' } }).then((r) => r.json())
+const hqSend = (method, path, body) => call(`/hq${path}`, {
+  method, headers: { 'X-HQ-Token': hqToken.get() || '', ...(body !== undefined ? json : {}) }, ...(body !== undefined ? { body: JSON.stringify(body) } : {}),
+}).then((r) => r.json())
+const hqBlob = (path) => call(`/hq${path}`, { headers: { 'X-HQ-Token': hqToken.get() || '' } }).then((r) => r.blob())
 
 export const api = {
   // --- bandi
@@ -89,6 +93,26 @@ export const api = {
   hqDocuments: (kind) => hqGet(`/documents${kind ? `?kind=${kind}` : ''}`),
   hqTables: () => hqGet('/db/tables'),
   hqRows: (table, limit, offset) => hqGet(`/db/table/${table}?limit=${limit}&offset=${offset}`),
+  // --- archivio bandi (gestione dati del manager)
+  hqArchive: () => hqGet('/archive'),
+  hqArchiveDetail: (id) => hqGet(`/archive/${encodeURIComponent(id)}`),
+  hqConsultant: (id) => hqGet(`/archive/${encodeURIComponent(id)}/consultant`),
+  hqSourceText: (id, sha) => hqGet(`/archive/${encodeURIComponent(id)}/sources/${sha}/text`),
+  hqSourceFile: (id, sha, dl) => hqBlob(`/archive/${encodeURIComponent(id)}/sources/${sha}/file${dl ? '?download=true' : ''}`),
+  hqDeleteSource: (id, sha) => hqSend('DELETE', `/archive/${encodeURIComponent(id)}/sources/${sha}`),
+  hqReanalyze: (id) => hqSend('POST', `/archive/${encodeURIComponent(id)}/reanalyze`),
+  hqSetRule: (id, key, value) => hqSend('PUT', `/archive/${encodeURIComponent(id)}/rules/${key}`, { value }),
+  hqDeleteRule: (id, key) => hqSend('DELETE', `/archive/${encodeURIComponent(id)}/rules/${key}`),
+  hqAddRequirement: (id, body) => hqSend('POST', `/archive/${encodeURIComponent(id)}/requirements`, body),
+  hqPatchRequirement: (id, seq, body) => hqSend('PATCH', `/archive/${encodeURIComponent(id)}/requirements/${seq}`, body),
+  hqDeleteRequirement: (id, seq) => hqSend('DELETE', `/archive/${encodeURIComponent(id)}/requirements/${seq}`),
+  hqRenameBando: (id, name) => hqSend('PATCH', `/archive/${encodeURIComponent(id)}`, { name }),
+  hqDeleteBando: (id) => hqSend('DELETE', `/archive/${encodeURIComponent(id)}`),
+  hqRestoreDefaults: () => hqSend('POST', '/archive/restore-defaults'),
+  hqExportBando: (id) => hqBlob(`/archive/${encodeURIComponent(id)}/export.zip`),
+  hqDeleteRow: (table, rowid) => hqSend('DELETE', `/db/table/${table}/row/${rowid}`),
+  hqClearTable: (table) => hqSend('DELETE', `/db/table/${table}?confirm=${table}`),
+  hqExportTable: (table) => hqBlob(`/db/table/${table}/export.csv`),
 }
 
 export function download(blobData, filename) {

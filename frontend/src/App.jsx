@@ -12,7 +12,7 @@ import { NavContext } from './lib/nav'
 import { api, download, fileToBase64 } from './lib/api'
 
 const TABS = [
-  ['bandi', 'Bandi'], ['canvas', 'Budget'], ['lab', 'Algoritmo'], ['allocation', 'Allocazione'],
+  ['bandi', 'Bandi'], ['canvas', 'Budget'], ['allocation', 'Allocazione'],
   ['pattern', 'Confronto'], ['auditor', 'Verifica'], ['guida', 'Guida'], ['hq', 'Quartier Generale'],
 ]
 
@@ -36,6 +36,7 @@ export default function App() {
   const [modalOpen, setModalOpen] = useState(false)
   const [registry, setRegistry] = useState(null)
   const [guideAnchor, setGuideAnchor] = useState(null)
+  const [labFrom, setLabFrom] = useState('canvas')   // da dove si è arrivati alla vista dell'algoritmo
   const seq = useRef(0)
   const debounce = useRef(null)
 
@@ -118,7 +119,7 @@ export default function App() {
     } catch (e) { setError(e.message) }
   }
 
-  const openReplay = (response) => { setReplay(response); setTab('lab') }
+  const openReplay = (response) => { setReplay(response); setLabFrom('hq'); setTab('lab') }
   const nav = useMemo(() => ({ go: (t, anchor) => { setGuideAnchor(anchor || null); setTab(t); window.scrollTo({ top: 0 }) } }), [])
 
   const banner = registry?.offline ? { dot: 'bg-neutral-600', text: 'Il server non risponde', tone: 'text-neutral-400' }
@@ -164,10 +165,11 @@ export default function App() {
           <BudgetCanvas bandi={bandi} bando={bando} request={request} fields={fields} validation={validation} loading={loading} error={error} busy={busy} importInfo={importInfo}
             onSelectBando={(id) => selectBando(id).catch(() => {})} onProjectId={changeProject} onItemsChange={changeItems} onDemo={loadDemo} onImport={importFile}
             onValidate={() => validate(request)} onRegister={() => setModalOpen(true)} onExport={exportAs}
-            onOpenLab={() => { setReplay(null); setTab('lab') }} onDismissImport={() => setImportInfo(null)} onGoBandi={() => setTab('bandi')} />
+            onOpenLab={() => { setReplay(null); setLabFrom('canvas'); setTab('lab') }} onDismissImport={() => setImportInfo(null)} onGoBandi={() => setTab('bandi')} />
         )}
         {tab === 'lab' && (
           <div className="space-y-4">
+            <button onClick={() => nav.go(labFrom)} className="text-sm text-neutral-300 hover:text-white inline-flex items-center gap-1.5">← {labFrom === 'hq' ? 'Torna al Quartier Generale' : 'Torna al Budget'}</button>
             {replay && <div className="p-3 rounded-lg border border-[#deffac]/30 bg-[#deffac]/5 text-neutral-200 text-xs flex flex-wrap items-center justify-between gap-3">
               <span>Stai rivedendo un’esecuzione salvata ({replay.project_id} · {replay.bando_id}).</span>
               <button onClick={() => setReplay(null)} className="font-semibold text-[#deffac] underline">Torna al controllo corrente</button></div>}

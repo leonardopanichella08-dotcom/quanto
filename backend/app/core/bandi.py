@@ -51,7 +51,10 @@ def _typed(raw: Optional[str]) -> Any:
 def seed() -> None:
     """Carica (o aggiorna) il catalogo curato. Le regole con origine diversa da CURATED_SOURCE (es. revisione umana) non si toccano."""
     with connect() as conn:
+        tomb = {r["bando_id"] for r in conn.execute("SELECT bando_id FROM bando_tombstones").fetchall()}
         for b in BANDI:
+            if b["bando_id"] in tomb:
+                continue  # eliminato dal manager
             rules = dict(b["rules"])
             if b["bando_id"] == "QUANTO-SANDBOX-60":
                 rules = {k: v for k, v in SANDBOX_RULES.items() if k not in IDENTITY_FIELDS}

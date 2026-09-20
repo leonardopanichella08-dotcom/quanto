@@ -95,6 +95,20 @@ CREATE TABLE IF NOT EXISTS bando_sources (
     text TEXT NOT NULL,
     PRIMARY KEY (bando_id, sha256)
 );
+CREATE TABLE IF NOT EXISTS bando_files (
+    bando_id TEXT NOT NULL,
+    sha256 TEXT NOT NULL,              -- SHA-256 del file ORIGINALE (PDF, pagina HTML, Word)
+    ts TEXT NOT NULL,
+    name TEXT NOT NULL,
+    content_type TEXT,
+    size_bytes INTEGER NOT NULL,
+    data BLOB NOT NULL,
+    PRIMARY KEY (bando_id, sha256)
+);
+CREATE TABLE IF NOT EXISTS bando_tombstones (
+    bando_id TEXT PRIMARY KEY,         -- bandi eliminati dal manager: il catalogo predefinito non li ricrea
+    ts TEXT NOT NULL
+);
 CREATE TABLE IF NOT EXISTS rules (
     bando_id TEXT NOT NULL,
     rule_key TEXT NOT NULL,
@@ -114,7 +128,8 @@ def db_path() -> str:
 
 # colonne aggiunte dopo la prima versione (le tabelle esistenti vengono estese senza perdere dati)
 MIGRATIONS = {
-    "bando_sources": [("url", "TEXT"), ("tier", "TEXT"), ("content_type", "TEXT"), ("pages", "INTEGER"), ("origin", "TEXT")],
+    "bando_sources": [("url", "TEXT"), ("tier", "TEXT"), ("content_type", "TEXT"), ("pages", "INTEGER"), ("origin", "TEXT"),
+                      ("file_sha256", "TEXT"), ("analysis", "TEXT"), ("warnings", "TEXT")],
 }
 
 

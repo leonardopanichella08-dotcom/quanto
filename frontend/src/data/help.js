@@ -56,10 +56,10 @@ export const HINTS = {
   bando_scheda_regole: { title: 'Regole', text: 'I numeri del bando che QUANTO usa nei controlli, ognuno con la sua fonte e un livello di affidabilità.', example: '“Tetto orario personale: 35 €/h” — fonte: art. 5 del bando.' },
   bando_scheda_req: { title: 'Requisiti', text: 'Tutto ciò che il bando obbliga o vieta, anche senza numeri. Ogni requisito è collegato ai controlli che lo verificano.', example: 'OBBLIGO: “il CUP deve comparire sulle fatture” → controllo #50.' },
   bando_scheda_cov: { title: 'Controlli attivati', text: 'I 60 controlli in una griglia. Verde = il bando ha una regola per quel controllo. Azzurro = si fa solo sui dati che inserisci. Grigio = spento perché il bando non dice nulla.', example: 'Se il bando non parla di ore straordinarie, il controllo #11 resta grigio.' },
-  bando_scheda_fonti: { title: 'Fonti e lacune', text: 'Da dove abbiamo preso le regole e, soprattutto, cosa le fonti NON dicono. Le lacune non vengono riempite con valori inventati.', example: '“La fonte non indica il tetto per la formazione”.' },
+  bando_scheda_fonti: { title: 'Fonti', text: 'I documenti da cui abbiamo ricavato regole e requisiti, ciascuno con il suo link. Sono la prova di dove viene ogni dato.', example: 'Avviso pubblico, decreto attuativo, circolare dell’ente.' },
   bando_ricerca: { title: 'Cerca un bando sul web', text: 'Scrivi il nome del bando. QUANTO lo cerca su internet, scarica le pagine e i PDF ufficiali (decreti, avvisi, circolari, atti della Gazzetta Ufficiale), li tiene in memoria e li legge tutti. Le fonti ufficiali hanno la precedenza; blog e portali si scaricano solo se li scegli tu.', example: 'Scrivi “Resto al Sud”: trova la pagina di Invitalia, la sua sezione Normativa e i PDF collegati.' },
   bando_upload: { title: 'Aggiungi un documento a mano', text: 'Se hai un PDF o un testo che la ricerca non ha trovato, aggiungilo: viene salvato in memoria e letto insieme agli altri. Un PDF fatto di foto (scansione) non si può leggere.', example: 'Un avviso che ti ha mandato un consulente per email.' },
-  bando_fonti_scaricate: { title: 'Documenti in memoria', text: 'Tutti i documenti scaricati o caricati, con l’indirizzo da cui vengono, il tipo di fonte (ufficiale o secondaria), le pagine e la lunghezza. “Leggi il testo” apre il testo salvato: puoi cercarci dentro.', example: 'Cerca “35 anni” per trovare dove il bando parla dell’età.' },
+  bando_fonti_scaricate: { title: 'Documenti di origine', text: 'I documenti scaricati o caricati, con l’indirizzo da cui vengono e il tipo di fonte (ufficiale o secondaria).', example: 'Un PDF di Invitalia è “ufficiale”; un articolo di un blog è “secondaria”.' },
   bando_regole_verifica: { title: 'Regole da verificare', text: 'Quando due documenti danno numeri diversi per la stessa regola, QUANTO non sceglie a caso: la mette da parte e la fa decidere a una persona (Quartier Generale → Caricamento bandi). Finché non è decisa, non diventa un controllo.', example: 'Tetto orario 40 €/h in una pagina e 35 €/h nel PDF dell’avviso → “da controllare a mano”.' },
 
   budget_toolbar: { title: 'I pulsanti del budget', text: 'Prova completa: 46 voci di esempio che attivano tutti i 60 controlli. Progetto realistico: 15 voci più verosimili. Importa: carica un Excel/CSV. Template: il file Excel da compilare. Aggiungi voce: una riga a mano.', example: 'Per capire l’app: “Prova completa”, poi “Controlla il budget”.' },
@@ -98,6 +98,8 @@ export const HINTS = {
   hq_fascicoli: { title: 'Fascicoli', text: 'Una cartella per ogni progetto e per ogni bando: esecuzioni, documenti, fonti e storia.', example: 'Apri il progetto X: vedi le 3 validazioni fatte e la registrazione.' },
   hq_documenti: { title: 'Documenti', text: 'Elenco dei file lavorati (bandi caricati, import, export…) con nome, dimensione e impronta. Il testo intero si conserva solo per i bandi caricati.', example: 'L’impronta prova che il file non è stato sostituito.' },
   hq_database: { title: 'Database', text: 'Le tabelle della memoria, in sola lettura. Serve a controllare cosa c’è salvato; da qui non si può modificare nulla.', example: 'Tabella “events”: una riga per ogni operazione.' },
+  hq_archivio: { title: 'Archivio bandi', text: 'Tutti i bandi in memoria: quelli predefiniti, quelli letti dal web e quelli caricati. Per ciascuno vedi ogni documento (anche il file originale), le regole, i requisiti e la scheda per il consulente; puoi correggere, rileggere, esportare o eliminare.', example: 'Apri “Resto al Sud”, controlla i PDF scaricati e decidi la regola “75% o 70%”.' },
+  hq_scheda: { title: 'Scheda per il consulente', text: 'Per ogni bando: cosa dicono i documenti, cosa NON dicono, cosa cercare e come verificare. Serve a sapere da dove partire quando si controlla un bando.', example: 'La regola “tetto costo orario” manca: la scheda dice le parole da cercare nel decreto e come controllare.' },
   hq_caricamento: { title: 'Caricamento bandi (uso interno)', text: 'Per gli esperti: estrae le regole da un testo con due passi indipendenti; se non concordano, la regola va a una persona che decide.', example: 'Un passo legge 20%, l’altro 25% → “da rivedere”.' },
 }
 
@@ -105,10 +107,10 @@ export const HINTS = {
 export const GUIDE = {
   bandi: {
     title: 'Bandi',
-    what: 'Qui scegli il bando su cui lavorare e vedi cosa QUANTO ne ha capito: regole, obblighi, controlli che attiva e cosa manca. Se il bando non c’è, lo cerca lui sul web e ne scarica i documenti ufficiali.',
-    steps: ['Clicca un bando nell’elenco a sinistra, oppure scrivine il nome in “Cerca un bando sul web”.', 'La ricerca scarica pagine e PDF ufficiali, li salva in memoria e li legge: guarda l’avanzamento.', 'Apri le schede: Regole, Requisiti (con filtri), Controlli attivati, Fonti e testi scaricati.', 'Premi “Usa questo bando nel budget”.'],
+    what: 'Qui scegli il bando su cui lavorare e vedi cosa QUANTO ne ha capito: regole, obblighi e controlli che attiva. Se il bando non c’è, lo cerca lui sul web e ne scarica i documenti ufficiali.',
+    steps: ['Clicca un bando nell’elenco a sinistra, oppure scrivine il nome in “Cerca un bando sul web”.', 'La ricerca scarica pagine e PDF ufficiali, li salva in memoria e li legge: guarda l’avanzamento.', 'Apri le schede: Regole, Requisiti (con filtri), Controlli attivati, Fonti.', 'Premi “Usa questo bando nel budget”.'],
     example: 'Scrivi “Resto al Sud”: QUANTO trova la pagina Invitalia e la sezione Normativa, scarica i PDF collegati e nei requisiti trovi, con la fonte accanto, cose come “contributo del 75% a fondo perduto fino a 120.000 euro” e “età 18–35 anni”.',
-    terms: ['bando', 'regola', 'criterio', 'lacuna', 'confidenza'],
+    terms: ['bando', 'regola', 'criterio', 'confidenza'],
   },
   budget: {
     title: 'Budget',
@@ -148,7 +150,7 @@ export const GUIDE = {
   hq: {
     title: 'Quartier Generale',
     what: 'L’area dei manager: vede tutto ciò che è successo nel sistema — operazioni, documenti, bandi, progetti — e la memoria del database.',
-    steps: ['Inserisci il codice di accesso.', 'Panoramica: numeri chiave e stato.', 'Timeline: ogni operazione in ordine di tempo, con i passaggi.', 'Fascicoli, Documenti, Database: cosa è stato lavorato e salvato.'],
+    steps: ['Inserisci il codice di accesso.', 'Panoramica: numeri chiave e stato.', 'Timeline: ogni operazione in ordine di tempo, con i passaggi.', 'Archivio bandi: ogni documento scaricato (anche il PDF originale), regole, requisiti e la scheda per il consulente; puoi correggere, rileggere, esportare o eliminare.', 'Fascicoli, Documenti, Database: cosa è stato lavorato e salvato; nel Database puoi eliminare righe ed esportare in CSV.'],
     example: 'Apri la Timeline, clicca “Controllare il budget” e poi “Rivedi nell’algoritmo”: rivedi in grafico quella specifica esecuzione.',
     terms: ['evento', 'timeline', 'esecuzione'],
   },
@@ -156,10 +158,10 @@ export const GUIDE = {
 
 // ---------------------------------------------------------------- percorso rapido
 export const QUICKSTART = [
-  { t: 'Scegli il bando', d: 'Pagina Bandi: apri un bando, leggi regole e lacune, premi “Usa questo bando”.' },
+  { t: 'Scegli il bando', d: 'Pagina Bandi: cerca o apri un bando, leggi regole e requisiti, premi “Usa questo bando”.' },
   { t: 'Carica il budget', d: 'Pagina Budget: prova completa, Excel o voci a mano.' },
   { t: 'Controlla il budget', d: 'Ogni voce viene controllata con i 60 controlli. Vedi ammesso, ridotto, respinto.' },
-  { t: 'Capisci perché', d: 'Ispettore per una voce; pagina Algoritmo per il film di tutti i passaggi.' },
+  { t: 'Capisci perché', d: 'Ispettore per una voce; il pulsante «Guarda come ha lavorato» per il film di tutti i passaggi.' },
   { t: 'Certifica e verifica', d: 'Registra l’impronta del budget. Chiunque può poi verificare che non sia cambiato.' },
 ]
 
@@ -170,9 +172,9 @@ export const FUNCTIONS = [
     { name: 'Regole', what: 'I numeri del bando con la fonte e l’affidabilità di ciascuno.', example: '“Tetto costo orario 35 €/h — SECONDARIA”: da confermare sul testo ufficiale.' },
     { name: 'Requisiti', what: 'Obblighi, divieti e limiti letti nel testo, collegati ai controlli.', example: 'DIVIETO: “non sono ammesse spese in contanti” → controllo #52.' },
     { name: 'Controlli attivati', what: 'La griglia dei 60 controlli: quali il bando attiva, quali girano solo sui dati, quali sono spenti.', example: '5/60 attivati dal bando: gli altri controlli usano solo ciò che scrivi nelle voci.' },
-    { name: 'Fonti e lacune', what: 'Link alle fonti e l’elenco di ciò che non dicono.', example: '“Non specificato: tetto per la formazione”.' },
+    { name: 'Fonti', what: 'I documenti da cui derivano regole e requisiti, con il link alla fonte.', example: 'Decreto direttoriale dell’8 ottobre 2025 (Invitalia).' },
     { name: 'Cerca un bando sul web', what: 'Cerca il nome su internet, scarica le pagine e i PDF ufficiali (anche seguendo i link a decreti e Gazzetta), li salva in memoria e li legge tutti.', example: 'Scrivi “Resto al Sud” e guarda i documenti arrivare uno a uno.' },
-    { name: 'Documenti in memoria e lettura del testo', what: 'Ogni documento scaricato resta salvato con il suo indirizzo. Puoi rileggerne il testo e cercarci dentro.', example: 'Cerca “fondo perduto” nel testo del decreto.' },
+    
     { name: 'Aggiungi un documento a mano', what: 'Se la ricerca non ha trovato un documento, lo aggiungi tu (PDF o testo) e viene letto insieme agli altri.', example: 'Un avviso ricevuto per email.' },
     { name: 'Usa questo bando', what: 'Passa le regole al Budget e registra la scelta nella timeline.', example: 'Premi il pulsante e sei già nel Budget con il bando attivo.' },
   ] },
@@ -189,7 +191,7 @@ export const FUNCTIONS = [
     { name: 'Registra l’impronta', what: 'Scrive nel registro l’impronta del budget con firma digitale.', example: 'Fatto: voce n. 12 del registro, con data e firma.' },
     { name: 'Esporta Excel / PDF', what: 'Scarica il budget validato con codice CEP e QR di verifica.', example: 'Il QR apre la pagina Verifica già compilata.' },
   ] },
-  { page: 'Algoritmo', items: [
+  { page: 'Guarda come ha lavorato', items: [
     { name: 'Riproduzione', what: 'Rivede i controlli nell’ordine reale, con pausa, velocità e barra.', example: '“Voce LINE-003 · controllo #31 → ridotto (−12.500 €)”.' },
     { name: 'Le fasi', what: 'Sette fasi con il tempo di ciascuna.', example: 'Merkle: 0,3 ms.' },
     { name: 'Mappa dei controlli', what: 'Griglia voci × controlli con i colori dell’esito.', example: 'Passa il mouse su una cella per leggere il motivo.' },
@@ -220,7 +222,9 @@ export const FUNCTIONS = [
     { name: 'Mappa operazioni', what: 'Tutte le operazioni possibili con i passaggi interni e le statistiche.', example: '“Registrare l’impronta”: 4 passaggi, 3 esecuzioni.' },
     { name: 'Fascicoli', what: 'Cartella di un progetto o di un bando.', example: 'Progetto X: 3 validazioni, 1 registrazione.' },
     { name: 'Documenti', what: 'File lavorati, con dimensione e impronta.', example: 'Export PDF del progetto X.' },
-    { name: 'Database', what: 'Tabelle della memoria in sola lettura.', example: 'Tabella “runs”: le tracce salvate.' },
+    { name: 'Archivio bandi', what: 'Tutti i bandi in memoria con ogni documento (testo estratto e file originale), regole, requisiti e la scheda per il consulente. Puoi correggere, rileggere, esportare in ZIP o eliminare.', example: 'Apri “Resto al Sud”, scarica il decreto originale e decidi la regola “75% o 70%”.' },
+    { name: 'Scheda per il consulente', what: 'Per ogni bando: cosa dicono i documenti, cosa non dicono, quali parole cercare, dove compaiono di solito e come verificare.', example: 'Regola “tetto costo orario” non trovata: la scheda dice di cercare “costo orario” nell’articolo sulle spese di personale.' },
+    { name: 'Database', what: 'Le tabelle della memoria: le leggi, le esporti in CSV e puoi eliminare righe. Il registro delle certificazioni è protetto (append-only).', example: 'Elimini una riga di “events”; non puoi eliminarla da “anchors”.' },
     { name: 'Caricamento bandi', what: 'Strumento interno per estrarre regole con due passi e revisione umana.', example: 'Passi in disaccordo → coda di verifica.' },
   ] },
 ]

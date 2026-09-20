@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useState } from 'react'
-import { ChevronLeft, ChevronRight, FileText, FolderOpen, Loader2, Play, ShieldCheck } from 'lucide-react'
-import { api } from '../../lib/api'
+import { ChevronLeft, ChevronRight, Download, FileText, FolderOpen, Loader2, Play, ShieldCheck, Trash2 } from 'lucide-react'
+import { api, download } from '../../lib/api'
 import { BANDO_STATUS_STYLE, fmtBytes, fmtEur, fmtTs } from '../../lib/format'
 
 const KIND_LABEL = {
@@ -164,39 +164,48 @@ export function DbExplorer() {
   const tables = useLoad(() => api.hqTables(), [])
   const [table, setTable] = useState('events')
   const [offset, setOffset] = useState(0)
+  const [msg, setMsg] = useState(null)
   const PAGE = 25
   const rows = useLoad(() => api.hqRows(table, PAGE, offset), [table, offset])
-  const cols = rows.data?.rows?.[0] ? Object.keys(rows.data.rows[0]) : (tables.data?.find((t) => t.name === table)?.columns || [])
+  const cols = (rows.data?.rows?.[0] ? Object.keys(rows.data.rows[0]) : (tables.data?.find((t) => t.name === table)?.columns || [])).filter((c) => c !== '_rowid')
+  const protectedTable = table === 'anchors'
+  const act = async (fn) => { setMsg(null); try { await fn(); await rows.reload(); await tables.reload() } catch (e) { setMsg(e.message) } }
+  const delRow = (r) => { if (window.confirm(`Eliminare la riga ${r._rowid} da «${table}»?`)) act(() => api.hqDeleteRow(table, r._rowid)) }
+  const clear = () => { if (window.confirm(`Svuotare TUTTA la tabella «${table}» (${rows.data?.total} righe)? Non si può annullare.`)) act(() => api.hqClearTable(table)) }
+  const exportCsv = () => act(async () => { download(await api.hqExportTable(table), `${table}.csv`) })
   return (
     <div className="grid lg:grid-cols-4 gap-6 items-start">
       <div className="space-y-2">
-        <p className="text-xs text-neutral-400">Database in sola lettura. I contenuti molto lunghi (richieste e risposte salvate, testi dei bandi) sono riassunti.</p>
+        <p className="text-xs text-neutral-400 leading-relaxed">Puoi leggere, esportare ed eliminare i dati. Il registro delle certificazioni (<span className="font-mono">anchors</span>) è protetto: è una catena firmata, cancellarne una riga la romperebbe.</p>
         {(tables.data || []).map((t) => (
-          <button key={t.name} onClick={() => { setTable(t.name); setOffset(0) }} className={`w-full text-left card p-2.5 flex items-center justify-between hover:border-neutral-600 ${table === t.name ? '!border-[#deffac]' : ''}`}>
-            <span className="font-mono text-xs">{t.name}</span><span className="font-mono text-xs text-[#deffac]">{t.rows}</span>
+          <button key={t.name} onClick={() => { setTable(t.name); setOffset(0); setMsg(null) }} className={`w-full text-left card p-2.5 flex items-center justify-between hover:border-neutral-600 ${table === t.name ? '!border-[#deffac]' : ''}`}>
+            <span className="font-mono text-xs">{t.name}</span><span className="font-mono text-[11px] text-[#deffac]">{t.rows}</span>
           </button>
         ))}
       </div>
       <div className="lg:col-span-3 space-y-3 min-w-0">
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center gap-3">
           <span className="font-mono text-sm font-bold">{table}</span>
           <span className="text-xs text-neutral-500">{rows.data ? `${rows.data.total} righe · ${offset + 1}–${Math.min(offset + PAGE, rows.data.total)}` : ''}</span>
-          <div className="ml-auto flex gap-1">
-            <button disabled={offset === 0} onClick={() => setOffset(Math.max(0, offset - PAGE))} className="p-1.5 rounded-lg border border-neutral-700 disabled:opacity-30"><ChevronLeft className="w-3.5 h-3.5" /></button>
-            <button disabled={!rows.data || offset + PAGE >= rows.data.total} onClick={() => setOffset(offset + PAGE)} className="p-1.5 rounded-lg border border-neutral-700 disabled:opacity-30"><ChevronRight className="w-3.5 h-3.5" /></button>
+          <div className="ml-auto flex flex-wrap gap-1.5">
+            <button onClick={exportCsv} className="btn !py-1"><Download className="w-3 h-3" />CSV</button>
+            <button onClick={clear} disabled={protectedTable || !rows.data?.total} className="btn !py-1 !text-red-300 !border-red-500/30 disabled:!opacity-30"><Trash2 className="w-3 h-3" />Svuota</button>
+            <button disabled={offset === 0} onClick={() => setOffset(Math.max(0, offset - PAGE))} aria-label="Pagina precedente" className="p-1.5 rounded-lg border border-neutral-700 disabled:opacity-30"><ChevronLeft className="w-3.5 h-3.5" /></button>
+            <button disabled={!rows.data || offset + PAGE >= rows.data.total} onClick={() => setOffset(offset + PAGE)} aria-label="Pagina successiva" className="p-1.5 rounded-lg border border-neutral-700 disabled:opacity-30"><ChevronRight className="w-3.5 h-3.5" /></button>
           </div>
         </div>
-        {rows.error && <p className="text-xs text-red-300">{rows.error}</p>}
+        {(rows.error || msg) && <p className="text-xs text-red-300">{rows.error || msg}</p>}
         <div className="card overflow-x-auto">
-          <table className="w-full text-xs">
-            <thead><tr className="text-left text-[11px] text-neutral-500 border-b border-neutral-800">{cols.map((c) => <th key={c} className="p-2 font-semibold whitespace-nowrap">{c}</th>)}</tr></thead>
+          <table className="w-full text-[11px]">
+            <thead><tr className="text-left text-[11px] text-neutral-500 border-b border-neutral-800">{cols.map((c) => <th key={c} className="p-2 font-medium whitespace-nowrap">{c}</th>)}<th className="p-2" /></tr></thead>
             <tbody>
               {(rows.data?.rows || []).map((r, i) => (
                 <tr key={i} className="border-b border-neutral-900 last:border-0 align-top">
                   {cols.map((c) => <td key={c} className="p-2 font-mono text-neutral-300 max-w-[260px] truncate" title={r[c] == null ? '' : String(r[c])}>{r[c] == null ? <span className="text-neutral-600">null</span> : String(r[c])}</td>)}
+                  <td className="p-2 text-right">{!protectedTable && <button onClick={() => delRow(r)} aria-label="Elimina riga" className="text-neutral-500 hover:text-red-300"><Trash2 className="w-3.5 h-3.5" /></button>}</td>
                 </tr>
               ))}
-              {rows.data && rows.data.rows.length === 0 && <tr><td colSpan={Math.max(cols.length, 1)} className="p-6 text-center text-neutral-500 italic">Tabella vuota.</td></tr>}
+              {rows.data && rows.data.rows.length === 0 && <tr><td colSpan={Math.max(cols.length + 1, 1)} className="p-6 text-center text-neutral-500">Tabella vuota.</td></tr>}
             </tbody>
           </table>
         </div>

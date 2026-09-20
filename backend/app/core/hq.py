@@ -1,9 +1,9 @@
-"""Quartier Generale (HQ): accesso con codice, memoria del sistema, timeline, dossier e database.
+"""Quartier Generale (HQ): accesso con codice, memoria del sistema, timeline, dossier, archivio bandi e database.
 
 Sicurezza: il codice si verifica SEMPRE sul server (mai nel frontend), a tempo costante, con blocco temporaneo dopo
 tentativi errati. Il codice predefinito è ``QUANTO_1`` e si sostituisce con ``QUANTO_HQ_CODE``: un codice breve e
 pubblicato nella documentazione è una barriera di comodità, non un segreto forte — in produzione va cambiato.
-Tutto ciò che l'HQ espone è di sola lettura.
+Il manager può leggere tutto e correggere/eliminare i dati (bandi, fonti, regole, righe del database) tranne il registro firmato (append-only).
 """
 from __future__ import annotations
 
@@ -30,8 +30,8 @@ LOCK_WINDOW_S = 600
 _FAILURES: Dict[str, List[float]] = defaultdict(list)
 
 # tabelle consultabili (whitelist) e colonne pesanti da riassumere
-TABLES = ["anchors", "bandi", "bando_meta", "rules", "requirements", "bando_sources", "events", "runs", "documents"]
-HEAVY = {"runs": ("request_json", "response_json"), "bando_sources": ("text",), "bando_meta": ("meta",)}
+TABLES = ["anchors", "bandi", "bando_meta", "rules", "requirements", "bando_sources", "bando_files", "bando_tombstones", "events", "runs", "documents"]
+HEAVY = {"runs": ("request_json", "response_json"), "bando_sources": ("text",), "bando_meta": ("meta",), "bando_files": ("data",)}
 
 
 class HQAuthError(Exception):
@@ -216,13 +216,15 @@ def db_rows(table: str, limit: int = 50, offset: int = 0) -> Dict[str, Any]:
     with connect() as conn:
         total = _count(conn, table)
         order = "seq" if table == "anchors" else "id" if table in ("events", "runs", "documents") else "rowid"
-        rows = conn.execute(f"SELECT * FROM {table} ORDER BY {order} DESC LIMIT ? OFFSET ?", (limit, max(0, offset))).fetchall()
+        rows = conn.execute(f"SELECT rowid AS _rowid, * FROM {table} ORDER BY {order} DESC LIMIT ? OFFSET ?", (limit, max(0, offset))).fetchall()
     heavy = HEAVY.get(table, ())
     out = []
     for r in rows:
         d = dict(r)
         for col in heavy:
-            if col in d and d[col] is not None:
+            if isinstance(d.get(col), (bytes, bytearray)):
+                d[col] = f"[file di {len(d[col]):,} byte]".replace(",", ".")
+            elif col in d and d[col] is not None:
                 text = str(d[col])
                 d[col] = f"[{len(text)} caratteri] {text[:120]}…" if len(text) > 120 else text
         out.append(d)

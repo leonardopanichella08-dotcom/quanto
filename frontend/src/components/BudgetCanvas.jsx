@@ -104,7 +104,7 @@ function Inspector({ item, steps }) {
 
       <Block title="Impronta della voce (SHA-256)" hint="hash">
         <p className="font-mono text-[11px] text-[#deffac] break-all p-2 bg-black rounded">{item.item_hash_sha256}</p>
-        <p className="text-[11px] text-neutral-500">È una “foglia” dell’albero di Merkle: vedi la pagina Algoritmo.</p>
+        <p className="text-[11px] text-neutral-500">È una “foglia” dell’albero di Merkle: la vedi con «Guarda come ha lavorato».</p>
       </Block>
     </div>
   )
@@ -155,7 +155,6 @@ export default function BudgetCanvas({
           <>
             <span className={`px-2 py-0.5 text-[11px] font-medium rounded border ${BANDO_STATUS_STYLE(bando.status || '')}`}>{(bando.status || '').split(' (')[0]}</span>
             <span className="text-xs text-neutral-400">{bando.rules.length} regole · il bando attiva {bando.coverage_summary.REGOLA_DEL_BANDO} dei 60 controlli</span>
-            {bando.not_specified?.length > 0 && <button onClick={onGoBandi} className="text-xs text-amber-300 hover:underline flex items-center gap-1"><AlertTriangle className="w-3 h-3" />{bando.not_specified.length} cose che il bando non dice</button>}
           </>
         )}
         <label className="flex items-center gap-2 md:ml-auto text-xs text-neutral-400 w-full md:w-auto min-w-0">Nome del progetto

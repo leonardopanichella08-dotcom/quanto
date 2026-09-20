@@ -46,7 +46,7 @@ TAXONOMY: List[Tuple[str, str, List[int]]] = [
     ("Codice ATECO", r"\bATECO\b", [34]),
     ("Subappalto", r"subappalt", [35]),
     ("Spese generali e costi indiretti", r"spese generali|costi indiretti|forfett\w+", [36]),
-    ("Spese di comunicazione", r"comunicazion\w+|promozion\w+|pubblicit\w+", [37]),
+    ("Spese di comunicazione", r"(?:spese|costi|attività|piano|campagn\w+)\s+(?:di|della|per la)\s+(?:comunicazione|promozione|pubblicità)|pubblicit\w+|promozion\w+\s+(?:del|dell|dei|delle)\s+(?:progett\w+|iniziativ\w+|prodott\w+)", [37]),
     ("Fideiussioni e assicurazioni", r"fideiussi\w+|polizz\w+|assicurazion\w+", [38]),
     ("Revisione contabile", r"revisione contabile|revisor\w+", [39]),
     ("Viaggi", r"viagg\w+", [40]),
@@ -71,19 +71,47 @@ TAXONOMY: List[Tuple[str, str, List[int]]] = [
     ("Agevolazione: contributo e finanziamento", r"fondo perduto|contributo (?:in conto|pari|del|massimo)|finanziament\w+ agevolat\w+|agevolazion\w+|intensità di aiuto", []),
     ("Importi massimi e minimi", r"(?:fino\s+a|massimo\s+di|non\s+superior\w+\s+a|importo\s+(?:massimo|minimo|complessivo))[^.\n]{0,40}(?:€|euro)|(?:€|euro)\s?\d", []),
     ("Chi può presentare domanda", r"beneficiar\w+|destinatar\w+|possono\s+(?:presentare|accedere|beneficiare)|soggetti\s+(?:ammessi|proponenti|beneficiari)|requisiti\s+(?:soggettivi|di\s+ammissibilità)", []),
-    ("Età e condizione dei richiedenti", r"\b\d{2}\s*(?:e|-|ai|a)\s*\d{2}\s*anni|età\s+(?:compresa|non\s+superiore|inferiore|massima)|under\s?\d{2}|giovan\w+|disoccupat\w+|inoccupat\w+|donn\w+", []),
+    ("Età e condizione dei richiedenti", r"\b\d{2}\s*(?:e|-|ai|a)\s*\d{2}\s*anni|\b(?:tra|dai|di)\s+\d{2}\s+(?:e|ai|a)\s+\d{2}\s+anni|età\s+(?:compresa|non\s+superiore|inferiore|massima|minima)|under\s?\d{2}|(?:disoccupat\w+|inoccupat\w+|inattiv\w+)|\bNEET\b", []),
     ("Territori ammessi", r"Abruzzo|Basilicata|Calabria|Campania|Molise|Puglia|Sardegna|Sicilia|Mezzogiorno|aree\s+(?:interne|del\s+cratere|sismic\w+)|zone\s+economiche\s+speciali|\bZES\b", []),
     ("Domanda, scadenze e procedura", r"presentazione\s+(?:delle|della)\s+domand\w+|domanda\s+(?:di|deve|va|può)|sportello|click\s+day|scadenz\w+|procedura\s+(?:a\s+sportello|valutativa|negoziale)|piattaforma\s+(?:online|telematica)|a\s+partire\s+dal", []),
     ("Erogazione e rendicontazione", r"erogazion\w+|rendicontazion\w+|saldo\b|stato\s+di\s+avanzamento", []),
     ("Obblighi dopo la concessione", r"revoca|decadenza|restituzion\w+|ispezion\w+|obblighi\s+del\s+beneficiario", []),
     ("Attività e settori", r"settor\w+\s+(?:esclus\w+|ammess\w+)|attività\s+(?:esclus\w+|ammess\w+|non\s+ammess\w+)|impres\w+\s+(?:in\s+difficoltà|di\s+nuova\s+costituzione|costituit\w+)", []),
 ]
-_TAX = [(t, re.compile(rx, re.I), c) for t, rx, c in TAXONOMY]
+# Documenti europei e programmi (Erasmus+, Horizon, FSE+…) sono spesso in inglese: stessi temi e stessi criteri collegati
+TAXONOMY_EN: List[Tuple[str, str, List[int]]] = [
+    ("Costo orario del personale", r"staff costs?|personnel costs?|hourly rate|daily rate|per[- ]day|unit costs?", [3, 7]),
+    ("Consulenze esterne", r"consultan\w+|external expert\w*|external services", [31, 33]),
+    ("Subappalto", r"subcontract\w+", [35]),
+    ("Spese generali e costi indiretti", r"indirect costs?|overheads?|flat[- ]rate", [36]),
+    ("Viaggi", r"\btravel\b|subsistence", [40]),
+    ("IVA", r"\bVAT\b|value added tax", [53, 54]),
+    ("Natura del bene", r"equipment|purchase of goods|depreciation", [16]),
+    ("Cumulo e doppio finanziamento", r"double funding|cumulat\w+|other (?:EU|public) funding|combin\w+ with other", [47, 48]),
+    ("Pagamenti tracciabili", r"bank transfer|cash payment", [52]),
+    ("Periodo di ammissibilità", r"eligible period|eligibility period|costs? incurred (?:before|after|between)|start date|end date of the project", [46]),
+    ("Rendicontazione per SAL", r"interim report|progress report|milestone", [57]),
+    ("Agevolazione: contributo e finanziamento", r"\bgrants?\b|lump[- ]sum|co-?financ\w+|funding rate|EU contribution|maximum (?:amount|contribution|grant)|financial support", []),
+    ("Importi massimi e minimi", r"(?:up to|maximum(?: of)?|max\.?|minimum(?: of)?|at least|not exceed(?:ing)?|no more than)[^.\n]{0,40}(?:EUR|€)|(?:EUR|€)\s?\d", []),
+    ("Chi può presentare domanda", r"\bapplicants?\b|eligible (?:organisations?|entities|participants|applicants|countries)|who can (?:apply|participate)|legal (?:entit\w+|persons?)|beneficiar\w+|participating organisations?", []),
+    ("Età e condizione dei richiedenti", r"aged? (?:between )?\d{2}|between (?:the ages of )?\d{2} and \d{2}|under \d{2}|young people (?:aged|between)|fewer opportunities|\bNEET\b", []),
+    ("Territori ammessi", r"programme countries|third countries|member states|eligible countries|partner countries", []),
+    ("Domanda, scadenze e procedura", r"deadline|call for proposals|application form|submit(?:ted)? (?:the|an|your)? ?application|closing date|opening date|how to apply|selection procedure|evaluation", []),
+    ("Erogazione e rendicontazione", r"pre-?financing|final payment|payment of the (?:grant|balance)|balance|final report|reporting", []),
+    ("Obblighi dopo la concessione", r"recover\w+|audits?\b|on-the-spot|termination|irregularit\w+|sanction\w*|monitoring", []),
+    ("Durata e tempi", r"duration (?:of|is)|project duration|(?:between|from)\s+\d+\s+(?:and|to)\s+\d+\s+(?:days|months|years)|\d+\s+(?:months|years)\b", []),
+    ("Partner e partecipanti", r"at least (?:one|two|three|\d+) (?:partner|organi[sz]ation|participant|country|countries)|minimum (?:number )?of (?:participants|partners)|group leader|participants? (?:per|from) each", []),
+]
+_TAX = [(t, re.compile(rx, re.I), c) for t, rx, c in TAXONOMY + TAXONOMY_EN]
 
-_PROHIBIT = re.compile(r"non\s+(?:sono\s+|è\s+|risultano\s+)?(?:ammissibil\w+|finanziabil\w+|ammess\w+|consentit\w+|rimborsabil\w+)|vietat\w+|esclus\w+|non\s+possono|divieto", re.I)
-_OBLIGE = re.compile(r"\bdev\w+\b|obbligator\w+|è\s+richiest\w+|sono\s+richiest\w+|occorre|è\s+necessari\w+|a\s+pena\s+di|obbligo", re.I)
-_LIMIT_STRONG = re.compile(r"(?:superior\w+|superare|eccedere|massim\w+|almeno|minim\w+)[^.\n]{0,40}\d|\d[^.\n]{0,40}(?:massim\w+|minim\w+)", re.I)
-_LIMIT = re.compile(r"\d+\s*%|\d[\d.,]*\s*(?:€|euro)|massim\w+|non\s+superior\w+|entro\s+(?:il|i|\d)|fino\s+a|almeno|minim\w+", re.I)
+_PROHIBIT = re.compile(r"non\s+(?:sono\s+|è\s+|risultano\s+)?(?:ammissibil\w+|finanziabil\w+|ammess\w+|consentit\w+|rimborsabil\w+)|vietat\w+|esclus\w+|non\s+possono|divieto"
+                       r"|not\s+(?:be\s+)?(?:eligible|allowed|permitted|accepted|funded|financed)|ineligible|cannot\b|can not\b|may not\b|must not\b|shall not\b|prohibited|excluded?\b", re.I)
+_OBLIGE = re.compile(r"\bdev\w+\b|obbligator\w+|è\s+richiest\w+|sono\s+richiest\w+|occorre|è\s+necessari\w+|a\s+pena\s+di|obbligo"
+                     r"|\bmust\b|\bshall\b|(?:is|are)\s+required|mandatory|need(?:s)? to|have to|obligat\w+|are expected to|has to", re.I)
+_LIMIT_STRONG = re.compile(r"(?:superior\w+|superare|eccedere|massim\w+|almeno|minim\w+)[^.\n]{0,40}\d|\d[^.\n]{0,40}(?:massim\w+|minim\w+)"
+                           r"|(?:maximum|minimum|at least|at most|up to|no more than|not exceed\w*|not more than|not less than)[^.\n]{0,40}\d|\d[^.\n]{0,40}(?:maximum|minimum)", re.I)
+_LIMIT = re.compile(r"\d+\s*%|\d[\d.,]*\s*(?:€|euro|EUR)|massim\w+|non\s+superior\w+|entro\s+(?:il|i|\d)|fino\s+a|almeno|minim\w+"
+                    r"|maximum|minimum|at least|up to|\d+\s+(?:days|months|years|giorni|mesi|anni)\b", re.I)
 
 CATEGORY_WORDS: Dict[str, str] = {
     r"consulen\w+": "CONSULTING", r"personale|dipendent\w+|lavorator\w+": "PERSONNEL", r"formazione|corsi": "TRAINING",
@@ -91,10 +119,36 @@ CATEGORY_WORDS: Dict[str, str] = {
 }
 
 
+def reflow(text: str) -> str:
+    """Ricompone le frasi spezzate dall'estrazione dei PDF: «…dei\ngiovani con esigenze» → una riga; le divisioni con trattino tornano parole intere."""
+    text = text.replace("\r", "\n")
+    text = re.sub(r"(?<=[a-zà-ù])-\n(?=[a-zà-ù])", "", text)                      # parola spezzata col trattino
+    return re.sub(r"(?<![.;:!?\n])[ \t]*\n(?!\n)(?=[a-zà-ù(«\"0-9])", " ", text)      # riga che continua la precedente
+
+
 def split_sentences(text: str) -> List[str]:
-    text = re.sub(r"[ \t]+", " ", text.replace("\r", "\n"))
+    text = re.sub(r"[ \t]+", " ", reflow(text))
     parts = re.split(r"(?<=[.;!?])\s+(?=[A-ZÀ-Ý0-9«\"(•-])|\n{1,}", text)
     return [p.strip(" •-\t") for p in parts if len(p.strip()) >= 25]
+
+
+_IT_WORDS = re.compile(r"\b(?:il|la|di|che|per|con|non|sono|del|delle|dei|della|nel|alla|gli|una|come)\b", re.I)
+_EN_WORDS = re.compile(r"\b(?:the|of|and|to|for|with|shall|must|is|are|will|be|by|from|that|this)\b", re.I)
+
+
+def detect_lang(text: str) -> str:
+    sample = text[:20000]
+    it, en = len(_IT_WORDS.findall(sample)), len(_EN_WORDS.findall(sample))
+    return "en" if en > it * 1.3 else "it"
+
+
+def looks_garbled(text: str) -> bool:
+    """Testo estratto male (font non decodificabili: «(cid:12)», simboli, poche lettere)."""
+    sample = text[:20000]
+    if not sample.strip():
+        return True
+    letters = sum(c.isalpha() for c in sample)
+    return sample.count("(cid:") > 20 or letters / max(len(sample), 1) < 0.45
 
 
 def extract_requirements(text: str, max_items: int = 150, source_ref: str = "testo caricato") -> List[Dict]:
@@ -127,6 +181,30 @@ def extract_requirements(text: str, max_items: int = 150, source_ref: str = "tes
             out.append({"topic": "Non classificato", "kind": "DA_REVISIONARE", "text": sentence[:600], "criteria": [],
                         "source_ref": source_ref, "confidence": "PARSING"})
         if len(out) >= max_items:
+            break
+    if len(out) < 8 and len(text) > 1500:
+        out += _salient(text, {r["text"] for r in out}, source_ref, limit=40)
+    return out
+
+
+def _salient(text: str, taken: Set[str], source_ref: str, limit: int = 40) -> List[Dict]:
+    """Rete di sicurezza: un documento lungo non deve mai risultare «vuoto». Si tengono le frasi con numeri e unità (importi, %, durate) o con un obbligo/divieto,
+    anche se non rientrano in un tema noto, segnalate come DA CLASSIFICARE (le vede il consulente)."""
+    out: List[Dict] = []
+    for sentence in split_sentences(text):
+        if sentence in taken or len(sentence) < 50:
+            continue
+        if _PROHIBIT.search(sentence):
+            kind = "DIVIETO"
+        elif _OBLIGE.search(sentence):
+            kind = "OBBLIGO"
+        elif _LIMIT.search(sentence) and re.search(r"\d", sentence):
+            kind = "LIMITE"
+        else:
+            continue
+        out.append({"topic": "Da classificare", "kind": "DA_REVISIONARE" if kind in ("DIVIETO", "OBBLIGO") else kind, "text": sentence[:600], "criteria": [],
+                    "source_ref": source_ref, "confidence": "PARSING"})
+        if len(out) >= limit:
             break
     return out
 

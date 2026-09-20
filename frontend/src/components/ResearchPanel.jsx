@@ -50,7 +50,10 @@ export default function ResearchPanel({ onDone }) {
       const supplied = urls.split('\n').map((u) => u.trim()).filter(Boolean)
       const s = await api.researchSearch({ name: name.trim(), hint: hint.trim(), urls: supplied })
       setSearch(s); bandoRef.current = s.bando_id
-      const queue = s.candidates.filter((c) => c.preselected).map((c) => ({ url: c.url, title: c.title, tier: c.tier, score: c.user_supplied ? 500 : 200, depth: 0 }))
+      // prima le fonti ufficiali; se non ce ne sono si scaricano comunque le migliori trovate (segnate «secondaria»): nessuna ricerca resta vuota
+      let picked = s.candidates.filter((c) => c.preselected)
+      if (!picked.length) picked = s.candidates.slice(0, 4)
+      const queue = picked.map((c) => ({ url: c.url, title: c.title, tier: c.tier, score: c.user_supplied ? 500 : 200, depth: 0 }))
       if (!queue.length) {
         setPhase('error')
         setError(s.engine_errors?.length ? `Non sono riuscito a usare il motore di ricerca (${s.engine_errors[0]}). Incolla qui sotto il link della pagina ufficiale del bando e riprova.`
@@ -156,12 +159,13 @@ export default function ResearchPanel({ onDone }) {
 
           <Step n={3} state={phase === 'analyze' ? 'run' : phase === 'done' ? 'done' : 'todo'} title="Leggo tutto e capisco cosa chiede il bando">
             {result && (
-              <p><strong className="text-neutral-200">{result.requirements_total}</strong> requisiti letti (<strong className="text-neutral-200">{result.requirements_to_review}</strong> da rivedere a mano), <strong className="text-neutral-200">{Object.keys(result.rules_published).length}</strong> regole numeriche
+              <p><strong className="text-neutral-200">{result.requirements_total}</strong> requisiti letti, <strong className="text-neutral-200">{Object.keys(result.rules_published).length}</strong> regole numeriche
                 pubblicate, <strong className="text-neutral-200">{result.legal_refs.length}</strong> atti di legge citati, da {result.sources} documenti.</p>
             )}
-            {result && result.detail.rules.some((r) => r.status === 'PENDING_REVIEW') && (
-              <p className="text-amber-300">{result.detail.rules.filter((r) => r.status === 'PENDING_REVIEW').length} regole hanno numeri diversi in documenti diversi: non le ho scelte a caso, aspettano una tua decisione (Quartier Generale → Caricamento bandi).</p>
-            )}
+            {result?.warning && <p className="text-amber-300 flex items-start gap-1.5"><AlertTriangle className="w-3.5 h-3.5 shrink-0 mt-0.5" />{result.warning}</p>}
+            {result?.sources_report?.filter((x) => !x.requirements).map((x) => (
+              <p key={x.sha256} className="text-amber-300/90">Da «{x.name.slice(0, 60)}» non ho ricavato requisiti: {x.note}.</p>
+            ))}
           </Step>
         </div>
       )}
@@ -182,7 +186,10 @@ export default function ResearchPanel({ onDone }) {
       )}
 
       <div className="pt-2 border-t border-neutral-800 space-y-3">
-        <button type="button" onClick={() => setManual({ ...manual, open: !manual.open })} className="text-xs text-neutral-400 hover:text-white inline-flex items-center gap-1.5"><FileUp className="w-3.5 h-3.5" />Aggiungi un documento a mano (PDF o testo) <Hint id="bando_upload" /></button>
+        <div className="flex items-center gap-2">
+        <button type="button" onClick={() => setManual({ ...manual, open: !manual.open })} className="text-xs text-neutral-400 hover:text-white inline-flex items-center gap-1.5"><FileUp className="w-3.5 h-3.5" />Aggiungi un documento a mano (PDF o testo)</button>
+          <Hint id="bando_upload" />
+        </div>
         {manual.open && (
           <div className="space-y-3">
             <input type="file" accept=".pdf,.txt,.md" onChange={(e) => setManual({ ...manual, file: e.target.files?.[0] || null })} className="text-xs text-neutral-400 file:mr-3 file:rounded-lg file:border-0 file:bg-neutral-800 file:px-3 file:py-2 file:text-xs file:text-neutral-200" />

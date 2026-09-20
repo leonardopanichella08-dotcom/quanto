@@ -41,61 +41,14 @@ function CoverageGrid({ coverage }) {
 }
 
 const TIER_STYLE = { UFFICIALE: 'text-emerald-300 border-emerald-500/30', SECONDARIA: 'text-amber-300 border-amber-500/30' }
-const esc = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
 
 /** Testo integrale salvato in memoria: senza ricerca mostra l'inizio, con la ricerca mostra i passaggi che contengono le parole cercate. */
-function SourceViewer({ bandoId, source, onClose }) {
-  const [data, setData] = useState(null)
-  const [error, setError] = useState(null)
-  const [q, setQ] = useState('')
-  const [shown, setShown] = useState(6000)
-  useEffect(() => { api.sourceText(bandoId, source.sha256).then(setData).catch((e) => setError(e.message)) }, [bandoId, source.sha256])
-  const excerpts = useMemo(() => {
-    if (!data || q.trim().length < 2) return null
-    const rx = new RegExp(esc(q.trim()), 'gi'); const out = []; let m
-    while ((m = rx.exec(data.text)) && out.length < 40) {
-      out.push({ at: m.index, text: data.text.slice(Math.max(0, m.index - 160), m.index + q.length + 260).replace(/\s+/g, ' ') })
-      rx.lastIndex = m.index + 200
-    }
-    return out
-  }, [data, q])
-  const hl = (t) => t.split(new RegExp(`(${esc(q.trim())})`, 'gi')).map((part, i) => (i % 2 ? <mark key={i} className="bg-[#deffac]/30 text-white rounded px-0.5">{part}</mark> : part))
-  return (
-    <div className="p-3 bg-neutral-950 border border-neutral-800 rounded-xl space-y-2">
-      <div className="flex flex-wrap items-center gap-2">
-        <span className="text-xs font-medium text-neutral-200 truncate max-w-full">{source.name}</span>
-        <button onClick={onClose} className="ml-auto text-xs text-neutral-400 hover:text-white">Chiudi</button>
-      </div>
-      {error && <p className="text-xs text-red-300">{error}</p>}
-      {!data && !error && <p className="text-xs text-neutral-500 flex items-center gap-2"><Loader2 className="w-3 h-3 animate-spin" />Carico il testo…</p>}
-      {data && (
-        <>
-          <input value={q} onChange={(e) => setQ(e.target.value)} placeholder={`Cerca nel testo (${data.chars.toLocaleString('it-IT')} caratteri), es. “fondo perduto”, “35 anni”`} aria-label="Cerca nel testo" className="field" />
-          {excerpts ? (
-            <div className="space-y-2 max-h-96 overflow-y-auto">
-              <p className="text-[11px] text-neutral-500">{excerpts.length === 40 ? 'Primi 40 passaggi' : `${excerpts.length} ${excerpts.length === 1 ? 'passaggio' : 'passaggi'}`} con “{q.trim()}”</p>
-              {excerpts.map((e) => <p key={e.at} className="text-xs text-neutral-300 leading-relaxed border-l-2 border-neutral-700 pl-3">…{hl(e.text)}…</p>)}
-              {excerpts.length === 0 && <p className="text-xs text-neutral-500">Nessun passaggio trovato.</p>}
-            </div>
-          ) : (
-            <div className="space-y-2">
-              <pre className="whitespace-pre-wrap text-xs text-neutral-300 leading-relaxed max-h-96 overflow-y-auto font-sans">{data.text.slice(0, shown)}</pre>
-              {shown < data.text.length && <button onClick={() => setShown(shown + 20000)} className="btn">Mostra altro testo</button>}
-            </div>
-          )}
-        </>
-      )}
-    </div>
-  )
-}
-
 function Sources({ bando }) {
-  const [open, setOpen] = useState(null)
   const list = bando.usage.uploaded_sources
   if (!list.length) return <p className="text-xs text-neutral-500">Nessun documento in memoria: cerca il bando sul web oppure aggiungi un documento a mano.</p>
   return (
     <div className="space-y-2">
-      <span className="label inline-flex items-center gap-1.5">Documenti in memoria ({list.length}) <Hint id="bando_fonti_scaricate" /></span>
+      <span className="label inline-flex items-center gap-1.5">Documenti da cui derivano le regole ({list.length}) <Hint id="bando_fonti_scaricate" /></span>
       <ul className="space-y-1.5">
         {list.map((s) => (
           <li key={s.sha256} className="space-y-1.5">
@@ -105,9 +58,7 @@ function Sources({ bando }) {
               {s.url ? <a href={s.url} target="_blank" rel="noreferrer" className="text-sky-300 hover:underline inline-flex items-center gap-1 truncate max-w-[60vw] md:max-w-md">{s.name}<ExternalLink className="w-3 h-3 shrink-0" /></a>
                 : <span className="text-neutral-200 truncate max-w-[60vw] md:max-w-md">{s.name}</span>}
               <span className="text-neutral-500">{s.pages ? `${s.pages} pag. · ` : ''}{s.chars.toLocaleString('it-IT')} caratteri · {fmtTs(s.ts)}</span>
-              <button onClick={() => setOpen(open === s.sha256 ? null : s.sha256)} className="btn !py-1 ml-auto">{open === s.sha256 ? 'Chiudi' : 'Leggi il testo'}</button>
             </div>
-            {open === s.sha256 && <SourceViewer bandoId={bando.bando_id} source={s} onClose={() => setOpen(null)} />}
           </li>
         ))}
       </ul>
@@ -161,8 +112,9 @@ const TAB_HINT = { rules: 'bando_scheda_regole', reqs: 'bando_scheda_req', cov: 
 
 function Detail({ bando, onUse, using }) {
   const [tab, setTab] = useState('rules')
-  const tabs = [['rules', `Regole (${bando.rules.length})`], ['reqs', `Requisiti (${bando.requirements.length})`], ['cov', 'Controlli attivati'], ['src', 'Fonti e testi']]
-  const toReview = bando.requirements.filter((r) => r.kind === 'DA_REVISIONARE').length
+  const rules = bando.rules.filter((r) => r.status === 'PUBLISHED')        // le regole in disaccordo le vede solo il Quartier Generale
+  const requirements = bando.requirements.filter((r) => r.kind !== 'DA_REVISIONARE')
+  const tabs = [['rules', `Regole (${rules.length})`], ['reqs', `Requisiti (${requirements.length})`], ['cov', 'Controlli attivati'], ['src', 'Fonti']]
   return (
     <div className="card p-5 space-y-4">
       <div className="flex flex-wrap items-start justify-between gap-3">
@@ -182,7 +134,6 @@ function Detail({ bando, onUse, using }) {
         </div>
       )}
       {bando.status?.startsWith('CHIUSO') && <p className="text-xs text-amber-300 flex gap-2"><AlertTriangle className="w-4 h-4 shrink-0" />Bando chiuso: utile per progetti in corso o per fare confronti.</p>}
-      {toReview > 0 && <p className="text-xs text-fuchsia-300 flex gap-2"><AlertTriangle className="w-4 h-4 shrink-0" />{toReview} requisiti vanno controllati a mano da un consulente.</p>}
 
       <div className="flex items-center gap-3">
         <div className="flex flex-wrap gap-x-5 gap-y-1 border-b border-neutral-800 flex-1">
@@ -195,7 +146,7 @@ function Detail({ bando, onUse, using }) {
 
       {tab === 'rules' && (
         <div className="space-y-2">
-          {bando.rules.map((r) => (
+          {rules.map((r) => (
             <div key={r.key} className="p-3 bg-neutral-950 border border-neutral-800 rounded-xl text-xs space-y-1">
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <span className="font-mono text-neutral-200">{r.key}</span>
@@ -204,17 +155,16 @@ function Detail({ bando, onUse, using }) {
               <div className="flex flex-wrap items-center gap-2 text-xs text-neutral-400">
                 <span className={`px-1.5 py-0.5 rounded border font-medium ${CONF_STYLE[r.confidence] || 'text-neutral-400 border-neutral-700'}`}>{r.confidence}</span>
                 {r.criteria.length > 0 && <span>controlli: {r.criteria.map((c) => `#${c}`).join(' ')}</span>}
-                {r.status === 'PENDING_REVIEW' && <span className="text-fuchsia-300 inline-flex items-center gap-1.5">da controllare a mano{r.passes?.length > 0 && <span className="font-mono">· letture diverse: {r.passes.join(' ≠ ')}</span>}<Hint id="bando_regole_verifica" /></span>}
               </div>
               {r.source_ref && <p className="text-xs text-neutral-500 leading-relaxed">{r.source_ref}</p>}
             </div>
           ))}
-          {bando.rules.length === 0 && <p className="text-xs text-neutral-500">Nessuna regola numerica pubblicata.</p>}
+          {rules.length === 0 && <p className="text-xs text-neutral-500">Nessuna regola numerica pubblicata.</p>}
           <p className="text-xs text-neutral-500 pt-1">Che cosa significano PRIMARIA, SECONDARIA…? Clicca <Term id="confidenza">affidabilità di una regola</Term>.</p>
         </div>
       )}
 
-      {tab === 'reqs' && <Requirements items={bando.requirements} />}
+      {tab === 'reqs' && <Requirements items={requirements} />}
 
       {tab === 'cov' && (
         <div className="space-y-3">
@@ -235,10 +185,6 @@ function Detail({ bando, onUse, using }) {
                   <a href={s.url} target="_blank" rel="noreferrer" className="text-sky-300 hover:underline inline-flex items-center gap-1">{s.title}<ExternalLink className="w-3 h-3" /></a>
                   <span className="text-neutral-500">letta il {s.accessed}</span>
                 </li>))}</ul></div>
-          )}
-          {bando.not_specified?.length > 0 && (
-            <div><span className="label text-amber-300">Cosa le fonti NON dicono (non lo inventiamo)</span>
-              <ul className="mt-1 space-y-1 text-amber-200/90 list-disc pl-4">{bando.not_specified.map((n) => <li key={n}>{n}</li>)}</ul></div>
           )}
           {bando.usage.uploaded_sources.length > 0 && (
             <div><span className="label">Testi caricati</span>
@@ -292,9 +238,6 @@ export default function BandiLibrary({ bandi, selectedId, onSelect, onReload }) 
               <div className="grid grid-cols-3 gap-2 text-[11px] text-neutral-400 font-mono">
                 <span>{b.rules_count} regole</span><span>{b.requirements_count} requisiti</span><span>{b.coverage.REGOLA_DEL_BANDO}/60 controlli</span>
               </div>
-              {(b.gaps_count > 0 || b.requirements_to_review > 0) && (
-                <p className="text-[11px] text-amber-300/80 flex items-center gap-1"><AlertTriangle className="w-3 h-3" />{b.gaps_count} lacune (cose non dette){b.requirements_to_review ? ` · ${b.requirements_to_review} da rivedere` : ''}</p>
-              )}
             </button>
           ))}
           {refs.map((r) => (

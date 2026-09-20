@@ -14,7 +14,7 @@ frontend/  React + Vite + Tailwind (nessun calcolo monetario lato client)
 ```bash
 cd backend && python -m venv .venv && .venv/Scripts/activate   # Linux/mac: source .venv/bin/activate
 pip install -r requirements-dev.txt
-python -m pytest                                               # 272 test
+python -m pytest                                               # 296 test
 uvicorn main:app --reload --port 8000                          # http://localhost:8000/docs
 
 cd ../frontend && npm install && npm run dev                   # http://localhost:5173 (proxy /api -> :8000)
@@ -30,12 +30,12 @@ sviluppo e la UI lo segnala: le attestazioni non hanno valore probatorio.
 |---|---|
 | **Bandi** | Libreria dei bandi con regole, fonti e lacune per ciascuno, e **ricerca sul web**: scrivi il nome di un bando (es. "Resto al Sud") e QUANTO lo cerca, scarica le pagine e i PDF ufficiali, li salva in memoria (testo integrale, ricercabile) e li legge tutti. Da qui si "usa" un bando nel Budget. |
 | **Budget** | Elenco voci di costo (tutte le categorie: personale, beni, consulenze, spese generali, formazione). Demo *realistica* (15 voci) o *stress* (46 voci che attivano tutti i 60 criteri), import/template Excel, editor di riga guidato dal catalogo campi; ogni modifica ri-valida. Registrazione della Merkle Root. |
-| **Algoritmo** | Vista grafica di ciò che fa il motore: pipeline a stadi con tempi, mappa criteri×voci, cascata degli importi, passi per voce (PASS / ADJUSTED / REJECTED / SUSPENDED con delta), massimali risolti in forma chiusa, albero di Merkle. Riproduzione animata. |
+| **Algoritmo** (non è nella barra) | Si apre solo dal pulsante **«Guarda come ha lavorato»** della pagina Budget ("Torna al Budget" per uscire). Vista grafica di ogni passo del motore: fasi, mappa criteri×voci, cascata degli importi, limiti, albero di Merkle. |
 | **Allocazione** | MILP (HiGHS) che distribuisce il budget sui fondi rispettando tetti, quote, non cumulabilità, de minimis e finestre mensili; what-if e tre obiettivi. |
 | **Confronto** (ex Pattern) | Confronto della ripartizione tra macro-categorie con archetipi di budget premiati (coseno + scostamento in pp). Non stima la probabilità di vincita. |
 | **Verifica** (ex Auditor) | Verifica che un budget non sia stato alterato: confronto radice presentata/ricalcolata con il registro firmato; simula manomissione. |
 | **Guida** | Spiegazioni in parole semplici: percorso rapido, **Merkle Root passo passo** (demo interattiva con l'algoritmo vero, `POST /registry/merkle-lab`), ogni funzione con un esempio, glossario. In ogni pagina: striscia "come si usa" e icone `?` / parole sottolineate con spiegazione ed esempio (testi in `frontend/src/data/help.js`). |
-| **Quartier Generale** | Area manager con codice (`QUANTO_HQ_CODE`, default `QUANTO_1`): panoramica KPI, timeline di ogni operazione, mappa delle operazioni, fascicoli per progetto, documenti e bandi lavorati, esplorazione (sola lettura) del database, ripresa di una run nell'Algoritmo. |
+| **Quartier Generale** | Area manager con codice (`QUANTO_HQ_CODE`, default `QUANTO_1`): panoramica KPI, timeline di ogni operazione, mappa delle operazioni, **Archivio bandi** (ogni documento scaricato con testo e file originale, regole e requisiti modificabili, scheda di controllo per il consulente, rilettura, esportazione ZIP, eliminazione con ripristino dei predefiniti), fascicoli per progetto, documenti, database (lettura, CSV, eliminazione di righe; il registro firmato `anchors` è protetto), ripresa di una run nell'Algoritmo. Lacune, regole in disaccordo e requisiti "da rivedere" sono visibili **solo qui**, non agli utenti. |
 
 ### Quartier Generale e memoria
 Ogni operazione (validazione, registrazione, ingestion, allocazione, import…) viene scritta in `events`; ogni validazione
@@ -62,6 +62,15 @@ valutato": nessun default inventato.
    Requisiti collegati ai 60 controlli e temi come agevolazione, importi, chi può presentare domanda, età, territori, scadenze; atti di legge citati.
    **Se documenti diversi — o lo stesso documento — danno valori diversi per la stessa regola (es. contributo 75% e 70%) la regola non si pubblica:
    va in "da verificare a mano"** e diventa un controllo solo dopo la decisione di una persona.
+
+**Scoperta senza motore di ricerca** (`app/core/discovery.py`, schema FKOS Fonte A Stadio 1). Da Vercel Bing risponde con risultati senza legame, quindi la ricerca non dipende da lui:
+- **cataloghi**: `incentivi.gov.it` (≈5.900 misure nazionali, regionali, comunali, CCIAA, GAL, dalla sitemap) e Invitalia, confrontati per nome anche approssimativo;
+- **portali per famiglia** (Erasmus+, coesione/FSE/FESR/PNRR, PSR, energia, export, cultura, lavoro…): si parte dai portali ufficiali e si seguono i link che nominano il bando, per due salti;
+- **sigle di azione** (KA152, KA153, KA154, KA210, KA220): collegate alla loro pagina della Guida al Programma e ai loro nomi estesi («Youth Exchanges», «scambi giovanili»);
+- **motori** in catena, il primo con risultati *pertinenti* vince: Brave / Serper / Tavily se imposti `QUANTO_BRAVE_API_KEY` / `QUANTO_SERPER_API_KEY` / `QUANTO_TAVILY_API_KEY` (piani gratuiti; la via affidabile in produzione), poi Bing e DuckDuckGo Lite.
+La pertinenza è sul percorso dell'indirizzo, mai sul dominio, e una sigla presente basta da sola (una pagina «KA152 – Scambi giovanili» non dice «Erasmus»).
+
+**Lettura dei documenti** (`requirements_extractor.py`, `analysis.py`): italiano **e inglese**, testo dei PDF ricomposto (le righe spezzate tornano frasi), tassonomia estesa (agevolazione, importi, chi può presentare domanda, età, territori, scadenze, durata, partner), documenti lunghi ridotti ai passaggi che nominano il bando, rete di sicurezza di «frasi salienti» da classificare. **Un documento non risulta mai vuoto senza dire perché**: testo non decodificabile, troppo breve, lungo e non pertinente, o senza frasi con obblighi/limiti/importi. Il resoconto per documento è salvato e visibile.
 
 **Limiti dichiarati.** Le pagine costruite in JavaScript restituiscono poco testo; i PDF scansionati (immagini) non si leggono (nessun OCR); i motori di ricerca possono
 bloccare le richieste automatiche (da Vercel non è garantito: in quel caso si incolla il link ufficiale); PDF oltre 12 MB o oltre il tempo disponibile si leggono in parte o

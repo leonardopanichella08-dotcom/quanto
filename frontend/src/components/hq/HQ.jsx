@@ -1,18 +1,19 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react'
-import { AlertTriangle, Database, FileText, FolderOpen, Gauge, History, KeyRound, ListTree, Loader2, LogOut, Lock, Network, Play, Wrench } from 'lucide-react'
+import { AlertTriangle, Archive as Archive2, Database, FileText, FolderOpen, Gauge, History, KeyRound, ListTree, Loader2, LogOut, Lock, Network, Play, Wrench } from 'lucide-react'
 import { api, hqToken } from '../../lib/api'
 import { fmtBytes, fmtTs } from '../../lib/format'
 import Guide from '../Guide'
 import { Hint } from '../Help'
 import IngestionPanel from '../IngestionPanel'
 import { DbExplorer, Dossiers, Documents } from './HQSections'
+import Archive from './Archive'
 
 const SECTIONS = [
   ['overview', 'Panoramica', Gauge], ['timeline', 'Timeline', History], ['operations', 'Mappa operazioni', Network],
-  ['dossiers', 'Fascicoli', FolderOpen], ['documents', 'Documenti', FileText], ['database', 'Database', Database], ['ingestion', 'Caricamento bandi', Wrench],
+  ['archive', 'Archivio bandi', Archive2], ['dossiers', 'Fascicoli', FolderOpen], ['documents', 'Documenti', FileText], ['database', 'Database', Database], ['ingestion', 'Caricamento bandi', Wrench],
 ]
 const STATUS_LABEL = { OK: 'OK', WARN: 'Attenzione', FAIL: 'Non superato', DENIED: 'Negato', LOCKED: 'Bloccato', CONFLICT: 'Conflitto', NOT_FOUND: 'Non trovato' }
-const SECTION_HINT = { overview: 'hq_panoramica', timeline: 'hq_timeline', operations: 'hq_operazioni', dossiers: 'hq_fascicoli', documents: 'hq_documenti', database: 'hq_database', ingestion: 'hq_caricamento' }
+const SECTION_HINT = { overview: 'hq_panoramica', timeline: 'hq_timeline', operations: 'hq_operazioni', archive: 'hq_archivio', dossiers: 'hq_fascicoli', documents: 'hq_documenti', database: 'hq_database', ingestion: 'hq_caricamento' }
 const STATUS_TONE = { OK: 'text-emerald-300', WARN: 'text-amber-300', FAIL: 'text-red-300', DENIED: 'text-red-300', LOCKED: 'text-red-300', CONFLICT: 'text-amber-300', NOT_FOUND: 'text-amber-300' }
 
 function Gate({ onAuthed }) {
@@ -241,6 +242,7 @@ export default function HQ({ bandi, onReplay }) {
       {overview && section === 'overview' && <Overview data={overview} opsById={opsById} goto={goto} />}
       {overview && section === 'timeline' && <Timeline key={opFilter} ops={ops} opsById={opsById} initialOp={opFilter} onReplay={onReplay} />}
       {overview && section === 'operations' && <Operations ops={ops} onShow={(id) => goto('timeline', id)} />}
+      {overview && section === 'archive' && <Archive />}
       {overview && section === 'dossiers' && <Dossiers bandi={bandi} onReplay={onReplay} opsById={opsById} />}
       {overview && section === 'documents' && <Documents />}
       {overview && section === 'database' && <DbExplorer />}

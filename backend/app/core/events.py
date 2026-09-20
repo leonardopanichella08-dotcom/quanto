@@ -98,13 +98,35 @@ def add_document(kind: str, name: str, data: bytes, bando_id: Optional[str] = No
 
 
 def save_bando_source(bando_id: str, name: str, text: str, url: Optional[str] = None, tier: Optional[str] = None,
-                      content_type: Optional[str] = None, pages: Optional[int] = None, origin: str = "UPLOAD") -> str:
+                      content_type: Optional[str] = None, pages: Optional[int] = None, origin: str = "UPLOAD",
+                      file_sha256: Optional[str] = None, warnings: Optional[List[str]] = None) -> str:
     """Salva il testo integrale di una fonte del bando (caricata a mano o scaricata dal web) nella memoria."""
     digest = sha256_hex(text.encode("utf-8"))
     with connect() as conn:
-        conn.execute("INSERT OR REPLACE INTO bando_sources (bando_id, ts, name, sha256, text, url, tier, content_type, pages, origin) VALUES (?,?,?,?,?,?,?,?,?,?)",
-                     (bando_id, now_iso(), name[:200], digest, text[:MAX_SOURCE_TEXT], url, tier, content_type, pages, origin))
+        conn.execute("INSERT OR REPLACE INTO bando_sources (bando_id, ts, name, sha256, text, url, tier, content_type, pages, origin, file_sha256, warnings) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)",
+                     (bando_id, now_iso(), name[:200], digest, text[:MAX_SOURCE_TEXT], url, tier, content_type, pages, origin, file_sha256,
+                      json.dumps(warnings or [], ensure_ascii=False)))
     return digest
+
+
+def save_bando_file(bando_id: str, name: str, data: bytes, content_type: Optional[str] = None) -> str:
+    """Conserva il file ORIGINALE (PDF, pagina, Word) per poterlo riaprire e scaricare dal Quartier Generale."""
+    digest = sha256_hex(data)
+    with connect() as conn:
+        conn.execute("INSERT OR REPLACE INTO bando_files (bando_id, sha256, ts, name, content_type, size_bytes, data) VALUES (?,?,?,?,?,?,?)",
+                     (bando_id, digest, now_iso(), name[:200], content_type, len(data), data))
+    return digest
+
+
+def get_bando_file(bando_id: str, sha256: str) -> Optional[dict]:
+    with connect() as conn:
+        row = conn.execute("SELECT * FROM bando_files WHERE bando_id=? AND sha256=?", (bando_id, sha256)).fetchone()
+    return dict(row) if row else None
+
+
+def save_source_analysis(bando_id: str, source_sha: str, analysis: Dict[str, Any]) -> None:
+    with connect() as conn:
+        conn.execute("UPDATE bando_sources SET analysis=? WHERE bando_id=? AND sha256=?", (json.dumps(analysis, ensure_ascii=False), bando_id, source_sha))
 
 
 def list_bando_sources(bando_id: str) -> List[dict]:

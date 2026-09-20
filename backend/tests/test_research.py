@@ -9,11 +9,25 @@ from fastapi.testclient import TestClient
 from reportlab.lib.pagesizes import A4
 from reportlab.pdfgen import canvas
 
-from app.core import events, research
+from app.core import discovery, events, research
 from main import app
 
 client = TestClient(app)
 NAME = "Fondo Test Giovani"
+REAL_HTTP_GET = research.http_get
+REAL_SEARCH_ONE = research._search_one
+
+
+@pytest.fixture(autouse=True)
+def no_network(monkeypatch):
+    """I test non toccano mai la rete vera: ogni prova simula quello che serve."""
+    def deny(url, *a, **k):
+        raise research.ResearchError("rete disattivata nei test")
+
+    monkeypatch.setattr(research, "http_get", deny)
+    monkeypatch.setattr(research, "_search_one", lambda q, *a, **k: ([], "test"))
+    discovery._CACHE.clear()
+    research._HITS.clear()
 
 HTML_MAIN = """<html><head><title>Sito ente</title></head><body>
 <nav><a href="/menu">Menu principale</a></nav>
@@ -65,7 +79,7 @@ def web(monkeypatch):
         data, ctype = pages[url]
         return data, url, ctype
 
-    def fake_search(query):
+    def fake_search(query, *a, **k):
         return [
             {"url": "https://www.ente.gov.it/fondo", "title": "Fondo Test Giovani - Ente", "snippet": "bando"},
             {"url": "https://blog.example.com/guida", "title": "Guida al Fondo Test Giovani", "snippet": ""},
@@ -130,7 +144,7 @@ def test_redirect_to_internal_address_is_blocked(monkeypatch):
     real = httpx.Client
     monkeypatch.setattr(research.httpx, "Client", lambda **kw: real(transport=httpx.MockTransport(handler), **kw))
     with pytest.raises(research.ResearchError, match="rete interna"):
-        research.http_get("https://8.8.8.8/")
+        REAL_HTTP_GET("https://8.8.8.8/")
 
 
 def test_size_and_status_limits(monkeypatch):
@@ -143,13 +157,13 @@ def test_size_and_status_limits(monkeypatch):
     monkeypatch.setattr(research.httpx, "Client", lambda **kw: real(transport=httpx.MockTransport(handler), **kw))
     state["resp"] = httpx.Response(404)
     with pytest.raises(research.ResearchError, match="404"):
-        research.http_get("https://8.8.8.8/x")
+        REAL_HTTP_GET("https://8.8.8.8/x")
     state["resp"] = httpx.Response(200, headers={"content-type": "application/pdf", "content-length": str(50_000_000)}, content=b"%PDF")
     with pytest.raises(research.ResearchError, match="troppo grande"):
-        research.http_get("https://8.8.8.8/x")
+        REAL_HTTP_GET("https://8.8.8.8/x")
     state["resp"] = httpx.Response(200, headers={"content-type": "text/html"}, content=b"x" * (research.MAX_HTML_BYTES + 10))
     with pytest.raises(research.ResearchError, match="troppo grande"):
-        research.http_get("https://8.8.8.8/x")
+        REAL_HTTP_GET("https://8.8.8.8/x")
 
 
 def test_rate_limit(monkeypatch):
@@ -259,9 +273,11 @@ def test_full_research_flow(web):
     assert any(r["source_ref"] and "avviso-pubblico.pdf" in r["source_ref"] for r in d["requirements"])   # ogni requisito cita la sua fonte
 
     sha = d["usage"]["uploaded_sources"][0]["sha256"]
-    t = client.get(f"/api/v2/bandi/{bid}/sources/{sha}").json()
+    assert client.get(f"/api/v2/bandi/{bid}/sources/{sha}").status_code == 401           # il testo integrale lo vede solo il manager
+    hqh = {"X-HQ-Token": client.post("/api/v2/hq/login", json={"code": "QUANTO_1"}).json()["token"]}
+    t = client.get(f"/api/v2/bandi/{bid}/sources/{sha}", headers=hqh).json()
     assert t["chars"] == len(t["text"]) and t["url"]
-    assert client.get(f"/api/v2/bandi/{bid}/sources/{'0' * 64}").status_code == 404
+    assert client.get(f"/api/v2/bandi/{bid}/sources/{'0' * 64}", headers=hqh).status_code == 404
 
     ev = [e["op"] for e in events.list_events(bando_id=bid, limit=50)]
     assert {"bando.research.search", "bando.research.fetch", "bando.research.analyze"} <= set(ev)
@@ -289,7 +305,7 @@ def test_fetch_failures_and_unknown_bando(web):
 
 
 def test_search_without_results_and_supplied_urls(monkeypatch):
-    monkeypatch.setattr(research, "_search_one", lambda q: ([], "Bing non ha restituito risultati leggibili"))
+    monkeypatch.setattr(research, "_search_one", lambda q, *a, **k: ([], "Bing non ha restituito risultati leggibili"))
     r = client.post("/api/v2/bandi/research/search", json={"name": "Bando Inesistente Xyz", "urls": ["https://www.mimit.gov.it/it/atto.pdf"]}).json()
     assert len(r["candidates"]) == 1                              # con un link indicato dall'utente si può comunque procedere
     assert r["candidates"][0]["user_supplied"] and r["candidates"][0]["preselected"] and r["candidates"][0]["tier"] == "UFFICIALE"
@@ -317,7 +333,7 @@ def test_ambiguous_rule_inside_one_document_goes_to_manual_review(monkeypatch):
     page = ("<html><body><h1>Fondo Test Giovani</h1><p>Il contributo è pari al 75% a fondo perduto per programmi di investimento fino a 120.000 euro.</p>"
             "<p>Il contributo è pari al 70% a fondo perduto per programmi di investimento tra 120.000 e 200.000 euro.</p>"
             "<p>Le consulenze esterne non possono superare il 15% del totale del progetto approvato dall'ente.</p></body></html>").encode()
-    monkeypatch.setattr(research, "_search_one", lambda q: ([{"url": "https://www.ente.gov.it/f", "title": "Fondo Test Giovani", "snippet": ""}], None))
+    monkeypatch.setattr(research, "_search_one", lambda q, *a, **k: ([{"url": "https://www.ente.gov.it/f", "title": "Fondo Test Giovani", "snippet": ""}], None))
     monkeypatch.setattr(research, "http_get", lambda url, max_bytes=0, **kw: (page, url, "text/html"))
     bid = client.post("/api/v2/bandi/research/search", json={"name": NAME}).json()["bando_id"]
     client.post("/api/v2/bandi/research/fetch", json={"bando_id": bid, "url": "https://www.ente.gov.it/f"})
@@ -336,7 +352,7 @@ def test_reanalysis_recomputes_parsed_rules_but_keeps_human_decisions(monkeypatc
     text1 = "<html><body><h1>Fondo Test Giovani</h1><p>Il contributo è pari al 60% delle spese ammissibili per ogni progetto presentato all'ente.</p><p>Le consulenze esterne non possono superare il 15% del totale del progetto approvato.</p></body></html>"
     text2 = "<html><body><h1>Fondo Test Giovani</h1><p>Il contributo è pari al 45% delle spese ammissibili per ogni progetto presentato all'ente.</p><p>Il costo orario del personale non può essere superiore a 40,00 euro/ora per tutte le figure.</p></body></html>"
     page = {"cur": text1}
-    monkeypatch.setattr(research, "_search_one", lambda q: ([{"url": "https://www.ente.gov.it/a", "title": "Fondo Test Giovani", "snippet": ""}], None))
+    monkeypatch.setattr(research, "_search_one", lambda q, *a, **k: ([{"url": "https://www.ente.gov.it/a", "title": "Fondo Test Giovani", "snippet": ""}], None))
     monkeypatch.setattr(research, "http_get", lambda url, max_bytes=0, **kw: (page["cur"].encode(), url, "text/html"))
     bid = client.post("/api/v2/bandi/research/search", json={"name": NAME}).json()["bando_id"]
     client.post("/api/v2/bandi/research/fetch", json={"bando_id": bid, "url": "https://www.ente.gov.it/a"})
@@ -369,7 +385,7 @@ def test_official_directory_finds_bando_by_name_without_search_engine(monkeypatc
         raise research.ResearchError("Il sito ha risposto 500")
 
     monkeypatch.setattr(research, "http_get", fake_get)
-    monkeypatch.setattr(research, "_search_one", lambda q: ([{"url": "https://www.nissanusa.com/propilot", "title": "ProPILOT Nissan", "snippet": ""}], None))
+    monkeypatch.setattr(research, "_search_one", lambda q, *a, **k: ([{"url": "https://www.nissanusa.com/propilot", "title": "ProPILOT Nissan", "snippet": ""}], None))
     r = client.post("/api/v2/bandi/research/search", json={"name": NAME}).json()
     urls = [c["url"] for c in r["candidates"]]
     assert urls[0] == "https://www.invitalia.it/incentivi-e-strumenti/fondo-test-giovani"       # dall'elenco ufficiale
@@ -381,7 +397,7 @@ def test_official_directory_finds_bando_by_name_without_search_engine(monkeypatc
 
 def test_search_engine_garbage_only_gives_actionable_message(monkeypatch):
     monkeypatch.setattr(research, "http_get", lambda url, max_bytes=0, accept_error_body=False: (_ for _ in ()).throw(research.ResearchError("Il sito ha risposto 500")))
-    monkeypatch.setattr(research, "_search_one", lambda q: ([{"url": "https://www.nissanusa.com/propilot", "title": "ProPILOT Nissan", "snippet": ""}], None))
+    monkeypatch.setattr(research, "_search_one", lambda q, *a, **k: ([{"url": "https://www.nissanusa.com/propilot", "title": "ProPILOT Nissan", "snippet": ""}], None))
     monkeypatch.delenv("QUANTO_BRAVE_API_KEY", raising=False)
     r = client.post("/api/v2/bandi/research/search", json={"name": "Bando Inesistente Xyz"}).json()
     assert r["candidates"] == []
@@ -399,7 +415,7 @@ def test_brave_api_is_used_when_key_is_set(monkeypatch):
 
     real = httpx.get
     monkeypatch.setattr(research.httpx, "get", lambda url, **kw: httpx.Client(transport=httpx.MockTransport(handler)).get(url, **{k: v for k, v in kw.items() if k in ("params", "headers")}) if "brave" in url else real(url, **kw))
-    hits, err = research._search_one('"Fondo Test Giovani" bando')
+    hits, err = REAL_SEARCH_ONE('"Fondo Test Giovani" bando')
     assert err is None and hits[0]["title"] == "Fondo Test Giovani" and seen["token"] == "chiave-di-prova" and seen["q"] == '"Fondo Test Giovani" bando'
     assert research.parse_brave({"web": {"results": [{"title": "x"}]}}) == []          # risultato senza indirizzo: ignorato
 
@@ -408,6 +424,93 @@ def test_http_get_accepts_404_body_only_when_asked(monkeypatch):
     real = httpx.Client
     monkeypatch.setattr(research.httpx, "Client", lambda **kw: real(transport=httpx.MockTransport(lambda req: httpx.Response(404, headers={"content-type": "text/html"}, content=b"<html><a href='/a'>x</a></html>")), **kw))
     with pytest.raises(research.ResearchError, match="404"):
-        research.http_get("https://8.8.8.8/x")
-    raw, _, _ = research.http_get("https://8.8.8.8/x", accept_error_body=True)
+        REAL_HTTP_GET("https://8.8.8.8/x")
+    raw, _, _ = REAL_HTTP_GET("https://8.8.8.8/x", accept_error_body=True)
     assert b"<a href" in raw
+
+
+# ------------------------------------------------------------------ pertinenza, cataloghi e ricerca guidata
+def test_match_score_understands_programmes_and_codes():
+    ms = research.match_score
+    assert ms("Resto al Sud", "Resto al Sud 2.0 - Invitalia") is not None
+    assert ms("Resto al Sud", "Il Resto del Carlino") is None                          # parole del nome tutte richieste
+    assert ms("Erasmus KA152", "Erasmus+ Italia - il sito nazionale") is not None       # pagina del programma: la sigla non è obbligatoria
+    assert ms("Erasmus KA152", "Youth exchanges KA 152 - Erasmus+") > ms("Erasmus KA152", "Erasmus+ Italia")   # ma vale di più
+    assert ms("Erasmus KA152", "KA152 - Scambi giovanili") is not None                    # la sigla da sola identifica l'azione
+    assert ms("Erasmus KA152", "KA2 Partenariati di cooperazione") is None
+    assert ms("Erasmus KA152", "Ricetta della torta") is None
+    assert ms("KA152", "azione KA152-YOU scambi giovanili") is not None and ms("KA152", "azione KA2") is None
+    assert ms("Transizione 5.0", "Nuovo Piano Transizione 5.0 - Iperammortamento") is not None
+    assert ms("Fondo nuove competenze", "Fondo Nuove Competenze 3") is not None
+    assert ms("nome qualunque", "niente a che vedere") is None
+    assert research.classify_url("https://www.erasmusplus.it/programma/") == "UFFICIALE"
+    assert research.classify_url("https://www.agenziagiovani.it/") == "UFFICIALE"
+
+
+SITEMAP_INDEX = """<?xml version="1.0"?><sitemapindex>
+<sitemap><loc>http://incentivi:8080/sitemap.xml?page=1</loc></sitemap><sitemap><loc>http://incentivi:8080/sitemap.xml?page=2</loc></sitemap></sitemapindex>"""
+SITEMAP_1 = """<urlset><url><loc>http://incentivi:8080/it/homepage</loc></url><url><loc>http://incentivi:8080/it/catalogo/beni-strumentali-nuova-sabatini</loc></url></urlset>"""
+SITEMAP_2 = """<urlset><url><loc>http://incentivi:8080/it/catalogo/bando-giovani-imprenditori-regione-puglia-2025</loc></url>
+<url><loc>http://incentivi:8080/it/catalogo/2021-comune-di-dongo-contributi-sostegno-del-commercio</loc></url></urlset>"""
+
+
+def _catalog_get(monkeypatch, extra=None):
+    pages = {"https://www.incentivi.gov.it/sitemap.xml": SITEMAP_INDEX, "https://www.incentivi.gov.it/sitemap.xml?page=1": SITEMAP_1, "https://www.incentivi.gov.it/sitemap.xml?page=2": SITEMAP_2}
+    pages.update(extra or {})
+
+    def fake(url, max_bytes=0, **kw):
+        if url in pages:
+            return pages[url].encode(), url, "application/xml" if url.endswith("xml") or "sitemap" in url else "text/html"
+        raise research.ResearchError("Il sito ha risposto 404")
+
+    monkeypatch.setattr(research, "http_get", fake)
+
+
+def test_catalog_from_sitemap_rewrites_internal_host_and_matches_approximate_names(monkeypatch):
+    _catalog_get(monkeypatch)
+    items = discovery.load_catalog(discovery.CATALOGS[0])
+    assert ("https://www.incentivi.gov.it/it/catalogo/beni-strumentali-nuova-sabatini", "beni strumentali nuova sabatini") in items
+    assert not any("homepage" in u or "incentivi:8080" in u for u, _ in items)          # solo schede del catalogo, host pubblico
+    hits, info = discovery.search_catalogs("Nuova Sabatini")
+    assert [h["url"] for h in hits] == ["https://www.incentivi.gov.it/it/catalogo/beni-strumentali-nuova-sabatini"]
+    assert info[0]["items"] == 3 and info[0]["matched"] == 1 and info[1]["error"]     # Invitalia non raggiungibile: si prosegue
+    hits, _ = discovery.search_catalogs("contributi giovani imprenditori Puglia")
+    assert hits and "puglia" in hits[0]["url"]
+
+
+def test_focused_crawl_reaches_an_action_two_hops_from_the_portal(monkeypatch):
+    portal = '<html><body><a href="/programma/azioni">Le azioni del programma Erasmus+</a><a href="/contatti">Contatti</a><a href="/news/altro">Altro</a></body></html>'
+    azioni = '<html><body><a href="/programma/azioni/ka152-scambi-giovanili">KA152 - Scambi giovanili</a><a href="/programma/azioni/ka2">KA2 Partenariati</a></body></html>'
+    _catalog_get(monkeypatch, {"https://www.erasmusplus.it/": portal, "https://www.erasmusplus.it/programma/azioni": azioni,
+                               "https://www.erasmusplus.it/programma/azioni/ka152-scambi-giovanili": "<html><body>x</body></html>"})
+    r = client.post("/api/v2/bandi/research/search", json={"name": "Erasmus KA152"}).json()
+    urls = [c["url"] for c in r["candidates"]]
+    assert "https://www.erasmusplus.it/programma/azioni/ka152-scambi-giovanili" in urls
+    top = next(c for c in r["candidates"] if c["url"].endswith("ka152-scambi-giovanili"))
+    assert top["tier"] == "UFFICIALE" and top["preselected"]
+    assert not any(u.endswith("/ka2") for u in urls)                                    # la sigla sbagliata non passa
+    d = r["diagnostics"]
+    assert any(x["channel"].startswith("portale") and x["matched"] for x in d["directories"])
+
+
+def test_engine_chain_skips_irrelevant_engine_and_uses_keyed_one(monkeypatch):
+    monkeypatch.setenv("QUANTO_SERPER_API_KEY", "k")
+    monkeypatch.setattr(research, "_engine_bing", lambda q: ([{"url": "https://www.nissanusa.com/x", "title": "ProPILOT", "snippet": ""}], None))
+    monkeypatch.setattr(research, "_engine_serper", lambda q, key: ([{"url": "https://www.erasmusplus.it/ka152", "title": "Erasmus KA152", "snippet": ""}], None))
+    hits, err = REAL_SEARCH_ONE("Erasmus KA152", "Erasmus KA152")
+    assert err is None and hits[0]["engine"] == "serper"
+    monkeypatch.delenv("QUANTO_SERPER_API_KEY")
+    hits, err = REAL_SEARCH_ONE("Erasmus KA152", "Erasmus KA152")
+    assert hits == [] and "bing: risultati non pertinenti" in err
+
+
+def test_action_codes_lead_to_their_official_pages_and_names(monkeypatch):
+    hits, info = discovery.code_pages("Erasmus KA152")
+    assert hits[0]["url"].endswith("/key-action-1/youth-exchanges") and info[0]["matched"] == 1
+    assert discovery.code_pages("Nuova Sabatini") == ([], [])
+    ranked = research.rank_results("Erasmus KA152", hits)
+    assert ranked and ranked[0]["tier"] == "UFFICIALE" and ranked[0]["preselected"]
+    assert research.match_score("Erasmus KA152", "Youth Exchanges - Programme Guide") is not None        # il nome esteso dell'azione basta
+    assert research.match_score("Erasmus KA152", "Youth participation activities") is None                # un'altra azione no
+    long = ("Disposizioni. " * 6000) + " The Youth Exchanges allow groups of young people to meet. " + ("Altro. " * 6000)
+    assert "Youth Exchanges allow" in research.focus_text(long, "Erasmus KA152")                        # l'estratto pertinente segue il nome esteso
