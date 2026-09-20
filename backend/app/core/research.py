@@ -194,12 +194,12 @@ def check_public_url(url: str) -> None:
             raise ResearchError("Indirizzo non consentito (rete interna)")
 
 
-def http_get(url: str, max_bytes: int = MAX_BINARY_BYTES, accept_error_body: bool = False) -> Tuple[bytes, str, str]:
+def http_get(url: str, max_bytes: int = MAX_BINARY_BYTES, accept_error_body: bool = False, timeout: float = TIMEOUT) -> Tuple[bytes, str, str]:
     """Scarica ``url`` seguendo i redirect a mano (ricontrollando ogni destinazione). Ritorna (contenuto, url finale, content-type)."""
     _rate_check()
     headers = {"User-Agent": UA, "Accept": "text/html,application/pdf,application/xhtml+xml,text/plain;q=0.8,*/*;q=0.5", "Accept-Language": "it-IT,it;q=0.9"}
     current = url
-    with httpx.Client(timeout=TIMEOUT, follow_redirects=False, headers=headers) as client:
+    with httpx.Client(timeout=timeout, follow_redirects=False, headers=headers) as client:
         for _ in range(MAX_REDIRECTS + 1):
             check_public_url(current)
             try:

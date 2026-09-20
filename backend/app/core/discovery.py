@@ -26,6 +26,8 @@ CATALOGS: List[Dict[str, Any]] = [
     {"name": "Invitalia", "site": "https://www.invitalia.it", "sitemap": "https://www.invitalia.it/sitemap.xml", "path": "/incentivi-e-strumenti/"},
 ]
 CATALOG_TTL = 6 * 3600
+CATALOG_TIMEOUT = 40.0          # le sitemap sono file da ~700 KB ciascuno e da un server cloud possono essere lente
+CATALOG_WAIT = 22.0             # oltre questo tempo la ricerca prosegue senza il catalogo (che intanto si completa e resta in cache)
 _CACHE: Dict[str, Tuple[float, List[Tuple[str, str]]]] = {}
 _LOCK = threading.Lock()
 
@@ -94,16 +96,20 @@ def load_catalog(cat: Dict[str, Any], force: bool = False) -> List[Tuple[str, st
         hit = _CACHE.get(cat["name"])
         if hit and not force and time.monotonic() - hit[0] < CATALOG_TTL:
             return hit[1]
-    raw, _, _ = research.http_get(cat["sitemap"], max_bytes=8_000_000)
+    raw, _, _ = research.http_get(cat["sitemap"], max_bytes=8_000_000, timeout=CATALOG_TIMEOUT)
     top = _locs(raw.decode("utf-8", errors="replace"))
     children = [c for c in top if c.endswith(".xml") or "sitemap" in c.lower()]
     pages = [top] if not children else []
-    for child in children[:8]:
+
+    def one(child: str) -> List[str]:
         try:
-            r2, _, _ = research.http_get(_rewrite(child, cat["site"]), max_bytes=8_000_000)
-            pages.append(_locs(r2.decode("utf-8", errors="replace")))
+            r2, _, _ = research.http_get(_rewrite(child, cat["site"]), max_bytes=8_000_000, timeout=CATALOG_TIMEOUT)
+            return _locs(r2.decode("utf-8", errors="replace"))
         except research.ResearchError:
-            continue
+            return []
+
+    with ThreadPoolExecutor(max_workers=4) as pool:          # le sitemap figlie si scaricano insieme
+        pages += [x for x in pool.map(one, children[:8]) if x]
     out: List[Tuple[str, str]] = []
     for locs in pages:
         for loc in locs:
@@ -230,10 +236,15 @@ def code_pages(name: str) -> Tuple[List[Dict[str, str]], List[Dict[str, Any]]]:
 
 def discover(name: str) -> Tuple[List[Dict[str, str]], List[Dict[str, Any]]]:
     """Cataloghi + portali di famiglia + elenchi ufficiali. Ritorna (risultati grezzi, diagnostica per canale)."""
-    with ThreadPoolExecutor(max_workers=2) as pool:
-        f_cat = pool.submit(search_catalogs, name)
-        f_crawl = pool.submit(focused_crawl, name, seeds_for(name))
-        cat_hits, cat_info = f_cat.result()
-        crawl_hits, crawl_info = f_crawl.result()
+    pool = ThreadPoolExecutor(max_workers=2)
+    f_cat = pool.submit(search_catalogs, name)
+    f_crawl = pool.submit(focused_crawl, name, seeds_for(name))
+    crawl_hits, crawl_info = f_crawl.result()
+    try:
+        cat_hits, cat_info = f_cat.result(timeout=CATALOG_WAIT)
+    except Exception:  # catalogo lento: si prosegue senza; il caricamento continua in background e alla prossima ricerca è in cache
+        cat_hits, cat_info = [], [{"channel": "catalogo (in caricamento)", "items": 0, "matched": 0,
+                                   "error": "Il catalogo nazionale è lento a rispondere: lo uso alla prossima ricerca (resta in memoria per alcune ore)"}]
+    pool.shutdown(wait=False)
     code_hits, code_info = code_pages(name)
     return [*code_hits, *cat_hits, *crawl_hits], [*code_info, *cat_info, *crawl_info]

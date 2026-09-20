@@ -514,3 +514,26 @@ def test_action_codes_lead_to_their_official_pages_and_names(monkeypatch):
     assert research.match_score("Erasmus KA152", "Youth participation activities") is None                # un'altra azione no
     long = ("Disposizioni. " * 6000) + " The Youth Exchanges allow groups of young people to meet. " + ("Altro. " * 6000)
     assert "Youth Exchanges allow" in research.focus_text(long, "Erasmus KA152")                        # l'estratto pertinente segue il nome esteso
+
+
+def test_slow_catalog_does_not_block_the_search_and_is_cached_afterwards(monkeypatch):
+    import threading
+    import time
+    gate = threading.Event()
+    real_load = discovery.load_catalog
+
+    def slow(cat, force=False):
+        gate.wait(5)                       # simula una sitemap lentissima
+        return real_load(cat, force)
+
+    _catalog_get(monkeypatch)
+    monkeypatch.setattr(discovery, "load_catalog", slow)
+    monkeypatch.setattr(discovery, "CATALOG_WAIT", 0.3)
+    t0 = time.monotonic()
+    hits, info = discovery.discover("Nuova Sabatini")
+    assert time.monotonic() - t0 < 4 and any("lento" in (x.get("error") or "") for x in info)      # la ricerca non ha aspettato il catalogo
+    gate.set()
+    time.sleep(0.4)                        # il caricamento in background si completa e resta in cache
+    monkeypatch.setattr(discovery, "load_catalog", real_load)
+    hits, info = discovery.search_catalogs("Nuova Sabatini")
+    assert hits and hits[0]["url"].endswith("nuova-sabatini")
