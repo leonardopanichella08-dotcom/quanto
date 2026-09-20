@@ -53,7 +53,7 @@ vanno verificate sul testo ufficiale prima dell'uso operativo. Se un bando non d
 valutato": nessun default inventato.
 
 ### Ricerca dei bandi sul web (`/bandi/research/*`)
-1. **Cerca** (`search`): 6 ricerche sul nome (Bing, DuckDuckGo Lite di riserva), scarto dei risultati che non nominano il bando, classificazione
+1. **Cerca** (`search`): 3 vie insieme — **elenchi ufficiali** (Invitalia, MIMIT: funzionano anche da cloud), **Brave Search API** se imposti `QUANTO_BRAVE_API_KEY` (piano gratuito; la via affidabile in produzione) e 6 ricerche su Bing/DuckDuckGo Lite (gratuite ma spesso bloccate dai server cloud: da Vercel Bing risponde con risultati senza alcun legame, che vengono scartati). Scarto dei risultati che non nominano il bando, classificazione
    **UFFICIALE** (Gazzetta Ufficiale, Normattiva, EUR-Lex, ministeri, Invitalia, INPS, regioni…) o **SECONDARIA** (blog, portali). Si preselezionano solo le ufficiali.
 2. **Scarica** (`fetch`, un indirizzo alla volta): pagina HTML, PDF o Word, con protezioni (solo http/https verso IP pubblici, redirect ricontrollati,
    niente porte strane, limiti di dimensione e tempo, tetto di richieste). Il testo integrale va in memoria (`bando_sources`) con indirizzo, tipo di fonte e impronta.

@@ -59,7 +59,7 @@ def web(monkeypatch):
         "https://blog.example.com/guida": (b"<html><body><p>" + b"Guida non ufficiale al Fondo Test Giovani. " * 10 + b"</p></body></html>", "text/html"),
     }
 
-    def fake_get(url, max_bytes=research.MAX_BINARY_BYTES):
+    def fake_get(url, max_bytes=research.MAX_BINARY_BYTES, **kw):
         if url not in pages:
             raise research.ResearchError("Il sito ha risposto 404")
         data, ctype = pages[url]
@@ -204,7 +204,7 @@ def test_pdf_and_docx_and_errors(monkeypatch):
         z.writestr("word/document.xml", "<w:document><w:p><w:t>Le consulenze non possono superare il 10%.</w:t></w:p></w:document>")
     assert "consulenze" in research.docx_to_text(buf.getvalue())
 
-    def fake_get(url, max_bytes=0):
+    def fake_get(url, max_bytes=0, **kw):
         d, c = {"https://a": (b"\x89PNG....", "image/png"), "https://b": (b"<html><body>x</body></html>", "text/html")}[url]
         return d, url, c
 
@@ -217,7 +217,7 @@ def test_pdf_and_docx_and_errors(monkeypatch):
 
 def test_scanned_pdf_is_flagged(monkeypatch):
     blank = make_pdf([])
-    monkeypatch.setattr(research, "http_get", lambda url, max_bytes=0: (blank, url, "application/pdf"))
+    monkeypatch.setattr(research, "http_get", lambda url, max_bytes=0, **kw: (blank, url, "application/pdf"))
     with pytest.raises(research.ResearchError):      # nessun testo: errore chiaro invece di un documento vuoto in memoria
         research.fetch_document("https://x.gov.it/scan.pdf")
 
@@ -318,7 +318,7 @@ def test_ambiguous_rule_inside_one_document_goes_to_manual_review(monkeypatch):
             "<p>Il contributo è pari al 70% a fondo perduto per programmi di investimento tra 120.000 e 200.000 euro.</p>"
             "<p>Le consulenze esterne non possono superare il 15% del totale del progetto approvato dall'ente.</p></body></html>").encode()
     monkeypatch.setattr(research, "_search_one", lambda q: ([{"url": "https://www.ente.gov.it/f", "title": "Fondo Test Giovani", "snippet": ""}], None))
-    monkeypatch.setattr(research, "http_get", lambda url, max_bytes=0: (page, url, "text/html"))
+    monkeypatch.setattr(research, "http_get", lambda url, max_bytes=0, **kw: (page, url, "text/html"))
     bid = client.post("/api/v2/bandi/research/search", json={"name": NAME}).json()["bando_id"]
     client.post("/api/v2/bandi/research/fetch", json={"bando_id": bid, "url": "https://www.ente.gov.it/f"})
     a = client.post("/api/v2/bandi/research/analyze", json={"bando_id": bid}).json()
@@ -337,7 +337,7 @@ def test_reanalysis_recomputes_parsed_rules_but_keeps_human_decisions(monkeypatc
     text2 = "<html><body><h1>Fondo Test Giovani</h1><p>Il contributo è pari al 45% delle spese ammissibili per ogni progetto presentato all'ente.</p><p>Il costo orario del personale non può essere superiore a 40,00 euro/ora per tutte le figure.</p></body></html>"
     page = {"cur": text1}
     monkeypatch.setattr(research, "_search_one", lambda q: ([{"url": "https://www.ente.gov.it/a", "title": "Fondo Test Giovani", "snippet": ""}], None))
-    monkeypatch.setattr(research, "http_get", lambda url, max_bytes=0: (page["cur"].encode(), url, "text/html"))
+    monkeypatch.setattr(research, "http_get", lambda url, max_bytes=0, **kw: (page["cur"].encode(), url, "text/html"))
     bid = client.post("/api/v2/bandi/research/search", json={"name": NAME}).json()["bando_id"]
     client.post("/api/v2/bandi/research/fetch", json={"bando_id": bid, "url": "https://www.ente.gov.it/a"})
     a1 = client.post("/api/v2/bandi/research/analyze", json={"bando_id": bid}).json()
@@ -352,3 +352,62 @@ def test_reanalysis_recomputes_parsed_rules_but_keeps_human_decisions(monkeypatc
     assert rules["contribution_rate_pct"]["value"] == 0.5 and rules["contribution_rate_pct"]["origin"] == "HUMAN_REVIEW"
     assert rules["max_hourly_rate_personnel"]["value"] == 40
     assert rules["max_consulting_percentage"]["value"] == 0.15            # ancora presente nella prima fonte
+
+
+# ------------------------------------------------------------------ percorsi che non dipendono dai motori gratuiti
+LISTING = """<html><body><nav><a href="/x">Menu</a></nav><main>
+<a href="/incentivi-e-strumenti/resto-al-sud-20">Resto al Sud 2.0</a>
+<a href="/incentivi-e-strumenti/smartstart-italia">Smart&Start Italia</a>
+<a href="/incentivi-e-strumenti/fondo-test-giovani">Fondo Test Giovani</a>
+<a href="https://blog.example.com/fondo-test-giovani">articolo</a></main></body></html>"""
+
+
+def test_official_directory_finds_bando_by_name_without_search_engine(monkeypatch):
+    def fake_get(url, max_bytes=0, accept_error_body=False):
+        if "invitalia" in url:
+            return LISTING.encode(), "https://www.invitalia.it/incentivi-e-strumenti", "text/html"
+        raise research.ResearchError("Il sito ha risposto 500")
+
+    monkeypatch.setattr(research, "http_get", fake_get)
+    monkeypatch.setattr(research, "_search_one", lambda q: ([{"url": "https://www.nissanusa.com/propilot", "title": "ProPILOT Nissan", "snippet": ""}], None))
+    r = client.post("/api/v2/bandi/research/search", json={"name": NAME}).json()
+    urls = [c["url"] for c in r["candidates"]]
+    assert urls[0] == "https://www.invitalia.it/incentivi-e-strumenti/fondo-test-giovani"       # dall'elenco ufficiale
+    assert next(c for c in r["candidates"])["tier"] == "UFFICIALE" and next(c for c in r["candidates"])["preselected"]
+    assert "smartstart" not in " ".join(urls) and not any("nissan" in u for u in urls)          # risultati senza legame scartati
+    d = r["diagnostics"]
+    assert d["raw_hits"] == 3 * 2 and d["kept"] == len(urls) and any(x["matched"] == 2 for x in d["directories"]) and any(x["error"] for x in d["directories"])
+
+
+def test_search_engine_garbage_only_gives_actionable_message(monkeypatch):
+    monkeypatch.setattr(research, "http_get", lambda url, max_bytes=0, accept_error_body=False: (_ for _ in ()).throw(research.ResearchError("Il sito ha risposto 500")))
+    monkeypatch.setattr(research, "_search_one", lambda q: ([{"url": "https://www.nissanusa.com/propilot", "title": "ProPILOT Nissan", "snippet": ""}], None))
+    monkeypatch.delenv("QUANTO_BRAVE_API_KEY", raising=False)
+    r = client.post("/api/v2/bandi/research/search", json={"name": "Bando Inesistente Xyz"}).json()
+    assert r["candidates"] == []
+    assert any("nessun risultato nomina il bando" in e for e in r["engine_errors"]) and any("QUANTO_BRAVE_API_KEY" in e for e in r["engine_errors"])
+
+
+def test_brave_api_is_used_when_key_is_set(monkeypatch):
+    monkeypatch.setenv("QUANTO_BRAVE_API_KEY", "chiave-di-prova")
+    seen = {}
+
+    def handler(request):
+        seen["token"] = request.headers.get("x-subscription-token")
+        seen["q"] = request.url.params.get("q")
+        return httpx.Response(200, json={"web": {"results": [{"url": "https://www.invitalia.it/incentivi-e-strumenti/fondo-test-giovani", "title": "<b>Fondo Test</b> Giovani", "description": "Il bando"}]}})
+
+    real = httpx.get
+    monkeypatch.setattr(research.httpx, "get", lambda url, **kw: httpx.Client(transport=httpx.MockTransport(handler)).get(url, **{k: v for k, v in kw.items() if k in ("params", "headers")}) if "brave" in url else real(url, **kw))
+    hits, err = research._search_one('"Fondo Test Giovani" bando')
+    assert err is None and hits[0]["title"] == "Fondo Test Giovani" and seen["token"] == "chiave-di-prova" and seen["q"] == '"Fondo Test Giovani" bando'
+    assert research.parse_brave({"web": {"results": [{"title": "x"}]}}) == []          # risultato senza indirizzo: ignorato
+
+
+def test_http_get_accepts_404_body_only_when_asked(monkeypatch):
+    real = httpx.Client
+    monkeypatch.setattr(research.httpx, "Client", lambda **kw: real(transport=httpx.MockTransport(lambda req: httpx.Response(404, headers={"content-type": "text/html"}, content=b"<html><a href='/a'>x</a></html>")), **kw))
+    with pytest.raises(research.ResearchError, match="404"):
+        research.http_get("https://8.8.8.8/x")
+    raw, _, _ = research.http_get("https://8.8.8.8/x", accept_error_body=True)
+    assert b"<a href" in raw

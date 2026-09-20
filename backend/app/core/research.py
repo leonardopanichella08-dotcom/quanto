@@ -16,6 +16,7 @@ import hashlib
 import io
 import ipaddress
 import logging
+import os
 import re
 import socket
 import threading
@@ -112,7 +113,7 @@ def check_public_url(url: str) -> None:
             raise ResearchError("Indirizzo non consentito (rete interna)")
 
 
-def http_get(url: str, max_bytes: int = MAX_BINARY_BYTES) -> Tuple[bytes, str, str]:
+def http_get(url: str, max_bytes: int = MAX_BINARY_BYTES, accept_error_body: bool = False) -> Tuple[bytes, str, str]:
     """Scarica ``url`` seguendo i redirect a mano (ricontrollando ogni destinazione). Ritorna (contenuto, url finale, content-type)."""
     _rate_check()
     headers = {"User-Agent": UA, "Accept": "text/html,application/pdf,application/xhtml+xml,text/plain;q=0.8,*/*;q=0.5", "Accept-Language": "it-IT,it;q=0.9"}
@@ -125,7 +126,7 @@ def http_get(url: str, max_bytes: int = MAX_BINARY_BYTES) -> Tuple[bytes, str, s
                     if r.status_code in (301, 302, 303, 307, 308) and r.headers.get("location"):
                         current = urllib.parse.urljoin(current, r.headers["location"])
                         continue
-                    if r.status_code >= 400:
+                    if r.status_code >= 400 and not (accept_error_body and r.status_code == 404):
                         raise ResearchError(f"Il sito ha risposto {r.status_code}")
                     ctype = r.headers.get("content-type", "").split(";")[0].strip().lower()
                     declared = int(r.headers.get("content-length") or 0)
@@ -352,7 +353,32 @@ def parse_ddg_lite(html: str) -> List[Dict[str, str]]:
     return out
 
 
+BRAVE_URL = "https://api.search.brave.com/res/v1/web/search"
+
+
+def parse_brave(data: Dict[str, Any]) -> List[Dict[str, str]]:
+    return [{"url": r.get("url", ""), "title": _strip(r.get("title", "")), "snippet": _strip(r.get("description", ""))[:220]}
+            for r in (data.get("web") or {}).get("results", []) if r.get("url")]
+
+
+def _search_brave(query: str, key: str) -> Tuple[List[Dict[str, str]], Optional[str]]:
+    _rate_check()
+    try:
+        r = httpx.get(BRAVE_URL, params={"q": query, "country": "IT", "search_lang": "it", "count": 20},
+                      headers={"X-Subscription-Token": key, "Accept": "application/json"}, timeout=TIMEOUT)
+        if r.status_code != 200:
+            return [], f"Brave Search ha risposto {r.status_code}"
+        return parse_brave(r.json()), None
+    except (httpx.HTTPError, ValueError) as exc:
+        return [], f"Brave Search non raggiungibile ({type(exc).__name__})"
+
+
 def _search_one(query: str) -> Tuple[List[Dict[str, str]], Optional[str]]:
+    key = os.getenv("QUANTO_BRAVE_API_KEY", "").strip()
+    if key:  # con una chiave l'API è la via affidabile (anche da server cloud); senza, si prova lo scraping dei motori gratuiti
+        hits, err = _search_brave(query, key)
+        if hits:
+            return hits, None
     _rate_check()
     try:
         r = httpx.get("https://www.bing.com/search", params={"q": query, "setlang": "it", "cc": "IT"},
@@ -371,6 +397,46 @@ def _search_one(query: str) -> Tuple[List[Dict[str, str]], Optional[str]]:
         return [], note + "; anche DuckDuckGo non ha dato risultati"
     except httpx.HTTPError:
         return [], note
+
+
+# elenchi ufficiali di incentivi: non dipendono da un motore di ricerca e funzionano anche da server cloud
+DIRECTORIES = (
+    "https://www.invitalia.it/incentivi-e-strumenti",
+    "https://www.mimit.gov.it/it/incentivi-mise",
+    "https://www.mimit.gov.it/it/incentivi",
+    "https://www.mimit.gov.it/it/incentivi-mise/incentivi-in-evidenza",
+)
+
+
+def _scan_directory(args: Tuple[str, str]) -> Tuple[List[Dict[str, str]], Dict[str, Any]]:
+    url, name = args
+    info: Dict[str, Any] = {"url": url, "matched": 0, "error": None}
+    try:
+        raw, final, ctype = http_get(url, accept_error_body=True)
+        _, _, links = html_to_text(_decode(raw, ctype))
+    except ResearchError as exc:
+        info["error"] = str(exc)
+        return [], info
+    tokens = name_tokens(name)
+    found: List[Dict[str, str]] = []
+    for href, text in links:
+        full = urllib.parse.urljoin(final, href.split("#")[0])
+        hay = f"{text} {urllib.parse.unquote(full)}".lower().replace("-", " ").replace("_", " ")
+        if full.startswith("http") and sum(1 for t in tokens if t in hay) / max(len(tokens), 1) >= 0.99 and len(text) < 160:
+            found.append({"url": full, "title": text or full, "snippet": f"Elenco ufficiale: {host_of(final)}"})
+    info["matched"] = len(found)
+    return found, info
+
+
+def official_directory(name: str) -> Tuple[List[Dict[str, str]], List[Dict[str, Any]]]:
+    """Cerca il nome nei link degli elenchi ufficiali (Invitalia, MIMIT): affidabile anche quando i motori di ricerca bloccano il server."""
+    hits: List[Dict[str, str]] = []
+    infos: List[Dict[str, Any]] = []
+    with ThreadPoolExecutor(max_workers=4) as pool:
+        for found, info in pool.map(_scan_directory, [(d, name) for d in DIRECTORIES]):
+            hits.extend(found)
+            infos.append(info)
+    return hits, infos
 
 
 def build_queries(name: str, hint: str = "") -> List[str]:
@@ -431,11 +497,16 @@ def search_web(name: str, hint: str = "", supplied: Optional[List[str]] = None) 
             per_query.append({"query": q, "hits": len(hits), "error": err})
             if err and err not in errors:
                 errors.append(err)
-    ranked = rank_results(name, raw, supplied)
+    dir_hits, dir_info = official_directory(name)
+    ranked = rank_results(name, [*dir_hits, *raw], supplied)
     # diagnostica: se il motore risponde ma nulla è pertinente (o risponde con altro), si vede perché
-    diagnostics = {"raw_hits": len(raw), "kept": len(ranked), "per_query": per_query, "sample": [f"{h.get('title', '')[:70]} — {h['url'][:80]}" for h in raw[:5]]}
-    if not ranked and raw:
-        errors.append("Il motore ha risposto ma nessun risultato nomina il bando")
+    diagnostics = {"raw_hits": len(raw), "kept": len(ranked), "per_query": per_query, "directories": dir_info,
+                   "brave_key": bool(os.getenv("QUANTO_BRAVE_API_KEY", "").strip()), "sample": [f"{h.get('title', '')[:70]} — {h['url'][:80]}" for h in raw[:5]]}
+    if not ranked:
+        if raw:
+            errors.append("Il motore ha risposto ma nessun risultato nomina il bando")
+        if not diagnostics["brave_key"]:
+            errors.append("Da un server cloud i motori di ricerca gratuiti sono spesso bloccati: con una chiave Brave Search (variabile QUANTO_BRAVE_API_KEY) la ricerca è affidabile")
     return {"queries": queries, "candidates": ranked, "engine_errors": errors if not ranked else [], "diagnostics": diagnostics}
 
 
