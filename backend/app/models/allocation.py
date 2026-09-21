@@ -127,3 +127,4 @@ class AllocationResponse(BaseModel):
     monthly_plan: List[MonthlyPlanEntry]
     solver: str
     summary: str
+    summary_source: str = Field(default="TEMPLATE", description="TEMPLATE (testo fisso) o LLM (verificato cifra per cifra dal validatore numerico)")

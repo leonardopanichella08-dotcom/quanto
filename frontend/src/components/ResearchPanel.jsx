@@ -36,6 +36,7 @@ export default function ResearchPanel({ onDone }) {
   const [busyExtra, setBusyExtra] = useState(null)
   const [manual, setManual] = useState({ text: '', file: null, open: false })
   const bandoRef = useRef(null)
+  const internalRef = useRef(null)                  // bando scelto dall'elenco interno (anche solo del catalogo nazionale)
 
   const patchDoc = (key, patch) => setDocs((d) => d.map((x) => (x.key === key ? { ...x, ...patch } : x)))
 
@@ -50,7 +51,7 @@ export default function ResearchPanel({ onDone }) {
 
   // 1) cerco nell'elenco interno (nome esatto o approssimato) — nessuna rete
   const lookup = async () => {
-    setError(null); setResult(null); setDocs([]); setSearch(null); setMatches(null); setPicked(new Set()); setConfirmInfo(null); setForce(false); setPhase('lookup')
+    setError(null); setResult(null); setDocs([]); setSearch(null); setMatches(null); setPicked(new Set()); setConfirmInfo(null); setForce(false); internalRef.current = null; setPhase('lookup')
     try {
       const r = await api.bandiSearch(name.trim())
       setMatches(r.matches)
@@ -179,7 +180,9 @@ export default function ResearchPanel({ onDone }) {
                 {m.issuer && <span className="text-mute">{m.issuer}</span>}
                 <span className="text-mute">{m.rules} regole · {m.requirements} requisiti · {m.sources} documenti</span>
                 {m.cache_hit && <span className="px-1.5 rounded border text-[10px] text-emerald-700 border-emerald-500/30">regole già in memoria</span>}
-                <button onClick={() => confirmBando({ name: m.name, bando_id: m.bando_id }, false)} className="btn-primary !py-1 ml-auto">Sì, è questo</button>
+                {m.catalog_only && <span className="px-1.5 rounded border text-[10px] text-sky-700 border-sky-500/30">nel catalogo nazionale: regole da leggere</span>}
+                {m.deadline && m.deadline !== 'non indicata' && <span className="text-mute">scadenza {m.deadline}</span>}
+                <button onClick={() => { internalRef.current = m.bando_id; if (m.source_url) setUrls((u) => u || m.source_url); confirmBando({ name: m.name, bando_id: m.bando_id }, false) }} className="btn-primary !py-1 ml-auto">Sì, è questo</button>
               </li>
             ))}
           </ul>
@@ -207,7 +210,7 @@ export default function ResearchPanel({ onDone }) {
               </li>
             ))}
           </ul>
-          <button onClick={() => confirmBando({ name: name.trim() }, true)} disabled={!picked.size} className="btn-primary">Sì, è questo bando: scarica e leggi</button>
+          <button onClick={() => confirmBando({ name: name.trim(), bando_id: internalRef.current || undefined }, true)} disabled={!picked.size} className="btn-primary">Sì, è questo bando: scarica e leggi</button>
         </div>
       )}
 

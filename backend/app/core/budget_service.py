@@ -6,6 +6,7 @@ from datetime import date
 from decimal import Decimal
 from typing import Optional
 
+from app.core import llm as llm_module
 from app.core.deterministic_engine import DeterministicEngine
 from app.core.merkle_tree import MerkleTreeEngine
 from app.core.renderer import LLMClient, budget_context, render_with_grounding, static_budget_summary
@@ -25,6 +26,7 @@ def _sum(values) -> Decimal:
 
 def validate_budget(request: BudgetValidationRequest, llm: Optional[LLMClient] = None) -> BudgetValidationResponse:
     ref_date = request.reference_date or date.today()
+    llm = llm if llm is not None else llm_module.get_client()
     items, checks, partial = DeterministicEngine.analyze_budget(
         request.cost_items, request.grant_rules, entity_liquidity_eur=request.entity_liquidity_eur, baseline_totals=request.baseline_totals,
         reference_date=ref_date)

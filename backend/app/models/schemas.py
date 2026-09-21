@@ -277,7 +277,8 @@ class RegistrationRequest(BaseModel):
 
 
 class PatternMatchRequest(BaseModel):
-    bando_category: str = Field(..., examples=["FONDO_SPORT_PERIFERIE"])
+    bando_category: str = Field(..., examples=["FONDO_SPORT_PERIFERIE"], description="Categoria di bandi con budget storici nella banca dati")
+    bando_id: Optional[str] = Field(default=None, description="Facoltativo: bando di cui leggere i tetti (es. consulenze) per il commento sullo scostamento")
     draft_budget: Dict[str, float] = Field(
         ..., examples=[{"personnel_pct": 0.58, "assets_pct": 0.12, "consulting_pct": 0.25, "overhead_pct": 0.05}]
     )
@@ -285,7 +286,7 @@ class PatternMatchRequest(BaseModel):
     @field_validator("draft_budget")
     @classmethod
     def _valid_shares(cls, v: Dict[str, float]) -> Dict[str, float]:
-        allowed = {"personnel_pct", "assets_pct", "consulting_pct", "overhead_pct"}
+        allowed = {"personnel_pct", "assets_pct", "consulting_pct", "overhead_pct", "training_pct", "communication_pct"}
         unknown = set(v) - allowed
         if unknown:
             raise ValueError(f"Categorie sconosciute: {sorted(unknown)}")
@@ -431,7 +432,8 @@ class ChainStatusResponse(BaseModel):
 
 class MainDeviation(BaseModel):
     category: str
-    deviation_points: float = Field(..., description="Scostamento in punti percentuali (bozza - archetipo)")
+    deviation_points: float = Field(..., description="Scostamento come frazione (0,07 = 7 punti percentuali), come nello schema API")
+    note: Optional[str] = Field(default=None, description="Es. «Sopra il tetto di bando del 20%»")
 
 
 class PatternMatchResponse(BaseModel):
@@ -440,6 +442,10 @@ class PatternMatchResponse(BaseModel):
     archetype_averages: Dict[str, float]
     main_deviation: MainDeviation
     recommendation: str
+    deviations_pp: Dict[str, float] = Field(default_factory=dict, description="Scostamento per categoria in punti percentuali")
+    archetype: Dict[str, object] = Field(default_factory=dict, description="Numero di budget, metodo e intervallo dei punteggi storici")
+    nearest_budgets: List[Dict[str, object]] = Field(default_factory=list, description="I 5-10 budget storici più simili, con la fonte")
+    data_points: int = 0
 
 
 class AuditVerificationResponse(BaseModel):

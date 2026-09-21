@@ -6,7 +6,7 @@ from openpyxl import load_workbook
 
 from app.core.registry import Registry, attestation_dict, verify_attestation
 from main import app
-from tests.conftest import tamper_sql
+from tests.conftest import seed_pattern_bank, tamper_sql
 
 client = TestClient(app)
 
@@ -202,6 +202,7 @@ def test_pdf_export_is_a_valid_pdf_with_cep_id():
 
 # ------------------------------------------------------------------ pattern / allocazione
 def test_pattern_and_allocation_endpoints():
+    seed_pattern_bank()
     p = client.post("/api/v2/pattern/match", json={"bando_category": "X", "draft_budget": {"personnel_pct": 0.58, "assets_pct": 0.12, "consulting_pct": 0.25, "overhead_pct": 0.05}})
     assert p.status_code == 200 and p.json()["main_deviation"]["category"] == "consulting_pct"
     assert client.post("/api/v2/pattern/match", json={"bando_category": "X", "draft_budget": {"foo": 1}}).status_code == 422

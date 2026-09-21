@@ -11,7 +11,7 @@ from reportlab.pdfgen import canvas
 from app.core import hq
 from app.core.requirements_extractor import category_scope, extract_more_rules, extract_requirements, split_sentences
 from main import app
-from tests.conftest import manager_token
+from tests.conftest import manager_token, seed_pattern_bank
 
 client = TestClient(app)
 
@@ -136,6 +136,7 @@ def test_overview_operations_map_and_stats():
 
 
 def test_every_user_operation_leaves_a_timeline_event():
+    seed_pattern_bank()
     scenario = _demo()
     v = client.post("/api/v2/budget/validate", json=scenario).json()
     client.post("/api/v2/registry/register", json={"project_id": scenario["project_id"], "merkle_root": v["merkle_root"]})
@@ -149,6 +150,7 @@ def test_every_user_operation_leaves_a_timeline_event():
 
 
 def test_timeline_filters_and_pagination():
+    seed_pattern_bank()
     h = hq_headers()
     for i in range(3):
         client.post("/api/v2/pattern/match", json={"bando_category": "X", "draft_budget": {"personnel_pct": 0.5 + i / 10, "assets_pct": 0.2, "consulting_pct": 0.2, "overhead_pct": 0.1}})

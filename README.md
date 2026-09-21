@@ -135,3 +135,15 @@ che `head_hash` (`/registry/status`) sia pubblicato periodicamente (PEC, reposit
 (`vercel env add …`) vanno creati/collegati manualmente: chiavi e segreti solo in Vercel/GitHub Secrets, mai nel codice.
 La CI (`.github/workflows/ci.yml`) presuppone che `quanto/` sia la root del repository. Poiché il registro deve persistere, su Vercel serve un database esterno (l'adattatore SQLite
 in `app/core/db.py` va sostituito) — con SQLite in `/tmp` le registrazioni si perdono a ogni cold start.
+
+
+## Dati veri, memoria persistente, accesso (ramo `feat/postgres-dati-veri`)
+Vedi **`docs/DEPLOY.md`** per le variabili e i passi di messa in produzione.
+- **PostgreSQL** al posto di SQLite (`db.py`, `schema.py`): memoria persistente; registro firmato append-only anche a livello di database.
+- **Fonte B nel database** (`fonte_b.py`, `fonte_b_admin.py`): nessuna tabella nel codice; bozza → attestazione della fonte → pubblicazione, versioni per data di validità, `reference_date` per ricalcoli identici.
+- **Fonte C** (`fonte_c/`): PDF di buste paga, bilanci, F24, cifrati a riposo; testo del PDF o OCR; ogni campo ha una confidenza e sotto soglia resta in verifica; dati personali solo come token.
+- **Missione Due** su bilancio caricato e fondi ricavati dai bandi (`funds.py`); nessun dato d'esempio nell'app.
+- **Ricerca come da schema**: ricerca nell'elenco interno (`GET /bandi/search`) → conferma (`POST /bandi/research/confirm`) → controllo cache → estrazione.
+- **Utenti** (`users.py`): scrypt, blocco, ruoli USER/MANAGER, revoca dei token; `QUANTO_AUTH_REQUIRED` acceso di default.
+- **Banca pattern e k-means** (`pattern_bank.py`); **LLM** (`llm.py`) per Stadio 3, catalogo continuo (`catalog_job.py`) e riepiloghi verificati.
+- I test girano su PostgreSQL vero (incorporato in locale con `pixeltable-pgserver`, servizio in CI).

@@ -206,13 +206,14 @@ def search_catalog(query: str, limit: int = 8) -> List[Dict[str, Any]]:
         return []
     q_tokens = q.split()
     with connect() as conn:
-        rows = conn.execute("SELECT b.bando_id, b.name, b.issuer, b.catalog_status, b.extraction_status, "
+        rows = conn.execute("SELECT b.bando_id, b.name, b.issuer, b.source_url, b.deadline, b.catalog_status, b.extraction_status, "
                             "(SELECT COUNT(*) FROM rules r WHERE r.bando_id=b.bando_id AND r.status='PUBLISHED') AS rules, "
                             "(SELECT COUNT(*) FROM bando_sources s WHERE s.bando_id=b.bando_id) AS sources, "
                             "(SELECT COUNT(*) FROM requirements q2 WHERE q2.bando_id=b.bando_id) AS reqs FROM bandi b").fetchall()
     out = []
     for r in rows:
-        if r["catalog_status"] != "CURATED" and not (r["rules"] or r["sources"] or r["reqs"]):
+        catalogued = r["bando_id"].startswith("CAT-") and r["source_url"]          # voce del catalogo nazionale: solo metadati, ma è un bando vero
+        if r["catalog_status"] != "CURATED" and not catalogued and not (r["rules"] or r["sources"] or r["reqs"]):
             continue                                      # ricerche senza esito: non sono bandi da proporre
         name = _fold(r["name"] + " " + (r["issuer"] or ""))
         tokens = name.split()
@@ -223,6 +224,7 @@ def search_catalog(query: str, limit: int = 8) -> List[Dict[str, Any]]:
             score = max(score, 0.95)
         if score >= 0.4:
             out.append({"bando_id": r["bando_id"], "name": r["name"], "issuer": r["issuer"], "extraction_status": r["extraction_status"], "curated": r["catalog_status"] == "CURATED",
-                        "rules": r["rules"], "sources": r["sources"], "requirements": r["reqs"], "cache_hit": r["rules"] > 0, "score": score})
+                        "rules": r["rules"], "sources": r["sources"], "requirements": r["reqs"], "cache_hit": r["rules"] > 0, "score": score,
+                        "catalog_only": bool(catalogued and not (r["rules"] or r["sources"])), "source_url": r["source_url"], "deadline": r["deadline"]})
     out.sort(key=lambda x: (-x["score"], x["name"]))
     return out[:limit]

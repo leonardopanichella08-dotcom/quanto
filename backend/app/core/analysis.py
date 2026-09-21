@@ -8,7 +8,7 @@ from __future__ import annotations
 
 from typing import Any, Dict, List
 
-from app.core import events, research
+from app.core import events, llm, research
 from app.core.ingestion import Ingestion
 from app.core.requirements_extractor import detect_lang, looks_garbled
 
@@ -44,7 +44,12 @@ def run_analysis(bando_id: str) -> Dict[str, Any]:
         if focus.strip() and not garbled:
             srcs.append((label, focus))
     Ingestion.confirm(bando_id)
-    outcome = Ingestion.extract(bando_id, sources=srcs)
+    passes = None
+    client = llm.get_client()
+    if client is not None and srcs:                               # Stadio 3: solo se c'è un modello collegato; il confronto tra passaggi lo fa il codice
+        prose = "\n\n".join(f"[{label}]\n{focus}" for label, focus in srcs)[:llm.MAX_TEXT_CHARS]
+        passes = [p for p in llm.extract_passes(client, prose) if p] or None
+    outcome = Ingestion.extract(bando_id, sources=srcs, ai_passes=passes)
     reqs = outcome.requirements or []
     by_ref: Dict[str, int] = {}
     for r in reqs:

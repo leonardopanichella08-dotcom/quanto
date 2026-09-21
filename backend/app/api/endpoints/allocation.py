@@ -6,7 +6,8 @@ from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request,
 from pydantic import BaseModel, Field
 
 from app.api.deps import actor_of, require_hq
-from app.core import events, funds, webhooks
+from app.core import events, funds, llm, webhooks
+from app.core.renderer import render_with_grounding
 from app.core.fonte_c import service as fonte_c
 from app.core.allocation_engine import AllocationOptimizerEngine
 from app.models.allocation import AllocationOptimizationRequest, AllocationResponse, ExpenseLine
@@ -46,6 +47,10 @@ def optimize_allocation_plan(request: AllocationOptimizationRequest, background:
     except RuntimeError as exc:
         logger.exception("Risolutore fallito")
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Il risolutore non ha prodotto una soluzione") from exc
+    ctx = {"fiscal_year": result.fiscal_year, "total_cost_eur": result.total_gross_expense_eur, "covered_by_funds_eur": result.covered_by_public_funds_eur,
+           "net_cost_to_entity_eur": result.net_cost_to_entity_eur, "coverage_percentage": result.overall_coverage_percentage,
+           "funds_involved": result.funds_involved, "items_covered": result.items_covered, "items_total": len(result.allocation_plan)}
+    result.summary, result.summary_source = render_with_grounding(ctx, result.summary, llm.get_client())
     run_id = events.save_run("ALLOCATION", None, None, request.model_dump(mode="json"), result.model_dump(mode="json"))
     events.record("allocation.optimize",
                   f"Piano {result.fiscal_year} da {source}: coperto {result.covered_by_public_funds_eur:,.2f} € su {result.total_gross_expense_eur:,.2f} € ({result.optimization_target.value})",

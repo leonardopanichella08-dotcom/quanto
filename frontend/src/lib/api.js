@@ -111,6 +111,10 @@ export const api = {
   merkleLab: (rows, prove_index) => post('/registry/merkle-lab', { rows, ...(prove_index != null ? { prove_index } : {}) }),
   // --- altre missioni
   matchPattern: (body) => post('/pattern/match', body),
+  patternCategories: () => call('/pattern/categories').then((r) => r.json()),
+  patternBudgets: () => call('/pattern/budgets').then((r) => r.json()),
+  patternImport: (body) => post('/pattern/import', body),
+  catalogRefresh: () => call('/cron/catalog-refresh', { method: 'POST' }).then((r) => r.json()),
   optimizeAllocation: (body) => post('/allocation/optimize', body),
   register: (body) => post('/registry/register', body),
   registryStatus: () => call('/registry/status').then((r) => r.json()),

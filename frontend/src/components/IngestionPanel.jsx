@@ -1,12 +1,11 @@
 import React, { useCallback, useEffect, useState } from 'react'
 import { api } from '../lib/api'
-import { SEED_BANDO_TEXT } from '../data/mockSeed'
 import { Hint } from './Help'
 
 export default function IngestionPanel() {
   const [bandoId, setBandoId] = useState('TRANSIZIONE-5.0-2026')
   const [name, setName] = useState('Piano Transizione 5.0')
-  const [text, setText] = useState(SEED_BANDO_TEXT)
+  const [text, setText] = useState('')
   const [status, setStatus] = useState(null)
   const [queue, setQueue] = useState([])
   const [rules, setRules] = useState(null)

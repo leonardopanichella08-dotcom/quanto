@@ -1,24 +1,54 @@
 {
   "version": 2,
-  "regions": ["fra1"],
+  "regions": [
+    "fra1"
+  ],
   "builds": [
     {
       "src": "frontend/package.json",
       "use": "@vercel/static-build",
-      "config": { "distDir": "dist" }
+      "config": {
+        "distDir": "dist"
+      }
     },
     {
       "src": "backend/api/index.py",
       "use": "@vercel/python",
-      "config": { "maxDuration": 60 }
+      "config": {
+        "maxDuration": 60
+      }
     }
   ],
   "routes": [
-    { "src": "/api/v2/(.*)", "dest": "backend/api/index.py" },
-    { "src": "/docs", "dest": "backend/api/index.py" },
-    { "src": "/openapi.json", "dest": "backend/api/index.py" },
-    { "src": "/assets/(.*)", "dest": "/frontend/assets/$1" },
-    { "src": "/(.*\\..*)", "dest": "/frontend/$1" },
-    { "src": "/(.*)", "dest": "/frontend/index.html" }
+    {
+      "src": "/api/v2/(.*)",
+      "dest": "backend/api/index.py"
+    },
+    {
+      "src": "/docs",
+      "dest": "backend/api/index.py"
+    },
+    {
+      "src": "/openapi.json",
+      "dest": "backend/api/index.py"
+    },
+    {
+      "src": "/assets/(.*)",
+      "dest": "/frontend/assets/$1"
+    },
+    {
+      "src": "/(.*\\..*)",
+      "dest": "/frontend/$1"
+    },
+    {
+      "src": "/(.*)",
+      "dest": "/frontend/index.html"
+    }
+  ],
+  "crons": [
+    {
+      "path": "/api/v2/cron/catalog-refresh",
+      "schedule": "0 3 * * *"
+    }
   ]
 }

@@ -97,3 +97,12 @@ def seed_items():
         personnel("LINE-002", ral=58000.0, fte=0.8, ccnl="METALMECCANICA", level="5"),
         other("LINE-003", "CONSULTING", 30000.0),
     ]
+
+
+def seed_pattern_bank(category: str = "X") -> None:
+    """Tre budget storici sintetici SOLO per i test degli endpoint (la banca dati vera si importa dal Quartier Generale)."""
+    from app.core import pattern_bank
+    rows = [{"bando_category": category, "source": f"Fonte di test {i}", "source_url": None, "year": 2025, "total_eur": None, "score": 70.0 + i,
+             "personnel_pct": p, "assets_pct": a, "consulting_pct": c, "overhead_pct": o, "training_pct": 0.0, "communication_pct": 0.0}
+            for i, (p, a, c, o) in enumerate([(0.61, 0.15, 0.18, 0.06), (0.58, 0.12, 0.20, 0.10), (0.60, 0.14, 0.19, 0.07)])]
+    pattern_bank.import_budgets(rows, "test")

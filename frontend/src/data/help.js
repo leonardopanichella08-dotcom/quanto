@@ -135,10 +135,17 @@ export const GUIDE = {
   },
   pattern: {
     title: 'Confronto',
-    what: 'Confronta come hai diviso il budget tra le grandi categorie con quello di progetti premiati. Ti dice se sei fuori linea, non se vincerai.',
-    steps: ['Scrivi le quattro quote (0 – 1).', 'Premi “Confronta”.', 'Leggi l’archetipo più vicino e lo scostamento maggiore.'],
+    what: 'Confronta come hai diviso il budget tra le grandi categorie con i budget di progetti premiati (banca dati con la fonte di ognuno). Ti dice se sei fuori linea, non se vincerai.',
+    steps: ['Scegli la categoria di bandi con cui confrontarti.', 'Scrivi le sei quote (0 – 1) oppure usa il budget che hai già controllato: il confronto si aggiorna da solo.', 'Leggi l’archetipo più vicino, lo scostamento maggiore e i budget storici più simili.'],
     example: 'Se metti il 25% in consulenze e i progetti premiati il 15%, leggi “consulenze +10 pp”: è il punto da guardare per primo.',
     terms: ['archetipo', 'coseno', 'pp'],
+  },
+  documents: {
+    title: 'Documenti',
+    what: 'Carichi buste paga, bilanci e F24 in PDF: QUANTO legge i campi e ti dice quanto è sicuro di ognuno. Quello che non è sicuro lo controlli tu prima che entri nei calcoli.',
+    steps: ['Scegli il tipo di documento e il PDF.', 'Guarda i campi letti: verde = sicuro, giallo/rosso = da verificare.', 'Conferma o correggi i campi incerti.', 'Usa la busta paga nel Budget o il bilancio nell’Allocazione.'],
+    example: 'Dalla busta paga la RAL non si legge: QUANTO la stima (competenze × mensilità) e ti chiede di confermarla.',
+    terms: ['fontea', 'hash'],
   },
   auditor: {
     title: 'Verifica',
