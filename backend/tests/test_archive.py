@@ -10,6 +10,8 @@ from reportlab.pdfgen import canvas
 from app.core import bandi, research
 from main import app
 
+from tests.conftest import manager_token  # noqa: E402
+
 client = TestClient(app)
 NAME = "Fondo Archivio Prova"
 
@@ -48,7 +50,7 @@ def no_network(monkeypatch):
 
 @pytest.fixture
 def hq():
-    return {"X-HQ-Token": client.post("/api/v2/hq/login", json={"code": "QUANTO_1"}).json()["token"]}
+    return {"X-HQ-Token": manager_token()}
 
 
 @pytest.fixture
@@ -62,6 +64,7 @@ def bando(monkeypatch, hq):
 
     monkeypatch.setattr(research, "http_get", fake_get)
     bid = client.post("/api/v2/bandi/research/search", json={"name": NAME}).json()["bando_id"]
+    client.post("/api/v2/bandi/research/confirm", json={"name": NAME})
     for u in pages:
         assert client.post("/api/v2/bandi/research/fetch", json={"bando_id": bid, "url": u}).status_code == 200
     a = client.post("/api/v2/bandi/research/analyze", json={"bando_id": bid}).json()

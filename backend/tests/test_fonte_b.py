@@ -9,7 +9,7 @@ from app.core import fonte_b, fonte_b_admin as admin
 from app.core.deterministic_engine import DeterministicEngine as E
 from app.models.schemas import CostItemInput, GrantRuleSet
 from main import app
-from tests.conftest import personnel
+from tests.conftest import personnel, manager_token
 
 client = TestClient(app)
 
@@ -121,7 +121,7 @@ def test_benchmark_from_fonte_b_overrides_the_declared_one():
 
 # ------------------------------------------------------------------ API
 def hq_headers():
-    tok = client.post("/api/v2/hq/login", json={"code": "QUANTO_1"}).json()["token"]
+    tok = manager_token()
     return {"X-HQ-Token": tok}
 
 

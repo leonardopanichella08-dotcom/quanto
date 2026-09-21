@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react'
 import { AlertTriangle, Archive as Archive2, Scale, Building2, Database, FileText, FolderOpen, Gauge, History, KeyRound, ListTree, Loader2, LogOut, Lock, Network, Play, Wrench } from 'lucide-react'
-import { api, hqToken } from '../../lib/api'
+import { api } from '../../lib/api'
 import { fmtBytes, fmtTs } from '../../lib/format'
 import Guide from '../Guide'
 import { PageHead } from '../ui'
@@ -9,44 +9,15 @@ import IngestionPanel from '../IngestionPanel'
 import { DbExplorer, Dossiers, Documents } from './HQSections'
 import Archive from './Archive'
 import FonteB from './FonteB'
+import Users from './Users'
 
 const SECTIONS = [
   ['overview', 'Panoramica', Gauge], ['timeline', 'Timeline', History], ['operations', 'Mappa operazioni', Network],
-  ['archive', 'Archivio bandi', Archive2], ['fonteb', 'Tabelle ufficiali', Scale], ['dossiers', 'Fascicoli', FolderOpen], ['documents', 'Documenti', FileText], ['database', 'Database', Database], ['ingestion', 'Caricamento bandi', Wrench],
+  ['archive', 'Archivio bandi', Archive2], ['fonteb', 'Tabelle ufficiali', Scale], ['users', 'Utenti', KeyRound], ['dossiers', 'Fascicoli', FolderOpen], ['documents', 'Documenti', FileText], ['database', 'Database', Database], ['ingestion', 'Caricamento bandi', Wrench],
 ]
 const STATUS_LABEL = { OK: 'OK', WARN: 'Attenzione', FAIL: 'Non superato', DENIED: 'Negato', LOCKED: 'Bloccato', CONFLICT: 'Conflitto', NOT_FOUND: 'Non trovato' }
-const SECTION_HINT = { overview: 'hq_panoramica', timeline: 'hq_timeline', operations: 'hq_operazioni', archive: 'hq_archivio', fonteb: 'hq_archivio', dossiers: 'hq_fascicoli', documents: 'hq_documenti', database: 'hq_database', ingestion: 'hq_caricamento' }
+const SECTION_HINT = { overview: 'hq_panoramica', timeline: 'hq_timeline', operations: 'hq_operazioni', archive: 'hq_archivio', fonteb: 'hq_archivio', users: 'hq_archivio', dossiers: 'hq_fascicoli', documents: 'hq_documenti', database: 'hq_database', ingestion: 'hq_caricamento' }
 const STATUS_TONE = { OK: 'text-emerald-700', WARN: 'text-amber-700', FAIL: 'text-red-700', DENIED: 'text-red-700', LOCKED: 'text-red-700', CONFLICT: 'text-amber-700', NOT_FOUND: 'text-amber-700' }
-
-function Gate({ onAuthed }) {
-  const [code, setCode] = useState('')
-  const [busy, setBusy] = useState(false)
-  const [error, setError] = useState(null)
-  const submit = async (e) => {
-    e.preventDefault()
-    setBusy(true); setError(null)
-    try {
-      const res = await api.hqLogin(code)
-      hqToken.set(res.token)
-      onAuthed()
-    } catch (err) { setError(err.message) } finally { setBusy(false); setCode('') }
-  }
-  return (
-    <div className="max-w-md mx-auto glass-strong rounded-3xl p-8 space-y-5 mt-6">
-      <div className="flex items-center gap-3">
-        <span className="icon-tile w-11 h-11 rounded-2xl"><Lock className="w-5 h-5" /></span>
-        <div><h2 className="font-semibold text-lg">Quartier Generale</h2><p className="text-xs text-ink-2">Area riservata ai manager</p></div>
-      </div>
-      <form onSubmit={submit} className="space-y-3">
-        <label className="block space-y-1"><span className="label">Codice di accesso</span>
-          <input type="password" autoComplete="off" autoFocus value={code} onChange={(e) => setCode(e.target.value)} className="field !py-2.5 text-sm" placeholder="••••••••" /></label>
-        <button disabled={busy || !code} className="btn-primary w-full py-2.5 flex items-center justify-center gap-2">{busy && <Loader2 className="w-3.5 h-3.5 animate-spin" />}Entra</button>
-        {error && <p className="text-xs text-red-700">{error}</p>}
-      </form>
-      <p className="text-xs text-mute leading-relaxed">Il codice viene controllato dal server, mai dal browser. Dopo 5 tentativi sbagliati l’accesso si blocca per 10 minuti. Ogni tentativo finisce nella timeline, senza il codice che hai scritto.</p>
-    </div>
-  )
-}
 
 function Kpi({ label, value, note, tone = 'text-ink' }) {
   return <div className="card p-4"><span className="label">{label}</span><div className={`text-2xl font-bold font-mono mt-1 ${tone}`}>{value}</div>{note && <p className="text-xs text-mute mt-1">{note}</p>}</div>
@@ -73,9 +44,9 @@ function Overview({ data, opsById, goto }) {
           <p className="text-sm font-mono">{data.storage.engine} · {fmtBytes(data.storage.size_bytes)}</p>
           <p className={`text-xs leading-relaxed ${data.storage.volatile ? 'text-amber-700' : 'text-ink-2'}`}>{data.storage.volatile && <AlertTriangle className="w-3 h-3 inline mr-1" />}{data.storage.note}</p>
         </div>
-        <div className={`card p-4 space-y-2 ${data.hq_code_is_default ? '!border-amber-500/40' : ''}`}>
+        <div className={`card p-4 space-y-2 ${!data.auth.required ? '!border-amber-500/40' : ''}`}>
           <span className="label flex items-center gap-1.5"><KeyRound className="w-3.5 h-3.5" />Sicurezza dell’accesso</span>
-          <p className={`text-xs leading-relaxed ${data.hq_code_is_default ? 'text-amber-700' : 'text-emerald-700'}`}>{data.hq_code_is_default ? 'Il codice manager è ancora quello di partenza (QUANTO_1), scritto nella documentazione del progetto: chiunque lo conosca può entrare. Cambialo impostando QUANTO_HQ_CODE sul server.' : 'Codice manager personalizzato.'}</p>
+          <p className={`text-xs leading-relaxed ${data.auth.required ? 'text-emerald-700' : 'text-amber-700'}`}>{data.auth.required ? `Accesso protetto: ${data.auth.users} utenti, ${data.auth.managers} manager. Password con scrypt, blocco dopo 5 errori, token da 8 ore.` : 'ATTENZIONE: l’autenticazione è spenta (QUANTO_AUTH_REQUIRED=0). Va tenuta spenta solo in sviluppo.'}</p>
           <p className={`text-xs ${data.registry.is_dev_key ? 'text-amber-700' : 'text-ink-2'}`}>Firma del registro: chiave {data.registry.key_id}{data.registry.is_dev_key ? ' (di prova)' : ''}</p>
         </div>
         <div className="card p-4 space-y-2">
@@ -204,27 +175,23 @@ function Operations({ ops, onShow }) {
   )
 }
 
-export default function HQ({ bandi, onReplay }) {
-  const [authed, setAuthed] = useState(Boolean(hqToken.get()))
+export default function HQ({ bandi, onReplay, user }) {
   const [section, setSection] = useState('overview')
   const [overview, setOverview] = useState(null)
   const [ops, setOps] = useState([])
   const [opFilter, setOpFilter] = useState('')
   const [error, setError] = useState(null)
 
-  const logout = useCallback(() => { hqToken.clear(); setAuthed(false); setOverview(null) }, [])
   const load = useCallback(async () => {
     try {
       const [o, list] = await Promise.all([api.hqOverview(), api.hqOperations()])
       setOverview(o); setOps(list); setError(null)
-    } catch (e) { if (e.status === 401) logout(); else setError(e.message) }
-  }, [logout])
-  useEffect(() => { if (authed) load() }, [authed, load, section])
+    } catch (e) { setError(e.message) }
+  }, [])
+  useEffect(() => { load() }, [load, section])
 
   const opsById = useMemo(() => Object.fromEntries(ops.map((o) => [o.id, o])), [ops])
   const goto = (s, op) => { if (op !== undefined) setOpFilter(op); setSection(s) }
-
-  if (!authed) return <div className="space-y-6"><Guide page="hq" /><Gate onAuthed={() => setAuthed(true)} /></div>
 
   return (
     <div className="space-y-6">
@@ -237,7 +204,6 @@ export default function HQ({ bandi, onReplay }) {
           ))}
         </div>
         <Hint id={SECTION_HINT[section]} className="pb-2" />
-        <button onClick={logout} className="btn mb-2"><LogOut className="w-3.5 h-3.5" />Esci</button>
       </div>
       {error && <div className="p-3 rounded-xl border border-red-500/30 bg-red-500/10 text-red-700 text-xs">{error}</div>}
       {!overview && !error && <p className="text-xs text-mute flex items-center gap-2"><Loader2 className="w-3.5 h-3.5 animate-spin" />Caricamento…</p>}
@@ -247,6 +213,7 @@ export default function HQ({ bandi, onReplay }) {
       {overview && section === 'operations' && <Operations ops={ops} onShow={(id) => goto('timeline', id)} />}
       {overview && section === 'archive' && <Archive />}
       {overview && section === 'fonteb' && <FonteB />}
+      {overview && section === 'users' && <Users me={user} />}
       {overview && section === 'dossiers' && <Dossiers bandi={bandi} onReplay={onReplay} opsById={opsById} />}
       {overview && section === 'documents' && <Documents />}
       {overview && section === 'database' && <DbExplorer />}

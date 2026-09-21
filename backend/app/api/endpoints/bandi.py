@@ -5,7 +5,7 @@ import io
 import re
 from typing import List, Optional
 
-from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request, status
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query, Request, status
 from pydantic import BaseModel, Field, model_validator
 
 from app.api.deps import actor_of, require_auth, require_hq
@@ -75,13 +75,39 @@ def research_search(body: ResearchSearch, request: Request) -> dict:
         result = research.search_web(body.name, body.hint, body.urls, discover=discovery.discover)
     except research.ResearchError as exc:
         raise HTTPException(status_code=status.HTTP_429_TOO_MANY_REQUESTS, detail=str(exc)) from exc
-    Ingestion.catalog(bando_id, body.name.strip(), None, None, None)
     cands = result["candidates"]
     official = sum(1 for c in cands if c["tier"] == "UFFICIALE")
     events.record("bando.research.search", f"Ricerca web «{body.name}»: {len(cands)} risultati pertinenti ({official} ufficiali)", bando_id=bando_id,
                   status="OK" if cands else "WARN", actor=actor_of(request), duration_ms=timer.ms,
                   details={"queries": result["queries"], "engine_errors": result["engine_errors"], "top": [c["url"] for c in cands[:8]]})
     return {"bando_id": bando_id, "name": body.name.strip(), **result}
+
+
+class ResearchConfirm(BaseModel):
+    name: str = Field(..., min_length=3, max_length=120)
+    bando_id: Optional[str] = Field(default=None, description="Se il bando è già nel catalogo interno")
+
+
+@router.get("/search", summary="Cerca per nome (esatto o approssimato) tra i bandi già in memoria")
+def search_internal(q: str = Query(..., min_length=2, max_length=120)) -> dict:
+    return {"query": q, "matches": bandi.search_catalog(q)}
+
+
+@router.post("/research/confirm", dependencies=[Depends(require_auth)],
+             summary="Il cliente conferma «è il bando giusto»: registra la richiesta e controlla la cache prima di scaricare")
+def research_confirm(body: ResearchConfirm, request: Request) -> dict:
+    bandi.ensure_seeded()
+    bando_id = body.bando_id or _web_slug(body.name)
+    if Ingestion.get_bando(bando_id) is None:
+        Ingestion.catalog(bando_id, body.name.strip(), None, None, None)      # ricerca mirata: il bando entra nel catalogo solo dopo la conferma
+    cache_hit = Ingestion.confirm(bando_id)
+    st = Ingestion.status(bando_id) or {}
+    sources = len(events.list_bando_sources(bando_id))
+    complete = cache_hit and sources > 0 and st.get("rules_pending_human_review", 0) == 0
+    events.record("bando.research.confirm", f"Bando confermato: {body.name.strip()[:80]} — " + ("regole già in cache" if cache_hit else "estrazione necessaria"),
+                  bando_id=bando_id, actor=actor_of(request), details={"cache_hit": cache_hit, "sources": sources})
+    return {"bando_id": bando_id, "cache_hit": cache_hit, "complete": complete, "sources": sources, "extraction_status": st.get("extraction_status"),
+            "requested_by_clients_count": st.get("requested_by_clients_count")}
 
 
 @router.post("/research/fetch", dependencies=[Depends(require_auth)], summary="Scarica una pagina o un PDF, ne salva il testo in memoria e restituisce i link utili")

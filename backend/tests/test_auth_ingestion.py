@@ -77,6 +77,7 @@ def test_hmac_signed_requests(secured):
 
 def test_auth_required_without_secrets_is_a_503_not_an_open_door(monkeypatch):
     monkeypatch.setenv("QUANTO_AUTH_REQUIRED", "1")
+    monkeypatch.delenv("QUANTO_JWT_SECRET", raising=False)
     r = client.post("/api/v2/budget/validate", json=VALIDATE_BODY, headers={"Authorization": "Bearer abc.def.ghi"})
     assert r.status_code == 503
 

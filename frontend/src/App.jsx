@@ -8,10 +8,11 @@ import AuditorPortal from './components/AuditorPortal'
 import RegistrationModal from './components/RegistrationModal'
 import HQ from './components/hq/HQ'
 import Guida from './components/Guida'
-import { ArrowLeft, BookOpen, Building2, Calculator, GitCompare, Library, ShieldCheck, Split } from 'lucide-react'
+import { ArrowLeft, KeyRound, LogOut, BookOpen, Building2, Calculator, GitCompare, Library, ShieldCheck, Split } from 'lucide-react'
 import { Mark, PageHead, Wordmark } from './components/ui'
 import { NavContext } from './lib/nav'
-import { api, download, fileToBase64 } from './lib/api'
+import { api, download, fileToBase64, session } from './lib/api'
+import { LoginScreen, PasswordModal } from './components/Login'
 
 const TABS = [
   ['bandi', 'Bandi', Library], ['canvas', 'Budget', Calculator], ['allocation', 'Allocazione', Split],
@@ -30,6 +31,8 @@ const params = new URLSearchParams(window.location.search)
 const EMPTY_REQUEST = { project_id: 'PRJ-2026-001', grant_rules: null, cost_items: [], entity_liquidity_eur: null, baseline_totals: null }
 
 export default function App() {
+  const [user, setUser] = useState(session.user())
+  const [pwOpen, setPwOpen] = useState(false)
   const [tab, setTab] = useState(TABS.some(([id]) => id === params.get('tab')) ? params.get('tab') : 'bandi')
   const [bandi, setBandi] = useState([])
   const [bando, setBando] = useState(null)
@@ -53,11 +56,18 @@ export default function App() {
   const loadBandi = useCallback(async () => { setBandi(await api.bandi()) }, [])
   const loadRegistry = useCallback(() => api.registryStatus().then(setRegistry).catch(() => setRegistry({ offline: true })), [])
   useEffect(() => {
+    const out = () => setUser(null)
+    window.addEventListener('quanto-logout', out)
+    return () => window.removeEventListener('quanto-logout', out)
+  }, [])
+  const logout = () => { session.clear(); setUser(null); setBando(null); setValidation(null); setAttestation(null) }
+  useEffect(() => {
+    if (!user) return
     loadBandi().catch((e) => setError(e.message))
     loadRegistry()
     api.fields().then((f) => setFields(f.fields)).catch(() => {})
     api.criteria().then((c) => setCriteriaTitles(Object.fromEntries(c.criteria.map((x) => [x.number, x.title])))).catch(() => {})
-  }, [loadBandi, loadRegistry])
+  }, [user, loadBandi, loadRegistry])
 
   // Ogni validazione è una chiamata al server; le risposte fuori ordine vengono scartate.
   const validate = useCallback(async (req) => {
@@ -139,6 +149,10 @@ export default function App() {
           : { dot: 'bg-emerald-500', text: `Registro integro · ${registry.entries} ${registry.entries === 1 ? 'registrazione' : 'registrazioni'}`, tone: 'text-ink-2' }
 
   const labData = replay || validation
+  const isManager = user?.role === 'MANAGER'
+  const tabs = TABS.filter(([id]) => id !== 'hq' || isManager)
+
+  if (!user && tab !== 'auditor') return <LoginScreen onLogin={setUser} onAuditor={() => setTab('auditor')} />
 
   return (
     <NavContext.Provider value={nav}>
@@ -151,7 +165,7 @@ export default function App() {
             <Wordmark height={20} className="text-ink" />
           </button>
           <nav className="flex items-center gap-1 overflow-x-auto max-w-full md:ml-auto order-3 md:order-none w-full md:w-auto -mx-1 px-1 pb-0.5" aria-label="Pagine">
-            {TABS.map(([id, label, Icon]) => {
+            {tabs.map(([id, label, Icon]) => {
               const on = tab === id || (tab === 'lab' && id === 'canvas')
               return (
                 <button key={id} onClick={() => nav.go(id)} aria-current={on ? 'page' : undefined}
@@ -161,6 +175,13 @@ export default function App() {
               )
             })}
           </nav>
+          {user && (
+            <div className="flex items-center gap-1 text-xs text-ink-2 order-2 md:order-none">
+              <span className="hidden lg:inline max-w-[160px] truncate" title={user.email}>{user.name}</span>
+              <button onClick={() => setPwOpen(true)} className="btn !px-2.5 !py-1.5" title="Cambia password" aria-label="Cambia password"><KeyRound className="w-3.5 h-3.5" /></button>
+              <button onClick={logout} className="btn !px-2.5 !py-1.5" title="Esci" aria-label="Esci"><LogOut className="w-3.5 h-3.5" /></button>
+            </div>
+          )}
         </div>
       </header>
 
@@ -195,9 +216,10 @@ export default function App() {
             defaultRoot={params.get('root') || validation?.merkle_root} />
         )}
         {tab === 'guida' && <Guida anchor={guideAnchor} />}
-        {tab === 'hq' && <HQ bandi={bandi} onReplay={openReplay} />}
+        {tab === 'hq' && isManager && <HQ bandi={bandi} onReplay={openReplay} user={user} />}
       </main>
 
+      {pwOpen && <PasswordModal onClose={() => setPwOpen(false)} />}
       {validation && (
         <RegistrationModal isOpen={modalOpen} onClose={() => setModalOpen(false)} merkleRoot={validation.merkle_root} projectId={validation.project_id}
           cepId={validation.cep_id} registry={registry} attestation={attestation} onRegistered={(a) => { setAttestation(a); loadRegistry() }} />

@@ -6,30 +6,10 @@ from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response,
 from pydantic import BaseModel, ConfigDict, Field
 
 from app.api.deps import actor_of, require_hq
-from app.core import analysis, archive, consultant, events, hq
+from app.core import analysis, archive, consultant, events, hq, users
 from app.core.ingestion import Ingestion
 
 router = APIRouter()
-
-
-class LoginRequest(BaseModel):
-    code: str = Field(..., min_length=1, max_length=64)
-
-
-@router.post("/login", summary="Accesso al Quartier Generale con il codice manager")
-def hq_login(body: LoginRequest, request: Request) -> dict:
-    client = request.client.host if request.client else "unknown"
-    try:
-        token = hq.login(body.code, client)
-    except hq.HQLocked as exc:
-        events.record("hq.login", "Accesso HQ bloccato: troppi tentativi", status="LOCKED", actor=f"ip:{client}")
-        raise HTTPException(status_code=status.HTTP_429_TOO_MANY_REQUESTS, detail=f"Troppi tentativi: riprova tra {exc.retry_after} secondi",
-                            headers={"Retry-After": str(exc.retry_after)}) from exc
-    except hq.HQAuthError:
-        events.record("hq.login", "Tentativo di accesso HQ con codice errato", status="DENIED", actor=f"ip:{client}")
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Codice non valido") from None
-    events.record("hq.login", "Accesso al Quartier Generale", actor=f"ip:{client}")
-    return {"token": token, "expires_in": hq.TOKEN_TTL_S}
 
 
 deps = [Depends(require_hq)]
@@ -301,3 +281,43 @@ def db_export(table: str) -> Response:
     except KeyError:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Tabella non consultabile") from None
     return Response(content=data.encode("utf-8-sig"), media_type="text/csv; charset=utf-8", headers={"Content-Disposition": f'attachment; filename="{table}.csv"'})
+
+
+# ------------------------------------------------------------------ utenti (solo manager)
+class UserCreate(BaseModel):
+    email: str = Field(..., max_length=200)
+    name: str = Field(..., min_length=1, max_length=120)
+    password: str = Field(..., min_length=1, max_length=200)
+    role: str = "USER"
+
+
+class UserPatch(BaseModel):
+    role: Optional[str] = None
+    active: Optional[bool] = None
+    name: Optional[str] = Field(default=None, max_length=120)
+    new_password: Optional[str] = Field(default=None, max_length=200)
+    unlock: bool = False
+
+
+def _user_guard(fn, *a, **kw):
+    try:
+        return fn(*a, **kw)
+    except users.UserError as exc:
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(exc)) from exc
+    except KeyError:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Utente non trovato") from None
+
+
+@router.get("/users", dependencies=deps, summary="Utenti dell'app")
+def list_users() -> list:
+    return users.list_users()
+
+
+@router.post("/users", dependencies=deps, status_code=status.HTTP_201_CREATED, summary="Crea un utente (la password iniziale la comunichi tu, va cambiata al primo accesso)")
+def create_user(body: UserCreate, request: Request) -> dict:
+    return _user_guard(users.create_user, body.email, body.name, body.password, body.role, actor_of(request))
+
+
+@router.patch("/users/{user_id}", dependencies=deps, summary="Cambia ruolo, attiva o disattiva, reimposta la password, sblocca")
+def patch_user(user_id: int, body: UserPatch, request: Request) -> dict:
+    return _user_guard(users.update_user, user_id, actor_of(request), body.role, body.active, body.name, body.new_password, body.unlock)

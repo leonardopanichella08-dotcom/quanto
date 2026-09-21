@@ -34,6 +34,8 @@ def _isolated_env(monkeypatch, pg_url, request):
                 "DATABASE_URL", "POSTGRES_URL"):
         monkeypatch.delenv(var, raising=False)
     monkeypatch.setenv("QUANTO_DATABASE_URL", pg_url)
+    monkeypatch.setenv("QUANTO_AUTH_REQUIRED", "0")                       # i test dell'autenticazione la accendono esplicitamente
+    monkeypatch.setenv("QUANTO_JWT_SECRET", "test-jwt-secret-non-usare-in-produzione")
     monkeypatch.setenv("QUANTO_PII_KEY", "test-key")
     monkeypatch.setenv("QUANTO_FILE_KEY", "11" * 32)
     monkeypatch.delenv("QUANTO_OCR_ENGINE", raising=False)
@@ -52,6 +54,17 @@ def reset_database(url: str) -> None:
         conn.execute("DROP SCHEMA IF EXISTS public CASCADE")
         conn.execute("CREATE SCHEMA public")
     db.GENERATION += 1
+
+
+def manager_token(email: str = "manager@example.test", password: str = "Una-Password-Robusta-42") -> str:
+    """Manager vero (creato nel database) che fa il login vero: il token che ne esce è quello che usa l'app."""
+    from app.core import users
+    try:
+        users.create_user(email, "Manager di prova", password, "MANAGER", actor="test")
+    except users.UserError:
+        pass                                                              # esiste già in questo test
+    user = users.authenticate(email, password)
+    return users.issue_token(user)["access_token"]
 
 
 def tamper_sql(sql: str, params=()) -> None:

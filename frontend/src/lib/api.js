@@ -10,16 +10,24 @@ export class ApiError extends Error {
   }
 }
 
-export const hqToken = {
-  get: () => { try { return sessionStorage.getItem(HQ_KEY) } catch { return null } },
-  set: (t) => { try { sessionStorage.setItem(HQ_KEY, t) } catch { /* sessionStorage non disponibile */ } },
-  clear: () => { try { sessionStorage.removeItem(HQ_KEY) } catch { /* idem */ } },
+// Sessione: token e utente restano solo per la durata della scheda del browser (sessionStorage).
+const TOKEN_KEY = 'quanto_token'
+const USER_KEY = 'quanto_user'
+const read = (k) => { try { return sessionStorage.getItem(k) } catch { return null } }
+export const session = {
+  token: () => read(TOKEN_KEY),
+  user: () => { try { return JSON.parse(read(USER_KEY) || 'null') } catch { return null } },
+  set: (token, user) => { try { sessionStorage.setItem(TOKEN_KEY, token); sessionStorage.setItem(USER_KEY, JSON.stringify(user)) } catch { /* sessionStorage non disponibile */ } },
+  clear: () => { try { sessionStorage.removeItem(TOKEN_KEY); sessionStorage.removeItem(USER_KEY) } catch { /* idem */ } },
 }
+export const hqToken = { get: session.token, set: () => {}, clear: session.clear }   // compatibilità: il Quartier Generale usa il token dell'utente manager
 
 async function call(path, options = {}) {
   let res
+  const token = session.token()
+  const headers = { ...(token ? { Authorization: `Bearer ${token}` } : {}), ...(options.headers || {}) }
   try {
-    res = await fetch(`${BASE}${path}`, options)
+    res = await fetch(`${BASE}${path}`, { ...options, headers })
   } catch {
     throw new ApiError(0, 'Backend non raggiungibile. Avviare uvicorn su :8000.')
   }
@@ -29,6 +37,7 @@ async function call(path, options = {}) {
       const body = await res.json()
       detail = Array.isArray(body.detail) ? body.detail.map((d) => `${(d.loc || []).slice(1).join('.')}: ${d.msg}`).join('; ') : body.detail ?? detail
     } catch { /* corpo non JSON */ }
+    if (res.status === 401 && token && !path.startsWith('/auth/login')) { session.clear(); window.dispatchEvent(new Event('quanto-logout')) }   // sessione scaduta o revocata
     throw new ApiError(res.status, detail)
   }
   return res
@@ -51,6 +60,24 @@ const fbGet = (path) => call(`/fonte-b${path}`, { headers: fbHeaders() }).then((
 const fbSend = (method, path, body) => call(`/fonte-b${path}`, { method, headers: { ...fbHeaders(), ...(body !== undefined ? json : {}) }, ...(body !== undefined ? { body: JSON.stringify(body) } : {}) }).then((r) => r.json())
 
 export const api = {
+  login: (email, password) => post('/auth/login', { email, password }),
+  changePassword: (current_password, new_password) => post('/auth/change-password', { current_password, new_password }),
+  users: () => hqGet('/users'),
+  createUser: (body) => hqSend('POST', '/users', body),
+  patchUser: (id, body) => hqSend('PATCH', `/users/${id}`, body),
+  // Fonte C: documenti del cliente
+  fcDocuments: () => call('/fonte-c/documents').then((r) => r.json()),
+  fcDocument: (id) => call(`/fonte-c/documents/${id}`).then((r) => r.json()),
+  fcUpload: (body) => post('/fonte-c/documents', body),
+  fcDelete: (id) => call(`/fonte-c/documents/${id}`, { method: 'DELETE' }).then((r) => r.json()),
+  fcFile: (id) => call(`/fonte-c/documents/${id}/file`).then((r) => r.blob()),
+  fcReview: (docId, fieldId, action, value) => post(`/fonte-c/documents/${docId}/fields/${fieldId}/review`, { action, value }),
+  fcCostLine: (id) => call(`/fonte-c/documents/${id}/cost-line`).then((r) => r.json()),
+  fcExpenses: (id) => call(`/fonte-c/documents/${id}/expenses`).then((r) => r.json()),
+  // fondi per l'allocazione
+  funds: () => call('/allocation/funds').then((r) => r.json()),
+  deriveFund: (body) => post('/allocation/funds/from-bando', body),
+  deleteFund: (id) => call(`/allocation/funds/${encodeURIComponent(id)}`, { method: 'DELETE' }).then((r) => r.json()),
   fonteBSummary: () => call('/fonte-b/summary').then((r) => r.json()),
   fbKinds: () => fbGet('/kinds'),
   fbDatasets: () => fbGet('/datasets'),
@@ -66,6 +93,8 @@ export const api = {
   bandoSelect: (id) => post(`/bandi/${encodeURIComponent(id)}/select`, {}),
   bandoReferences: () => call('/bandi/references').then((r) => r.json()),
   bandoUpload: (body) => post('/bandi/upload', body),
+  bandiSearch: (q) => call(`/bandi/search?q=${encodeURIComponent(q)}`).then((r) => r.json()),
+  researchConfirm: (body) => post('/bandi/research/confirm', body),
   researchSearch: (body) => post('/bandi/research/search', body),
   researchFetch: (body) => post('/bandi/research/fetch', body),
   researchAnalyze: (body) => post('/bandi/research/analyze', body),

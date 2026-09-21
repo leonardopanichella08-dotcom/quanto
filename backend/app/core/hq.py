@@ -18,79 +18,34 @@ from collections import defaultdict
 from typing import Any, Dict, List, Optional
 
 from app.core import bandi, events
-from app.core import db
+from app.core import auth, db, users
 from app.core.db import connect
 from app.core.operations import OPERATIONS
 from app.core.registry import Registry, current_public_key
 
-DEFAULT_CODE = "QUANTO_1"
-TOKEN_TTL_S = 2 * 3600
-MAX_FAILURES = 5
-LOCK_WINDOW_S = 600
 
-_FAILURES: Dict[str, List[float]] = defaultdict(list)
 
 # tabelle consultabili (whitelist) e colonne pesanti da riassumere
 TABLES = ["anchors", "bandi", "bando_meta", "rules", "requirements", "bando_sources", "bando_files", "bando_tombstones", "events", "runs", "documents"]
 HEAVY = {"runs": ("request_json", "response_json"), "bando_sources": ("text",), "bando_meta": ("meta",), "bando_files": ("data",)}
 
 
-class HQAuthError(Exception):
-    pass
 
 
-class HQLocked(Exception):
-    def __init__(self, retry_after: int):
-        super().__init__("Troppi tentativi")
-        self.retry_after = retry_after
 
 
-def _secret() -> bytes:
-    raw = os.getenv("QUANTO_HQ_SECRET") or os.getenv("QUANTO_JWT_SECRET") or os.getenv("QUANTO_SIGNING_KEY") or "dev-hq-secret"
-    return hashlib.sha256(b"quanto-hq|" + raw.encode()).digest()
 
 
-def _b64(data: bytes) -> str:
-    return base64.urlsafe_b64encode(data).rstrip(b"=").decode()
 
 
-def _unb64(text: str) -> bytes:
-    return base64.urlsafe_b64decode(text + "=" * (-len(text) % 4))
 
 
-def issue_token(now: Optional[float] = None) -> str:
-    payload = _b64(json.dumps({"sub": "hq", "exp": int((now or time.time()) + TOKEN_TTL_S)}, separators=(",", ":")).encode())
-    return f"{payload}.{_b64(hmac.new(_secret(), payload.encode(), hashlib.sha256).digest())}"
 
 
-def verify_token(token: Optional[str], now: Optional[float] = None) -> bool:
-    try:
-        payload, sig = (token or "").split(".")
-        if not hmac.compare_digest(hmac.new(_secret(), payload.encode(), hashlib.sha256).digest(), _unb64(sig)):
-            return False
-        claims = json.loads(_unb64(payload))
-        return claims.get("sub") == "hq" and claims["exp"] >= (now or time.time())
-    except (ValueError, KeyError, TypeError):
-        return False
 
 
-def login(code: str, client: str, now: Optional[float] = None) -> str:
-    """Restituisce un token HQ se il codice è corretto; ``HQLocked`` dopo troppi errori; ``HQAuthError`` se errato."""
-    t = now or time.time()
-    recent = [x for x in _FAILURES[client] if t - x < LOCK_WINDOW_S]
-    _FAILURES[client] = recent
-    if len(recent) >= MAX_FAILURES:
-        raise HQLocked(int(LOCK_WINDOW_S - (t - recent[0])) + 1)
-    expected = os.getenv("QUANTO_HQ_CODE", DEFAULT_CODE)
-    if not hmac.compare_digest(code.encode("utf-8"), expected.encode("utf-8")):
-        _FAILURES[client].append(t)
-        raise HQAuthError("Codice non valido")
-    _FAILURES[client] = []
-    return issue_token(now)
 
 
-def reset_lockouts() -> None:
-    _FAILURES.clear()
 
 
 # ------------------------------------------------------------------ panoramica
@@ -127,7 +82,7 @@ def overview() -> Dict[str, Any]:
         "storage": {"engine": "PostgreSQL", "size_bytes": size, "volatile": False,
                     "note": "Database PostgreSQL esterno: i dati restano anche quando il server si riavvia."},
         "registry": {"intact": chain.intact, "entries": chain.entries, "head_hash": chain.head_hash, "key_id": key["key_id"], "is_dev_key": key["is_dev_key"]},
-        "hq_code_is_default": os.getenv("QUANTO_HQ_CODE", DEFAULT_CODE) == DEFAULT_CODE,
+        "auth": {"required": auth.auth_required(), "users": users.count_users(), "managers": users.count_users("MANAGER")},
         "operations": operations_catalog(),
         "recent_events": events.list_events(limit=12),
     }

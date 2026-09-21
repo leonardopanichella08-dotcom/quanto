@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 from typing import Any, Dict, List, Optional
 
 from app.core.criteria_catalog import CRITERIA_TITLES
@@ -187,3 +188,41 @@ def get_bando_detail(bando_id: str) -> Optional[Dict[str, Any]]:
 
 def references() -> List[Dict[str, Any]]:
     return REFERENCES
+
+
+# ------------------------------------------------------------------ ricerca per nome nel catalogo interno (schema FKOS, «Cliente cerca il bando»)
+def _fold(text: str) -> str:
+    import unicodedata
+    t = unicodedata.normalize("NFKD", text or "").encode("ascii", "ignore").decode().lower()
+    return re.sub(r"[^a-z0-9]+", " ", t).strip()
+
+
+def search_catalog(query: str, limit: int = 8) -> List[Dict[str, Any]]:
+    """Bandi già in memoria che assomigliano al nome cercato (esatto o approssimato). Non tocca la rete."""
+    import difflib
+    ensure_seeded()
+    q = _fold(query)
+    if len(q) < 2:
+        return []
+    q_tokens = q.split()
+    with connect() as conn:
+        rows = conn.execute("SELECT b.bando_id, b.name, b.issuer, b.catalog_status, b.extraction_status, "
+                            "(SELECT COUNT(*) FROM rules r WHERE r.bando_id=b.bando_id AND r.status='PUBLISHED') AS rules, "
+                            "(SELECT COUNT(*) FROM bando_sources s WHERE s.bando_id=b.bando_id) AS sources, "
+                            "(SELECT COUNT(*) FROM requirements q2 WHERE q2.bando_id=b.bando_id) AS reqs FROM bandi b").fetchall()
+    out = []
+    for r in rows:
+        if r["catalog_status"] != "CURATED" and not (r["rules"] or r["sources"] or r["reqs"]):
+            continue                                      # ricerche senza esito: non sono bandi da proporre
+        name = _fold(r["name"] + " " + (r["issuer"] or ""))
+        tokens = name.split()
+        hit = sum(1 for t in q_tokens if any(n == t or n.startswith(t) or (len(t) >= 4 and t in n) or (len(t) >= 4 and difflib.SequenceMatcher(None, t, n).ratio() >= 0.8) for n in tokens)) / len(q_tokens)
+        ratio = difflib.SequenceMatcher(None, q, _fold(r["name"])).ratio()
+        score = round(0.65 * hit + 0.35 * ratio, 3)
+        if q in name:
+            score = max(score, 0.95)
+        if score >= 0.4:
+            out.append({"bando_id": r["bando_id"], "name": r["name"], "issuer": r["issuer"], "extraction_status": r["extraction_status"], "curated": r["catalog_status"] == "CURATED",
+                        "rules": r["rules"], "sources": r["sources"], "requirements": r["reqs"], "cache_hit": r["rules"] > 0, "score": score})
+    out.sort(key=lambda x: (-x["score"], x["name"]))
+    return out[:limit]

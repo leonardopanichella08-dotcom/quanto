@@ -11,6 +11,7 @@ from reportlab.pdfgen import canvas
 from app.core import hq
 from app.core.requirements_extractor import category_scope, extract_more_rules, extract_requirements, split_sentences
 from main import app
+from tests.conftest import manager_token
 
 client = TestClient(app)
 
@@ -28,15 +29,10 @@ Il soggetto proponente deve presentare la dichiarazione sostitutiva di atto noto
 """
 
 
-@pytest.fixture(autouse=True)
-def _reset_hq():
-    hq.reset_lockouts()
 
 
 def hq_headers():
-    r = client.post("/api/v2/hq/login", json={"code": "QUANTO_1"})
-    assert r.status_code == 200, r.text
-    return {"X-HQ-Token": r.json()["token"]}
+    return {"Authorization": f"Bearer {manager_token()}"}
 
 
 def b64(data: bytes) -> str:
@@ -55,45 +51,19 @@ def make_pdf(lines):
 
 
 # ------------------------------------------------------------------ accesso HQ
-def test_hq_requires_the_manager_code():
-    assert client.get("/api/v2/hq/overview").status_code == 401
-    assert client.post("/api/v2/hq/login", json={"code": "sbagliato"}).status_code == 401
-    assert client.post("/api/v2/hq/login", json={"code": "quanto_1"}).status_code == 401          # il codice è case-sensitive
-    ok = client.post("/api/v2/hq/login", json={"code": "QUANTO_1"})
-    assert ok.status_code == 200 and ok.json()["token"]
-    assert client.get("/api/v2/hq/overview", headers={"X-HQ-Token": ok.json()["token"]}).status_code == 200
 
 
-def test_hq_tokens_cannot_be_forged_or_reused_after_expiry():
-    token = hq.issue_token()
-    assert hq.verify_token(token)
-    payload, sig = token.split(".")
-    assert not hq.verify_token(payload + "." + sig[:-2] + "AA") and not hq.verify_token("")
-    assert not hq.verify_token(token, now=time.time() + hq.TOKEN_TTL_S + 10)
-    assert client.get("/api/v2/hq/timeline", headers={"X-HQ-Token": token + "x"}).status_code == 401
 
 
-def test_hq_locks_out_after_repeated_failures():
-    for _ in range(hq.MAX_FAILURES):
-        assert client.post("/api/v2/hq/login", json={"code": "no"}).status_code == 401
-    locked = client.post("/api/v2/hq/login", json={"code": "QUANTO_1"})          # anche il codice giusto è bloccato
-    assert locked.status_code == 429 and int(locked.headers["retry-after"]) > 0
 
 
-def test_hq_code_is_configurable_and_default_is_flagged(monkeypatch):
-    assert client.get("/api/v2/hq/overview", headers=hq_headers()).json()["hq_code_is_default"] is True
-    monkeypatch.setenv("QUANTO_HQ_CODE", "Altro-Codice-9")
-    assert client.post("/api/v2/hq/login", json={"code": "QUANTO_1"}).status_code == 401
-    r = client.post("/api/v2/hq/login", json={"code": "Altro-Codice-9"})
-    assert r.status_code == 200
-    assert client.get("/api/v2/hq/overview", headers={"X-HQ-Token": r.json()["token"]}).json()["hq_code_is_default"] is False
 
 
-def test_failed_logins_are_recorded_without_the_attempted_code():
-    client.post("/api/v2/hq/login", json={"code": "segreto-tentato"})
-    ev = client.get("/api/v2/hq/timeline", params={"op": "hq.login"}, headers=hq_headers()).json()
+def test_failed_logins_are_recorded_without_the_attempted_password():
+    client.post("/api/v2/auth/login", json={"email": "ignoto@example.test", "password": "password-tentata-9"})
+    ev = client.get("/api/v2/hq/timeline", params={"op": "auth.login"}, headers=hq_headers()).json()
     assert any(e["status"] == "DENIED" for e in ev)
-    assert "segreto-tentato" not in str(ev)
+    assert "password-tentata-9" not in str(ev)
 
 
 # ------------------------------------------------------------------ memoria e timeline

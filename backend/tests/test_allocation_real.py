@@ -8,11 +8,13 @@ from app.core.ingestion import Ingestion
 from main import app
 from tests.test_fonte_c import BALANCE, pdf
 
+from tests.conftest import manager_token  # noqa: E402
+
 client = TestClient(app)
 
 
 def hq():
-    tok = client.post("/api/v2/hq/login", json={"code": "QUANTO_1"}).json()["token"]
+    tok = manager_token()
     return {"X-HQ-Token": tok}
 
 

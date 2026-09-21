@@ -12,6 +12,8 @@ from reportlab.pdfgen import canvas
 from app.core import discovery, events, research
 from main import app
 
+from tests.conftest import manager_token  # noqa: E402
+
 client = TestClient(app)
 NAME = "Fondo Test Giovani"
 REAL_HTTP_GET = research.http_get
@@ -245,6 +247,10 @@ def test_full_research_flow(web):
     assert "https://www.ente.gov.it/fondo" in urls and not any("carlino" in u for u in urls)
     assert next(c for c in s["candidates"] if "ente.gov.it" in c["url"])["preselected"]
     assert not next(c for c in s["candidates"] if "blog" in c["url"])["preselected"]
+    assert client.post("/api/v2/bandi/research/fetch", json={"bando_id": bid, "url": "https://www.ente.gov.it/fondo"}).status_code == 404      # prima serve la conferma
+    assert client.get("/api/v2/bandi/search", params={"q": "fondo test giovani"}).json()["matches"] == []                                   # la sola ricerca non crea nulla
+    conf = client.post("/api/v2/bandi/research/confirm", json={"name": NAME}).json()
+    assert conf["bando_id"] == bid and conf["cache_hit"] is False and conf["complete"] is False
 
     f = client.post("/api/v2/bandi/research/fetch", json={"bando_id": bid, "url": "https://www.ente.gov.it/fondo"}).json()
     assert f["source"]["kind"] == "HTML" and f["source"]["tier"] == "UFFICIALE" and f["source"]["chars"] > 300
@@ -274,7 +280,7 @@ def test_full_research_flow(web):
 
     sha = d["usage"]["uploaded_sources"][0]["sha256"]
     assert client.get(f"/api/v2/bandi/{bid}/sources/{sha}").status_code == 401           # il testo integrale lo vede solo il manager
-    hqh = {"X-HQ-Token": client.post("/api/v2/hq/login", json={"code": "QUANTO_1"}).json()["token"]}
+    hqh = {"X-HQ-Token": manager_token()}
     t = client.get(f"/api/v2/bandi/{bid}/sources/{sha}", headers=hqh).json()
     assert t["chars"] == len(t["text"]) and t["url"]
     assert client.get(f"/api/v2/bandi/{bid}/sources/{'0' * 64}", headers=hqh).status_code == 404
@@ -285,6 +291,7 @@ def test_full_research_flow(web):
 
 def test_manual_upload_adds_to_web_sources_without_losing_requirements(web):
     bid = client.post("/api/v2/bandi/research/search", json={"name": NAME}).json()["bando_id"]
+    client.post("/api/v2/bandi/research/confirm", json={"name": NAME})
     client.post("/api/v2/bandi/research/fetch", json={"bando_id": bid, "url": "https://www.ente.gov.it/fondo"})
     n1 = client.post("/api/v2/bandi/research/analyze", json={"bando_id": bid}).json()["requirements_total"]
     text = "Le spese di formazione non possono superare il 7% del totale del progetto. " * 3 + "Il beneficiario deve conservare la documentazione per cinque anni."
@@ -296,6 +303,7 @@ def test_manual_upload_adds_to_web_sources_without_losing_requirements(web):
 def test_fetch_failures_and_unknown_bando(web):
     assert client.post("/api/v2/bandi/research/fetch", json={"bando_id": "WEB-NON-ESISTE", "url": "https://www.ente.gov.it/fondo"}).status_code == 404
     bid = client.post("/api/v2/bandi/research/search", json={"name": NAME}).json()["bando_id"]
+    client.post("/api/v2/bandi/research/confirm", json={"name": NAME})
     r = client.post("/api/v2/bandi/research/fetch", json={"bando_id": bid, "url": "https://www.ente.gov.it/non-esiste"})
     assert r.status_code == 422 and "404" in r.json()["detail"]
     assert client.post("/api/v2/bandi/research/fetch", json={"bando_id": bid, "url": "http://127.0.0.1/x"}).status_code == 422
@@ -322,6 +330,7 @@ def test_research_endpoints_require_auth_when_enabled(web, monkeypatch):
 def test_web_bando_without_numeric_rules_can_still_be_used(web, monkeypatch):
     monkeypatch.setitem(web, "https://www.ente.gov.it/fondo", (b"<html><body><h1>Bando Solo Testo</h1><p>" + b"Il bando sostiene la nascita di nuove imprese giovanili nel territorio regionale con un percorso di accompagnamento. " * 6 + b"</p></body></html>", "text/html"))
     bid = client.post("/api/v2/bandi/research/search", json={"name": NAME}).json()["bando_id"]
+    client.post("/api/v2/bandi/research/confirm", json={"name": NAME})
     client.post("/api/v2/bandi/research/fetch", json={"bando_id": bid, "url": "https://www.ente.gov.it/fondo"})
     a = client.post("/api/v2/bandi/research/analyze", json={"bando_id": bid}).json()
     assert a["rules_published"] == {}
@@ -336,6 +345,7 @@ def test_ambiguous_rule_inside_one_document_goes_to_manual_review(monkeypatch):
     monkeypatch.setattr(research, "_search_one", lambda q, *a, **k: ([{"url": "https://www.ente.gov.it/f", "title": "Fondo Test Giovani", "snippet": ""}], None))
     monkeypatch.setattr(research, "http_get", lambda url, max_bytes=0, **kw: (page, url, "text/html"))
     bid = client.post("/api/v2/bandi/research/search", json={"name": NAME}).json()["bando_id"]
+    client.post("/api/v2/bandi/research/confirm", json={"name": NAME})
     client.post("/api/v2/bandi/research/fetch", json={"bando_id": bid, "url": "https://www.ente.gov.it/f"})
     a = client.post("/api/v2/bandi/research/analyze", json={"bando_id": bid}).json()
     assert "contribution_rate_pct" not in a["rules_published"]                       # 75% e 70%: non si sceglie a caso
@@ -355,6 +365,7 @@ def test_reanalysis_recomputes_parsed_rules_but_keeps_human_decisions(monkeypatc
     monkeypatch.setattr(research, "_search_one", lambda q, *a, **k: ([{"url": "https://www.ente.gov.it/a", "title": "Fondo Test Giovani", "snippet": ""}], None))
     monkeypatch.setattr(research, "http_get", lambda url, max_bytes=0, **kw: (page["cur"].encode(), url, "text/html"))
     bid = client.post("/api/v2/bandi/research/search", json={"name": NAME}).json()["bando_id"]
+    client.post("/api/v2/bandi/research/confirm", json={"name": NAME})
     client.post("/api/v2/bandi/research/fetch", json={"bando_id": bid, "url": "https://www.ente.gov.it/a"})
     a1 = client.post("/api/v2/bandi/research/analyze", json={"bando_id": bid}).json()
     assert a1["rules_published"] == {"contribution_rate_pct": "0.6", "max_consulting_percentage": "0.15"}
@@ -543,6 +554,10 @@ def test_search_without_results_leaves_no_empty_bando_in_the_public_list(hq_head
     r = client.post("/api/v2/bandi/research/search", json={"name": "Bando Che Non Esiste Affatto"}).json()
     assert r["candidates"] == []
     assert r["bando_id"] not in [b["bando_id"] for b in client.get("/api/v2/bandi").json()]
-    tok = client.post("/api/v2/hq/login", json={"code": "QUANTO_1"}).json()["token"]
+    tok = manager_token()
     mine = [b for b in client.get("/api/v2/hq/archive", headers={"X-HQ-Token": tok}).json()["bandi"] if b["bando_id"] == r["bando_id"]]
-    assert mine and mine[0]["sources"] == 0                                          # il manager la vede (e può eliminarla)
+    assert not mine                                                                  # senza conferma non entra nemmeno nel catalogo
+    client.post("/api/v2/bandi/research/confirm", json={"name": "Bando Che Non Esiste Affatto"})
+    mine = [b for b in client.get("/api/v2/hq/archive", headers={"X-HQ-Token": tok}).json()["bandi"] if b["bando_id"] == r["bando_id"]]
+    assert mine and mine[0]["sources"] == 0                                          # confermato ma vuoto: lo vede solo il manager (e può eliminarlo)
+    assert r["bando_id"] not in [b["bando_id"] for b in client.get("/api/v2/bandi").json()]
