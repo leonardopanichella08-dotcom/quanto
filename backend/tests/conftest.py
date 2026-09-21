@@ -27,7 +27,7 @@ def pg_url(tmp_path_factory):
 
 
 @pytest.fixture(autouse=True)
-def _isolated_env(monkeypatch, pg_url):
+def _isolated_env(monkeypatch, pg_url, request):
     """Ogni test parte con database vuoto (schema ricreato da zero), chiavi e autenticazione isolati."""
     for var in ("QUANTO_SIGNING_KEY", "QUANTO_TRUSTED_PUBLIC_KEYS", "QUANTO_AUTH_REQUIRED", "QUANTO_OAUTH_CLIENTS",
                 "QUANTO_JWT_SECRET", "QUANTO_HMAC_SECRET", "QUANTO_WEBHOOK_URLS", "QUANTO_WEBHOOK_SECRET",
@@ -36,6 +36,9 @@ def _isolated_env(monkeypatch, pg_url):
     monkeypatch.setenv("QUANTO_DATABASE_URL", pg_url)
     monkeypatch.setenv("QUANTO_PII_KEY", "test-key")
     reset_database(pg_url)
+    if request.node.get_closest_marker("no_fonte_b") is None:
+        from tests import fonte_b_fixture
+        fonte_b_fixture.load()
     yield
 
 

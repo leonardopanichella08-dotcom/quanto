@@ -99,7 +99,7 @@ class CostItemInput(BaseModel):
     source_c_ref: str = Field(..., description="Riferimento al documento contabile (Fonte C)", examples=["DOC-PAYROLL-2026-08"])
 
     # --- PERSONNEL (CCNL)
-    ccnl_code: Optional[CCNLType] = Field(default=CCNLType.TERZO_SETTORE)
+    ccnl_code: Optional[str] = Field(default=None, max_length=40, description="Sigla del CCNL (deve esistere in Fonte B: nessun contratto è assunto per default)")
     employee_level: str = Field(default="3", examples=["3"])
     ral_eur: Optional[float] = Field(default=None, gt=0, description="RAL dichiarata (solo PERSONNEL)", examples=[38000.0])
     fte_allocation: float = Field(default=1.0, gt=0, le=1.0, description="Quota di impegno sul progetto (FTE)")
@@ -131,6 +131,8 @@ class CostItemInput(BaseModel):
     # beni strumentali (16-30, 58)
     asset_nature: Optional[AssetNature] = None
     depreciation_rate_pct: Optional[float] = Field(default=None, gt=0, le=1, description="Aliquota d'ammortamento annua (criteri 17-18)")
+    depreciation_category: Optional[str] = Field(default=None, max_length=40, description="Categoria di bene della tabella d'ammortamento di Fonte B: l'aliquota di tabella è il tetto")
+    benchmark_category: Optional[str] = Field(default=None, max_length=40, description="Categoria di prezzo/tariffa di Fonte B per i criteri 22 e 33")
     is_new: Optional[bool] = None
     origin_eu: Optional[bool] = Field(default=None, description="Bene prodotto in UE/SEE (requisito di origine)")
     iot_interconnected: Optional[bool] = None
@@ -259,6 +261,7 @@ class BudgetValidationRequest(BaseModel):
     cost_items: List[CostItemInput]
     entity_liquidity_eur: Optional[float] = Field(default=None, ge=0, description="Liquidità dell'ente per il criterio 55")
     baseline_totals: Optional[Dict[CostCategory, float]] = Field(default=None, description="Totali per capitolo del budget di riferimento (criterio 56)")
+    reference_date: Optional[date] = Field(default=None, description="Data a cui si leggono le tabelle di Fonte B (default: oggi). Serve a ricalcolare lo stesso budget con le stesse tabelle")
 
     @model_validator(mode="after")
     def _unique_item_ids(self) -> "BudgetValidationRequest":
@@ -392,6 +395,7 @@ class BudgetValidationResponse(BaseModel):
     budget_checks: List[BudgetCheck] = Field(default_factory=list)
     trace: Optional[AlgorithmTrace] = None
     run_id: Optional[int] = Field(default=None, description="Identificativo dell'esecuzione nella memoria (HQ)")
+    reference_date: Optional[date] = Field(default=None, description="Data di riferimento usata per leggere Fonte B: da ripassare nel ricalcolo")
     merkle_root: str
     cep_id: str = Field(..., description="Identificativo del Cryptographic Evidence Package")
     llm_explanation_summary: str
@@ -465,3 +469,4 @@ class AuditRecomputeRequest(BaseModel):
     cost_items: List[CostItemInput]
     entity_liquidity_eur: Optional[float] = None
     baseline_totals: Optional[Dict[CostCategory, float]] = None
+    reference_date: Optional[date] = Field(default=None, description="Data di riferimento di Fonte B usata nel calcolo originale (è nella risposta di /budget/validate)")

@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react'
-import { AlertTriangle, Archive as Archive2, Building2, Database, FileText, FolderOpen, Gauge, History, KeyRound, ListTree, Loader2, LogOut, Lock, Network, Play, Wrench } from 'lucide-react'
+import { AlertTriangle, Archive as Archive2, Scale, Building2, Database, FileText, FolderOpen, Gauge, History, KeyRound, ListTree, Loader2, LogOut, Lock, Network, Play, Wrench } from 'lucide-react'
 import { api, hqToken } from '../../lib/api'
 import { fmtBytes, fmtTs } from '../../lib/format'
 import Guide from '../Guide'
@@ -8,13 +8,14 @@ import { Hint } from '../Help'
 import IngestionPanel from '../IngestionPanel'
 import { DbExplorer, Dossiers, Documents } from './HQSections'
 import Archive from './Archive'
+import FonteB from './FonteB'
 
 const SECTIONS = [
   ['overview', 'Panoramica', Gauge], ['timeline', 'Timeline', History], ['operations', 'Mappa operazioni', Network],
-  ['archive', 'Archivio bandi', Archive2], ['dossiers', 'Fascicoli', FolderOpen], ['documents', 'Documenti', FileText], ['database', 'Database', Database], ['ingestion', 'Caricamento bandi', Wrench],
+  ['archive', 'Archivio bandi', Archive2], ['fonteb', 'Tabelle ufficiali', Scale], ['dossiers', 'Fascicoli', FolderOpen], ['documents', 'Documenti', FileText], ['database', 'Database', Database], ['ingestion', 'Caricamento bandi', Wrench],
 ]
 const STATUS_LABEL = { OK: 'OK', WARN: 'Attenzione', FAIL: 'Non superato', DENIED: 'Negato', LOCKED: 'Bloccato', CONFLICT: 'Conflitto', NOT_FOUND: 'Non trovato' }
-const SECTION_HINT = { overview: 'hq_panoramica', timeline: 'hq_timeline', operations: 'hq_operazioni', archive: 'hq_archivio', dossiers: 'hq_fascicoli', documents: 'hq_documenti', database: 'hq_database', ingestion: 'hq_caricamento' }
+const SECTION_HINT = { overview: 'hq_panoramica', timeline: 'hq_timeline', operations: 'hq_operazioni', archive: 'hq_archivio', fonteb: 'hq_archivio', dossiers: 'hq_fascicoli', documents: 'hq_documenti', database: 'hq_database', ingestion: 'hq_caricamento' }
 const STATUS_TONE = { OK: 'text-emerald-700', WARN: 'text-amber-700', FAIL: 'text-red-700', DENIED: 'text-red-700', LOCKED: 'text-red-700', CONFLICT: 'text-amber-700', NOT_FOUND: 'text-amber-700' }
 
 function Gate({ onAuthed }) {
@@ -245,6 +246,7 @@ export default function HQ({ bandi, onReplay }) {
       {overview && section === 'timeline' && <Timeline key={opFilter} ops={ops} opsById={opsById} initialOp={opFilter} onReplay={onReplay} />}
       {overview && section === 'operations' && <Operations ops={ops} onShow={(id) => goto('timeline', id)} />}
       {overview && section === 'archive' && <Archive />}
+      {overview && section === 'fonteb' && <FonteB />}
       {overview && section === 'dossiers' && <Dossiers bandi={bandi} onReplay={onReplay} opsById={opsById} />}
       {overview && section === 'documents' && <Documents />}
       {overview && section === 'database' && <DbExplorer />}

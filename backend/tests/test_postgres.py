@@ -6,17 +6,19 @@ import pytest
 
 from app.core import db
 from app.core.registry import Registry
+from app.core.schema import MIGRATIONS
 
 
 def test_placeholders_are_translated_outside_quotes_and_percent_is_escaped():
     assert db.to_pg("SELECT * FROM t WHERE a=? AND b LIKE '100%?' AND c=?") == "SELECT * FROM t WHERE a=%s AND b LIKE '100%%?' AND c=%s"
 
 
+@pytest.mark.no_fonte_b
 def test_migrations_apply_once_and_are_idempotent():
-    assert db.migrate() == [1]                    # il database di test è appena stato ricreato dal primo uso? no: prima chiamata = tutte
-    assert db.migrate() == []                     # la seconda non fa nulla
+    assert db.migrate() == [m[0] for m in MIGRATIONS]      # database appena ricreato: si applicano tutte, in ordine
+    assert db.migrate() == []                              # la seconda volta non fa nulla
     with db.connect() as conn:
-        assert conn.execute("SELECT MAX(version) v FROM schema_migrations").fetchone()["v"] >= 1
+        assert conn.execute("SELECT MAX(version) v FROM schema_migrations").fetchone()["v"] == MIGRATIONS[-1][0]
 
 
 def test_missing_database_url_is_a_clear_error(monkeypatch):

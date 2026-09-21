@@ -99,7 +99,18 @@ def export_budget_pdf(request: BudgetValidationRequest, http: Request) -> Stream
 
 @router.get("/fields", summary="Catalogo dei campi di una voce di costo (per l'editor e il template)")
 def fields() -> dict:
-    return {"categories": CATEGORY_OPTIONS, "fields": FIELDS}
+    from app.core import fonte_b
+    fb = fonte_b.load()
+    dynamic = {"ccnl_code": list(fb.ccnl_codes()), "depreciation_category": fb.amortization_categories()}
+    out = []
+    for f in FIELDS:
+        f = dict(f)
+        if f["name"] in dynamic:
+            f["options"] = dynamic[f["name"]]
+        elif f["name"] == "benchmark_category":
+            f["options"] = sorted(set(fb.benchmark_categories("PRICE")) | set(fb.benchmark_categories("DAILY_RATE")))
+        out.append(f)
+    return {"categories": CATEGORY_OPTIONS, "fields": out, "fonte_b": fb.summary(), "ccnl_levels": fb.ccnl_codes()}
 
 
 @router.get("/template.xlsx", summary="Template Excel con tutte le colonne, esempi e guida ai campi")

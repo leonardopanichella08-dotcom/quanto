@@ -45,7 +45,21 @@ const hqSend = (method, path, body) => call(`/hq${path}`, {
 }).then((r) => r.json())
 const hqBlob = (path) => call(`/hq${path}`, { headers: { 'X-HQ-Token': hqToken.get() || '' } }).then((r) => r.blob())
 
+// Fonte B: lettura per tutti, scrittura per il manager (stesso gettone del Quartier Generale)
+const fbHeaders = () => ({ 'X-HQ-Token': hqToken.get() || '' })
+const fbGet = (path) => call(`/fonte-b${path}`, { headers: fbHeaders() }).then((r) => r.json())
+const fbSend = (method, path, body) => call(`/fonte-b${path}`, { method, headers: { ...fbHeaders(), ...(body !== undefined ? json : {}) }, ...(body !== undefined ? { body: JSON.stringify(body) } : {}) }).then((r) => r.json())
+
 export const api = {
+  fonteBSummary: () => call('/fonte-b/summary').then((r) => r.json()),
+  fbKinds: () => fbGet('/kinds'),
+  fbDatasets: () => fbGet('/datasets'),
+  fbDataset: (id) => fbGet(`/datasets/${id}`),
+  fbUpload: (body) => fbSend('POST', '/datasets', body),
+  fbPublish: (id, attest) => fbSend('POST', `/datasets/${id}/publish`, { attest_official: attest }),
+  fbDelete: (id) => fbSend('DELETE', `/datasets/${id}`),
+  fbFile: (id) => call(`/fonte-b/datasets/${id}/file`, { headers: fbHeaders() }).then((r) => r.blob()),
+  fbTemplate: (kind) => call(`/fonte-b/template/${kind}.csv`, { headers: fbHeaders() }).then((r) => r.blob()),
   // --- bandi
   bandi: () => call('/bandi').then((r) => r.json()),
   bandoDetail: (id) => call(`/bandi/${encodeURIComponent(id)}`).then((r) => r.json()),

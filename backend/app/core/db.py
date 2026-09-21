@@ -13,6 +13,7 @@ Scelte per l'hosting serverless:
 """
 from __future__ import annotations
 
+import atexit
 import base64
 import json
 import os
@@ -150,6 +151,9 @@ def close_pools() -> None:
             p.close()
         _POOLS.clear()
         _MIGRATED.clear()
+
+
+atexit.register(close_pools)
 
 
 def migrate() -> List[int]:

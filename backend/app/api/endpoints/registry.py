@@ -111,7 +111,8 @@ def verify_from_original_data(request: AuditRecomputeRequest, http: Request) -> 
     if not request.cost_items:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Nessuna riga di costo da ricalcolare.")
     res = auditor_engine.verify_from_data(request.project_id, request.cost_items, request.grant_rules,
-                                          entity_liquidity_eur=request.entity_liquidity_eur, baseline_totals=request.baseline_totals)
+                                          entity_liquidity_eur=request.entity_liquidity_eur, baseline_totals=request.baseline_totals,
+                                          reference_date=request.reference_date)
     _log_verify("registry.verify_recompute", res, http, timer)
     return res
 
