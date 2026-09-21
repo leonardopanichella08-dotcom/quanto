@@ -18,7 +18,8 @@ from collections import defaultdict
 from typing import Any, Dict, List, Optional
 
 from app.core import bandi, events
-from app.core.db import connect, db_path
+from app.core import db
+from app.core.db import connect
 from app.core.operations import OPERATIONS
 from app.core.registry import Registry, current_public_key
 
@@ -99,7 +100,7 @@ def _count(conn, table: str) -> int:
 
 def operation_stats() -> Dict[str, Dict[str, Any]]:
     with connect() as conn:
-        rows = conn.execute("SELECT op, COUNT(*) n, SUM(status!='OK') errs, AVG(duration_ms) avg_ms, MAX(ts) last_ts FROM events GROUP BY op").fetchall()
+        rows = conn.execute("SELECT op, COUNT(*) n, COALESCE(SUM((status<>'OK')::int),0) errs, AVG(duration_ms)::float8 avg_ms, MAX(ts) last_ts FROM events GROUP BY op").fetchall()
     return {r["op"]: {"count": r["n"], "errors": int(r["errs"] or 0), "avg_ms": round(r["avg_ms"], 1) if r["avg_ms"] is not None else None, "last_ts": r["last_ts"]} for r in rows}
 
 
@@ -110,22 +111,21 @@ def operations_catalog() -> List[Dict[str, Any]]:
 
 def overview() -> Dict[str, Any]:
     bandi.ensure_seeded()
-    path = db_path()
     with connect() as conn:
+        size = db.db_size_bytes(conn)
         counts = {t: _count(conn, t) for t in TABLES}
         projects = conn.execute("SELECT COUNT(DISTINCT project_id) c FROM events WHERE project_id IS NOT NULL").fetchone()["c"]
         validations = conn.execute("SELECT COUNT(*) c FROM runs WHERE kind='VALIDATE'").fetchone()["c"]
         last_validation = conn.execute("SELECT ts FROM runs WHERE kind='VALIDATE' ORDER BY id DESC LIMIT 1").fetchone()
         docs_by_kind = {r["kind"]: r["n"] for r in conn.execute("SELECT kind, COUNT(*) n FROM documents GROUP BY kind").fetchall()}
-        events_by_day = [dict(r) for r in conn.execute("SELECT substr(ts,1,10) day, COUNT(*) n FROM events GROUP BY day ORDER BY day DESC LIMIT 14").fetchall()]
+        events_by_day = [dict(r) for r in conn.execute("SELECT substr(ts,1,10) AS day, COUNT(*) AS n FROM events GROUP BY 1 ORDER BY 1 DESC LIMIT 14").fetchall()]
     chain = Registry.verify_chain()
     key = current_public_key()
-    size = os.path.getsize(path) if os.path.exists(path) else 0
     return {
         "counts": counts, "projects": projects, "validations": validations, "last_validation_ts": last_validation["ts"] if last_validation else None,
         "documents_by_kind": docs_by_kind, "events_by_day": list(reversed(events_by_day)),
-        "storage": {"engine": "SQLite", "size_bytes": size, "volatile": os.path.abspath(path).startswith(os.path.abspath(tempfile.gettempdir())),
-                    "note": "File nella cartella temporanea: su hosting serverless (es. Vercel) si azzera ai cold start. Per una memoria duratura serve un database esterno."},
+        "storage": {"engine": "PostgreSQL", "size_bytes": size, "volatile": False,
+                    "note": "Database PostgreSQL esterno: i dati restano anche quando il server si riavvia."},
         "registry": {"intact": chain.intact, "entries": chain.entries, "head_hash": chain.head_hash, "key_id": key["key_id"], "is_dev_key": key["is_dev_key"]},
         "hq_code_is_default": os.getenv("QUANTO_HQ_CODE", DEFAULT_CODE) == DEFAULT_CODE,
         "operations": operations_catalog(),
@@ -137,7 +137,7 @@ def overview() -> Dict[str, Any]:
 def projects_index() -> List[Dict[str, Any]]:
     with connect() as conn:
         rows = conn.execute(
-            "SELECT project_id, COUNT(*) n, MIN(ts) first_ts, MAX(ts) last_ts, GROUP_CONCAT(DISTINCT bando_id) bandi "
+            "SELECT project_id, COUNT(*) n, MIN(ts) first_ts, MAX(ts) last_ts, STRING_AGG(DISTINCT bando_id, ',') bandi "
             "FROM events WHERE project_id IS NOT NULL GROUP BY project_id ORDER BY last_ts DESC").fetchall()
     return [{"project_id": r["project_id"], "events": r["n"], "first_ts": r["first_ts"], "last_ts": r["last_ts"],
              "bandi": [b for b in (r["bandi"] or "").split(",") if b]} for r in rows]
@@ -204,7 +204,7 @@ def db_tables() -> List[Dict[str, Any]]:
     out = []
     with connect() as conn:
         for t in TABLES:
-            cols = [r["name"] for r in conn.execute(f"PRAGMA table_info({t})").fetchall()]
+            cols = db.table_columns(conn, t)
             out.append({"name": t, "rows": _count(conn, t), "columns": cols})
     return out
 
@@ -215,14 +215,16 @@ def db_rows(table: str, limit: int = 50, offset: int = 0) -> Dict[str, Any]:
     limit = max(1, min(limit, 200))
     with connect() as conn:
         total = _count(conn, table)
-        order = "seq" if table == "anchors" else "id" if table in ("events", "runs", "documents") else "rowid"
-        rows = conn.execute(f"SELECT rowid AS _rowid, * FROM {table} ORDER BY {order} DESC LIMIT ? OFFSET ?", (limit, max(0, offset))).fetchall()
+        pk = db.pk_columns(conn, table)
+        order = ", ".join(f"{c} DESC" for c in pk) if pk else "1"
+        rows = conn.execute(f"SELECT * FROM {table} ORDER BY {order} LIMIT ? OFFSET ?", (limit, max(0, offset))).fetchall()
     heavy = HEAVY.get(table, ())
     out = []
     for r in rows:
         d = dict(r)
+        d["_rowid"] = db.encode_rowid(pk, r)
         for col in heavy:
-            if isinstance(d.get(col), (bytes, bytearray)):
+            if isinstance(d.get(col), (bytes, bytearray, memoryview)):
                 d[col] = f"[file di {len(d[col]):,} byte]".replace(",", ".")
             elif col in d and d[col] is not None:
                 text = str(d[col])

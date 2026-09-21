@@ -1,6 +1,10 @@
 import os
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
+from fastapi.responses import JSONResponse
+import psycopg
+
+from app.core import db
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.api.router import api_router
@@ -21,6 +25,24 @@ app.add_middleware(
 )
 
 app.include_router(api_router)
+
+
+@app.exception_handler(db.DatabaseNotConfigured)
+async def _db_missing(_: Request, exc: db.DatabaseNotConfigured):
+    return JSONResponse(status_code=503, content={"detail": str(exc)})
+
+
+@app.exception_handler(psycopg.OperationalError)
+async def _db_down(_: Request, exc: psycopg.OperationalError):
+    return JSONResponse(status_code=503, content={"detail": "Il database non risponde: riprova tra poco"})
+
+
+@app.get("/api/v2/health/ready", tags=["Health Check"])
+def readiness():
+    """Pronto solo se il database risponde e lo schema è aggiornato."""
+    with db.connect() as conn:
+        conn.execute("SELECT 1")
+    return {"status": "READY", "database": "PostgreSQL"}
 
 
 @app.get("/api/v2/health", tags=["Health Check"])

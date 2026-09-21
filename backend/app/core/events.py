@@ -59,9 +59,9 @@ def record(op: str, summary: str, status: str = "OK", project_id: Optional[str] 
     try:
         with connect() as conn:
             cur = conn.execute(
-                "INSERT INTO events (ts, op, status, actor, project_id, bando_id, duration_ms, summary, details, run_id) VALUES (?,?,?,?,?,?,?,?,?,?)",
+                "INSERT INTO events (ts, op, status, actor, project_id, bando_id, duration_ms, summary, details, run_id) VALUES (?,?,?,?,?,?,?,?,?,?) RETURNING id",
                 (now_iso(), op, status, actor, project_id, bando_id, duration_ms, summary[:400], _dump(details), run_id))
-            return int(cur.lastrowid)
+            return int(cur.fetchone()["id"])
     except Exception:  # la memoria non deve mai rompere l'operazione
         logger.exception("Impossibile registrare l'evento %s", op)
         return None
@@ -76,9 +76,9 @@ def save_run(kind: str, project_id: Optional[str], bando_id: Optional[str], requ
                 item["description"] = PrivacyAnonymizer.scrub_free_text(item["description"])
         with connect() as conn:
             cur = conn.execute(
-                "INSERT INTO runs (ts, kind, project_id, bando_id, merkle_root, request_json, response_json) VALUES (?,?,?,?,?,?,?)",
+                "INSERT INTO runs (ts, kind, project_id, bando_id, merkle_root, request_json, response_json) VALUES (?,?,?,?,?,?,?) RETURNING id",
                 (now_iso(), kind, project_id, bando_id, merkle_root, _dump(req, 400_000), _dump(response, 1_500_000)))
-            return int(cur.lastrowid)
+            return int(cur.fetchone()["id"])
     except Exception:
         logger.exception("Impossibile salvare l'esecuzione %s", kind)
         return None
@@ -89,9 +89,9 @@ def add_document(kind: str, name: str, data: bytes, bando_id: Optional[str] = No
     try:
         with connect() as conn:
             cur = conn.execute(
-                "INSERT INTO documents (ts, kind, name, sha256, size_bytes, bando_id, project_id, meta) VALUES (?,?,?,?,?,?,?,?)",
+                "INSERT INTO documents (ts, kind, name, sha256, size_bytes, bando_id, project_id, meta) VALUES (?,?,?,?,?,?,?,?) RETURNING id",
                 (now_iso(), kind, name[:200], sha256_hex(data), len(data), bando_id, project_id, _dump(meta, 4000)))
-            return int(cur.lastrowid)
+            return int(cur.fetchone()["id"])
     except Exception:
         logger.exception("Impossibile registrare il documento %s", name)
         return None
@@ -103,7 +103,9 @@ def save_bando_source(bando_id: str, name: str, text: str, url: Optional[str] = 
     """Salva il testo integrale di una fonte del bando (caricata a mano o scaricata dal web) nella memoria."""
     digest = sha256_hex(text.encode("utf-8"))
     with connect() as conn:
-        conn.execute("INSERT OR REPLACE INTO bando_sources (bando_id, ts, name, sha256, text, url, tier, content_type, pages, origin, file_sha256, warnings) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)",
+        conn.execute("INSERT INTO bando_sources (bando_id, ts, name, sha256, text, url, tier, content_type, pages, origin, file_sha256, warnings) VALUES (?,?,?,?,?,?,?,?,?,?,?,?) "
+                     "ON CONFLICT (bando_id, sha256) DO UPDATE SET ts=excluded.ts, name=excluded.name, text=excluded.text, url=excluded.url, tier=excluded.tier, "
+                     "content_type=excluded.content_type, pages=excluded.pages, origin=excluded.origin, file_sha256=excluded.file_sha256, warnings=excluded.warnings",
                      (bando_id, now_iso(), name[:200], digest, text[:MAX_SOURCE_TEXT], url, tier, content_type, pages, origin, file_sha256,
                       json.dumps(warnings or [], ensure_ascii=False)))
     return digest
@@ -113,7 +115,8 @@ def save_bando_file(bando_id: str, name: str, data: bytes, content_type: Optiona
     """Conserva il file ORIGINALE (PDF, pagina, Word) per poterlo riaprire e scaricare dal Quartier Generale."""
     digest = sha256_hex(data)
     with connect() as conn:
-        conn.execute("INSERT OR REPLACE INTO bando_files (bando_id, sha256, ts, name, content_type, size_bytes, data) VALUES (?,?,?,?,?,?,?)",
+        conn.execute("INSERT INTO bando_files (bando_id, sha256, ts, name, content_type, size_bytes, data) VALUES (?,?,?,?,?,?,?) "
+                     "ON CONFLICT (bando_id, sha256) DO UPDATE SET ts=excluded.ts, name=excluded.name, content_type=excluded.content_type, size_bytes=excluded.size_bytes, data=excluded.data",
                      (bando_id, digest, now_iso(), name[:200], content_type, len(data), data))
     return digest
 
@@ -121,7 +124,11 @@ def save_bando_file(bando_id: str, name: str, data: bytes, content_type: Optiona
 def get_bando_file(bando_id: str, sha256: str) -> Optional[dict]:
     with connect() as conn:
         row = conn.execute("SELECT * FROM bando_files WHERE bando_id=? AND sha256=?", (bando_id, sha256)).fetchone()
-    return dict(row) if row else None
+    if not row:
+        return None
+    out = dict(row)
+    out["data"] = bytes(out["data"])
+    return out
 
 
 def save_source_analysis(bando_id: str, source_sha: str, analysis: Dict[str, Any]) -> None:

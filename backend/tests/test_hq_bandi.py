@@ -157,7 +157,7 @@ def test_project_dossier_collects_everything_about_a_project():
 def test_overview_operations_map_and_stats():
     client.post("/api/v2/budget/validate", json=_demo())
     ov = client.get("/api/v2/hq/overview", headers=hq_headers()).json()
-    assert ov["counts"]["runs"] == 1 and ov["counts"]["bandi"] == 6 and ov["validations"] == 1 and ov["storage"]["engine"] == "SQLite"
+    assert ov["counts"]["runs"] == 1 and ov["counts"]["bandi"] == 6 and ov["validations"] == 1 and ov["storage"]["engine"] == "PostgreSQL"
     assert ov["registry"]["intact"] is True and len(ov["recent_events"]) >= 1
     ops = {o["id"]: o for o in client.get("/api/v2/hq/operations", headers=hq_headers()).json()}
     assert len(ops) >= 20 and ops["budget.validate"]["stats"]["count"] == 1 and ops["budget.validate"]["stages"]
@@ -198,7 +198,7 @@ def test_db_explorer_is_read_only_and_whitelisted():
     assert {"anchors", "bandi", "rules", "events", "runs", "documents", "requirements"} <= set(tables) and tables["runs"]["rows"] == 1
     runs = client.get("/api/v2/hq/db/table/runs", headers=h).json()
     assert runs["total"] == 1 and "caratteri]" in runs["rows"][0]["response_json"]            # payload pesanti riassunti, non riversati
-    assert client.get("/api/v2/hq/db/table/sqlite_master", headers=h).status_code == 404
+    assert client.get("/api/v2/hq/db/table/pg_tables", headers=h).status_code == 404
     assert client.get("/api/v2/hq/db/table/runs;DROP TABLE runs", headers=h).status_code == 404
     assert client.post("/api/v2/hq/db/table/runs", headers=h).status_code == 405
     assert client.get("/api/v2/hq/db/table/rules", params={"limit": 3, "offset": 2}, headers=h).json()["limit"] == 3

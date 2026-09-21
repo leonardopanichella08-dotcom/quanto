@@ -27,7 +27,7 @@ from cryptography.exceptions import InvalidSignature
 from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey, Ed25519PublicKey
 
-from app.core.db import connect
+from app.core.db import REGISTRY_LOCK_KEY, connect
 from app.core.merkle_tree import normalize_root
 
 logger = logging.getLogger("quanto.registry")
@@ -133,6 +133,7 @@ class Registry:
         key_id = ("DEV-" if is_dev else "") + key_id_for(pub)
         pkey = project_key(project_id)
         with connect() as conn:
+            conn.lock(REGISTRY_LOCK_KEY)          # una sola registrazione alla volta: la catena resta lineare anche con più istanze
             existing = conn.execute("SELECT merkle_root FROM anchors WHERE project_key = ?", (pkey,)).fetchone()
             if existing:
                 raise AlreadyRegisteredError(existing["merkle_root"], existing["merkle_root"] == root)

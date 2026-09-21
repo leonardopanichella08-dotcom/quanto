@@ -6,7 +6,8 @@ import os
 from typing import Any, Dict, List, Optional
 
 from app.core.criteria_catalog import CRITERIA_TITLES
-from app.core.db import connect, db_path
+from app.core import db
+from app.core.db import connect
 from app.core.demo import SANDBOX_RULES
 from app.core.ingestion import IDENTITY_FIELDS, Ingestion, normalize_value
 from app.core import research
@@ -79,14 +80,15 @@ def seed() -> None:
                     (b["bando_id"], key, normalize_value(key, value), "CURATED_SOURCE", "PUBLISHED", None, note.get("source")))
             conn.execute("DELETE FROM requirements WHERE bando_id=? AND origin='CURATED_SOURCE'", (b["bando_id"],))
             for i, r in enumerate(b["requirements"], 1):
-                conn.execute("INSERT OR REPLACE INTO requirements (bando_id, seq, topic, kind, text, criteria, source_ref, origin) VALUES (?,?,?,?,?,?,?,?)",
+                conn.execute("INSERT INTO requirements (bando_id, seq, topic, kind, text, criteria, source_ref, origin) VALUES (?,?,?,?,?,?,?,?) "
+                             "ON CONFLICT (bando_id, seq) DO UPDATE SET topic=excluded.topic, kind=excluded.kind, text=excluded.text, criteria=excluded.criteria, source_ref=excluded.source_ref, origin=excluded.origin",
                              (b["bando_id"], i, r["topic"], r["kind"], r["text"], json.dumps(r["criteria"]),
                               f'{r["source_ref"]} [{r["confidence"]}]', "CURATED_SOURCE"))
 
 
 def ensure_seeded() -> None:
-    key = db_path()
-    if key in _SEEDED and os.path.exists(key):
+    key = (db.database_url(), db.GENERATION)
+    if key in _SEEDED:
         return
     seed()
     _SEEDED.add(key)
@@ -128,7 +130,7 @@ def list_bandi() -> List[Dict[str, Any]]:
             meta = _meta(conn, bid)
             rules = conn.execute("SELECT rule_key, status FROM rules WHERE bando_id=?", (bid,)).fetchall()
             published = [r["rule_key"] for r in rules if r["status"] == "PUBLISHED"]
-            reqs = conn.execute("SELECT COUNT(*) c, SUM(kind='DA_REVISIONARE') r FROM requirements WHERE bando_id=?", (bid,)).fetchone()
+            reqs = conn.execute("SELECT COUNT(*) c, COALESCE(SUM((kind='DA_REVISIONARE')::int),0) r FROM requirements WHERE bando_id=?", (bid,)).fetchone()
             runs = conn.execute("SELECT COUNT(*) c, MAX(ts) t FROM runs WHERE bando_id=? AND kind='VALIDATE'", (bid,)).fetchone()
             n_src = conn.execute("SELECT COUNT(*) c FROM bando_sources WHERE bando_id=?", (bid,)).fetchone()["c"]
             if not meta.get("curated") and not rules and not (reqs["c"] or 0) and not n_src and not runs["c"]:

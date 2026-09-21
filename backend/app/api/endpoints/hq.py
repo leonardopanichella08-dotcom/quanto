@@ -267,7 +267,7 @@ def archive_export(bando_id: str) -> Response:
 
 # ------------------------------------------------------------------ database: correzione dei dati (non del registro firmato)
 @router.delete("/db/table/{table}/row/{rowid}", dependencies=deps, summary="Elimina una riga (tranne il registro firmato)")
-def db_delete_row(table: str, rowid: int, request: Request) -> dict:
+def db_delete_row(table: str, rowid: str, request: Request) -> dict:
     try:
         ok = archive.db_delete_row(table, rowid)
     except KeyError:

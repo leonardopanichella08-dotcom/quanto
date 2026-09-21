@@ -11,7 +11,7 @@ import json
 import zipfile
 from typing import Any, Dict, List, Optional
 
-from app.core import bandi, events
+from app.core import bandi, db, events
 from app.core.db import connect
 from app.core.ingestion import Ingestion, normalize_value
 
@@ -26,9 +26,9 @@ def list_archive() -> List[Dict[str, Any]]:
             bid = b["bando_id"]
             meta = bandi._meta(conn, bid)
             s = conn.execute("SELECT COUNT(*) n, COALESCE(SUM(LENGTH(text)),0) chars FROM bando_sources WHERE bando_id=?", (bid,)).fetchone()
-            f = conn.execute("SELECT COUNT(*) n, COALESCE(SUM(size_bytes),0) size FROM bando_files WHERE bando_id=?", (bid,)).fetchone()
-            r = conn.execute("SELECT COUNT(*) n, SUM(status='PENDING_REVIEW') pend FROM rules WHERE bando_id=?", (bid,)).fetchone()
-            q = conn.execute("SELECT COUNT(*) n, SUM(kind='DA_REVISIONARE') rev FROM requirements WHERE bando_id=?", (bid,)).fetchone()
+            f = conn.execute("SELECT COUNT(*) n, COALESCE(SUM(size_bytes),0)::bigint size FROM bando_files WHERE bando_id=?", (bid,)).fetchone()
+            r = conn.execute("SELECT COUNT(*) n, COALESCE(SUM((status='PENDING_REVIEW')::int),0) pend FROM rules WHERE bando_id=?", (bid,)).fetchone()
+            q = conn.execute("SELECT COUNT(*) n, COALESCE(SUM((kind='DA_REVISIONARE')::int),0) rev FROM requirements WHERE bando_id=?", (bid,)).fetchone()
             runs = conn.execute("SELECT COUNT(*) n FROM runs WHERE bando_id=? AND kind='VALIDATE'", (bid,)).fetchone()["n"]
             out.append({"bando_id": bid, "name": b["name"], "curated": bool(meta.get("curated")), "extraction_status": b["extraction_status"], "sources": s["n"], "chars": s["chars"],
                         "files": f["n"], "files_bytes": f["size"], "rules": r["n"], "rules_pending": int(r["pend"] or 0), "requirements": q["n"],
@@ -87,7 +87,7 @@ def delete_bando(bando_id: str) -> Optional[Dict[str, int]]:
         conn.execute("DELETE FROM bando_meta WHERE bando_id=?", (bando_id,))
         conn.execute("DELETE FROM bandi WHERE bando_id=?", (bando_id,))
         if meta.get("curated"):  # il catalogo predefinito non deve ricrearlo al prossimo avvio
-            conn.execute("INSERT OR REPLACE INTO bando_tombstones (bando_id, ts) VALUES (?,?)", (bando_id, events.now_iso()))
+            conn.execute("INSERT INTO bando_tombstones (bando_id, ts) VALUES (?,?) ON CONFLICT (bando_id) DO UPDATE SET ts=excluded.ts", (bando_id, events.now_iso()))
     return counts
 
 
@@ -176,14 +176,19 @@ def export_zip(bando_id: str) -> Optional[bytes]:
 
 
 # ------------------------------------------------------------------ database: modifica dei dati (tranne il registro firmato)
-def db_delete_row(table: str, rowid: int) -> bool:
+def db_delete_row(table: str, rowid: str) -> bool:
     from app.core import hq
     if table not in hq.TABLES:
         raise KeyError(table)
     if table in PROTECTED_TABLES:
         raise PermissionError("Il registro delle certificazioni è append-only: le righe non si cancellano")
     with connect() as conn:
-        return conn.execute(f"DELETE FROM {table} WHERE rowid=?", (rowid,)).rowcount > 0
+        pk = db.pk_columns(conn, table)
+        values = db.decode_rowid(rowid)
+        if not pk or len(values) != len(pk):
+            raise ValueError("Identificativo di riga non valido")
+        where = " AND ".join(f"{c}=?" for c in pk)
+        return conn.execute(f"DELETE FROM {table} WHERE {where}", tuple(values)).rowcount > 0
 
 
 def db_clear_table(table: str) -> int:
@@ -201,13 +206,13 @@ def db_export_csv(table: str, full: bool = True) -> str:
     if table not in hq.TABLES:
         raise KeyError(table)
     with connect() as conn:
-        rows = conn.execute(f"SELECT rowid AS _rowid, * FROM {table}").fetchall()
+        pk = db.pk_columns(conn, table)
+        rows = conn.execute(f"SELECT * FROM {table}").fetchall()
     out = io.StringIO()
     if not rows:
         return ""
     w = csv.writer(out)
-    cols = list(rows[0].keys())
-    w.writerow(cols)
+    w.writerow(["_rowid"] + list(rows[0].keys()))
     for r in rows:
-        w.writerow([f"[{len(v)} byte]" if isinstance(v, (bytes, bytearray)) else v for v in tuple(r)])
+        w.writerow([db.encode_rowid(pk, r)] + [f"[{len(v)} byte]" if isinstance(v, (bytes, bytearray, memoryview)) else v for v in r.values()])
     return out.getvalue()
