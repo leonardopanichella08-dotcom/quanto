@@ -5,8 +5,8 @@ import { api, ApiError } from '../lib/api'
 function Field({ label, value }) {
   return (
     <div className="space-y-0.5">
-      <span className="text-neutral-500">{label}</span>
-      <p className="text-neutral-200 break-all">{value}</p>
+      <span className="text-mute">{label}</span>
+      <p className="text-ink break-all">{value}</p>
     </div>
   )
 }
@@ -35,36 +35,36 @@ export default function RegistrationModal({ isOpen, onClose, merkleRoot, project
   }
 
   return (
-    <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-      <div className="card max-w-lg w-full p-6 space-y-5 relative max-h-[90vh] overflow-y-auto">
-        <button onClick={onClose} aria-label="Chiudi" className="absolute top-4 right-4 text-neutral-400 hover:text-white"><X className="w-5 h-5" /></button>
+    <div className="fixed inset-0 bg-white/40 backdrop-blur-md z-50 flex items-center justify-center p-4">
+      <div className="glass-strong rounded-3xl max-w-lg w-full p-6 space-y-5 relative max-h-[90vh] overflow-y-auto">
+        <button onClick={onClose} aria-label="Chiudi" className="absolute top-4 right-4 text-ink-2 hover:text-ink"><X className="w-5 h-5" /></button>
         <div className="flex items-center gap-3">
-          <div className="p-2.5 border border-[#deffac]/30 text-[#deffac] rounded-lg"><ShieldCheck className="w-5 h-5" /></div>
+          <span className="icon-tile w-10 h-10 rounded-xl"><ShieldCheck className="w-5 h-5" /></span>
           <div>
             <h3 className="font-semibold text-base">Registra l’impronta del budget</h3>
-            <p className="text-xs text-neutral-400">Un registro in cui si può solo aggiungere, con firma digitale</p>
+            <p className="text-xs text-ink-2">Un registro in cui si può solo aggiungere, con firma digitale</p>
           </div>
         </div>
 
-        <div className="space-y-2 text-xs font-mono bg-neutral-950 p-3 rounded-xl border border-neutral-800">
-          <span className="text-neutral-500">{cepId} · progetto (opaco): {projectId}</span>
-          <p className="text-[#deffac] break-all">{merkleRoot}</p>
-          <p className="text-neutral-600 font-sans">Nel registro va scritta solo questa impronta: nessuna cifra, nessun dato personale.</p>
+        <div className="space-y-2 text-xs font-mono bg-field p-3 rounded-xl border border-line">
+          <span className="text-mute">{cepId} · progetto (opaco): {projectId}</span>
+          <p className="text-brand-ink break-all">{merkleRoot}</p>
+          <p className="text-mute font-sans">Nel registro va scritta solo questa impronta: nessuna cifra, nessun dato personale.</p>
         </div>
 
         {registry?.is_dev_key && (
-          <p className="text-xs text-amber-300 bg-amber-500/10 border border-amber-500/20 rounded-xl p-3 flex gap-2">
+          <p className="text-xs text-amber-700 bg-amber-500/10 border border-amber-500/20 rounded-xl p-3 flex gap-2">
             <KeyRound className="w-4 h-4 shrink-0" />
             Il server usa una chiave di prova: le certificazioni non valgono come prova. Chi gestisce il server deve impostare QUANTO_SIGNING_KEY.
           </p>
         )}
-        {notice && <p className="text-xs text-sky-300 bg-sky-500/10 border border-sky-500/20 rounded-xl p-3">{notice}</p>}
-        {error && <p className="text-xs text-red-300 bg-red-500/10 border border-red-500/20 rounded-xl p-3">{error}</p>}
+        {notice && <p className="text-xs text-sky-700 bg-sky-500/10 border border-sky-500/20 rounded-xl p-3">{notice}</p>}
+        {error && <p className="text-xs text-red-700 bg-red-500/10 border border-red-500/20 rounded-xl p-3">{error}</p>}
 
         {attestation ? (
           <div className="space-y-3 text-xs font-mono">
-            <div className="flex items-center gap-2 text-emerald-400 text-xs font-bold font-sans"><CheckCircle2 className="w-4 h-4" />Registrata: n. {attestation.seq}</div>
-            <div className="p-3 bg-neutral-950 border border-neutral-800 rounded-xl space-y-2">
+            <div className="flex items-center gap-2 text-emerald-700 text-xs font-bold font-sans"><CheckCircle2 className="w-4 h-4" />Registrata: n. {attestation.seq}</div>
+            <div className="p-3 bg-field border border-line rounded-xl space-y-2">
               <Field label="Registrata il" value={attestation.registered_at} />
               <Field label="Impronta della registrazione" value={attestation.entry_hash} />
               <Field label="Impronta della registrazione precedente" value={attestation.prev_hash} />
@@ -72,7 +72,7 @@ export default function RegistrationModal({ isOpen, onClose, merkleRoot, project
             </div>
           </div>
         ) : (
-          <button onClick={handleRegister} disabled={loading} className="w-full py-3 bg-[#deffac] hover:bg-[#a8fd00] text-black font-bold text-sm rounded-xl transition disabled:opacity-50">
+          <button onClick={handleRegister} disabled={loading} className="w-full py-3 bg-liquid hover:brightness-105 text-ink font-bold text-sm rounded-xl transition disabled:opacity-50">
             {loading ? 'Registrazione…' : 'Conferma e registra'}
           </button>
         )}

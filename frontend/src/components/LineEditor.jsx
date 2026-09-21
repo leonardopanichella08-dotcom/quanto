@@ -20,9 +20,9 @@ const OPTION_LABEL = {
 function Field({ field, value, onChange }) {
   const set = (v) => onChange(field.name, v)
   const label = (
-    <span className="flex items-center gap-1.5 text-xs text-neutral-400 mb-1">
+    <span className="flex items-center gap-1.5 text-xs text-ink-2 mb-1">
       {field.label}
-      {field.criteria.map((c) => <span key={c} className="font-mono text-[10px] text-[#deffac]/80">#{c}</span>)}
+      {field.criteria.map((c) => <span key={c} className="font-mono text-[10px] text-brand-ink">#{c}</span>)}
     </span>
   )
   let control
@@ -52,7 +52,7 @@ function Field({ field, value, onChange }) {
   } else {
     control = <input type="text" value={value ?? ''} onChange={(e) => set(REQUIRED.has(field.name) ? e.target.value : e.target.value === '' ? undefined : e.target.value)} className={inputCls} />
   }
-  return <label className="block" title={field.help}>{label}{control}{field.help && <span className="block text-[11px] text-neutral-500 mt-0.5">{field.help}</span>}</label>
+  return <label className="block" title={field.help}>{label}{control}{field.help && <span className="block text-[11px] text-mute mt-0.5">{field.help}</span>}</label>
 }
 
 export default function LineEditor({ item, fields, onChange, onDelete, onDuplicate }) {
@@ -75,21 +75,21 @@ export default function LineEditor({ item, fields, onChange, onDelete, onDuplica
   return (
     <div className="space-y-3">
       <div className="flex items-center justify-between">
-        <p className="text-xs text-neutral-400"><span className="font-mono text-neutral-200">{item.item_id}</span> · {CATEGORY_LABEL[item.category]}</p>
+        <p className="text-xs text-ink-2"><span className="font-mono text-ink">{item.item_id}</span> · {CATEGORY_LABEL[item.category]}</p>
         <div className="flex gap-1.5">
-          <button onClick={onDuplicate} title="Duplica" className="p-1.5 rounded-lg border border-neutral-700 text-neutral-300 hover:border-neutral-500"><Copy className="w-3.5 h-3.5" /></button>
-          <button onClick={onDelete} title="Elimina" className="p-1.5 rounded-lg border border-red-500/40 text-red-300 hover:bg-red-500/10"><Trash2 className="w-3.5 h-3.5" /></button>
+          <button onClick={onDuplicate} title="Duplica" className="p-1.5 rounded-lg border border-line-strong text-ink-2 hover:border-line-strong"><Copy className="w-3.5 h-3.5" /></button>
+          <button onClick={onDelete} title="Elimina" className="p-1.5 rounded-lg border border-red-500/40 text-red-700 hover:bg-red-500/10"><Trash2 className="w-3.5 h-3.5" /></button>
         </div>
       </div>
-      <p className="text-[11px] text-neutral-500">I numeri #N sono i controlli che quel campo attiva. Un campo vuoto non viene valutato: non conta come superato.</p>
+      <p className="text-[11px] text-mute">I numeri #N sono i controlli che quel campo attiva. Un campo vuoto non viene valutato: non conta come superato.</p>
       {groups.map(([group, fs]) => (
-        <div key={group} className="border border-neutral-800 rounded-xl overflow-hidden">
-          <button onClick={() => setOpen({ ...open, [group]: !open[group] })} className="w-full flex items-center justify-between px-3 py-2 bg-neutral-950 text-xs font-bold text-neutral-200">
+        <div key={group} className="border border-line rounded-xl overflow-hidden">
+          <button onClick={() => setOpen({ ...open, [group]: !open[group] })} className="w-full flex items-center justify-between px-3 py-2 bg-field text-xs font-bold text-ink">
             <span className="flex items-center gap-1.5">{open[group] ? <ChevronDown className="w-3.5 h-3.5" /> : <ChevronRight className="w-3.5 h-3.5" />}{group}</span>
-            <span className="font-mono text-[11px] text-neutral-500">{filled(fs)}/{fs.length}</span>
+            <span className="font-mono text-[11px] text-mute">{filled(fs)}/{fs.length}</span>
           </button>
           {open[group] && (
-            <div className="p-3 grid grid-cols-1 sm:grid-cols-2 gap-3 bg-neutral-900/50">
+            <div className="p-3 grid grid-cols-1 sm:grid-cols-2 gap-3 bg-white/45">
               {fs.map((f) => <Field key={f.name} field={f} value={item[f.name]} onChange={update} />)}
             </div>
           )}

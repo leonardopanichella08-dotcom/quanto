@@ -35,14 +35,14 @@ function Pipeline({ stages, active }) {
         const idx = ORDER.indexOf(s.key)
         const state = active === s.key ? 'active' : activeIdx > idx ? 'done' : 'todo'
         return (
-          <div key={s.key} className={`rounded-xl border p-2.5 space-y-1.5 transition ${state === 'active' ? 'border-[#deffac] bg-[#deffac]/10' : state === 'done' ? 'border-emerald-500/30 bg-emerald-500/5' : 'border-neutral-800 bg-neutral-950'}`}>
+          <div key={s.key} className={`rounded-xl border p-2.5 space-y-1.5 transition ${state === 'active' ? 'border-brand bg-brand/10' : state === 'done' ? 'border-emerald-500/30 bg-emerald-500/5' : 'border-line bg-field'}`}>
             <div className="flex items-center gap-1.5">
-              <span className={`w-4 h-4 rounded-full text-[10px] font-bold flex items-center justify-center ${state === 'active' ? 'bg-[#deffac] text-black' : state === 'done' ? 'bg-emerald-500 text-black' : 'bg-neutral-800 text-neutral-400'}`}>{i + 1}</span>
-              <span className="text-[11px] font-bold text-neutral-200 leading-tight">{s.label}</span>
+              <span className={`w-4 h-4 rounded-full text-[10px] font-bold flex items-center justify-center ${state === 'active' ? 'bg-liquid text-ink' : state === 'done' ? 'bg-emerald-500 text-ink' : 'bg-tint-2 text-ink-2'}`}>{i + 1}</span>
+              <span className="text-[11px] font-bold text-ink leading-tight">{s.label}</span>
             </div>
-            <div className="h-1 rounded bg-neutral-800 overflow-hidden"><div className="h-full bg-[#deffac]/70" style={{ width: `${Math.max(4, (s.duration_ms / max) * 100)}%` }} /></div>
-            <p className="text-[11px] text-neutral-500 leading-snug">{s.detail}</p>
-            <p className="text-[10px] font-mono text-neutral-600">{s.duration_ms.toFixed(2)} ms</p>
+            <div className="h-1 rounded bg-tint-2 overflow-hidden"><div className="h-full bg-brand" style={{ width: `${Math.max(4, (s.duration_ms / max) * 100)}%` }} /></div>
+            <p className="text-[11px] text-mute leading-snug">{s.detail}</p>
+            <p className="text-[10px] font-mono text-mute">{s.duration_ms.toFixed(2)} ms</p>
           </div>
         )
       })}
@@ -56,25 +56,25 @@ function Heatmap({ items, byKey, notEval, budgetChecks, cursor, stepsLen, select
   const cell = (item, n) => {
     const hit = byKey.get(`${item.item_id}:${n}`)
     if (hit && hit.pos < cursor) return { color: CELL[hit.step.outcome], tip: `${item.item_id} · #${n} ${titles[n] || ''}\n${OUTCOME_LABEL[hit.step.outcome]}${hit.step.delta_eur ? ` (${fmtEur(hit.step.delta_eur)})` : ''}\n${hit.step.note}` }
-    if (hit) return { color: '#1f2937', tip: `${item.item_id} · #${n}: non ancora eseguito` }
-    if (notEval.get(item.item_id)?.has(n)) return { color: 'transparent', border: '1px dashed #525252', tip: `${item.item_id} · #${n} ${titles[n] || ''}\nNON VALUTATO: manca un dato o la regola del bando` }
-    return { color: '#0b0b0b', tip: `#${n}: non pertinente a questa voce` }
+    if (hit) return { color: 'rgba(21,21,15,0.13)', tip: `${item.item_id} · #${n}: non ancora eseguito` }
+    if (notEval.get(item.item_id)?.has(n)) return { color: 'transparent', border: '1px dashed rgba(21,21,15,0.4)', tip: `${item.item_id} · #${n} ${titles[n] || ''}\nNON VALUTATO: manca un dato o la regola del bando` }
+    return { color: 'rgba(21,21,15,0.04)', tip: `#${n}: non pertinente a questa voce` }
   }
   return (
     <div className="overflow-x-auto pb-2">
       <div style={{ minWidth: 60 * 15 + 110 }} className="space-y-0.5">
         <div className="flex" style={{ paddingLeft: 108 }}>
           {CRITERIA_BLOCKS.map((b) => (
-            <div key={b.label} className="text-[9px] text-neutral-500 border-l border-neutral-700 pl-1 truncate" style={{ width: (b.to - b.from + 1) * 15 }}>{b.label}</div>
+            <div key={b.label} className="text-[9px] text-mute border-l border-line-strong pl-1 truncate" style={{ width: (b.to - b.from + 1) * 15 }}>{b.label}</div>
           ))}
         </div>
         <div className="flex" style={{ paddingLeft: 108 }}>
-          {cols.map((n) => <div key={n} className="text-[7px] font-mono text-neutral-600 text-center" style={{ width: 15 }}>{n % 5 === 0 || n === 1 ? n : ''}</div>)}
+          {cols.map((n) => <div key={n} className="text-[7px] font-mono text-mute text-center" style={{ width: 15 }}>{n % 5 === 0 || n === 1 ? n : ''}</div>)}
         </div>
         {items.map((it) => (
-          <div key={it.item_id} onClick={() => onSelect(it.item_id)} className={`flex items-center cursor-pointer rounded ${selected === it.item_id ? 'bg-[#deffac]/10 ring-1 ring-[#deffac]/50' : 'hover:bg-neutral-900'}`}>
-            <div className="w-[108px] shrink-0 pr-2 flex items-center gap-1.5 text-[10px] font-mono text-neutral-300 truncate">
-              <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: cursor > stepsLen ? STATUS_DOT[it.status] : '#525252' }} />{it.item_id}
+          <div key={it.item_id} onClick={() => onSelect(it.item_id)} className={`flex items-center cursor-pointer rounded ${selected === it.item_id ? 'bg-brand/10 ring-1 ring-brand/50' : 'hover:bg-tint'}`}>
+            <div className="w-[108px] shrink-0 pr-2 flex items-center gap-1.5 text-[10px] font-mono text-ink-2 truncate">
+              <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: cursor > stepsLen ? STATUS_DOT[it.status] : 'rgba(21,21,15,0.35)' }} />{it.item_id}
             </div>
             {cols.map((n) => {
               const c = cell(it, n)
@@ -82,12 +82,12 @@ function Heatmap({ items, byKey, notEval, budgetChecks, cursor, stepsLen, select
             })}
           </div>
         ))}
-        <div className="flex items-center rounded bg-neutral-900/60 mt-1">
-          <div className="w-[108px] shrink-0 pr-2 text-[10px] font-mono text-fuchsia-300">BUDGET</div>
+        <div className="flex items-center rounded bg-white/45 mt-1">
+          <div className="w-[108px] shrink-0 pr-2 text-[10px] font-mono text-fuchsia-700">BUDGET</div>
           {cols.map((n) => {
             const c = budgetChecks.find((x) => x.criterion === n)
-            const color = !c ? '#0b0b0b' : !showBudget ? '#1f2937' : c.status === 'PASS' ? '#10b981' : c.status === 'FAIL' ? '#ef4444' : 'transparent'
-            return <div key={n} title={c ? `#${n} ${c.title}\n${c.status}\n${c.message}` : `#${n}`} style={{ width: 13, height: 13, margin: 1, background: color, border: c && c.status === 'NOT_EVALUATED' && showBudget ? '1px dashed #525252' : undefined }} className="rounded-[2px]" />
+            const color = !c ? 'rgba(21,21,15,0.04)' : !showBudget ? 'rgba(21,21,15,0.13)' : c.status === 'PASS' ? '#10b981' : c.status === 'FAIL' ? '#ef4444' : 'transparent'
+            return <div key={n} title={c ? `#${n} ${c.title}\n${c.status}\n${c.message}` : `#${n}`} style={{ width: 13, height: 13, margin: 1, background: color, border: c && c.status === 'NOT_EVALUATED' && showBudget ? '1px dashed rgba(21,21,15,0.4)' : undefined }} className="rounded-[2px]" />
           })}
         </div>
       </div>
@@ -96,48 +96,48 @@ function Heatmap({ items, byKey, notEval, budgetChecks, cursor, stepsLen, select
 }
 
 function Waterfall({ item, steps, cursorPos, orderedIndex }) {
-  if (!item) return <p className="text-xs text-neutral-500 italic">Clicca una riga della mappa per vedere come cambia l’importo di quella voce.</p>
+  if (!item) return <p className="text-xs text-mute italic">Clicca una riga della mappa per vedere come cambia l’importo di quella voce.</p>
   const total = Math.max(item.original_cost_eur, 0.01)
   const adj = steps.filter((s) => s.delta_eur !== 0)
   let running = item.original_cost_eur
   const rows = adj.map((s) => { const before = running; running += s.delta_eur; return { s, before, after: running, reached: orderedIndex(s) < cursorPos } })
   return (
     <div className="space-y-1.5 text-xs">
-      <div className="flex items-center gap-2"><span className="w-40 shrink-0 text-neutral-300 truncate">Importo richiesto</span>
-        <div className="flex-1 h-4 bg-neutral-900 rounded relative"><div className="absolute inset-y-0 left-0 bg-emerald-500/70 rounded" style={{ width: '100%' }} /></div>
-        <span className="w-24 text-right font-mono text-neutral-300">{fmtEur(item.original_cost_eur)}</span></div>
+      <div className="flex items-center gap-2"><span className="w-40 shrink-0 text-ink-2 truncate">Importo richiesto</span>
+        <div className="flex-1 h-4 bg-tint rounded relative"><div className="absolute inset-y-0 left-0 bg-emerald-500/70 rounded" style={{ width: '100%' }} /></div>
+        <span className="w-24 text-right font-mono text-ink-2">{fmtEur(item.original_cost_eur)}</span></div>
       {rows.map(({ s, before, after, reached }) => (
         <div key={s.seq} className={`flex items-center gap-2 transition-opacity ${reached ? 'opacity-100' : 'opacity-25'}`}>
-          <span className="w-40 shrink-0 truncate text-neutral-400" title={s.note}><span className="font-mono text-[#deffac]">#{s.criterion}</span> {s.outcome === 'REJECTED' ? 'respinta' : s.outcome === 'SUSPENDED' ? 'in attesa' : 'ridotta'}</span>
-          <div className="flex-1 h-4 bg-neutral-900 rounded relative">
+          <span className="w-40 shrink-0 truncate text-ink-2" title={s.note}><span className="font-mono text-brand-ink">#{s.criterion}</span> {s.outcome === 'REJECTED' ? 'respinta' : s.outcome === 'SUSPENDED' ? 'in attesa' : 'ridotta'}</span>
+          <div className="flex-1 h-4 bg-tint rounded relative">
             <div className={`absolute inset-y-0 rounded ${s.outcome === 'ADJUSTED' ? 'bg-amber-500/80' : s.outcome === 'SUSPENDED' ? 'bg-sky-500/80' : 'bg-red-500/80'}`}
               style={{ left: `${Math.max(0, after / total) * 100}%`, width: `${Math.max(0.6, (Math.abs(s.delta_eur) / total) * 100)}%` }} />
           </div>
-          <span className="w-24 text-right font-mono text-red-300">{fmtEur(s.delta_eur)}</span>
+          <span className="w-24 text-right font-mono text-red-700">{fmtEur(s.delta_eur)}</span>
         </div>
       ))}
-      <div className="flex items-center gap-2 pt-1 border-t border-neutral-800"><span className="w-40 shrink-0 text-neutral-200 font-semibold">Importo ammesso</span>
-        <div className="flex-1 h-4 bg-neutral-900 rounded relative"><div className="absolute inset-y-0 left-0 bg-[#deffac]/80 rounded" style={{ width: `${(item.computed_cost_eur / total) * 100}%` }} /></div>
-        <span className="w-24 text-right font-mono text-[#deffac] font-bold">{fmtEur(item.computed_cost_eur)}</span></div>
-      {rows.length === 0 && <p className="text-neutral-500 italic">Nessuna riduzione: l’importo è rimasto uguale.</p>}
+      <div className="flex items-center gap-2 pt-1 border-t border-line"><span className="w-40 shrink-0 text-ink font-semibold">Importo ammesso</span>
+        <div className="flex-1 h-4 bg-tint rounded relative"><div className="absolute inset-y-0 left-0 bg-brand rounded" style={{ width: `${(item.computed_cost_eur / total) * 100}%` }} /></div>
+        <span className="w-24 text-right font-mono text-brand-ink font-bold">{fmtEur(item.computed_cost_eur)}</span></div>
+      {rows.length === 0 && <p className="text-mute italic">Nessuna riduzione: l’importo è rimasto uguale.</p>}
     </div>
   )
 }
 
 function ShareCaps({ caps, active }) {
-  if (!caps.length) return <p className="text-xs text-neutral-500 italic">Il bando non pone limiti in percentuale sul totale per questo budget.</p>
+  if (!caps.length) return <p className="text-xs text-mute italic">Il bando non pone limiti in percentuale sul totale per questo budget.</p>
   const max = Math.max(...caps.map((c) => c.requested_eur), 1)
   return (
     <div className={`space-y-3 transition-opacity ${active ? 'opacity-100' : 'opacity-40'}`}>
       {caps.map((c) => (
         <div key={c.group} className="space-y-1 text-xs">
-          <div className="flex justify-between"><span className="text-neutral-300 font-semibold">{c.group} <span className="font-mono text-[#deffac]">#{c.criterion}</span></span><span className="text-neutral-500">limite {fmtPct(c.cap_pct)} del totale finale ({fmtEur(c.total_final_eur)})</span></div>
-          <div className="h-3 bg-neutral-900 rounded relative"><div className="absolute inset-y-0 left-0 bg-neutral-500/60 rounded" style={{ width: `${(c.requested_eur / max) * 100}%` }} /></div>
-          <div className="h-3 bg-neutral-900 rounded relative"><div className="absolute inset-y-0 left-0 bg-[#deffac]/80 rounded" style={{ width: `${(c.allowed_eur / max) * 100}%` }} /></div>
-          <div className="flex justify-between font-mono text-[11px]"><span className="text-neutral-400">richiesto {fmtEur(c.requested_eur)}</span><span className="text-[#deffac]">ammesso {fmtEur(c.allowed_eur)}</span></div>
+          <div className="flex justify-between"><span className="text-ink-2 font-semibold">{c.group} <span className="font-mono text-brand-ink">#{c.criterion}</span></span><span className="text-mute">limite {fmtPct(c.cap_pct)} del totale finale ({fmtEur(c.total_final_eur)})</span></div>
+          <div className="h-3 bg-tint rounded relative"><div className="absolute inset-y-0 left-0 bg-ink/25 rounded" style={{ width: `${(c.requested_eur / max) * 100}%` }} /></div>
+          <div className="h-3 bg-tint rounded relative"><div className="absolute inset-y-0 left-0 bg-brand rounded" style={{ width: `${(c.allowed_eur / max) * 100}%` }} /></div>
+          <div className="flex justify-between font-mono text-[11px]"><span className="text-ink-2">richiesto {fmtEur(c.requested_eur)}</span><span className="text-brand-ink">ammesso {fmtEur(c.allowed_eur)}</span></div>
         </div>
       ))}
-      <p className="text-[11px] text-neutral-500">Questi limiti sono percentuali del totale FINALE, che a sua volta dipende dalle riduzioni: il motore risolve il circolo con una formula esatta, senza tentativi.</p>
+      <p className="text-[11px] text-mute">Questi limiti sono percentuali del totale FINALE, che a sua volta dipende dalle riduzioni: il motore risolve il circolo con una formula esatta, senza tentativi.</p>
     </div>
   )
 }
@@ -158,7 +158,7 @@ function MerkleTree({ merkle, visible }) {
   const lines = []
   for (let k = 1; k < levels.length; k += 1) {
     levels[k].forEach((_, j) => {
-      [2 * j, 2 * j + 1].forEach((c) => { if (xs[k - 1][c] !== undefined) lines.push(<line key={`${k}-${j}-${c}`} x1={xs[k - 1][c]} y1={y(k - 1)} x2={xs[k][j]} y2={y(k)} stroke="#525252" strokeWidth="1" />) })
+      [2 * j, 2 * j + 1].forEach((c) => { if (xs[k - 1][c] !== undefined) lines.push(<line key={`${k}-${j}-${c}`} x1={xs[k - 1][c]} y1={y(k - 1)} x2={xs[k][j]} y2={y(k)} stroke="rgba(21,21,15,0.28)" strokeWidth="1" />) })
     })
   }
   return (
@@ -167,13 +167,13 @@ function MerkleTree({ merkle, visible }) {
         {lines}
         {levels.map((lvl, k) => lvl.map((h, j) => (
           <g key={`${k}-${j}`}>
-            <circle cx={xs[k][j]} cy={y(k)} r={k === levels.length - 1 ? 7 : k === 0 ? 4 : 5} fill={k === levels.length - 1 ? '#deffac' : k === 0 ? '#38bdf8' : '#737373'} />
-            {k === 0 && <text x={xs[k][j]} y={y(0) + 10} fontSize="7" fill="#a3a3a3" transform={`rotate(60 ${xs[k][j]} ${y(0) + 10})`}>{ids[j]}</text>}
-            {k === levels.length - 1 && <text x={xs[k][j]} y={y(k) - 12} fontSize="9" fontFamily="monospace" textAnchor="middle" fill="#deffac">{h}…</text>}
+            <circle cx={xs[k][j]} cy={y(k)} r={k === levels.length - 1 ? 7 : k === 0 ? 4 : 5} fill={k === levels.length - 1 ? '#f1e21b' : k === 0 ? '#38bdf8' : '#b3b3a8'} stroke={k === levels.length - 1 ? 'rgba(120,110,0,0.5)' : 'none'} />
+            {k === 0 && <text x={xs[k][j]} y={y(0) + 10} fontSize="7" fill="#6c6c62" transform={`rotate(60 ${xs[k][j]} ${y(0) + 10})`}>{ids[j]}</text>}
+            {k === levels.length - 1 && <text x={xs[k][j]} y={y(k) - 12} fontSize="9" fontFamily="Now, Outfit, sans-serif" textAnchor="middle" fill="#5c5500">{h}…</text>}
           </g>
         )))}
       </svg>
-      <p className="text-[11px] text-neutral-500">In basso le voci (ognuna con la sua impronta SHA-256); ogni punto sopra è l’impronta dei due punti sotto di lui; uno senza compagno sale così com’è. In cima c’è la Merkle Root: l’impronta di tutto il budget. Cambiare anche 1 € cambia tutto il percorso fino alla radice.</p>
+      <p className="text-[11px] text-mute">In basso le voci (ognuna con la sua impronta SHA-256); ogni punto sopra è l’impronta dei due punti sotto di lui; uno senza compagno sale così com’è. In cima c’è la Merkle Root: l’impronta di tutto il budget. Cambiare anche 1 € cambia tutto il percorso fino alla radice.</p>
     </div>
   )
 }
@@ -214,8 +214,8 @@ export default function AlgorithmLab({ validation, title, criteriaTitles = {} })
       <div className="space-y-6">
         <Guide page="lab" />
         <div className="card p-10 text-center space-y-3">
-          <p className="text-sm text-neutral-300">Non c’è ancora nulla da mostrare.</p>
-          <p className="text-xs text-neutral-500">Vai al Budget, scegli un bando, prova un esempio e premi “Controlla il budget”. Poi torna qui.</p>
+          <p className="text-sm text-ink-2">Non c’è ancora nulla da mostrare.</p>
+          <p className="text-xs text-mute">Vai al Budget, scegli un bando, prova un esempio e premi “Controlla il budget”. Poi torna qui.</p>
           <button onClick={() => nav.go('canvas')} className="btn-primary">Vai al Budget</button>
         </div>
       </div>
@@ -242,15 +242,15 @@ export default function AlgorithmLab({ validation, title, criteriaTitles = {} })
           <button onClick={() => { setPlaying(false); setCursor(0) }} title="Da capo" aria-label="Da capo" className="btn !px-2"><RotateCcw className="w-3.5 h-3.5" /></button>
           <button onClick={() => { setPlaying(false); setCursor(total) }} title="Vai alla fine" aria-label="Vai alla fine" className="btn !px-2"><ChevronsRight className="w-3.5 h-3.5" /></button>
           <select value={speed} onChange={(e) => setSpeed(e.target.value)} aria-label="Velocità" className="field !w-auto">{Object.keys(SPEEDS).map((s) => <option key={s}>{s}</option>)}</select>
-          <input type="range" min="0" max={total} value={cursor} onChange={(e) => { setPlaying(false); setCursor(Number(e.target.value)) }} className="flex-1 min-w-[140px] accent-[#deffac]" />
-          <span className="font-mono text-xs text-neutral-400">{cursor}/{total}</span>
+          <input type="range" min="0" max={total} value={cursor} onChange={(e) => { setPlaying(false); setCursor(Number(e.target.value)) }} className="flex-1 min-w-[140px] accent-brand" />
+          <span className="font-mono text-xs text-ink-2">{cursor}/{total}</span>
           <Hint id="lab_player" />
         </div>
-        <p className="text-xs text-neutral-300 min-h-[2.5rem] leading-relaxed">{caption}</p>
+        <p className="text-xs text-ink-2 min-h-[2.5rem] leading-relaxed">{caption}</p>
         <div className="flex flex-wrap gap-4 text-xs font-mono">
-          <span className="text-emerald-300">{counts.PASS || 0} superati</span><span className="text-amber-300">{counts.ADJUSTED || 0} ridotti</span>
-          <span className="text-red-300">{counts.REJECTED || 0} respinti</span><span className="text-sky-300">{counts.SUSPENDED || 0} in attesa di documento</span>
-          <span className="text-neutral-500">{ordered.length} controlli in totale</span>
+          <span className="text-emerald-700">{counts.PASS || 0} superati</span><span className="text-amber-700">{counts.ADJUSTED || 0} ridotti</span>
+          <span className="text-red-700">{counts.REJECTED || 0} respinti</span><span className="text-sky-700">{counts.SUSPENDED || 0} in attesa di documento</span>
+          <span className="text-mute">{ordered.length} controlli in totale</span>
         </div>
       </div>
 
@@ -261,19 +261,19 @@ export default function AlgorithmLab({ validation, title, criteriaTitles = {} })
 
       <div className="card p-4 space-y-3">
         <div className="flex flex-wrap items-center justify-between gap-2"><span className="label inline-flex items-center gap-1.5">2 · Mappa dei 60 controlli (una riga per voce) <Hint id="lab_mappa" /></span>
-          <span className="text-xs text-neutral-500">{items.length} voci · 60 controlli</span></div>
+          <span className="text-xs text-mute">{items.length} voci · 60 controlli</span></div>
         <Heatmap items={items} byKey={byKey} notEval={notEval} budgetChecks={validation.budget_checks || []} cursor={cursor} stepsLen={ordered.length} selected={selected} onSelect={setSelected} titles={titles} />
-        <div className="flex flex-wrap gap-3 text-[11px] text-neutral-400">
+        <div className="flex flex-wrap gap-3 text-[11px] text-ink-2">
           {Object.entries(CELL).map(([k, c]) => <span key={k}><span className="inline-block w-2.5 h-2.5 rounded-sm mr-1" style={{ background: c }} />{OUTCOME_LABEL[k]}</span>)}
-          <span><span className="inline-block w-2.5 h-2.5 rounded-sm mr-1 border border-dashed border-neutral-500" />non valutato</span>
-          <span><span className="inline-block w-2.5 h-2.5 rounded-sm mr-1 bg-[#0b0b0b] border border-neutral-800" />non pertinente</span>
+          <span><span className="inline-block w-2.5 h-2.5 rounded-sm mr-1 border border-dashed border-line-strong" />non valutato</span>
+          <span><span className="inline-block w-2.5 h-2.5 rounded-sm mr-1 bg-tint-2 border border-line" />non pertinente</span>
         </div>
       </div>
 
       <div className="grid lg:grid-cols-2 gap-6">
         <div className="card p-4 space-y-3">
           <span className="label inline-flex items-center gap-1.5">3 · Come scende l’importo {selItem ? `— ${selItem.item_id}` : ''} <Hint id="lab_cascata" /></span>
-          {selItem && <p className="text-xs text-neutral-400">{selItem.description}</p>}
+          {selItem && <p className="text-xs text-ink-2">{selItem.description}</p>}
           <Waterfall item={selItem} steps={selSteps} cursorPos={cursor} orderedIndex={(s) => posOf.get(s.seq) ?? 0} />
         </div>
         <div className="card p-4 space-y-3">
@@ -285,8 +285,8 @@ export default function AlgorithmLab({ validation, title, criteriaTitles = {} })
       <div className="card p-4 space-y-3">
         <span className="label inline-flex items-center gap-1.5">5 · L’impronta del budget (Merkle Root) <Hint id="lab_merkle" /></span>
         <MerkleTree merkle={trace.merkle} visible={cursor >= ordered.length + 3} />
-        <p className="font-mono text-xs text-[#deffac] break-all">{validation.merkle_root} · {validation.cep_id}</p>
-        <button type="button" onClick={() => nav.go('guida', 'merkle')} className="text-xs text-[#deffac] hover:underline">Come nasce questa impronta? Guarda la spiegazione passo passo →</button>
+        <p className="font-code text-xs text-brand-ink break-all">{validation.merkle_root} · {validation.cep_id}</p>
+        <button type="button" onClick={() => nav.go('guida', 'merkle')} className="text-xs text-brand-ink hover:underline">Come nasce questa impronta? Guarda la spiegazione passo passo →</button>
       </div>
     </div>
   )

@@ -22,43 +22,43 @@ function useLoad(fn, deps) {
 function ProjectDossier({ id, onReplay, opsById }) {
   const { data, error, busy } = useLoad(() => api.hqProject(id), [id])
   const replay = async (runId) => onReplay((await api.hqRun(runId)).response)
-  if (busy && !data) return <p className="text-xs text-neutral-500 flex gap-2"><Loader2 className="w-3.5 h-3.5 animate-spin" />Caricamento…</p>
-  if (error) return <p className="text-xs text-red-300">{error}</p>
+  if (busy && !data) return <p className="text-xs text-mute flex gap-2"><Loader2 className="w-3.5 h-3.5 animate-spin" />Caricamento…</p>
+  if (error) return <p className="text-xs text-red-700">{error}</p>
   if (!data) return null
   return (
     <div className="space-y-4">
       <div className="card p-4 space-y-2">
         <h4 className="font-bold text-sm font-mono">{data.project_id}</h4>
         {data.registration ? (
-          <p className="text-xs text-emerald-300 flex items-center gap-1.5 flex-wrap"><ShieldCheck className="w-3.5 h-3.5" />Registrato il {fmtTs(data.registration.registered_at)} (voce n. {data.registration.seq}) · <span className="font-mono text-[11px] text-neutral-400">{data.registration.merkle_root.slice(0, 22)}…</span></p>
-        ) : <p className="text-xs text-neutral-500">Non ancora registrato nel registro delle certificazioni.</p>}
+          <p className="text-xs text-emerald-700 flex items-center gap-1.5 flex-wrap"><ShieldCheck className="w-3.5 h-3.5" />Registrato il {fmtTs(data.registration.registered_at)} (voce n. {data.registration.seq}) · <span className="font-mono text-[11px] text-ink-2">{data.registration.merkle_root.slice(0, 22)}…</span></p>
+        ) : <p className="text-xs text-mute">Non ancora registrato nel registro delle certificazioni.</p>}
       </div>
 
       <div className="card p-4 space-y-2">
         <span className="label">Controlli salvati ({data.runs.length})</span>
         {data.runs.map((r) => (
-          <div key={r.id} className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs border-b border-neutral-900 py-1.5 last:border-0">
-            <span className="font-mono text-[11px] text-neutral-500">{fmtTs(r.ts)}</span>
-            <span className="font-mono">{r.items} voci</span><span className="text-emerald-300 font-mono">{fmtEur(r.total_approved_eur)}</span>
-            <span className="text-neutral-400">punteggio {r.conformity_score}/100</span><span className="text-neutral-500 text-[11px]">{r.bando_id}</span>
-            <button onClick={() => replay(r.id)} className="ml-auto text-[#deffac] hover:underline flex items-center gap-1"><Play className="w-3 h-3" />rivedi nell’algoritmo</button>
+          <div key={r.id} className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs border-b border-line py-1.5 last:border-0">
+            <span className="font-mono text-[11px] text-mute">{fmtTs(r.ts)}</span>
+            <span className="font-mono">{r.items} voci</span><span className="text-emerald-700 font-mono">{fmtEur(r.total_approved_eur)}</span>
+            <span className="text-ink-2">punteggio {r.conformity_score}/100</span><span className="text-mute text-[11px]">{r.bando_id}</span>
+            <button onClick={() => replay(r.id)} className="ml-auto text-brand-ink hover:underline flex items-center gap-1"><Play className="w-3 h-3" />rivedi nell’algoritmo</button>
           </div>
         ))}
-        {data.runs.length === 0 && <p className="text-xs text-neutral-500">Nessun controllo ancora.</p>}
+        {data.runs.length === 0 && <p className="text-xs text-mute">Nessun controllo ancora.</p>}
       </div>
 
       <div className="card p-4 space-y-2">
         <span className="label">Documenti ({data.documents.length})</span>
-        {data.documents.map((d) => <p key={d.id} className="text-xs font-mono text-neutral-300">{fmtTs(d.ts)} · {KIND_LABEL[d.kind] || d.kind} · {d.name} · {fmtBytes(d.size_bytes)} · {d.sha256.slice(0, 12)}…</p>)}
-        {data.documents.length === 0 && <p className="text-xs text-neutral-500 italic">Nessun documento.</p>}
+        {data.documents.map((d) => <p key={d.id} className="text-xs font-mono text-ink-2">{fmtTs(d.ts)} · {KIND_LABEL[d.kind] || d.kind} · {d.name} · {fmtBytes(d.size_bytes)} · {d.sha256.slice(0, 12)}…</p>)}
+        {data.documents.length === 0 && <p className="text-xs text-mute italic">Nessun documento.</p>}
       </div>
 
       <div className="card p-4 space-y-2">
         <span className="label">Timeline del progetto</span>
         <div className="space-y-1.5">
           {data.timeline.map((e) => (
-            <div key={e.id} className="flex gap-3 text-xs"><span className="font-mono text-[11px] text-neutral-500 w-32 shrink-0">{fmtTs(e.ts)}</span>
-              <span className="text-[#deffac] shrink-0 w-44 truncate">{opsById[e.op]?.title || e.op}</span><span className="text-neutral-400">{e.summary}</span></div>
+            <div key={e.id} className="flex gap-3 text-xs"><span className="font-mono text-[11px] text-mute w-32 shrink-0">{fmtTs(e.ts)}</span>
+              <span className="text-brand-ink shrink-0 w-44 truncate">{opsById[e.op]?.title || e.op}</span><span className="text-ink-2">{e.summary}</span></div>
           ))}
         </div>
       </div>
@@ -68,8 +68,8 @@ function ProjectDossier({ id, onReplay, opsById }) {
 
 function BandoDossier({ id }) {
   const { data, error, busy } = useLoad(() => api.hqBando(id), [id])
-  if (busy && !data) return <p className="text-xs text-neutral-500 flex gap-2"><Loader2 className="w-3.5 h-3.5 animate-spin" />Caricamento…</p>
-  if (error) return <p className="text-xs text-red-300">{error}</p>
+  if (busy && !data) return <p className="text-xs text-mute flex gap-2"><Loader2 className="w-3.5 h-3.5 animate-spin" />Caricamento…</p>
+  if (error) return <p className="text-xs text-red-700">{error}</p>
   if (!data) return null
   const bySource = data.rules.reduce((a, r) => ({ ...a, [r.origin]: (a[r.origin] || 0) + 1 }), {})
   return (
@@ -77,24 +77,24 @@ function BandoDossier({ id }) {
       <div className="card p-4 space-y-2">
         <h4 className="font-bold text-sm">{data.name}</h4>
         <span className={`inline-block px-2 py-0.5 text-[11px] font-bold rounded border ${BANDO_STATUS_STYLE(data.status || '')}`}>{data.status || data.extraction_status}</span>
-        <p className="text-xs text-neutral-400">{data.rules.length} regole ({Object.entries(bySource).map(([k, v]) => `${v} ${k.toLowerCase().replace('_', ' ')}`).join(', ')}) · {data.requirements.length} requisiti · {data.coverage_summary.REGOLA_DEL_BANDO}/60 controlli attivati · {data.not_specified.length} lacune dichiarate</p>
-        {data.grant_rules && <p className="text-[11px] font-mono text-neutral-500">versione delle regole: {data.grant_rules.rule_version_hash}</p>}
+        <p className="text-xs text-ink-2">{data.rules.length} regole ({Object.entries(bySource).map(([k, v]) => `${v} ${k.toLowerCase().replace('_', ' ')}`).join(', ')}) · {data.requirements.length} requisiti · {data.coverage_summary.REGOLA_DEL_BANDO}/60 controlli attivati · {data.not_specified.length} lacune dichiarate</p>
+        {data.grant_rules && <p className="text-[11px] font-mono text-mute">versione delle regole: {data.grant_rules.rule_version_hash}</p>}
       </div>
       <div className="card p-4 space-y-2">
         <span className="label">Progetti che hanno usato il bando ({data.projects.length})</span>
-        {data.projects.map((p) => <p key={p.project_id} className="text-xs font-mono text-neutral-300">{p.project_id} · {p.n} controlli · ultimo {fmtTs(p.last_ts)}</p>)}
-        {data.projects.length === 0 && <p className="text-xs text-neutral-500 italic">Nessun controllo fatto con questo bando.</p>}
+        {data.projects.map((p) => <p key={p.project_id} className="text-xs font-mono text-ink-2">{p.project_id} · {p.n} controlli · ultimo {fmtTs(p.last_ts)}</p>)}
+        {data.projects.length === 0 && <p className="text-xs text-mute italic">Nessun controllo fatto con questo bando.</p>}
       </div>
       <div className="card p-4 space-y-2">
         <span className="label">Fonti</span>
-        {data.sources.map((s) => <p key={s.url} className="text-xs text-neutral-300">{s.confidence} · {s.title}</p>)}
-        {data.usage.uploaded_sources.map((s) => <p key={s.sha256} className="text-xs font-mono text-neutral-300">testo caricato: {s.name} · {s.chars.toLocaleString('it-IT')} car. · {s.sha256.slice(0, 12)}…</p>)}
-        {data.sources.length === 0 && data.usage.uploaded_sources.length === 0 && <p className="text-xs text-neutral-500 italic">Nessuna fonte registrata.</p>}
+        {data.sources.map((s) => <p key={s.url} className="text-xs text-ink-2">{s.confidence} · {s.title}</p>)}
+        {data.usage.uploaded_sources.map((s) => <p key={s.sha256} className="text-xs font-mono text-ink-2">testo caricato: {s.name} · {s.chars.toLocaleString('it-IT')} car. · {s.sha256.slice(0, 12)}…</p>)}
+        {data.sources.length === 0 && data.usage.uploaded_sources.length === 0 && <p className="text-xs text-mute italic">Nessuna fonte registrata.</p>}
       </div>
       <div className="card p-4 space-y-2">
         <span className="label">Timeline del bando</span>
-        {data.timeline.map((e) => <div key={e.id} className="flex gap-3 text-xs"><span className="font-mono text-[11px] text-neutral-500 w-32 shrink-0">{fmtTs(e.ts)}</span><span className="text-neutral-400">{e.summary}</span></div>)}
-        {data.timeline.length === 0 && <p className="text-xs text-neutral-500 italic">Nessun evento.</p>}
+        {data.timeline.map((e) => <div key={e.id} className="flex gap-3 text-xs"><span className="font-mono text-[11px] text-mute w-32 shrink-0">{fmtTs(e.ts)}</span><span className="text-ink-2">{e.summary}</span></div>)}
+        {data.timeline.length === 0 && <p className="text-xs text-mute italic">Nessun evento.</p>}
       </div>
     </div>
   )
@@ -109,18 +109,18 @@ export function Dossiers({ bandi, onReplay, opsById }) {
   return (
     <div className="grid lg:grid-cols-3 gap-6 items-start">
       <div className="space-y-3">
-        <div className="flex gap-5 border-b border-neutral-800 w-fit">
-          {[['projects', 'Progetti'], ['bandi', 'Bandi']].map(([id, l]) => <button key={id} onClick={() => { setMode(id); setSelected(null) }} className={`pb-2 text-xs -mb-px border-b-2 ${mode === id ? 'border-[#deffac] text-white font-medium' : 'border-transparent text-neutral-400'}`}>{l}</button>)}
+        <div className="flex gap-5 border-b border-line w-fit">
+          {[['projects', 'Progetti'], ['bandi', 'Bandi']].map(([id, l]) => <button key={id} onClick={() => { setMode(id); setSelected(null) }} className={`pb-2 text-xs -mb-px border-b-2 ${mode === id ? 'border-brand text-ink font-medium' : 'border-transparent text-ink-2'}`}>{l}</button>)}
         </div>
         {list.map((it) => (
-          <button key={it.id} onClick={() => setSelected(it.id)} className={`w-full text-left card p-3 hover:border-neutral-600 ${selected === it.id ? '!border-[#deffac]' : ''}`}>
-            <p className="text-xs font-bold truncate flex items-center gap-1.5"><FolderOpen className="w-3.5 h-3.5 text-neutral-500 shrink-0" />{it.title}</p><p className="text-[11px] text-neutral-500 mt-0.5">{it.sub}</p>
+          <button key={it.id} onClick={() => setSelected(it.id)} className={`w-full text-left card p-3 hover:border-line-strong ${selected === it.id ? '!border-brand' : ''}`}>
+            <p className="text-xs font-bold truncate flex items-center gap-1.5"><FolderOpen className="w-3.5 h-3.5 text-mute shrink-0" />{it.title}</p><p className="text-[11px] text-mute mt-0.5">{it.sub}</p>
           </button>
         ))}
-        {list.length === 0 && <p className="text-xs text-neutral-500 italic">Ancora niente da mostrare.</p>}
+        {list.length === 0 && <p className="text-xs text-mute italic">Ancora niente da mostrare.</p>}
       </div>
       <div className="lg:col-span-2">
-        {!selected ? <div className="card p-10 text-center text-sm text-neutral-500">Scegli un {mode === 'projects' ? 'progetto' : 'bando'} per aprirne il fascicolo.</div>
+        {!selected ? <div className="card p-10 text-center text-sm text-mute">Scegli un {mode === 'projects' ? 'progetto' : 'bando'} per aprirne il fascicolo.</div>
           : mode === 'projects' ? <ProjectDossier id={selected} onReplay={onReplay} opsById={opsById} /> : <BandoDossier id={selected} />}
       </div>
     </div>
@@ -133,26 +133,26 @@ export function Documents() {
   return (
     <div className="space-y-4">
       <div className="flex items-center gap-3">
-        <select value={kind} onChange={(e) => setKind(e.target.value)} className="bg-neutral-950 border border-neutral-800 rounded-lg px-2 py-1.5 text-xs">
+        <select value={kind} onChange={(e) => setKind(e.target.value)} className="bg-field border border-line rounded-lg px-2 py-1.5 text-xs">
           <option value="">Tutti i documenti</option>{Object.entries(KIND_LABEL).map(([k, l]) => <option key={k} value={k}>{l}</option>)}
         </select>
-        {busy && <Loader2 className="w-3.5 h-3.5 animate-spin text-neutral-500" />}
-        <span className="text-xs text-neutral-500">Nome, impronta (SHA-256) e dimensione. Il testo intero si conserva solo per i bandi caricati.</span>
+        {busy && <Loader2 className="w-3.5 h-3.5 animate-spin text-mute" />}
+        <span className="text-xs text-mute">Nome, impronta (SHA-256) e dimensione. Il testo intero si conserva solo per i bandi caricati.</span>
       </div>
-      {error && <p className="text-xs text-red-300">{error}</p>}
+      {error && <p className="text-xs text-red-700">{error}</p>}
       <div className="card overflow-x-auto">
         <table className="w-full text-xs">
-          <thead><tr className="text-left text-[11px] text-neutral-500 border-b border-neutral-800">{['Quando', 'Tipo', 'Nome', 'Progetto', 'Bando', 'Dim.', 'Impronta'].map((h) => <th key={h} className="p-2.5 font-semibold">{h}</th>)}</tr></thead>
+          <thead><tr className="text-left text-[11px] text-mute border-b border-line">{['Quando', 'Tipo', 'Nome', 'Progetto', 'Bando', 'Dim.', 'Impronta'].map((h) => <th key={h} className="p-2.5 font-semibold">{h}</th>)}</tr></thead>
           <tbody>
             {(data || []).map((d) => (
-              <tr key={d.id} className="border-b border-neutral-900 last:border-0">
-                <td className="p-2.5 font-mono text-[11px] text-neutral-400 whitespace-nowrap">{fmtTs(d.ts)}</td>
-                <td className="p-2.5"><span className="inline-flex items-center gap-1"><FileText className="w-3 h-3 text-neutral-500" />{KIND_LABEL[d.kind] || d.kind}</span></td>
-                <td className="p-2.5 font-mono">{d.name}</td><td className="p-2.5 font-mono text-neutral-400">{d.project_id || '—'}</td><td className="p-2.5 font-mono text-neutral-400">{d.bando_id || '—'}</td>
-                <td className="p-2.5 font-mono text-neutral-400">{fmtBytes(d.size_bytes)}</td><td className="p-2.5 font-mono text-[11px] text-neutral-500" title={d.sha256}>{d.sha256.slice(0, 16)}…</td>
+              <tr key={d.id} className="border-b border-line last:border-0">
+                <td className="p-2.5 font-mono text-[11px] text-ink-2 whitespace-nowrap">{fmtTs(d.ts)}</td>
+                <td className="p-2.5"><span className="inline-flex items-center gap-1"><FileText className="w-3 h-3 text-mute" />{KIND_LABEL[d.kind] || d.kind}</span></td>
+                <td className="p-2.5 font-mono">{d.name}</td><td className="p-2.5 font-mono text-ink-2">{d.project_id || '—'}</td><td className="p-2.5 font-mono text-ink-2">{d.bando_id || '—'}</td>
+                <td className="p-2.5 font-mono text-ink-2">{fmtBytes(d.size_bytes)}</td><td className="p-2.5 font-mono text-[11px] text-mute" title={d.sha256}>{d.sha256.slice(0, 16)}…</td>
               </tr>
             ))}
-            {data && data.length === 0 && <tr><td colSpan={7} className="p-6 text-center text-neutral-500 italic">Nessun documento ancora.</td></tr>}
+            {data && data.length === 0 && <tr><td colSpan={7} className="p-6 text-center text-mute italic">Nessun documento ancora.</td></tr>}
           </tbody>
         </table>
       </div>
@@ -176,36 +176,36 @@ export function DbExplorer() {
   return (
     <div className="grid lg:grid-cols-4 gap-6 items-start">
       <div className="space-y-2">
-        <p className="text-xs text-neutral-400 leading-relaxed">Puoi leggere, esportare ed eliminare i dati. Il registro delle certificazioni (<span className="font-mono">anchors</span>) è protetto: è una catena firmata, cancellarne una riga la romperebbe.</p>
+        <p className="text-xs text-ink-2 leading-relaxed">Puoi leggere, esportare ed eliminare i dati. Il registro delle certificazioni (<span className="font-mono">anchors</span>) è protetto: è una catena firmata, cancellarne una riga la romperebbe.</p>
         {(tables.data || []).map((t) => (
-          <button key={t.name} onClick={() => { setTable(t.name); setOffset(0); setMsg(null) }} className={`w-full text-left card p-2.5 flex items-center justify-between hover:border-neutral-600 ${table === t.name ? '!border-[#deffac]' : ''}`}>
-            <span className="font-mono text-xs">{t.name}</span><span className="font-mono text-[11px] text-[#deffac]">{t.rows}</span>
+          <button key={t.name} onClick={() => { setTable(t.name); setOffset(0); setMsg(null) }} className={`w-full text-left card p-2.5 flex items-center justify-between hover:border-line-strong ${table === t.name ? '!border-brand' : ''}`}>
+            <span className="font-mono text-xs">{t.name}</span><span className="font-mono text-[11px] text-brand-ink">{t.rows}</span>
           </button>
         ))}
       </div>
       <div className="lg:col-span-3 space-y-3 min-w-0">
         <div className="flex flex-wrap items-center gap-3">
           <span className="font-mono text-sm font-bold">{table}</span>
-          <span className="text-xs text-neutral-500">{rows.data ? `${rows.data.total} righe · ${offset + 1}–${Math.min(offset + PAGE, rows.data.total)}` : ''}</span>
+          <span className="text-xs text-mute">{rows.data ? `${rows.data.total} righe · ${offset + 1}–${Math.min(offset + PAGE, rows.data.total)}` : ''}</span>
           <div className="ml-auto flex flex-wrap gap-1.5">
             <button onClick={exportCsv} className="btn !py-1"><Download className="w-3 h-3" />CSV</button>
-            <button onClick={clear} disabled={protectedTable || !rows.data?.total} className="btn !py-1 !text-red-300 !border-red-500/30 disabled:!opacity-30"><Trash2 className="w-3 h-3" />Svuota</button>
-            <button disabled={offset === 0} onClick={() => setOffset(Math.max(0, offset - PAGE))} aria-label="Pagina precedente" className="p-1.5 rounded-lg border border-neutral-700 disabled:opacity-30"><ChevronLeft className="w-3.5 h-3.5" /></button>
-            <button disabled={!rows.data || offset + PAGE >= rows.data.total} onClick={() => setOffset(offset + PAGE)} aria-label="Pagina successiva" className="p-1.5 rounded-lg border border-neutral-700 disabled:opacity-30"><ChevronRight className="w-3.5 h-3.5" /></button>
+            <button onClick={clear} disabled={protectedTable || !rows.data?.total} className="btn !py-1 !text-red-700 !border-red-500/30 disabled:!opacity-30"><Trash2 className="w-3 h-3" />Svuota</button>
+            <button disabled={offset === 0} onClick={() => setOffset(Math.max(0, offset - PAGE))} aria-label="Pagina precedente" className="p-1.5 rounded-lg border border-line-strong disabled:opacity-30"><ChevronLeft className="w-3.5 h-3.5" /></button>
+            <button disabled={!rows.data || offset + PAGE >= rows.data.total} onClick={() => setOffset(offset + PAGE)} aria-label="Pagina successiva" className="p-1.5 rounded-lg border border-line-strong disabled:opacity-30"><ChevronRight className="w-3.5 h-3.5" /></button>
           </div>
         </div>
-        {(rows.error || msg) && <p className="text-xs text-red-300">{rows.error || msg}</p>}
+        {(rows.error || msg) && <p className="text-xs text-red-700">{rows.error || msg}</p>}
         <div className="card overflow-x-auto">
           <table className="w-full text-[11px]">
-            <thead><tr className="text-left text-[11px] text-neutral-500 border-b border-neutral-800">{cols.map((c) => <th key={c} className="p-2 font-medium whitespace-nowrap">{c}</th>)}<th className="p-2" /></tr></thead>
+            <thead><tr className="text-left text-[11px] text-mute border-b border-line">{cols.map((c) => <th key={c} className="p-2 font-medium whitespace-nowrap">{c}</th>)}<th className="p-2" /></tr></thead>
             <tbody>
               {(rows.data?.rows || []).map((r, i) => (
-                <tr key={i} className="border-b border-neutral-900 last:border-0 align-top">
-                  {cols.map((c) => <td key={c} className="p-2 font-mono text-neutral-300 max-w-[260px] truncate" title={r[c] == null ? '' : String(r[c])}>{r[c] == null ? <span className="text-neutral-600">null</span> : String(r[c])}</td>)}
-                  <td className="p-2 text-right">{!protectedTable && <button onClick={() => delRow(r)} aria-label="Elimina riga" className="text-neutral-500 hover:text-red-300"><Trash2 className="w-3.5 h-3.5" /></button>}</td>
+                <tr key={i} className="border-b border-line last:border-0 align-top">
+                  {cols.map((c) => <td key={c} className="p-2 font-mono text-ink-2 max-w-[260px] truncate" title={r[c] == null ? '' : String(r[c])}>{r[c] == null ? <span className="text-mute">null</span> : String(r[c])}</td>)}
+                  <td className="p-2 text-right">{!protectedTable && <button onClick={() => delRow(r)} aria-label="Elimina riga" className="text-mute hover:text-red-700"><Trash2 className="w-3.5 h-3.5" /></button>}</td>
                 </tr>
               ))}
-              {rows.data && rows.data.rows.length === 0 && <tr><td colSpan={Math.max(cols.length + 1, 1)} className="p-6 text-center text-neutral-500">Tabella vuota.</td></tr>}
+              {rows.data && rows.data.rows.length === 0 && <tr><td colSpan={Math.max(cols.length + 1, 1)} className="p-6 text-center text-mute">Tabella vuota.</td></tr>}
             </tbody>
           </table>
         </div>

@@ -16,32 +16,32 @@ export default function Guide({ page, extra }) {
   if (!g) return null
   const toggle = () => { write(page, !open); setOpen(!open) }
   return (
-    <section className="border-l-2 border-[#deffac]/40 pl-4 space-y-2">
-      <p className="text-sm text-neutral-200 leading-relaxed">{g.what}</p>
-      <button type="button" onClick={toggle} className="text-xs text-[#deffac] hover:underline inline-flex items-center gap-1">
+    <section className="border-l-2 border-brand/40 pl-4 space-y-2">
+      <p className="text-sm text-ink leading-relaxed">{g.what}</p>
+      <button type="button" onClick={toggle} className="text-xs text-brand-ink hover:underline inline-flex items-center gap-1">
         {open ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}{open ? 'Nascondi la spiegazione' : 'Come si usa, un esempio e le parole difficili'}
       </button>
       {open && (
         <div className="grid md:grid-cols-2 gap-x-8 gap-y-4 pt-1">
           <div className="space-y-2">
-            <p className="text-xs font-semibold text-neutral-400">Come si usa</p>
-            <ol className="space-y-1.5 text-xs text-neutral-300">
+            <p className="text-xs font-semibold text-ink-2">Come si usa</p>
+            <ol className="space-y-1.5 text-xs text-ink-2">
               {g.steps.map((s, i) => (
-                <li key={s} className="flex gap-2"><span className="w-4 h-4 rounded-full bg-neutral-800 text-[10px] font-semibold flex items-center justify-center text-neutral-300 shrink-0 mt-0.5">{i + 1}</span><span className="leading-relaxed">{s}</span></li>
+                <li key={s} className="flex gap-2"><span className="w-4 h-4 rounded-full bg-tint-2 text-[10px] font-semibold flex items-center justify-center text-ink-2 shrink-0 mt-0.5">{i + 1}</span><span className="leading-relaxed">{s}</span></li>
               ))}
             </ol>
           </div>
           <div className="space-y-3">
             <div className="space-y-1">
-              <p className="text-xs font-semibold text-neutral-400">Un esempio</p>
-              <p className="text-xs text-neutral-300 leading-relaxed">{g.example}</p>
+              <p className="text-xs font-semibold text-ink-2">Un esempio</p>
+              <p className="text-xs text-ink-2 leading-relaxed">{g.example}</p>
             </div>
             <div className="space-y-1">
-              <p className="text-xs font-semibold text-neutral-400">Parole difficili <span className="font-normal text-neutral-500">(clicca)</span></p>
-              <p className="text-xs text-neutral-300 flex flex-wrap gap-x-4 gap-y-1">{g.terms.map((t) => <Term key={t} id={t} />)}</p>
+              <p className="text-xs font-semibold text-ink-2">Parole difficili <span className="font-normal text-mute">(clicca)</span></p>
+              <p className="text-xs text-ink-2 flex flex-wrap gap-x-4 gap-y-1">{g.terms.map((t) => <Term key={t} id={t} />)}</p>
             </div>
             {extra}
-            <button type="button" onClick={() => nav.go('guida')} className="text-xs text-neutral-400 hover:text-white inline-flex items-center gap-1.5"><BookOpen className="w-3.5 h-3.5" />Apri la Guida completa</button>
+            <button type="button" onClick={() => nav.go('guida')} className="text-xs text-ink-2 hover:text-ink inline-flex items-center gap-1.5"><BookOpen className="w-3.5 h-3.5" />Apri la Guida completa</button>
           </div>
         </div>
       )}

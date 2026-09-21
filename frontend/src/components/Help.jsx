@@ -9,13 +9,13 @@ function Popover({ id, pos, onClose }) {
   // solo <span>: il riquadro può stare dentro un <p> (parole cliccabili nei testi) senza HTML non valido
   return (
     <span role="dialog" aria-label={h.title} style={pos}
-      className="fixed z-50 block card !bg-neutral-900 p-4 shadow-2xl space-y-2 text-left font-sans font-normal normal-case max-h-[70vh] overflow-y-auto">
+      className="fixed z-50 block card !bg-tint p-4 shadow-2xl space-y-2 text-left font-sans font-normal normal-case max-h-[70vh] overflow-y-auto">
       <span className="flex items-start justify-between gap-3">
-        <span className="block text-sm font-semibold text-neutral-100">{h.title}</span>
-        <button type="button" onClick={onClose} aria-label="Chiudi" className="text-neutral-500 hover:text-white shrink-0"><X className="w-4 h-4" /></button>
+        <span className="block text-sm font-semibold text-ink">{h.title}</span>
+        <button type="button" onClick={onClose} aria-label="Chiudi" className="text-mute hover:text-ink shrink-0"><X className="w-4 h-4" /></button>
       </span>
-      <span className="block text-xs text-neutral-300 leading-relaxed">{h.text}</span>
-      {h.example && <span className="block text-xs text-neutral-400 leading-relaxed border-l-2 border-[#deffac]/40 pl-3"><span className="text-neutral-500">Esempio · </span>{h.example}</span>}
+      <span className="block text-xs text-ink-2 leading-relaxed">{h.text}</span>
+      {h.example && <span className="block text-xs text-ink-2 leading-relaxed border-l-2 border-brand/40 pl-3"><span className="text-mute">Esempio · </span>{h.example}</span>}
     </span>
   )
 }
@@ -56,7 +56,7 @@ export function Hint({ id, className = '' }) {
   return (
     <span ref={ref} className={`inline-flex align-middle ${className}`}>
       <button type="button" onClick={toggle} aria-expanded={Boolean(pos)} aria-label={`Spiegazione: ${h.title}`}
-        className="w-4 h-4 rounded-full border border-neutral-600 text-[10px] leading-none text-neutral-400 hover:text-white hover:border-neutral-400 inline-flex items-center justify-center transition">?</button>
+        className="w-4 h-4 rounded-full border border-line-strong text-[10px] leading-none text-ink-2 hover:text-ink hover:border-line-strong inline-flex items-center justify-center transition">?</button>
       {pos && <Popover id={id} pos={pos} onClose={close} />}
     </span>
   )
@@ -69,7 +69,7 @@ export function Term({ id, children }) {
   return (
     <span ref={ref} className="inline">
       <button type="button" onClick={toggle} aria-expanded={Boolean(pos)}
-        className="underline decoration-dotted decoration-neutral-500 underline-offset-4 hover:text-white hover:decoration-neutral-300 cursor-help">{children ?? h?.title}</button>
+        className="underline decoration-dotted decoration-mute underline-offset-4 hover:text-ink hover:decoration-ink-2 cursor-help">{children ?? h?.title}</button>
       {pos && <Popover id={id} pos={pos} onClose={close} />}
     </span>
   )

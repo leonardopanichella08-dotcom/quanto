@@ -2,6 +2,8 @@ import React, { useEffect, useState } from 'react'
 import { AlertOctagon, CheckCircle2, HelpCircle } from 'lucide-react'
 import { api } from '../lib/api'
 import { useNav } from '../lib/nav'
+import { SectionTitle } from './ui'
+import { ShieldCheck } from 'lucide-react'
 import Guide from './Guide'
 import { Hint } from './Help'
 
@@ -9,10 +11,10 @@ function Verdict({ r }) {
   if (!r.registration_found) {
     return (
       <div className="p-4 border border-amber-500/30 rounded-xl flex items-center gap-3">
-        <HelpCircle className="w-7 h-7 text-amber-400 shrink-0" />
+        <HelpCircle className="w-7 h-7 text-amber-700 shrink-0" />
         <div>
-          <h4 className="font-semibold text-amber-300 text-sm">Nessuna registrazione trovata per questo progetto</h4>
-          <p className="text-xs text-amber-200/80">Nel registro non c’è nessuna impronta per questo progetto: non posso confermare che il budget sia integro.</p>
+          <h4 className="font-semibold text-amber-700 text-sm">Nessuna registrazione trovata per questo progetto</h4>
+          <p className="text-xs text-amber-800">Nel registro non c’è nessuna impronta per questo progetto: non posso confermare che il budget sia integro.</p>
         </div>
       </div>
     )
@@ -20,8 +22,8 @@ function Verdict({ r }) {
   const ok = r.is_valid_and_unaltered
   const Icon = ok ? CheckCircle2 : AlertOctagon
   const t = ok
-    ? { box: 'border-emerald-500/30', icon: 'text-emerald-400', title: 'text-emerald-300', text: 'text-emerald-200/80', pill: 'text-emerald-300 border-emerald-500/30' }
-    : { box: 'border-red-500/30', icon: 'text-red-400', title: 'text-red-300', text: 'text-red-200/80', pill: 'text-red-300 border-red-500/30' }
+    ? { box: 'border-emerald-500/30', icon: 'text-emerald-700', title: 'text-emerald-700', text: 'text-emerald-800', pill: 'text-emerald-700 border-emerald-500/30' }
+    : { box: 'border-red-500/30', icon: 'text-red-700', title: 'text-red-700', text: 'text-red-800', pill: 'text-red-700 border-red-500/30' }
   let why = 'L’impronta ricalcolata coincide con quella registrata; la firma e la catena del registro sono integre.'
   if (!ok) {
     if (!r.chain_intact) why = 'Il registro è stato alterato dopo la registrazione.'
@@ -44,7 +46,7 @@ function Verdict({ r }) {
 
 function Chip({ ok, label }) {
   return (
-    <span className={`px-2 py-1 rounded-lg text-xs font-medium border ${ok ? 'border-emerald-500/30 text-emerald-300' : 'border-red-500/30 text-red-300'}`}>
+    <span className={`px-2 py-1 rounded-lg text-xs font-medium border ${ok ? 'border-emerald-500/30 text-emerald-700' : 'border-red-500/30 text-red-700'}`}>
       {ok ? '✓' : '✗'} {label}
     </span>
   )
@@ -82,9 +84,9 @@ export default function AuditorPortal({ request, defaultProject, defaultRoot }) 
     <div className="space-y-6">
       <Guide page="auditor" />
       <div className="card p-6 space-y-5">
-        <div className="pb-3 border-b border-neutral-800">
-          <h3 className="font-semibold text-lg">Il budget è stato cambiato dopo la certificazione?</h3>
-          <p className="text-xs text-neutral-400 mt-0.5 leading-relaxed">Confronta l’impronta che hai in mano (o quella ricalcolata dai dati originali) con quella scritta nel registro, e controlla la firma e l’integrità del registro.</p>
+        <div className="pb-3 border-b border-line">
+          <SectionTitle icon={ShieldCheck} className="!text-lg">Il budget è stato cambiato dopo la certificazione?</SectionTitle>
+          <p className="text-xs text-ink-2 mt-0.5 leading-relaxed">Confronta l’impronta che hai in mano (o quella ricalcolata dai dati originali) con quella scritta nel registro, e controlla la firma e l’integrità del registro.</p>
         </div>
 
         <div className="grid md:grid-cols-2 gap-4">
@@ -97,16 +99,16 @@ export default function AuditorPortal({ request, defaultProject, defaultRoot }) 
         <div className="flex flex-wrap items-center gap-3">
           <button onClick={verifyRoot} disabled={loading || !projectId || !root} className="btn-primary">Verifica impronta</button>
           <Hint id="auditor_verifica" />
-          <button onClick={recompute} disabled={loading || !projectId || !request.grant_rules || !request.cost_items.length} className="btn !border-[#deffac]/40 !text-[#deffac]">Ricalcola dai dati originali</button>
+          <button onClick={recompute} disabled={loading || !projectId || !request.grant_rules || !request.cost_items.length} className="btn !border-brand/40 !text-brand-ink">Ricalcola dai dati originali</button>
           <Hint id="auditor_ricalcola" />
-          <label className="text-xs text-neutral-400 flex items-center gap-2 cursor-pointer">
+          <label className="text-xs text-ink-2 flex items-center gap-2 cursor-pointer">
             <input type="checkbox" checked={tamper} onChange={(e) => setTamper(e.target.checked)} />
             Simula una manomissione (+1 € sulla prima riga)
             <Hint id="auditor_manomissione" />
           </label>
         </div>
 
-        {error && <div className="p-3 rounded-xl border border-red-500/30 text-red-300 text-xs">{error}</div>}
+        {error && <div className="p-3 rounded-xl border border-red-500/30 text-red-700 text-xs">{error}</div>}
 
         {result ? (
           <div className="space-y-4">
@@ -119,26 +121,26 @@ export default function AuditorPortal({ request, defaultProject, defaultRoot }) 
               </div>
             )}
             <div className="grid md:grid-cols-2 gap-4 text-xs font-mono">
-              <div className="p-4 bg-neutral-950 border border-neutral-800 rounded-xl space-y-1 min-w-0">
-                <span className="text-neutral-500 font-sans">{result.recomputed_from_data ? 'Impronta ricalcolata dai dati' : 'Impronta presentata'}</span>
-                <p className="text-[#deffac] break-all p-2 bg-neutral-900 rounded">{result.provided_merkle_root}</p>
+              <div className="p-4 bg-field border border-line rounded-xl space-y-1 min-w-0">
+                <span className="text-mute font-sans">{result.recomputed_from_data ? 'Impronta ricalcolata dai dati' : 'Impronta presentata'}</span>
+                <p className="text-brand-ink break-all p-2 bg-tint rounded">{result.provided_merkle_root}</p>
               </div>
-              <div className="p-4 bg-neutral-950 border border-neutral-800 rounded-xl space-y-1 min-w-0">
-                <span className="text-neutral-500 font-sans">Impronta registrata</span>
-                <p className="text-emerald-400 break-all p-2 bg-neutral-900 rounded">{result.registered_merkle_root || '—'}</p>
+              <div className="p-4 bg-field border border-line rounded-xl space-y-1 min-w-0">
+                <span className="text-mute font-sans">Impronta registrata</span>
+                <p className="text-emerald-700 break-all p-2 bg-tint rounded">{result.registered_merkle_root || '—'}</p>
               </div>
             </div>
             {result.registration_found && (
-              <p className="text-[11px] text-neutral-500 font-mono break-all">Registrazione n. {result.seq} del {result.registered_at} · chiave {result.key_id} · impronta della registrazione {result.entry_hash}</p>
+              <p className="text-[11px] text-mute font-code break-all">Registrazione n. {result.seq} del {result.registered_at} · chiave {result.key_id} · impronta della registrazione {result.entry_hash}</p>
             )}
           </div>
         ) : (
-          <div className="p-10 text-center text-neutral-500 text-sm bg-neutral-950 rounded-xl border border-neutral-800">
+          <div className="p-10 text-center text-mute text-sm bg-field rounded-xl border border-line">
             Registra prima un budget dalla pagina Budget, poi verificalo qui — anche simulando una manomissione.
           </div>
         )}
 
-        <button type="button" onClick={() => nav.go('guida', 'merkle')} className="text-xs text-[#deffac] hover:underline">Come si costruisce l’impronta? Guarda la spiegazione passo passo →</button>
+        <button type="button" onClick={() => nav.go('guida', 'merkle')} className="text-xs text-brand-ink hover:underline">Come si costruisce l’impronta? Guarda la spiegazione passo passo →</button>
       </div>
     </div>
   )

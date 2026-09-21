@@ -2,22 +2,105 @@
 @tailwind components;
 @tailwind utilities;
 
-@layer base {
-  body {
-    @apply bg-[#0c0c0c] text-neutral-100 font-sans antialiased selection:bg-[#deffac] selection:text-black;
-  }
+/* Font del marchio "Now". Non è su Google Fonts: se è installato sul computer si usa quello, altrimenti Outfit (molto simile).
+   Per averlo per tutti: metti Now-Regular/Medium/Bold.woff2 in frontend/public/fonts e aggiungi
+   url('/fonts/Now-Regular.woff2') format('woff2') dopo il local() di ogni riga qui sotto. */
+@font-face { font-family: 'Now'; font-weight: 400; font-display: swap; src: local('Now Regular'), local('Now-Regular'), local('Now'); }
+@font-face { font-family: 'Now'; font-weight: 500; font-display: swap; src: local('Now Medium'), local('Now-Medium'); }
+@font-face { font-family: 'Now'; font-weight: 600 700; font-display: swap; src: local('Now Bold'), local('Now-Bold'); }
+
+:root {
+  --y1: #fffb96;   /* giallo chiaro */
+  --y2: #f1e21b;   /* giallo intenso */
+  --ink: #15150f;
 }
+
+@layer base {
+  html { color-scheme: light; }
+  body { @apply bg-white text-ink font-sans antialiased selection:bg-brand-light selection:text-ink; font-feature-settings: 'tnum' 1; }
+  code, kbd, pre, samp, .font-code { font-family: 'JetBrains Mono', ui-monospace, monospace; }
+  /* Icone: tratto sottile e pulito ovunque */
+  svg.lucide { stroke-width: 1.6; }
+  :focus-visible { outline: 2px solid var(--y2); outline-offset: 2px; border-radius: 0.5rem; }
+}
+
+/* ---------- sfondo liquido: due gialli che si muovono piano dietro al vetro ---------- */
+.liquid-bg { position: fixed; inset: 0; z-index: -1; overflow: hidden; background: linear-gradient(180deg, #ffffff 0%, #fffff6 60%, #fffef0 100%); }
+.liquid-bg span { position: absolute; border-radius: 9999px; filter: blur(70px); will-change: transform; animation: drift 28s ease-in-out infinite alternate; }
+.liquid-bg span:nth-child(1) { width: 46vw; height: 46vw; left: -12vw; top: -18vw; background: radial-gradient(circle at 35% 35%, var(--y1), rgba(255, 251, 150, 0) 70%); opacity: 0.95; }
+.liquid-bg span:nth-child(2) { width: 38vw; height: 38vw; right: -10vw; top: 8vh; background: radial-gradient(circle at 40% 40%, rgba(241, 226, 27, 0.55), rgba(241, 226, 27, 0) 70%); animation-duration: 34s; animation-delay: -6s; }
+.liquid-bg span:nth-child(3) { width: 44vw; height: 44vw; left: 22vw; bottom: -26vw; background: radial-gradient(circle at 50% 50%, rgba(255, 251, 150, 0.85), rgba(255, 251, 150, 0) 70%); animation-duration: 40s; animation-delay: -12s; }
+@keyframes drift {
+  0%   { transform: translate3d(0, 0, 0) scale(1); }
+  50%  { transform: translate3d(6vw, 4vh, 0) scale(1.08); }
+  100% { transform: translate3d(-4vw, 8vh, 0) scale(0.96); }
+}
+@media (prefers-reduced-motion: reduce) { .liquid-bg span { animation: none; } }
 
 @layer components {
-  .card { @apply bg-neutral-900 border border-neutral-800 rounded-2xl; }
-  .btn-primary { @apply px-4 py-2 bg-[#deffac] hover:bg-[#c9f58a] text-black font-semibold text-xs rounded-lg transition disabled:opacity-50; }
-  .btn { @apply px-3 py-2 rounded-lg border border-neutral-700 text-neutral-200 hover:border-neutral-500 text-xs font-medium inline-flex items-center gap-1.5 transition disabled:opacity-50; }
-  .label { @apply text-xs font-medium text-neutral-400; }
-  .field { @apply w-full bg-neutral-950 border border-neutral-800 rounded-lg px-3 py-2 text-xs focus:border-neutral-500 outline-none; }
-  .num-btn { @apply font-mono underline decoration-dotted decoration-neutral-600 underline-offset-4 hover:text-[#deffac] hover:decoration-[#deffac] cursor-pointer transition; }
+  /* ---------- vetro liquido: sfocatura + saturazione, bordo chiaro e riflesso in alto ---------- */
+  .glass, .card {
+    background: linear-gradient(140deg, rgba(255, 255, 255, 0.78), rgba(255, 255, 255, 0.46));
+    -webkit-backdrop-filter: blur(24px) saturate(1.8);
+    backdrop-filter: blur(24px) saturate(1.8);
+    border: 1px solid rgba(255, 255, 255, 0.85);
+    box-shadow: 0 0 0 1px rgba(21, 21, 15, 0.055), 0 1px 0 rgba(255, 255, 255, 0.95) inset, 0 14px 34px -16px rgba(110, 100, 0, 0.24), 0 2px 6px rgba(21, 21, 15, 0.035);
+    @apply rounded-2xl;
+  }
+  .glass-strong {
+    background: linear-gradient(140deg, rgba(255, 255, 255, 0.9), rgba(255, 255, 255, 0.62));
+    -webkit-backdrop-filter: blur(32px) saturate(2);
+    backdrop-filter: blur(32px) saturate(2);
+    border: 1px solid rgba(255, 255, 255, 0.9);
+    box-shadow: 0 0 0 1px rgba(21, 21, 15, 0.06), 0 1px 0 #fff inset, 0 24px 60px -20px rgba(110, 100, 0, 0.35);
+  }
+  /* dentro un vetro non si annida altro vetro: si usa una velatura leggera */
+  .card .card, .glass .card, .card .glass { background: rgba(255, 255, 255, 0.55); -webkit-backdrop-filter: none; backdrop-filter: none; box-shadow: 0 0 0 1px rgba(21, 21, 15, 0.06); }
+
+  /* giallo liquido: gradiente dei due colori con riflesso a goccia */
+  .bg-liquid {
+    background: radial-gradient(120% 140% at 15% 0%, rgba(255, 255, 255, 0.55) 0%, rgba(255, 255, 255, 0) 45%), linear-gradient(135deg, var(--y1) 0%, var(--y2) 100%);
+    box-shadow: 0 1px 0 rgba(255, 255, 255, 0.8) inset, 0 -1px 0 rgba(120, 110, 0, 0.12) inset;
+  }
+
+  .btn-primary {
+    @apply bg-liquid text-ink font-semibold text-xs rounded-full px-4 py-2 inline-flex items-center justify-center gap-1.5 transition duration-200 disabled:opacity-50 disabled:pointer-events-none;
+    border: 1px solid rgba(255, 255, 255, 0.7);
+    box-shadow: 0 1px 0 rgba(255, 255, 255, 0.85) inset, 0 8px 18px -8px rgba(226, 210, 0, 0.9), 0 0 0 1px rgba(150, 135, 0, 0.18);
+  }
+  .btn-primary:hover { filter: saturate(1.08) brightness(1.03); transform: translateY(-1px); }
+  .btn-primary:active { transform: translateY(0) scale(0.98); }
+
+  .btn {
+    @apply text-ink-2 hover:text-ink text-xs font-medium rounded-full px-3.5 py-2 inline-flex items-center gap-1.5 transition duration-200 disabled:opacity-50 disabled:pointer-events-none;
+    background: rgba(255, 255, 255, 0.62);
+    border: 1px solid rgba(255, 255, 255, 0.9);
+    box-shadow: 0 0 0 1px rgba(21, 21, 15, 0.09), 0 1px 0 #fff inset, 0 3px 8px -4px rgba(21, 21, 15, 0.12);
+  }
+  .btn:hover { background: #fff; box-shadow: 0 0 0 1px rgba(21, 21, 15, 0.16), 0 1px 0 #fff inset, 0 6px 14px -6px rgba(21, 21, 15, 0.18); }
+  .btn:active { transform: scale(0.98); }
+
+  .label { @apply text-xs font-medium text-ink-2; }
+  .field {
+    @apply w-full rounded-xl px-3 py-2 text-xs text-ink outline-none transition duration-200 placeholder:text-mute;
+    background: rgba(255, 255, 255, 0.72);
+    border: 1px solid rgba(21, 21, 15, 0.13);
+    box-shadow: 0 1px 2px rgba(21, 21, 15, 0.04) inset;
+  }
+  .field:focus { border-color: rgba(200, 185, 0, 0.9); box-shadow: 0 0 0 3px rgba(241, 226, 27, 0.32); background: #fff; }
+  .num-btn { @apply underline decoration-dotted decoration-mute underline-offset-4 hover:text-brand-ink hover:decoration-brand-ink cursor-pointer transition; font-variant-numeric: tabular-nums; }
+
+  /* riquadro con icona: titolo di pagina o di sezione */
+  .icon-tile { @apply inline-flex items-center justify-center shrink-0 text-ink; background: linear-gradient(135deg, rgba(255, 251, 150, 0.95), rgba(241, 226, 27, 0.8)); border: 1px solid rgba(255, 255, 255, 0.85); box-shadow: 0 1px 0 rgba(255, 255, 255, 0.9) inset, 0 6px 14px -8px rgba(200, 185, 0, 0.9); }
+  .chip { @apply inline-flex items-center gap-1 rounded-full text-[11px] px-2.5 py-1 border border-line-strong text-ink-2 transition; background: rgba(255, 255, 255, 0.55); }
 }
 
-::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar { width: 8px; height: 8px; }
 ::-webkit-scrollbar-track { background: transparent; }
-::-webkit-scrollbar-thumb { background: #262626; border-radius: 3px; }
-::-webkit-scrollbar-thumb:hover { background: #404040; }
+::-webkit-scrollbar-thumb { background: rgba(21, 21, 15, 0.16); border-radius: 9999px; border: 2px solid transparent; background-clip: padding-box; }
+::-webkit-scrollbar-thumb:hover { background: rgba(21, 21, 15, 0.28); background-clip: padding-box; border: 2px solid transparent; }
+
+/* dove il vetro non è supportato si torna a un bianco pieno leggibile */
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  .glass, .card, .glass-strong { background: rgba(255, 255, 255, 0.94); }
+}

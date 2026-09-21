@@ -7,6 +7,10 @@ renderer a valle di un Validatore Numerico: **nessuna cifra nel testo che non si
 ```
 backend/   FastAPI · Decimal engine (60 criteri) · Merkle · registro firmato Ed25519 · MILP (HiGHS) · ingestion Fonte A
 frontend/  React + Vite + Tailwind (nessun calcolo monetario lato client)
+            Grafica: bianco come colore principale, vetro liquido stile Apple (`.glass`, `.card`, `.glass-strong`) e i gialli del marchio
+            (`#f1e21b`, `#fffb96`) in gradiente (`.bg-liquid`); icone Lucide a tratto sottile. Token in `tailwind.config.js` e `src/index.css`.
+            Font "Now": non è su Google Fonts, quindi finché i file non sono in `frontend/public/fonts` (e nei `@font-face` di `index.css`)
+            si usa Outfit. Loghi in `frontend/public/brand`.
 ```
 
 ## Avvio locale

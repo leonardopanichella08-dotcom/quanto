@@ -8,13 +8,23 @@ import AuditorPortal from './components/AuditorPortal'
 import RegistrationModal from './components/RegistrationModal'
 import HQ from './components/hq/HQ'
 import Guida from './components/Guida'
+import { ArrowLeft, BookOpen, Building2, Calculator, GitCompare, Library, ShieldCheck, Split } from 'lucide-react'
+import { Mark, PageHead, Wordmark } from './components/ui'
 import { NavContext } from './lib/nav'
 import { api, download, fileToBase64 } from './lib/api'
 
 const TABS = [
-  ['bandi', 'Bandi'], ['canvas', 'Budget'], ['allocation', 'Allocazione'],
-  ['pattern', 'Confronto'], ['auditor', 'Verifica'], ['guida', 'Guida'], ['hq', 'Quartier Generale'],
+  ['bandi', 'Bandi', Library], ['canvas', 'Budget', Calculator], ['allocation', 'Allocazione', Split],
+  ['pattern', 'Confronto', GitCompare], ['auditor', 'Verifica', ShieldCheck], ['guida', 'Guida', BookOpen], ['hq', 'Quartier Generale', Building2],
 ]
+// Una riga per pagina: a cosa serve, in parole semplici.
+const HEADS = {
+  bandi: ['Bandi', 'Cerca un bando, leggi le sue regole e scegli quello per il tuo budget.'],
+  canvas: ['Budget', 'Inserisci le spese e controlla ogni regola del bando.'],
+  allocation: ['Allocazione', 'Scopri quale fondo paga ogni spesa e quanto resta a carico tuo.'],
+  pattern: ['Confronto', 'Guarda quanto il tuo budget somiglia a quelli dei progetti premiati.'],
+  auditor: ['Verifica', 'Controlla che un budget certificato non sia stato modificato.'],
+}
 
 const params = new URLSearchParams(window.location.search)
 const EMPTY_REQUEST = { project_id: 'PRJ-2026-001', grant_rules: null, cost_items: [], entity_liquidity_eur: null, baseline_totals: null }
@@ -122,43 +132,45 @@ export default function App() {
   const openReplay = (response) => { setReplay(response); setLabFrom('hq'); setTab('lab') }
   const nav = useMemo(() => ({ go: (t, anchor) => { setGuideAnchor(anchor || null); setTab(t); window.scrollTo({ top: 0 }) } }), [])
 
-  const banner = registry?.offline ? { dot: 'bg-neutral-600', text: 'Il server non risponde', tone: 'text-neutral-400' }
-    : !registry ? { dot: 'bg-neutral-600', text: 'Mi collego al registro…', tone: 'text-neutral-400' }
-      : !registry.intact ? { dot: 'bg-red-500', text: `Attenzione: il registro delle certificazioni è stato alterato (voce ${registry.broken_at_seq})`, tone: 'text-red-400' }
-        : registry.is_dev_key ? { dot: 'bg-amber-500', text: `Registro attivo (${registry.entries} registrazioni) · chiave di prova: le certificazioni non valgono come prova`, tone: 'text-amber-400' }
-          : { dot: 'bg-emerald-500', text: `Registro delle certificazioni integro · ${registry.entries} registrazioni`, tone: 'text-neutral-400' }
+  const banner = registry?.offline ? { dot: 'bg-ink/30', text: 'Il server non risponde', tone: 'text-ink-2' }
+    : !registry ? { dot: 'bg-ink/30', text: 'Mi collego al registro…', tone: 'text-ink-2' }
+      : !registry.intact ? { dot: 'bg-red-500', text: `Attenzione: il registro delle certificazioni è stato alterato (voce ${registry.broken_at_seq})`, tone: 'text-red-700' }
+        : registry.is_dev_key ? { dot: 'bg-amber-500', text: `Registro attivo (${registry.entries} ${registry.entries === 1 ? 'registrazione' : 'registrazioni'}) · chiave di prova: le certificazioni non valgono come prova`, tone: 'text-amber-700' }
+          : { dot: 'bg-emerald-500', text: `Registro integro · ${registry.entries} ${registry.entries === 1 ? 'registrazione' : 'registrazioni'}`, tone: 'text-ink-2' }
 
   const labData = replay || validation
 
   return (
     <NavContext.Provider value={nav}>
-    <div className="min-h-screen bg-[#0c0c0c] text-neutral-100">
-      <header className="border-b border-neutral-800 bg-[#0c0c0c]/90 backdrop-blur sticky top-0 z-40 px-4 md:px-8 pt-3">
-        <div className="flex items-center gap-3">
-          <div className="h-8 w-8 rounded-lg border border-[#deffac]/60 text-[#deffac] font-bold flex items-center justify-center">Q</div>
-          <div>
-            <h1 className="text-base font-semibold tracking-tight leading-none">QUANTO</h1>
-            <p className="text-xs text-neutral-500 mt-1">Controllo dei budget per i bandi</p>
-          </div>
+    <div className="min-h-screen text-ink">
+      <div className="liquid-bg" aria-hidden="true"><span /><span /><span /></div>
+      <header className="md:sticky top-0 z-40 px-3 md:px-6 pt-3">
+        <div className="glass-strong rounded-3xl max-w-7xl mx-auto px-3 md:px-4 py-2.5 flex flex-wrap items-center gap-x-4 gap-y-2">
+          <button onClick={() => nav.go('bandi')} className="flex items-center gap-2.5 rounded-2xl" aria-label="Quanto, torna ai bandi">
+            <Mark size={34} />
+            <Wordmark height={20} className="text-ink" />
+          </button>
+          <nav className="flex items-center gap-1 overflow-x-auto max-w-full md:ml-auto order-3 md:order-none w-full md:w-auto -mx-1 px-1 pb-0.5" aria-label="Pagine">
+            {TABS.map(([id, label, Icon]) => {
+              const on = tab === id || (tab === 'lab' && id === 'canvas')
+              return (
+                <button key={id} onClick={() => nav.go(id)} aria-current={on ? 'page' : undefined}
+                  className={`inline-flex items-center gap-1.5 px-3.5 py-2 rounded-full text-sm whitespace-nowrap transition duration-200 ${on ? 'bg-liquid text-ink font-medium shadow-[0_6px_16px_-8px_rgba(200,185,0,0.9),0_0_0_1px_rgba(150,135,0,0.16)]' : 'text-ink-2 hover:text-ink hover:bg-white/70'}`}>
+                  <Icon className="w-4 h-4" />{label}
+                </button>
+              )
+            })}
+          </nav>
         </div>
-        <nav className="flex items-center gap-5 overflow-x-auto max-w-full mt-3 -mb-px" aria-label="Pagine">
-          {TABS.map(([id, label]) => (
-            <button key={id} onClick={() => nav.go(id)} aria-current={tab === id ? 'page' : undefined}
-              className={`pb-2.5 text-sm whitespace-nowrap border-b-2 transition ${tab === id ? 'border-[#deffac] text-white font-medium' : 'border-transparent text-neutral-400 hover:text-white'}`}>
-              {label}
-            </button>
-          ))}
-        </nav>
       </header>
 
-      <main className="p-4 md:p-8 max-w-7xl mx-auto space-y-6">
-        <div className="flex flex-wrap items-center justify-between gap-2 text-xs">
-          <div className="flex items-center gap-2">
-            <div className={`h-2 w-2 rounded-full ${banner.dot}`} />
-            <span className={banner.tone}>{banner.text}</span>
+      <main className="px-4 md:px-8 pt-6 pb-16 max-w-7xl mx-auto space-y-6">
+        {HEADS[tab] && <PageHead icon={TABS.find(([id]) => id === tab)[2]} title={HEADS[tab][0]} sub={HEADS[tab][1]}>
+          <div className="flex flex-wrap items-center gap-2 text-xs">
+            <span className="chip"><span className={`h-1.5 w-1.5 rounded-full ${banner.dot}`} /><span className={banner.tone}>{banner.text}</span></span>
+            <span className="chip">{bando ? `In uso: ${bando.name}` : 'Nessun bando scelto'}</span>
           </div>
-          <span className="text-neutral-500">{bando ? `Bando in uso: ${bando.name}` : 'Nessun bando scelto'}</span>
-        </div>
+        </PageHead>}
 
         {tab === 'bandi' && <BandiLibrary bandi={bandi} selectedId={bando?.bando_id} onSelect={selectBando} onReload={loadBandi} />}
         {tab === 'canvas' && (
@@ -169,10 +181,10 @@ export default function App() {
         )}
         {tab === 'lab' && (
           <div className="space-y-4">
-            <button onClick={() => nav.go(labFrom)} className="text-sm text-neutral-300 hover:text-white inline-flex items-center gap-1.5">← {labFrom === 'hq' ? 'Torna al Quartier Generale' : 'Torna al Budget'}</button>
-            {replay && <div className="p-3 rounded-lg border border-[#deffac]/30 bg-[#deffac]/5 text-neutral-200 text-xs flex flex-wrap items-center justify-between gap-3">
+            <button onClick={() => nav.go(labFrom)} className="btn"><ArrowLeft className="w-3.5 h-3.5" />{labFrom === 'hq' ? 'Torna al Quartier Generale' : 'Torna al Budget'}</button>
+            {replay && <div className="p-3 rounded-lg border border-brand/30 bg-brand/5 text-ink text-xs flex flex-wrap items-center justify-between gap-3">
               <span>Stai rivedendo un’esecuzione salvata ({replay.project_id} · {replay.bando_id}).</span>
-              <button onClick={() => setReplay(null)} className="font-semibold text-[#deffac] underline">Torna al controllo corrente</button></div>}
+              <button onClick={() => setReplay(null)} className="font-semibold text-brand-ink underline">Torna al controllo corrente</button></div>}
             <AlgorithmLab validation={labData} title={labData?.project_id} criteriaTitles={criteriaTitles} />
           </div>
         )}

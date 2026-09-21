@@ -7,15 +7,15 @@ const MAX_DOCS = 16          // documenti scaricati per ricerca
 const MAX_DEPTH = 2          // pagina → sue pagine/PDF → loro allegati
 const norm = (u) => u.replace(/^https?:\/\/(www\.)?/, '').replace(/[#?].*$/, '').replace(/\/$/, '').toLowerCase()
 const TIER_LABEL = { UFFICIALE: 'ufficiale', SECONDARIA: 'secondaria' }
-const TIER_STYLE = { UFFICIALE: 'text-emerald-300 border-emerald-500/30', SECONDARIA: 'text-amber-300 border-amber-500/30' }
+const TIER_STYLE = { UFFICIALE: 'text-emerald-700 border-emerald-500/30', SECONDARIA: 'text-amber-700 border-amber-500/30' }
 
 function Step({ n, state, title, children }) {
-  const icon = state === 'run' ? <Loader2 className="w-4 h-4 animate-spin text-[#deffac]" /> : state === 'done' ? <CheckCircle2 className="w-4 h-4 text-emerald-400" />
-    : state === 'fail' ? <XCircle className="w-4 h-4 text-red-400" /> : <span className="w-4 h-4 rounded-full border border-neutral-700 text-[10px] text-neutral-500 flex items-center justify-center">{n}</span>
+  const icon = state === 'run' ? <Loader2 className="w-4 h-4 animate-spin text-brand-ink" /> : state === 'done' ? <CheckCircle2 className="w-4 h-4 text-emerald-700" />
+    : state === 'fail' ? <XCircle className="w-4 h-4 text-red-700" /> : <span className="w-4 h-4 rounded-full border border-line-strong text-[10px] text-mute flex items-center justify-center">{n}</span>
   return (
     <div className={`space-y-1.5 ${state === 'todo' ? 'opacity-50' : ''}`}>
       <div className="flex items-center gap-2 text-sm font-medium">{icon}{title}</div>
-      {children && <div className="pl-6 text-xs text-neutral-400 space-y-1">{children}</div>}
+      {children && <div className="pl-6 text-xs text-ink-2 space-y-1">{children}</div>}
     </div>
   )
 }
@@ -119,8 +119,8 @@ export default function ResearchPanel({ onDone }) {
 
   return (
     <div className="card p-5 space-y-4">
-      <h3 className="font-semibold text-base flex items-center gap-2"><Search className="w-4 h-4 text-[#deffac]" />Cerca un bando sul web <Hint id="bando_ricerca" /></h3>
-      <p className="text-xs text-neutral-400 leading-relaxed max-w-3xl">Scrivi il nome del bando. QUANTO lo cerca su internet, scarica le pagine e i PDF ufficiali (decreti, avvisi, circolari, atti della Gazzetta Ufficiale), li salva in memoria e li legge tutti. Le fonti ufficiali hanno la precedenza.</p>
+      <h3 className="font-semibold text-base flex items-center gap-2"><Search className="w-4 h-4 text-brand-ink" />Cerca un bando sul web <Hint id="bando_ricerca" /></h3>
+      <p className="text-xs text-ink-2 leading-relaxed max-w-3xl">Scrivi il nome del bando. QUANTO lo cerca su internet, scarica le pagine e i PDF ufficiali (decreti, avvisi, circolari, atti della Gazzetta Ufficiale), li salva in memoria e li legge tutti. Le fonti ufficiali hanno la precedenza.</p>
 
       <div className="grid md:grid-cols-2 gap-3">
         <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Nome del bando (es. Resto al Sud)" aria-label="Nome del bando" className="field" disabled={running} />
@@ -132,12 +132,12 @@ export default function ResearchPanel({ onDone }) {
         <button onClick={run} disabled={running || name.trim().length < 3} className="btn-primary flex items-center gap-2">
           {running && <Loader2 className="w-3.5 h-3.5 animate-spin" />}{running ? 'Ricerca in corso…' : 'Cerca e scarica'}
         </button>
-        {phase === 'done' && <span className="text-xs text-emerald-300">Fatto: il bando è in memoria.</span>}
+        {phase === 'done' && <span className="text-xs text-emerald-700">Fatto: il bando è in memoria.</span>}
       </div>
-      {error && <div className="p-3 rounded-xl border border-red-500/30 text-red-300 text-xs leading-relaxed">{error}</div>}
+      {error && <div className="p-3 rounded-xl border border-red-500/30 text-red-700 text-xs leading-relaxed">{error}</div>}
 
       {phase !== 'idle' && (
-        <div className="space-y-4 pt-2 border-t border-neutral-800">
+        <div className="space-y-4 pt-2 border-t border-line">
           <Step n={1} state={phase === 'search' ? 'run' : search ? 'done' : 'todo'} title="Cerco sul web">
             {search && <p>{search.candidates.length} risultati pertinenti ({search.candidates.filter((c) => c.tier === 'UFFICIALE').length} ufficiali) da {search.queries.length} ricerche.</p>}
           </Step>
@@ -146,12 +146,12 @@ export default function ResearchPanel({ onDone }) {
             <ul className="space-y-1">
               {docs.map((d) => (
                 <li key={d.key} className="flex flex-wrap items-center gap-x-2 gap-y-0.5" style={{ paddingLeft: d.depth * 12 }}>
-                  {d.status === 'run' ? <Loader2 className="w-3 h-3 animate-spin text-[#deffac] shrink-0" /> : d.status === 'ok' ? <CheckCircle2 className="w-3 h-3 text-emerald-400 shrink-0" /> : <XCircle className="w-3 h-3 text-red-400 shrink-0" />}
-                  <a href={d.url} target="_blank" rel="noreferrer" className="text-neutral-200 hover:underline truncate max-w-[60vw] md:max-w-md inline-flex items-center gap-1">{d.title || d.url}<ExternalLink className="w-3 h-3 shrink-0" /></a>
+                  {d.status === 'run' ? <Loader2 className="w-3 h-3 animate-spin text-brand-ink shrink-0" /> : d.status === 'ok' ? <CheckCircle2 className="w-3 h-3 text-emerald-700 shrink-0" /> : <XCircle className="w-3 h-3 text-red-700 shrink-0" />}
+                  <a href={d.url} target="_blank" rel="noreferrer" className="text-ink hover:underline truncate max-w-[60vw] md:max-w-md inline-flex items-center gap-1">{d.title || d.url}<ExternalLink className="w-3 h-3 shrink-0" /></a>
                   {d.tier && <span className={`px-1.5 rounded border text-[10px] ${TIER_STYLE[d.tier]}`}>{TIER_LABEL[d.tier]}</span>}
-                  {d.status === 'ok' && <span className="text-neutral-500">{d.kind}{d.pages ? ` · ${d.pages} pag.` : ''} · {d.chars.toLocaleString('it-IT')} caratteri</span>}
-                  {d.status === 'error' && <span className="text-red-300">{d.message}</span>}
-                  {d.warnings?.map((w) => <span key={w} className="text-amber-300 flex items-center gap-1"><AlertTriangle className="w-3 h-3" />{w}</span>)}
+                  {d.status === 'ok' && <span className="text-mute">{d.kind}{d.pages ? ` · ${d.pages} pag.` : ''} · {d.chars.toLocaleString('it-IT')} caratteri</span>}
+                  {d.status === 'error' && <span className="text-red-700">{d.message}</span>}
+                  {d.warnings?.map((w) => <span key={w} className="text-amber-700 flex items-center gap-1"><AlertTriangle className="w-3 h-3" />{w}</span>)}
                 </li>
               ))}
             </ul>
@@ -159,25 +159,25 @@ export default function ResearchPanel({ onDone }) {
 
           <Step n={3} state={phase === 'analyze' ? 'run' : phase === 'done' ? 'done' : 'todo'} title="Leggo tutto e capisco cosa chiede il bando">
             {result && (
-              <p><strong className="text-neutral-200">{result.requirements_total}</strong> requisiti letti, <strong className="text-neutral-200">{Object.keys(result.rules_published).length}</strong> regole numeriche
-                pubblicate, <strong className="text-neutral-200">{result.legal_refs.length}</strong> atti di legge citati, da {result.sources} documenti.</p>
+              <p><strong className="text-ink">{result.requirements_total}</strong> requisiti letti, <strong className="text-ink">{Object.keys(result.rules_published).length}</strong> regole numeriche
+                pubblicate, <strong className="text-ink">{result.legal_refs.length}</strong> atti di legge citati, da {result.sources} documenti.</p>
             )}
-            {result?.warning && <p className="text-amber-300 flex items-start gap-1.5"><AlertTriangle className="w-3.5 h-3.5 shrink-0 mt-0.5" />{result.warning}</p>}
+            {result?.warning && <p className="text-amber-700 flex items-start gap-1.5"><AlertTriangle className="w-3.5 h-3.5 shrink-0 mt-0.5" />{result.warning}</p>}
             {result?.sources_report?.filter((x) => !x.requirements).map((x) => (
-              <p key={x.sha256} className="text-amber-300/90">Da «{x.name.slice(0, 60)}» non ho ricavato requisiti: {x.note}.</p>
+              <p key={x.sha256} className="text-amber-700">Da «{x.name.slice(0, 60)}» non ho ricavato requisiti: {x.note}.</p>
             ))}
           </Step>
         </div>
       )}
 
       {phase === 'done' && notFetched.length > 0 && (
-        <div className="space-y-2 pt-2 border-t border-neutral-800">
-          <p className="label">Altre pagine trovate ma non scaricate <span className="text-neutral-600">(di solito blog e portali: utili per capire, ma non sono la fonte ufficiale)</span></p>
+        <div className="space-y-2 pt-2 border-t border-line">
+          <p className="label">Altre pagine trovate ma non scaricate <span className="text-mute">(di solito blog e portali: utili per capire, ma non sono la fonte ufficiale)</span></p>
           <ul className="space-y-1.5">
             {notFetched.slice(0, 8).map((c) => (
               <li key={c.url} className="flex flex-wrap items-center gap-2 text-xs">
                 <span className={`px-1.5 rounded border text-[10px] ${TIER_STYLE[c.tier]}`}>{TIER_LABEL[c.tier]}</span>
-                <a href={c.url} target="_blank" rel="noreferrer" className="text-neutral-300 hover:underline truncate max-w-[55vw] md:max-w-lg">{c.title}</a>
+                <a href={c.url} target="_blank" rel="noreferrer" className="text-ink-2 hover:underline truncate max-w-[55vw] md:max-w-lg">{c.title}</a>
                 <button onClick={() => addCandidate(c)} disabled={busyExtra !== null} className="btn !py-1 ml-auto">{busyExtra === c.url ? <Loader2 className="w-3 h-3 animate-spin" /> : <Plus className="w-3 h-3" />}Aggiungi</button>
               </li>
             ))}
@@ -185,19 +185,19 @@ export default function ResearchPanel({ onDone }) {
         </div>
       )}
 
-      <div className="pt-2 border-t border-neutral-800 space-y-3">
+      <div className="pt-2 border-t border-line space-y-3">
         <div className="flex items-center gap-2">
-        <button type="button" onClick={() => setManual({ ...manual, open: !manual.open })} className="text-xs text-neutral-400 hover:text-white inline-flex items-center gap-1.5"><FileUp className="w-3.5 h-3.5" />Aggiungi un documento a mano (PDF o testo)</button>
+        <button type="button" onClick={() => setManual({ ...manual, open: !manual.open })} className="text-xs text-ink-2 hover:text-ink inline-flex items-center gap-1.5"><FileUp className="w-3.5 h-3.5" />Aggiungi un documento a mano (PDF o testo)</button>
           <Hint id="bando_upload" />
         </div>
         {manual.open && (
           <div className="space-y-3">
-            <input type="file" accept=".pdf,.txt,.md" onChange={(e) => setManual({ ...manual, file: e.target.files?.[0] || null })} className="text-xs text-neutral-400 file:mr-3 file:rounded-lg file:border-0 file:bg-neutral-800 file:px-3 file:py-2 file:text-xs file:text-neutral-200" />
+            <input type="file" accept=".pdf,.txt,.md" onChange={(e) => setManual({ ...manual, file: e.target.files?.[0] || null })} className="text-xs text-ink-2 file:mr-3 file:rounded-lg file:border-0 file:bg-tint-2 file:px-3 file:py-2 file:text-xs file:text-ink" />
             {!manual.file && <textarea value={manual.text} onChange={(e) => setManual({ ...manual, text: e.target.value })} rows={4} placeholder="…oppure incolla qui un testo (almeno 100 caratteri)" className="field font-mono" />}
             <button onClick={addManual} disabled={busyExtra !== null || name.trim().length < 3 || (!manual.file && manual.text.trim().length < 100)} className="btn-primary flex items-center gap-2">
               {busyExtra === 'manual' && <Loader2 className="w-3.5 h-3.5 animate-spin" />}Aggiungi e rileggi tutto
             </button>
-            {name.trim().length < 3 && <p className="text-xs text-neutral-500">Scrivi prima il nome del bando in alto.</p>}
+            {name.trim().length < 3 && <p className="text-xs text-mute">Scrivi prima il nome del bando in alto.</p>}
           </div>
         )}
       </div>
