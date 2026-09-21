@@ -51,8 +51,9 @@ class FundingLine(BaseModel):
 
 class AllocationOptimizationRequest(BaseModel):
     fiscal_year: int = Field(default=2027, ge=2020, le=2100)
-    historical_expenses: List[ExpenseLine]
-    available_funding_lines: List[FundingLine]
+    historical_balance_ref: Optional[int] = Field(default=None, description="Identificativo del bilancio caricato (Fonte C): le spese si leggono da lì")
+    historical_expenses: List[ExpenseLine] = Field(default_factory=list, description="In alternativa al bilancio: spese fornite dal chiamante (es. gestionale)")
+    available_funding_lines: List[FundingLine] = Field(default_factory=list, description="Se vuoto si usano le linee di finanziamento attive (ricavate dai bandi)")
     optimization_target: OptimizationTarget = OptimizationTarget.MINIMIZE_NET_COST
     excluded_funds: List[str] = Field(default_factory=list, description="What-if: fondi che l'utente esclude manualmente")
     de_minimis_residual_eur: Optional[float] = Field(default=None, ge=0, description="Plafond de minimis residuo nel triennio mobile")
@@ -60,6 +61,8 @@ class AllocationOptimizationRequest(BaseModel):
 
     @model_validator(mode="after")
     def _unique(self) -> "AllocationOptimizationRequest":
+        if self.historical_balance_ref is not None and self.historical_expenses:
+            raise ValueError("Indica il bilancio (historical_balance_ref) oppure le spese (historical_expenses), non entrambi")
         for label, ids in (("item_id", [e.item_id for e in self.historical_expenses]), ("fund_id", [f.fund_id for f in self.available_funding_lines])):
             if len(ids) != len(set(ids)):
                 raise ValueError(f"{label} duplicati")
@@ -77,6 +80,9 @@ class FundCoverage(BaseModel):
 class AllocationLine(BaseModel):
     item_id: str
     category: CostCategory
+    cost_category: Optional[str] = Field(default=None, description="Nome dello schema API: come category")
+    amount_eur: Optional[float] = Field(default=None, description="Nome dello schema API: come gross_amount_eur")
+    covered_by: Optional[str] = Field(default=None, description="Nome dello schema API: come assigned_fund")
     gross_amount_eur: float
     covered_amount_eur: float
     net_cost_to_entity_eur: float
@@ -103,6 +109,8 @@ class MonthlyPlanEntry(BaseModel):
 
 class AllocationResponse(BaseModel):
     status: str
+    total_cost_eur: Optional[float] = Field(default=None, description="Nome dello schema API: come total_gross_expense_eur")
+    covered_by_funds_eur: Optional[float] = Field(default=None, description="Nome dello schema API: come covered_by_public_funds_eur")
     fiscal_year: int
     optimization_target: OptimizationTarget
     excluded_funds: List[str]

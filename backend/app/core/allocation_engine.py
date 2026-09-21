@@ -308,7 +308,7 @@ class AllocationOptimizerEngine:
             total_cov = sum(per_fund.values())
             main = max(per_fund, key=lambda k: (per_fund[k], k)) if per_fund else "CARICO_ENTE_DIRETTO"
             plan.append(AllocationLine(
-                item_id=e.item_id, category=e.category, gross_amount_eur=_eur(gross), covered_amount_eur=_eur(total_cov),
+                item_id=e.item_id, category=e.category, cost_category=e.category.value, amount_eur=_eur(gross), covered_by=main, gross_amount_eur=_eur(gross), covered_amount_eur=_eur(total_cov),
                 net_cost_to_entity_eur=_eur(gross - total_cov), coverage_percentage=pct(total_cov, gross), assigned_fund=main,
                 coverage=[FundCoverage(fund_id=k, covered_amount_eur=_eur(v), coverage_percentage=pct(v, gross)) for k, v in sorted(per_fund.items())],
             ))
@@ -341,6 +341,7 @@ class AllocationOptimizerEngine:
         )
         return AllocationResponse(
             status="OPTIMIZED" if optimal else "BEST_FOUND_TIME_LIMIT", fiscal_year=req.fiscal_year,
+            total_cost_eur=_eur(gross_cents), covered_by_funds_eur=_eur(cov_cents),
             optimization_target=req.optimization_target, excluded_funds=sorted(excluded),
             total_gross_expense_eur=_eur(gross_cents), covered_by_public_funds_eur=_eur(cov_cents),
             net_cost_to_entity_eur=_eur(gross_cents - cov_cents), overall_coverage_percentage=pct(cov_cents, gross_cents),

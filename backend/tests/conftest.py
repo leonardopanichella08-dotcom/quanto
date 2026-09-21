@@ -35,6 +35,8 @@ def _isolated_env(monkeypatch, pg_url, request):
         monkeypatch.delenv(var, raising=False)
     monkeypatch.setenv("QUANTO_DATABASE_URL", pg_url)
     monkeypatch.setenv("QUANTO_PII_KEY", "test-key")
+    monkeypatch.setenv("QUANTO_FILE_KEY", "11" * 32)
+    monkeypatch.delenv("QUANTO_OCR_ENGINE", raising=False)
     reset_database(pg_url)
     if request.node.get_closest_marker("no_fonte_b") is None:
         from tests import fonte_b_fixture

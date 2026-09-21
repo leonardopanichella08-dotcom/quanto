@@ -11,3 +11,4 @@ reportlab>=4.0
 pypdf>=4.0
 psycopg[binary]>=3.2
 psycopg-pool>=3.2
+pdfplumber>=0.11
