@@ -3,10 +3,12 @@ from __future__ import annotations
 
 import json
 import os
+import re
 from typing import Any, Dict, List, Optional
 
 from app.core.criteria_catalog import CRITERIA_TITLES
-from app.core.db import connect, db_path
+from app.core import db
+from app.core.db import connect
 from app.core.demo import SANDBOX_RULES
 from app.core.ingestion import IDENTITY_FIELDS, Ingestion, normalize_value
 from app.core import research
@@ -79,14 +81,15 @@ def seed() -> None:
                     (b["bando_id"], key, normalize_value(key, value), "CURATED_SOURCE", "PUBLISHED", None, note.get("source")))
             conn.execute("DELETE FROM requirements WHERE bando_id=? AND origin='CURATED_SOURCE'", (b["bando_id"],))
             for i, r in enumerate(b["requirements"], 1):
-                conn.execute("INSERT OR REPLACE INTO requirements (bando_id, seq, topic, kind, text, criteria, source_ref, origin) VALUES (?,?,?,?,?,?,?,?)",
+                conn.execute("INSERT INTO requirements (bando_id, seq, topic, kind, text, criteria, source_ref, origin) VALUES (?,?,?,?,?,?,?,?) "
+                             "ON CONFLICT (bando_id, seq) DO UPDATE SET topic=excluded.topic, kind=excluded.kind, text=excluded.text, criteria=excluded.criteria, source_ref=excluded.source_ref, origin=excluded.origin",
                              (b["bando_id"], i, r["topic"], r["kind"], r["text"], json.dumps(r["criteria"]),
                               f'{r["source_ref"]} [{r["confidence"]}]', "CURATED_SOURCE"))
 
 
 def ensure_seeded() -> None:
-    key = db_path()
-    if key in _SEEDED and os.path.exists(key):
+    key = (db.database_url(), db.GENERATION)
+    if key in _SEEDED:
         return
     seed()
     _SEEDED.add(key)
@@ -128,7 +131,7 @@ def list_bandi() -> List[Dict[str, Any]]:
             meta = _meta(conn, bid)
             rules = conn.execute("SELECT rule_key, status FROM rules WHERE bando_id=?", (bid,)).fetchall()
             published = [r["rule_key"] for r in rules if r["status"] == "PUBLISHED"]
-            reqs = conn.execute("SELECT COUNT(*) c, SUM(kind='DA_REVISIONARE') r FROM requirements WHERE bando_id=?", (bid,)).fetchone()
+            reqs = conn.execute("SELECT COUNT(*) c, COALESCE(SUM((kind='DA_REVISIONARE')::int),0) r FROM requirements WHERE bando_id=?", (bid,)).fetchone()
             runs = conn.execute("SELECT COUNT(*) c, MAX(ts) t FROM runs WHERE bando_id=? AND kind='VALIDATE'", (bid,)).fetchone()
             n_src = conn.execute("SELECT COUNT(*) c FROM bando_sources WHERE bando_id=?", (bid,)).fetchone()["c"]
             if not meta.get("curated") and not rules and not (reqs["c"] or 0) and not n_src and not runs["c"]:
@@ -185,3 +188,43 @@ def get_bando_detail(bando_id: str) -> Optional[Dict[str, Any]]:
 
 def references() -> List[Dict[str, Any]]:
     return REFERENCES
+
+
+# ------------------------------------------------------------------ ricerca per nome nel catalogo interno (schema FKOS, «Cliente cerca il bando»)
+def _fold(text: str) -> str:
+    import unicodedata
+    t = unicodedata.normalize("NFKD", text or "").encode("ascii", "ignore").decode().lower()
+    return re.sub(r"[^a-z0-9]+", " ", t).strip()
+
+
+def search_catalog(query: str, limit: int = 8) -> List[Dict[str, Any]]:
+    """Bandi già in memoria che assomigliano al nome cercato (esatto o approssimato). Non tocca la rete."""
+    import difflib
+    ensure_seeded()
+    q = _fold(query)
+    if len(q) < 2:
+        return []
+    q_tokens = q.split()
+    with connect() as conn:
+        rows = conn.execute("SELECT b.bando_id, b.name, b.issuer, b.source_url, b.deadline, b.catalog_status, b.extraction_status, "
+                            "(SELECT COUNT(*) FROM rules r WHERE r.bando_id=b.bando_id AND r.status='PUBLISHED') AS rules, "
+                            "(SELECT COUNT(*) FROM bando_sources s WHERE s.bando_id=b.bando_id) AS sources, "
+                            "(SELECT COUNT(*) FROM requirements q2 WHERE q2.bando_id=b.bando_id) AS reqs FROM bandi b").fetchall()
+    out = []
+    for r in rows:
+        catalogued = r["bando_id"].startswith("CAT-") and r["source_url"]          # voce del catalogo nazionale: solo metadati, ma è un bando vero
+        if r["catalog_status"] != "CURATED" and not catalogued and not (r["rules"] or r["sources"] or r["reqs"]):
+            continue                                      # ricerche senza esito: non sono bandi da proporre
+        name = _fold(r["name"] + " " + (r["issuer"] or ""))
+        tokens = name.split()
+        hit = sum(1 for t in q_tokens if any(n == t or n.startswith(t) or (len(t) >= 4 and t in n) or (len(t) >= 4 and difflib.SequenceMatcher(None, t, n).ratio() >= 0.8) for n in tokens)) / len(q_tokens)
+        ratio = difflib.SequenceMatcher(None, q, _fold(r["name"])).ratio()
+        score = round(0.65 * hit + 0.35 * ratio, 3)
+        if q in name:
+            score = max(score, 0.95)
+        if score >= 0.4:
+            out.append({"bando_id": r["bando_id"], "name": r["name"], "issuer": r["issuer"], "extraction_status": r["extraction_status"], "curated": r["catalog_status"] == "CURATED",
+                        "rules": r["rules"], "sources": r["sources"], "requirements": r["reqs"], "cache_hit": r["rules"] > 0, "score": score,
+                        "catalog_only": bool(catalogued and not (r["rules"] or r["sources"])), "source_url": r["source_url"], "deadline": r["deadline"]})
+    out.sort(key=lambda x: (-x["score"], x["name"]))
+    return out[:limit]

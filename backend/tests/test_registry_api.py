@@ -1,5 +1,4 @@
 import io
-import sqlite3
 
 import pytest
 from fastapi.testclient import TestClient
@@ -7,6 +6,7 @@ from openpyxl import load_workbook
 
 from app.core.registry import Registry, attestation_dict, verify_attestation
 from main import app
+from tests.conftest import seed_pattern_bank, tamper_sql
 
 client = TestClient(app)
 
@@ -136,10 +136,7 @@ def test_chain_links_entries_and_is_tamper_evident():
     status = client.get("/api/v2/registry/status").json()
     assert status["intact"] and status["entries"] == 3 and status["head_hash"] == entries[2].entry_hash
 
-    import os
-    conn = sqlite3.connect(os.environ["QUANTO_DB_PATH"])
-    conn.execute("UPDATE anchors SET merkle_root = ? WHERE seq = 2", ("ee" * 32,))   # manomissione diretta del DB
-    conn.commit(); conn.close()
+    tamper_sql("UPDATE anchors SET merkle_root = %s WHERE seq = 2", ("ee" * 32,))   # manomissione diretta del DB
     broken = client.get("/api/v2/registry/status").json()
     assert broken["intact"] is False and broken["broken_at_seq"] == 2
     res = client.get("/api/v2/registry/verify/PRJ-CHAIN-1", params={"merkle_root": "0x" + "ee" * 32}).json()
@@ -149,9 +146,7 @@ def test_chain_links_entries_and_is_tamper_evident():
 def test_deleting_an_entry_breaks_the_chain():
     for i in range(3):
         register(f"PRJ-DEL-{i}", "0x" + f"{i + 1:02x}" * 32)
-    import os
-    conn = sqlite3.connect(os.environ["QUANTO_DB_PATH"])
-    conn.execute("DELETE FROM anchors WHERE seq = 2"); conn.commit(); conn.close()
+    tamper_sql("DELETE FROM anchors WHERE seq = 2")
     assert client.get("/api/v2/registry/status").json()["intact"] is False
 
 
@@ -207,6 +202,7 @@ def test_pdf_export_is_a_valid_pdf_with_cep_id():
 
 # ------------------------------------------------------------------ pattern / allocazione
 def test_pattern_and_allocation_endpoints():
+    seed_pattern_bank()
     p = client.post("/api/v2/pattern/match", json={"bando_category": "X", "draft_budget": {"personnel_pct": 0.58, "assets_pct": 0.12, "consulting_pct": 0.25, "overhead_pct": 0.05}})
     assert p.status_code == 200 and p.json()["main_deviation"]["category"] == "consulting_pct"
     assert client.post("/api/v2/pattern/match", json={"bando_category": "X", "draft_budget": {"foo": 1}}).status_code == 422

@@ -36,7 +36,7 @@ FIELDS: List[Dict[str, Any]] = [
     _f("category", "Categoria", "select", "Identificazione", options=CATEGORY_OPTIONS, crit=(16,), help_="Deve essere ammessa dal bando"),
     _f("source_c_ref", "Documento sorgente (Fonte C)", "text", "Identificazione", crit=(15, 16), help_="Busta paga, fattura, contratto: se vuoto la riga è sospesa"),
     # --- personale
-    _f("ccnl_code", "CCNL", "select", "Personale", PERS, (1,), options=["TERZO_SETTORE", "METALMECCANICA", "COMMERCIO", "CREDITO"]),
+    _f("ccnl_code", "CCNL", "select", "Personale", PERS, (1,), "Le opzioni sono i contratti presenti in Fonte B (tabelle ufficiali caricate dal manager)", options=[]),
     _f("employee_level", "Livello contrattuale", "text", "Personale", PERS, (1, 14)),
     _f("ral_eur", "RAL dichiarata (€)", "number", "Personale", PERS, (2, 4, 5), step="0.01"),
     _f("fte_allocation", "Quota FTE sul progetto", "number", "Personale", PERS, (8,), step="0.05"),
@@ -73,6 +73,8 @@ FIELDS: List[Dict[str, Any]] = [
     _f("iot_interconnected", "Interconnesso (IoT/4.0)", "bool", "Beni strumentali", ASSET, (20,)),
     _f("energy_saving_pct", "Risparmio energetico atteso", "number", "Beni strumentali", ASSET, (21,), "0-1", step="0.01"),
     _f("market_benchmark_eur", "Prezzo di mercato di riferimento (€)", "number", "Beni strumentali", ASSET, (22,), step="0.01"),
+    _f("depreciation_category", "Categoria d'ammortamento (Fonte B)", "select", "Beni strumentali", ASSET, (17,), "L'aliquota di tabella è il tetto", options=[]),
+    _f("benchmark_category", "Categoria di prezzo o tariffa (Fonte B)", "select", "Beni strumentali", list(ASSET) + list(CONS), (22, 33), "Se scelta, il riferimento è quello della tabella di Fonte B", options=[]),
     _f("installation_cost_eur", "Costi di installazione/collaudo (€)", "number", "Beni strumentali", ASSET, (23,), step="0.01"),
     _f("leasing_interest_eur", "Interessi del leasing (€)", "number", "Beni strumentali", ASSET, (24,), step="0.01"),
     _f("dnsh_compliant", "Conforme DNSH", "bool", "Beni strumentali", ASSET, (28,)),

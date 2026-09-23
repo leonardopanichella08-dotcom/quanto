@@ -8,18 +8,21 @@ import AuditorPortal from './components/AuditorPortal'
 import RegistrationModal from './components/RegistrationModal'
 import HQ from './components/hq/HQ'
 import Guida from './components/Guida'
-import { ArrowLeft, BookOpen, Building2, Calculator, GitCompare, Library, ShieldCheck, Split } from 'lucide-react'
+import Documents from './components/Documents'
+import { ArrowLeft, FileScan, KeyRound, LogOut, BookOpen, Building2, Calculator, GitCompare, Library, ShieldCheck, Split } from 'lucide-react'
 import { Mark, PageHead, Wordmark } from './components/ui'
 import { NavContext } from './lib/nav'
-import { api, download, fileToBase64 } from './lib/api'
+import { api, download, fileToBase64, session } from './lib/api'
+import { LoginScreen, PasswordModal } from './components/Login'
 
 const TABS = [
-  ['bandi', 'Bandi', Library], ['canvas', 'Budget', Calculator], ['allocation', 'Allocazione', Split],
+  ['bandi', 'Bandi', Library], ['documents', 'Documenti', FileScan], ['canvas', 'Budget', Calculator], ['allocation', 'Allocazione', Split],
   ['pattern', 'Confronto', GitCompare], ['auditor', 'Verifica', ShieldCheck], ['guida', 'Guida', BookOpen], ['hq', 'Quartier Generale', Building2],
 ]
 // Una riga per pagina: a cosa serve, in parole semplici.
 const HEADS = {
   bandi: ['Bandi', 'Cerca un bando, leggi le sue regole e scegli quello per il tuo budget.'],
+  documents: ['Documenti', 'Carica buste paga, bilanci e F24: ogni campo letto dice quanto è sicuro, e solo quello confermato entra nei calcoli.'],
   canvas: ['Budget', 'Inserisci le spese e controlla ogni regola del bando.'],
   allocation: ['Allocazione', 'Scopri quale fondo paga ogni spesa e quanto resta a carico tuo.'],
   pattern: ['Confronto', 'Guarda quanto il tuo budget somiglia a quelli dei progetti premiati.'],
@@ -30,6 +33,9 @@ const params = new URLSearchParams(window.location.search)
 const EMPTY_REQUEST = { project_id: 'PRJ-2026-001', grant_rules: null, cost_items: [], entity_liquidity_eur: null, baseline_totals: null }
 
 export default function App() {
+  const [user, setUser] = useState(session.user())
+  const [pwOpen, setPwOpen] = useState(false)
+  const [balanceRef, setBalanceRef] = useState(null)   // bilancio scelto per l'allocazione
   const [tab, setTab] = useState(TABS.some(([id]) => id === params.get('tab')) ? params.get('tab') : 'bandi')
   const [bandi, setBandi] = useState([])
   const [bando, setBando] = useState(null)
@@ -53,11 +59,18 @@ export default function App() {
   const loadBandi = useCallback(async () => { setBandi(await api.bandi()) }, [])
   const loadRegistry = useCallback(() => api.registryStatus().then(setRegistry).catch(() => setRegistry({ offline: true })), [])
   useEffect(() => {
+    const out = () => setUser(null)
+    window.addEventListener('quanto-logout', out)
+    return () => window.removeEventListener('quanto-logout', out)
+  }, [])
+  const logout = () => { session.clear(); setUser(null); setBando(null); setValidation(null); setAttestation(null) }
+  useEffect(() => {
+    if (!user) return
     loadBandi().catch((e) => setError(e.message))
     loadRegistry()
     api.fields().then((f) => setFields(f.fields)).catch(() => {})
     api.criteria().then((c) => setCriteriaTitles(Object.fromEntries(c.criteria.map((x) => [x.number, x.title])))).catch(() => {})
-  }, [loadBandi, loadRegistry])
+  }, [user, loadBandi, loadRegistry])
 
   // Ogni validazione è una chiamata al server; le risposte fuori ordine vengono scartate.
   const validate = useCallback(async (req) => {
@@ -120,6 +133,13 @@ export default function App() {
       debounce.current = setTimeout(() => validate(next), 700)
     }
   }
+  // voce di personale precompilata da una busta paga: solo campi sicuri o confermati; RAL dichiarata, FTE e durata li scrive l'utente
+  const addPayslipItem = (res) => {
+    const it = res.cost_item
+    const item = { item_id: `P-DOC${res.document_id}`, ...it }
+    changeItems([...request.cost_items.filter((x) => x.item_id !== item.item_id), item])
+    setTab('canvas'); window.scrollTo({ top: 0 })
+  }
   const changeProject = (project_id) => { setRequest((r) => ({ ...r, project_id })); setAttestation(null) }
 
   const exportAs = async (kind) => {
@@ -139,6 +159,10 @@ export default function App() {
           : { dot: 'bg-emerald-500', text: `Registro integro · ${registry.entries} ${registry.entries === 1 ? 'registrazione' : 'registrazioni'}`, tone: 'text-ink-2' }
 
   const labData = replay || validation
+  const isManager = user?.role === 'MANAGER'
+  const tabs = TABS.filter(([id]) => id !== 'hq' || isManager)
+
+  if (!user && tab !== 'auditor') return <LoginScreen onLogin={setUser} onAuditor={() => setTab('auditor')} />
 
   return (
     <NavContext.Provider value={nav}>
@@ -151,16 +175,23 @@ export default function App() {
             <Wordmark height={20} className="text-ink" />
           </button>
           <nav className="flex items-center gap-1 overflow-x-auto max-w-full md:ml-auto order-3 md:order-none w-full md:w-auto -mx-1 px-1 pb-0.5" aria-label="Pagine">
-            {TABS.map(([id, label, Icon]) => {
+            {tabs.map(([id, label, Icon]) => {
               const on = tab === id || (tab === 'lab' && id === 'canvas')
               return (
                 <button key={id} onClick={() => nav.go(id)} aria-current={on ? 'page' : undefined}
-                  className={`inline-flex items-center gap-1.5 px-3.5 py-2 rounded-full text-sm whitespace-nowrap transition duration-200 ${on ? 'bg-liquid text-ink font-medium shadow-[0_6px_16px_-8px_rgba(200,185,0,0.9),0_0_0_1px_rgba(150,135,0,0.16)]' : 'text-ink-2 hover:text-ink hover:bg-white/70'}`}>
+                  className={`inline-flex items-center gap-1.5 px-3 py-2 rounded-full text-[13px] whitespace-nowrap transition duration-200 ${on ? 'bg-liquid text-ink font-medium shadow-[0_6px_16px_-8px_rgba(200,185,0,0.9),0_0_0_1px_rgba(150,135,0,0.16)]' : 'text-ink-2 hover:text-ink hover:bg-white/70'}`}>
                   <Icon className="w-4 h-4" />{label}
                 </button>
               )
             })}
           </nav>
+          {user && (
+            <div className="flex items-center gap-1 text-xs text-ink-2 order-2 md:order-none">
+              <span className="hidden 2xl:inline max-w-[160px] truncate" title={user.email}>{user.name}</span>
+              <button onClick={() => setPwOpen(true)} className="btn !px-2.5 !py-1.5" title="Cambia password" aria-label="Cambia password"><KeyRound className="w-3.5 h-3.5" /></button>
+              <button onClick={logout} className="btn !px-2.5 !py-1.5" title="Esci" aria-label="Esci"><LogOut className="w-3.5 h-3.5" /></button>
+            </div>
+          )}
         </div>
       </header>
 
@@ -188,16 +219,18 @@ export default function App() {
             <AlgorithmLab validation={labData} title={labData?.project_id} criteriaTitles={criteriaTitles} />
           </div>
         )}
-        {tab === 'allocation' && <AllocationView />}
-        {tab === 'pattern' && <PatternDemo />}
+        {tab === 'allocation' && <AllocationView balanceRef={balanceRef} onPickBalance={setBalanceRef} onGoDocuments={() => nav.go('documents')} />}
+        {tab === 'documents' && <Documents onUseBalance={(id) => { setBalanceRef(id); nav.go('allocation') }} onUsePayslip={addPayslipItem} />}
+        {tab === 'pattern' && <PatternDemo bando={bando} validation={validation} />}
         {tab === 'auditor' && (
           <AuditorPortal request={request} defaultProject={params.get('project') || validation?.project_id || request.project_id}
             defaultRoot={params.get('root') || validation?.merkle_root} />
         )}
         {tab === 'guida' && <Guida anchor={guideAnchor} />}
-        {tab === 'hq' && <HQ bandi={bandi} onReplay={openReplay} />}
+        {tab === 'hq' && isManager && <HQ bandi={bandi} onReplay={openReplay} user={user} />}
       </main>
 
+      {pwOpen && <PasswordModal onClose={() => setPwOpen(false)} />}
       {validation && (
         <RegistrationModal isOpen={modalOpen} onClose={() => setModalOpen(false)} merkleRoot={validation.merkle_root} projectId={validation.project_id}
           cepId={validation.cep_id} registry={registry} attestation={attestation} onRegistered={(a) => { setAttestation(a); loadRegistry() }} />

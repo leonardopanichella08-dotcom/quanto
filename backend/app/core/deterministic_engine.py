@@ -10,6 +10,7 @@
 from __future__ import annotations
 
 import hashlib
+from datetime import date
 import json
 import re
 import time
@@ -19,9 +20,9 @@ from itertools import product
 from typing import Dict, List, Optional, Sequence, Tuple
 
 from app.core.criteria_catalog import CRITERIA_TITLES, applicable_criteria
-from app.core.fonte_b import FIXED_TERM_SURCHARGE_PCT, OCCASIONAL_INCOME_LIMIT_EUR, lookup_ccnl, table_ref
+from app.core import fonte_b
 from app.models.schemas import (
-    ActivityType, AssetNature, BudgetCheck, CCNLType, ContractType, CostBreakdown, CostCategory, CostItemInput,
+    ActivityType, AssetNature, BudgetCheck, ContractType, CostBreakdown, CostCategory, CostItemInput,
     CostItemValidated, ExpenseSubtype, FlatBase, GrantRuleSet, ItemValidationStatus as S, MerkleView, PipelineStage, TraceStep,
 )
 
@@ -124,18 +125,23 @@ class DeterministicEngine:
     @classmethod
     def _compute_personnel(cls, line: _Line, rules: GrantRuleSet) -> None:
         item = line.item
-        ccnl = item.ccnl_code or CCNLType.TERZO_SETTORE
+        fb = fonte_b.current()
+        on = item.expense_date or fb.on
+        ccnl = (item.ccnl_code or "").strip().upper()
 
         # Criterio 1 — Fonte B. Nessun fallback su parametri "standard": senza tabella la riga è respinta.
         line.check(1)
-        params = lookup_ccnl(ccnl, item.employee_level)
-        if params is None:
-            line.reject(1, f"Tabella CCNL non disponibile in Fonte B per {ccnl.value} livello {item.employee_level}: "
-                           "impossibile calcolare il costo senza una fonte tabellare.",
-                        f"CRITERION_01_CCNL_TABLE_NOT_FOUND:{ccnl.value}:LVL_{item.employee_level}")
+        if not ccnl:
+            line.reject(1, "Contratto collettivo (CCNL) non indicato: impossibile scegliere la tabella di Fonte B.", "CRITERION_01_CCNL_NOT_SPECIFIED")
             return
-        line.rules.append(f"CRITERION_01_CCNL_LOOKUP:{ccnl.value}:LVL_{item.employee_level}")
-        line.breakdown["ccnl_table_ref"] = table_ref(ccnl, item.employee_level)
+        params = fb.ccnl(ccnl, item.employee_level, on)
+        if params is None:
+            line.reject(1, f"Tabella CCNL non disponibile in Fonte B per {ccnl} livello {item.employee_level} alla data {on.isoformat()}: "
+                           "impossibile calcolare il costo senza una fonte tabellare ufficiale.",
+                        f"CRITERION_01_CCNL_TABLE_NOT_FOUND:{ccnl}:LVL_{item.employee_level}")
+            return
+        line.rules.append(f"CRITERION_01_CCNL_LOOKUP:{params.ref}")
+        line.breakdown["ccnl_table_ref"] = params.ref
 
         # Criterio 3 — divisore contrattuale. L'override può solo RIDURRE le ore (alzarle gonfierebbe il massimale).
         hours = params.standard_hours
@@ -160,8 +166,13 @@ class DeterministicEngine:
         if item.contract_type is not None:                                               # criterio 12
             line.check(12)
             if item.contract_type == ContractType.FIXED_TERM:
-                surcharge = FIXED_TERM_SURCHARGE_PCT
-                line.rules.append(f"CRITERION_12_FIXED_TERM_SURCHARGE:{q(surcharge * 100)}%")
+                sp = fb.param("fixed_term_surcharge_pct", on)
+                if sp is None:
+                    line.reject(12, "Maggiorazione contributiva del tempo determinato non presente in Fonte B: impossibile calcolare il costo.",
+                                "CRITERION_12_PARAMETER_NOT_IN_FONTE_B")
+                    return
+                surcharge = sp.value
+                line.rules.append(f"CRITERION_12_FIXED_TERM_SURCHARGE:{q(surcharge * 100)}%:{sp.ref}")
             else:
                 line.rules.append(f"CRITERION_12_CONTRACT_TYPE:{item.contract_type.value}")
 
@@ -237,11 +248,15 @@ class DeterministicEngine:
                          f"CRITERION_11_OVERTIME_BLOCKED:{item.overtime_hours}_H")
 
         if item.contract_type == ContractType.OCCASIONAL and item.occasional_annual_income_eur is not None:  # criterio 13
-            if dec(item.occasional_annual_income_eur) > OCCASIONAL_INCOME_LIMIT_EUR:
-                line.reject(13, f"Reddito del collaboratore occasionale oltre il limite di {fmt(OCCASIONAL_INCOME_LIMIT_EUR)} €.",
+            lim = fb.param("occasional_income_limit_eur", on)
+            if lim is None:
+                line.reject(13, "Limite di reddito dei collaboratori occasionali non presente in Fonte B: impossibile verificare.",
+                            "CRITERION_13_PARAMETER_NOT_IN_FONTE_B", S.MISSING_DOCUMENTS)
+            elif dec(item.occasional_annual_income_eur) > lim.value:
+                line.reject(13, f"Reddito del collaboratore occasionale oltre il limite di {fmt(lim.value)} €.",
                             f"CRITERION_13_OCCASIONAL_INCOME_EXCEEDED:{item.occasional_annual_income_eur}")
             else:
-                line.ok(13, "CRITERION_13_OCCASIONAL_INCOME_WITHIN_LIMIT")
+                line.ok(13, f"CRITERION_13_OCCASIONAL_INCOME_WITHIN_LIMIT:{lim.ref}")
 
         if item.role_min_level is not None or item.role_max_level is not None:           # criterio 14
             lvl, lo, hi = _level(item.employee_level), _level(item.role_min_level), _level(item.role_max_level)
@@ -358,19 +373,45 @@ class DeterministicEngine:
                         f"CRITERION_23_INSTALLATION_CAPPED:MAX_{q(dec(rules.max_installation_pct) * 100)}%")
             else:
                 line.ok(23, "CRITERION_23_INSTALLATION_WITHIN_LIMIT")
-        if it.market_benchmark_eur is not None and rules.max_price_deviation_pct is not None:  # criterio 22
-            limit = q(dec(it.market_benchmark_eur) * (1 + dec(rules.max_price_deviation_pct)))
+        fb = fonte_b.current()
+        on = it.expense_date or fb.on
+        market = it.market_benchmark_eur
+        if it.benchmark_category and rules.max_price_deviation_pct is not None:            # criterio 22: benchmark dalla tabella di Fonte B
+            bm = fb.benchmark("PRICE", it.benchmark_category, on)
+            if bm is None:
+                line.reject(22, f"Categoria di prezzo «{it.benchmark_category}» non presente in Fonte B alla data {on.isoformat()}: impossibile verificare la congruenza.",
+                            f"CRITERION_22_BENCHMARK_NOT_IN_FONTE_B:{it.benchmark_category}", S.MISSING_DOCUMENTS)
+                market = None
+            else:
+                market = bm.value
+                line.rules.append(f"CRITERION_22_BENCHMARK_FROM_FONTE_B:{bm.ref}")
+        if market is not None and rules.max_price_deviation_pct is not None:  # criterio 22
+            limit = q(dec(market) * (1 + dec(rules.max_price_deviation_pct)))
             if state["net"] > limit:
                 net_cut(22, state["net"] - limit, "Prezzo oltre il benchmark di mercato (Fonte B) maggiorato della tolleranza.",
                         f"CRITERION_22_PRICE_ABOVE_BENCHMARK:LIMIT_{fmt(limit)}")
             else:
                 line.ok(22, "CRITERION_22_PRICE_CONGRUENT")
-        if rules.equipment_depreciation_only and it.depreciation_rate_pct is None:
+        dep_rate = it.depreciation_rate_pct
+        if it.depreciation_category:                                      # criterio 17: aliquota dalla tabella di Fonte B
+            tv = fb.amortization(it.depreciation_category, on)
+            if tv is None:
+                line.reject(17, f"Categoria d'ammortamento «{it.depreciation_category}» non presente in Fonte B alla data {on.isoformat()}.",
+                            f"CRITERION_17_CATEGORY_NOT_IN_FONTE_B:{it.depreciation_category}", S.MISSING_DOCUMENTS)
+                dep_rate = None
+            elif dep_rate is not None and dec(dep_rate) > tv.value:
+                line.rules.append(f"CRITERION_17_DECLARED_RATE_ABOVE_TABLE:{q(dec(dep_rate) * 100)}%>{q(tv.value * 100)}%")
+                dep_rate = float(tv.value)                                                 # la tabella è il tetto
+            elif dep_rate is None:
+                dep_rate = float(tv.value)
+            if tv is not None:
+                line.rules.append(f"CRITERION_17_TABLE_RATE:{tv.ref}")
+        if rules.equipment_depreciation_only and dep_rate is None:
             line.reject(17, "Il bando ammette solo l'ammortamento del bene: indicare l'aliquota d'ammortamento.",
                         "CRITERION_17_DEPRECIATION_RATE_REQUIRED", S.MISSING_DOCUMENTS)
-        if it.depreciation_rate_pct is not None:                                          # criteri 17-18
-            line.ok(17, f"CRITERION_17_DEPRECIATION_RATE:{q(dec(it.depreciation_rate_pct) * 100)}%")
-            eligible = q(state["net"] * dec(it.depreciation_rate_pct) * Decimal(it.duration_months) / TWELVE)
+        if dep_rate is not None:                                          # criteri 17-18
+            line.ok(17, f"CRITERION_17_DEPRECIATION_RATE:{q(dec(dep_rate) * 100)}%")
+            eligible = q(state["net"] * dec(dep_rate) * Decimal(it.duration_months) / TWELVE)
             if eligible < state["net"]:
                 net_cut(18, state["net"] - eligible, "Ammortamento pro-rata temporis: ammessa solo la quota dei mesi di progetto.",
                         f"CRITERION_18_PRO_RATA_TEMPORIS:{it.duration_months}_MONTHS")
@@ -421,11 +462,23 @@ class DeterministicEngine:
                 line.reject(32, "Fornitore parte correlata: spesa non ammissibile.", "CRITERION_32_RELATED_PARTY")
             else:
                 line.ok(32, "CRITERION_32_SUPPLIER_INDEPENDENT")
-        if it.daily_rate_eur is not None and it.days is not None and it.benchmark_daily_rate_eur is not None:  # criterio 33
-            limit = q(min(dec(it.daily_rate_eur), dec(it.benchmark_daily_rate_eur)) * dec(it.days))
+        fb = fonte_b.current()
+        on = it.expense_date or fb.on
+        bench_daily = it.benchmark_daily_rate_eur
+        if it.benchmark_category and it.daily_rate_eur is not None:                       # criterio 33: tariffa di riferimento dalla tabella di Fonte B
+            bm = fb.benchmark("DAILY_RATE", it.benchmark_category, on)
+            if bm is None:
+                line.reject(33, f"Categoria di tariffa «{it.benchmark_category}» non presente in Fonte B alla data {on.isoformat()}: impossibile normalizzare.",
+                            f"CRITERION_33_BENCHMARK_NOT_IN_FONTE_B:{it.benchmark_category}", S.MISSING_DOCUMENTS)
+                bench_daily = None
+            else:
+                bench_daily = float(bm.value)
+                line.rules.append(f"CRITERION_33_BENCHMARK_FROM_FONTE_B:{bm.ref}")
+        if it.daily_rate_eur is not None and it.days is not None and bench_daily is not None:  # criterio 33
+            limit = q(min(dec(it.daily_rate_eur), dec(bench_daily)) * dec(it.days))
             if state["net"] > limit:
                 net_cut(33, state["net"] - limit, "Tariffa normalizzata al benchmark di mercato (Fonte B).",
-                        f"CRITERION_33_RATE_NORMALIZED:BENCHMARK_{it.benchmark_daily_rate_eur}_EUR/DAY")
+                        f"CRITERION_33_RATE_NORMALIZED:BENCHMARK_{bench_daily}_EUR/DAY")
             else:
                 line.ok(33, "CRITERION_33_RATE_WITHIN_BENCHMARK")
         if rules.allowed_ateco_prefixes and it.supplier_ateco is not None:               # criterio 34
@@ -811,8 +864,16 @@ class DeterministicEngine:
 
     @classmethod
     def analyze_budget(cls, items: List[CostItemInput], rules: GrantRuleSet, entity_liquidity_eur: Optional[float] = None,
-                       baseline_totals: Optional[Dict[CostCategory, float]] = None
+                       baseline_totals: Optional[Dict[CostCategory, float]] = None, reference_date: Optional["date"] = None
                        ) -> Tuple[List[CostItemValidated], List[BudgetCheck], Dict]:
+        """Calcolo con una fotografia unica di Fonte B alla ``reference_date`` (oggi, se non indicata)."""
+        with fonte_b.scope(reference_date):
+            return cls._analyze(items, rules, entity_liquidity_eur, baseline_totals)
+
+    @classmethod
+    def _analyze(cls, items: List[CostItemInput], rules: GrantRuleSet, entity_liquidity_eur: Optional[float] = None,
+                 baseline_totals: Optional[Dict[CostCategory, float]] = None
+                 ) -> Tuple[List[CostItemValidated], List[BudgetCheck], Dict]:
         """Pipeline completa con traccia: criteri di riga -> FTE cumulato -> massimali -> criteri di budget -> sigillo hash.
 
         Restituisce (righe, controlli di budget, trace parziale con fasi, passi e dettagli dei massimali).
@@ -841,8 +902,8 @@ class DeterministicEngine:
 
     @classmethod
     def evaluate_budget(cls, items: List[CostItemInput], rules: GrantRuleSet, entity_liquidity_eur: Optional[float] = None,
-                        baseline_totals: Optional[Dict[CostCategory, float]] = None) -> Tuple[List[CostItemValidated], List[BudgetCheck]]:
-        sealed, checks, _ = cls.analyze_budget(items, rules, entity_liquidity_eur, baseline_totals)
+                        baseline_totals: Optional[Dict[CostCategory, float]] = None, reference_date: Optional["date"] = None) -> Tuple[List[CostItemValidated], List[BudgetCheck]]:
+        sealed, checks, _ = cls.analyze_budget(items, rules, entity_liquidity_eur, baseline_totals, reference_date)
         return sealed, checks
 
     @classmethod
@@ -852,7 +913,8 @@ class DeterministicEngine:
     @classmethod
     def validate_personnel_item(cls, item: CostItemInput, rules: GrantRuleSet) -> CostItemValidated:
         """Validazione di una singola riga (criteri di riga, senza massimali di budget), sigillata."""
-        return cls._seal(cls._compute_line(item, rules), rules)
+        with fonte_b.scope():
+            return cls._seal(cls._compute_line(item, rules), rules)
 
     @staticmethod
     def conformity_score(items: List[CostItemValidated], budget_checks: Sequence[BudgetCheck] = ()) -> int:

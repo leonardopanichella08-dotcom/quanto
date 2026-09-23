@@ -2,9 +2,11 @@
 from __future__ import annotations
 
 import time
+from datetime import date
 from decimal import Decimal
 from typing import Optional
 
+from app.core import llm as llm_module
 from app.core.deterministic_engine import DeterministicEngine
 from app.core.merkle_tree import MerkleTreeEngine
 from app.core.renderer import LLMClient, budget_context, render_with_grounding, static_budget_summary
@@ -23,8 +25,11 @@ def _sum(values) -> Decimal:
 
 
 def validate_budget(request: BudgetValidationRequest, llm: Optional[LLMClient] = None) -> BudgetValidationResponse:
+    ref_date = request.reference_date or date.today()
+    llm = llm if llm is not None else llm_module.get_client()
     items, checks, partial = DeterministicEngine.analyze_budget(
-        request.cost_items, request.grant_rules, entity_liquidity_eur=request.entity_liquidity_eur, baseline_totals=request.baseline_totals)
+        request.cost_items, request.grant_rules, entity_liquidity_eur=request.entity_liquidity_eur, baseline_totals=request.baseline_totals,
+        reference_date=ref_date)
     stages = list(partial["stages"])
 
     t = time.perf_counter()
@@ -59,6 +64,6 @@ def validate_budget(request: BudgetValidationRequest, llm: Optional[LLMClient] =
         project_id=request.project_id, bando_id=request.grant_rules.bando_id,
         status="REJECTED_WITH_ERRORS" if blocked else "VALIDATED", conformity_score=score,
         total_requested_eur=float(requested), total_approved_eur=float(approved), total_rejected_eur=float(requested - approved),
-        items=items, budget_checks=checks, trace=trace, merkle_root=root, cep_id=cep_id_for(root),
+        items=items, budget_checks=checks, trace=trace, reference_date=ref_date, merkle_root=root, cep_id=cep_id_for(root),
         llm_explanation_summary=text, explanation_source=source,
     )

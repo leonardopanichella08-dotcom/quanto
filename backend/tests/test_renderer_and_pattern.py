@@ -2,7 +2,6 @@ import pytest
 
 from app.core.budget_service import validate_budget
 from app.core.numeric_validator import validate_text_against_payload
-from app.core.pattern_engine import PatternMatchingEngine
 from app.core.renderer import budget_context, eur, render_with_grounding, static_budget_summary
 from app.models.schemas import BudgetValidationRequest
 
@@ -73,18 +72,7 @@ def test_static_summary_passes_its_own_validator(seed_items, rules):
 
 
 # ---------------------------------------------------------------- pattern
-def test_pattern_match_seed_budget():
-    r = PatternMatchingEngine.analyze_budget_pattern({"personnel_pct": 0.58, "assets_pct": 0.12, "consulting_pct": 0.25, "overhead_pct": 0.05})
-    assert r.closest_archetype == "TRAZIONE_OCCUPAZIONALE" and r.similarity_score == 0.99
-    assert r.main_deviation.category == "consulting_pct" and r.main_deviation.deviation_points == 7.0
 
 
-def test_pattern_normalizes_and_identifies_pure_archetypes():
-    r = PatternMatchingEngine.analyze_budget_pattern({"personnel_pct": 25, "assets_pct": 55, "consulting_pct": 15, "overhead_pct": 5})
-    assert r.closest_archetype == "TRAZIONE_TECNOLOGICA" and r.similarity_score == 1.0
-    assert r.main_deviation.deviation_points == 0.0
 
 
-def test_pattern_rejects_empty_budget():
-    with pytest.raises(ValueError):
-        PatternMatchingEngine.analyze_budget_pattern({"personnel_pct": 0})

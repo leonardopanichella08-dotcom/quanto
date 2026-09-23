@@ -27,11 +27,16 @@ export default function ResearchPanel({ onDone }) {
   const [phase, setPhase] = useState('idle')          // idle | search | fetch | analyze | done | error
   const [error, setError] = useState(null)
   const [search, setSearch] = useState(null)
+  const [matches, setMatches] = useState(null)         // bandi già in memoria che assomigliano al nome
+  const [picked, setPicked] = useState(new Set())      // pagine scelte dall'utente
+  const [confirmInfo, setConfirmInfo] = useState(null)
+  const [force, setForce] = useState(false)
   const [docs, setDocs] = useState([])                // {key,url,title,status,tier,kind,chars,pages,message,warnings}
   const [result, setResult] = useState(null)
   const [busyExtra, setBusyExtra] = useState(null)
   const [manual, setManual] = useState({ text: '', file: null, open: false })
   const bandoRef = useRef(null)
+  const internalRef = useRef(null)                  // bando scelto dall'elenco interno (anche solo del catalogo nazionale)
 
   const patchDoc = (key, patch) => setDocs((d) => d.map((x) => (x.key === key ? { ...x, ...patch } : x)))
 
@@ -44,22 +49,51 @@ export default function ResearchPanel({ onDone }) {
     return res
   }
 
-  const run = async () => {
-    setError(null); setResult(null); setDocs([]); setSearch(null); setPhase('search')
+  // 1) cerco nell'elenco interno (nome esatto o approssimato) — nessuna rete
+  const lookup = async () => {
+    setError(null); setResult(null); setDocs([]); setSearch(null); setMatches(null); setPicked(new Set()); setConfirmInfo(null); setForce(false); internalRef.current = null; setPhase('lookup')
+    try {
+      const r = await api.bandiSearch(name.trim())
+      setMatches(r.matches)
+      if (r.matches.length) setPhase('matches'); else await webSearch()
+    } catch (e) { setPhase('error'); setError(e.message) }
+  }
+
+  // 2) se non c'è (o l'utente vuole aggiornarlo) cerco sul web: si scelgono le pagine, ancora niente viene scaricato
+  const webSearch = async (nameOverride) => {
+    setError(null); setPhase('search')
     try {
       const supplied = urls.split('\n').map((u) => u.trim()).filter(Boolean)
-      const s = await api.researchSearch({ name: name.trim(), hint: hint.trim(), urls: supplied })
+      const s = await api.researchSearch({ name: (nameOverride || name).trim(), hint: hint.trim(), urls: supplied })
       setSearch(s); bandoRef.current = s.bando_id
-      // prima le fonti ufficiali; se non ce ne sono si scaricano comunque le migliori trovate (segnate «secondaria»): nessuna ricerca resta vuota
-      let picked = s.candidates.filter((c) => c.preselected)
-      if (!picked.length) picked = s.candidates.slice(0, 4)
-      const queue = picked.map((c) => ({ url: c.url, title: c.title, tier: c.tier, score: c.user_supplied ? 500 : 200, depth: 0 }))
-      if (!queue.length) {
+      if (!s.candidates.length) {
         setPhase('error')
         setError(s.engine_errors?.length ? `Non sono riuscito a usare il motore di ricerca (${s.engine_errors[0]}). Incolla qui sotto il link della pagina ufficiale del bando e riprova.`
           : 'Non ho trovato pagine ufficiali per questo nome. Prova con altre parole, oppure incolla il link della pagina ufficiale.')
         return
       }
+      const pre = s.candidates.filter((c) => c.preselected)
+      setPicked(new Set((pre.length ? pre : s.candidates.slice(0, 4)).map((c) => c.url)))
+      setPhase('pick')
+    } catch (e) { setPhase('error'); setError(e.message) }
+  }
+
+  // 3) l'utente conferma che è il bando giusto: si registra la richiesta e si controlla la cache
+  const confirmBando = async (payload, viaWeb) => {
+    setError(null)
+    try {
+      const c = await api.researchConfirm(payload)
+      bandoRef.current = c.bando_id; setConfirmInfo(c)
+      if (c.complete && !force) { setPhase('cached'); await onDone(c.bando_id); return }      // cache: niente da riscaricare
+      if (viaWeb) await downloadPicked(c.bando_id)
+      else { setName(payload.name); await webSearch(payload.name) }                             // bando interno ma incompleto: si cercano le fonti
+    } catch (e) { setPhase('error'); setError(e.message) }
+  }
+
+  // 4) scarico le pagine scelte (e i PDF che citano), poi leggo tutto
+  const downloadPicked = async (bandoId) => {
+    try {
+      const queue = (search?.candidates || []).filter((c) => picked.has(c.url)).map((c) => ({ url: c.url, title: c.title, tier: c.tier, score: c.user_supplied ? 500 : 200, depth: 0 }))
       setPhase('fetch')
       const seen = new Set(); let ok = 0; let attempts = 0
       while (queue.length && ok < MAX_DOCS && attempts < MAX_DOCS + 8) {
@@ -70,7 +104,7 @@ export default function ResearchPanel({ onDone }) {
         const key = norm(item.url)
         setDocs((d) => [...d, { key, url: item.url, title: item.title, tier: item.tier, status: 'run', depth: item.depth }])
         try {
-          const r = await api.researchFetch({ bando_id: s.bando_id, url: item.url })
+          const r = await api.researchFetch({ bando_id: bandoId, url: item.url })
           ok += 1
           patchDoc(key, { status: 'ok', title: r.source.name, tier: r.source.tier, kind: r.source.kind, chars: r.source.chars, pages: r.source.pages, warnings: r.source.warnings, url: r.source.url })
           seen.add(norm(r.source.url))
@@ -80,7 +114,7 @@ export default function ResearchPanel({ onDone }) {
         }
       }
       if (!ok) { setPhase('error'); setError('Non sono riuscito a scaricare nessun documento. Puoi aggiungerne uno a mano qui sotto.'); return }
-      await analyze(s.bando_id)
+      await analyze(bandoId)
     } catch (e) {
       setPhase('error'); setError(e.message)
     }
@@ -113,7 +147,7 @@ export default function ResearchPanel({ onDone }) {
     } catch (e) { setError(e.message) } finally { setBusyExtra(null) }
   }
 
-  const running = ['search', 'fetch', 'analyze'].includes(phase)
+  const running = ['lookup', 'search', 'fetch', 'analyze'].includes(phase)
   const okDocs = docs.filter((d) => d.status === 'ok')
   const notFetched = (search?.candidates || []).filter((c) => !docs.some((d) => d.key === norm(c.url)))
 
@@ -129,16 +163,60 @@ export default function ResearchPanel({ onDone }) {
       <textarea value={urls} onChange={(e) => setUrls(e.target.value)} rows={2} disabled={running} aria-label="Link ufficiali"
         placeholder="Facoltativo: link ufficiali che conosci già (uno per riga). Se la ricerca non trova nulla, incollali qui." className="field font-mono" />
       <div className="flex flex-wrap items-center gap-3">
-        <button onClick={run} disabled={running || name.trim().length < 3} className="btn-primary flex items-center gap-2">
-          {running && <Loader2 className="w-3.5 h-3.5 animate-spin" />}{running ? 'Ricerca in corso…' : 'Cerca e scarica'}
+        <button onClick={lookup} disabled={running || name.trim().length < 3} className="btn-primary flex items-center gap-2">
+          {running && <Loader2 className="w-3.5 h-3.5 animate-spin" />}{running ? 'Ricerca in corso…' : 'Cerca'}
         </button>
         {phase === 'done' && <span className="text-xs text-emerald-700">Fatto: il bando è in memoria.</span>}
       </div>
       {error && <div className="p-3 rounded-xl border border-red-500/30 text-red-700 text-xs leading-relaxed">{error}</div>}
 
-      {phase !== 'idle' && (
+      {phase === 'matches' && matches?.length > 0 && (
+        <div className="space-y-2 pt-2 border-t border-line">
+          <p className="label">Ho trovato questi bandi già in memoria. È uno di questi?</p>
+          <ul className="space-y-1.5">
+            {matches.map((m) => (
+              <li key={m.bando_id} className="flex flex-wrap items-center gap-2 text-xs p-2 rounded-xl border border-line bg-field">
+                <span className="font-medium text-ink">{m.name}</span>
+                {m.issuer && <span className="text-mute">{m.issuer}</span>}
+                <span className="text-mute">{m.rules} regole · {m.requirements} requisiti · {m.sources} documenti</span>
+                {m.cache_hit && <span className="px-1.5 rounded border text-[10px] text-emerald-700 border-emerald-500/30">regole già in memoria</span>}
+                {m.catalog_only && <span className="px-1.5 rounded border text-[10px] text-sky-700 border-sky-500/30">nel catalogo nazionale: regole da leggere</span>}
+                {m.deadline && m.deadline !== 'non indicata' && <span className="text-mute">scadenza {m.deadline}</span>}
+                <button onClick={() => { internalRef.current = m.bando_id; if (m.source_url) setUrls((u) => u || m.source_url); confirmBando({ name: m.name, bando_id: m.bando_id }, false) }} className="btn-primary !py-1 ml-auto">Sì, è questo</button>
+              </li>
+            ))}
+          </ul>
+          <button onClick={() => webSearch()} className="btn">Nessuno di questi: cerca sul web</button>
+        </div>
+      )}
+
+      {phase === 'cached' && confirmInfo && (
+        <div className="p-3 rounded-xl border border-emerald-500/30 bg-emerald-500/5 text-xs text-ink-2 space-y-2">
+          <p className="flex items-center gap-1.5 text-emerald-700 font-medium"><CheckCircle2 className="w-4 h-4" />Le regole di questo bando sono già in memoria: le uso senza riscaricare nulla.</p>
+          <p>{confirmInfo.sources} documenti · già richiesto da {confirmInfo.requested_by_clients_count} {confirmInfo.requested_by_clients_count === 1 ? 'cliente' : 'clienti'}.</p>
+          <button onClick={() => { setForce(true); webSearch() }} className="btn">Aggiorna dal web</button>
+        </div>
+      )}
+
+      {phase === 'pick' && search && (
+        <div className="space-y-2 pt-2 border-t border-line">
+          <p className="label">Ho trovato queste pagine sul web. Scegli quelle giuste e conferma che è il bando che cerchi.</p>
+          <ul className="space-y-1.5">
+            {search.candidates.slice(0, 12).map((c) => (
+              <li key={c.url} className="flex flex-wrap items-center gap-2 text-xs">
+                <input type="checkbox" className="accent-brand" checked={picked.has(c.url)} onChange={() => setPicked((p) => { const n = new Set(p); if (n.has(c.url)) n.delete(c.url); else n.add(c.url); return n })} aria-label={c.title} />
+                <span className={`px-1.5 rounded border text-[10px] ${TIER_STYLE[c.tier]}`}>{TIER_LABEL[c.tier]}</span>
+                <a href={c.url} target="_blank" rel="noreferrer" className="text-ink hover:underline truncate max-w-[60vw] md:max-w-lg inline-flex items-center gap-1">{c.title}<ExternalLink className="w-3 h-3 shrink-0" /></a>
+              </li>
+            ))}
+          </ul>
+          <button onClick={() => confirmBando({ name: name.trim(), bando_id: internalRef.current || undefined }, true)} disabled={!picked.size} className="btn-primary">Sì, è questo bando: scarica e leggi</button>
+        </div>
+      )}
+
+      {['fetch', 'analyze', 'done'].includes(phase) && (
         <div className="space-y-4 pt-2 border-t border-line">
-          <Step n={1} state={phase === 'search' ? 'run' : search ? 'done' : 'todo'} title="Cerco sul web">
+          <Step n={1} state={search ? 'done' : 'todo'} title="Ho cercato sul web e confermato il bando">
             {search && <p>{search.candidates.length} risultati pertinenti ({search.candidates.filter((c) => c.tier === 'UFFICIALE').length} ufficiali) da {search.queries.length} ricerche.</p>}
           </Step>
 

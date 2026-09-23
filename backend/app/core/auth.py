@@ -31,7 +31,8 @@ class AuthConfigError(RuntimeError):
 
 
 def auth_required() -> bool:
-    return os.getenv("QUANTO_AUTH_REQUIRED", "").strip().lower() in ("1", "true", "yes")
+    """Sicura per impostazione predefinita: si spegne solo scrivendo esplicitamente QUANTO_AUTH_REQUIRED=0 (sviluppo locale)."""
+    return os.getenv("QUANTO_AUTH_REQUIRED", "1").strip().lower() not in ("0", "false", "no", "off")
 
 
 def ensure_configured() -> None:
@@ -91,7 +92,34 @@ def verify_token(token: str, now: Optional[float] = None) -> Optional[str]:
         claims = json.loads(_unb64(payload_b64))
         if claims["exp"] < (now if now is not None else time.time()):
             return None
+        if claims.get("typ") == "user":          # un token di utente non è un client ERP: si valuta solo in users.user_from_token
+            return None
         return str(claims["sub"])
+    except (ValueError, KeyError, TypeError):
+        return None
+
+
+def sign_claims(claims: Dict[str, object]) -> str:
+    """JWT HS256 con le rivendicazioni indicate (usato per i token degli utenti)."""
+    header = _b64(json.dumps({"alg": "HS256", "typ": "JWT"}, separators=(",", ":")).encode())
+    payload = _b64(json.dumps(claims, separators=(",", ":")).encode())
+    sig = hmac.new(_secret("QUANTO_JWT_SECRET"), f"{header}.{payload}".encode(), hashlib.sha256).digest()
+    return f"{header}.{payload}.{_b64(sig)}"
+
+
+def verify_claims(token: str, now: Optional[float] = None) -> Optional[Dict[str, object]]:
+    """Rivendicazioni di un JWT valido e non scaduto, altrimenti ``None``."""
+    try:
+        header_b64, payload_b64, sig_b64 = token.split(".")
+        if json.loads(_unb64(header_b64)).get("alg") != "HS256":
+            return None
+        expected = hmac.new(_secret("QUANTO_JWT_SECRET"), f"{header_b64}.{payload_b64}".encode(), hashlib.sha256).digest()
+        if not hmac.compare_digest(expected, _unb64(sig_b64)):
+            return None
+        claims = json.loads(_unb64(payload_b64))
+        if claims["exp"] < (now if now is not None else time.time()):
+            return None
+        return claims
     except (ValueError, KeyError, TypeError):
         return None
 

@@ -1,2 +1,4 @@
 -r requirements.txt
 pytest>=8
+# PostgreSQL incorporato per provare in locale senza installare nulla (in CI si usa un servizio PostgreSQL vero)
+pixeltable-pgserver>=0.6; python_version >= "3.9"

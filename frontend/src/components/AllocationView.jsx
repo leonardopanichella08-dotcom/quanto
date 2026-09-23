@@ -1,7 +1,6 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react'
 import { api } from '../lib/api'
 import { fmtEur, fmtNum } from '../lib/format'
-import { SEED_ALLOCATION } from '../data/mockSeed'
 import { Wallet } from 'lucide-react'
 import { SectionTitle } from './ui'
 import Guide from './Guide'
@@ -51,27 +50,40 @@ const TARGETS = [
   ['MINIMIZE_FUNDS_INVOLVED', 'Usare meno fondi possibile'],
 ]
 
-export default function AllocationView() {
+export default function AllocationView({ balanceRef, onPickBalance, onGoDocuments }) {
   const [target, setTarget] = useState('MINIMIZE_NET_COST')
   const [excluded, setExcluded] = useState([])
   const [plan, setPlan] = useState(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(null)
+  const [pending, setPending] = useState(null)         // righe del bilancio da verificare
+  const [balances, setBalances] = useState([])
+  const [funds, setFunds] = useState([])
+  const [deMinimis, setDeMinimis] = useState('')
+  const [year, setYear] = useState(new Date().getFullYear() + 1)
   const seq = useRef(0)
 
-  // Ogni cambio di obiettivo o di esclusione (what-if) rilancia il risolutore sul server.
+  useEffect(() => {
+    api.fcDocuments().then((d) => setBalances(d.filter((x) => x.doc_type === 'BALANCE_SHEET' && x.status !== 'FAILED'))).catch(() => {})
+    api.funds().then((f) => setFunds(f.filter((x) => x.active))).catch(() => {})
+  }, [])
+  const needsDeMinimis = funds.some((f) => f.de_minimis)
+
+  // Ogni cambio di bilancio, obiettivo o esclusione (what-if) rilancia il risolutore sul server.
   const run = useCallback(async () => {
+    if (!balanceRef) { setPlan(null); return }
     const mine = ++seq.current
-    setLoading(true); setError(null)
+    setLoading(true); setError(null); setPending(null)
     try {
-      const res = await api.optimizeAllocation({ ...SEED_ALLOCATION, optimization_target: target, excluded_funds: excluded })
+      const res = await api.optimizeAllocation({ fiscal_year: Number(year), historical_balance_ref: Number(balanceRef), optimization_target: target, excluded_funds: excluded,
+        ...(needsDeMinimis && deMinimis !== '' ? { de_minimis_residual_eur: Number(deMinimis) } : {}) })
       if (mine === seq.current) setPlan(res)
     } catch (e) {
-      if (mine === seq.current) { setError(e.message); setPlan(null) }
+      if (mine === seq.current) { setError(e.message); setPending(e.detail?.lines || null); setPlan(null) }
     } finally {
       if (mine === seq.current) setLoading(false)
     }
-  }, [target, excluded])
+  }, [target, excluded, balanceRef, year, deMinimis, needsDeMinimis])
 
   useEffect(() => { run() }, [run])
 
@@ -94,16 +106,28 @@ export default function AllocationView() {
           </label>
         </div>
 
+        <div className="flex flex-wrap items-end gap-3">
+          <label className="space-y-1 text-xs text-ink-2"><span className="label">Bilancio da cui parto</span>
+            <select className="field !w-auto" value={balanceRef || ''} onChange={(e) => onPickBalance(e.target.value ? Number(e.target.value) : null)}>
+              <option value="">{balances.length ? 'Scegli un bilancio…' : 'Nessun bilancio caricato'}</option>
+              {balances.map((b) => <option key={b.id} value={b.id}>{b.filename} ({b.created_at.slice(0, 10)}){b.to_review ? ` · ${b.to_review} righe da verificare` : ''}</option>)}</select></label>
+          <label className="space-y-1 text-xs text-ink-2"><span className="label">Anno da pianificare</span><input type="number" className="field !w-24" value={year} onChange={(e) => setYear(e.target.value)} /></label>
+          {needsDeMinimis && <label className="space-y-1 text-xs text-ink-2"><span className="label">De minimis residuo (€)</span><input type="number" className="field !w-32" value={deMinimis} onChange={(e) => setDeMinimis(e.target.value)} /></label>}
+          <button className="btn" onClick={onGoDocuments}>Carica un bilancio</button>
+        </div>
         <div className="flex flex-wrap gap-2 items-center">
           <span className="label mr-1 inline-flex items-center gap-1.5">Prova a togliere un fondo <Hint id="alloc_whatif" /></span>
-          {SEED_ALLOCATION.available_funding_lines.map((f) => (
+          {funds.length === 0 && <span className="text-xs text-mute">Nessuna linea di finanziamento attiva: un manager le crea dai bandi (Quartier Generale → Fondi).</span>}
+          {funds.map((f) => (
             <button key={f.fund_id} onClick={() => toggle(f.fund_id)} aria-pressed={excluded.includes(f.fund_id)}
               className={`px-3 py-1.5 rounded-lg text-xs font-medium border transition ${excluded.includes(f.fund_id) ? 'border-red-500/40 text-red-700 line-through' : 'border-line-strong text-ink-2 hover:border-line-strong'}`}>
               {f.name}
             </button>
           ))}
         </div>
-        {error && <div className="p-3 rounded-xl border border-red-500/30 text-red-700 text-xs">{error}</div>}
+        {error && <div className="p-3 rounded-xl border border-red-500/30 text-red-700 text-xs">{error}
+          {pending && <ul className="list-disc pl-5 mt-1">{pending.slice(0, 6).map((l) => <li key={l.field_id}>{l.description} — {l.amount_eur} €</li>)}</ul>}
+          {pending && <button className="btn mt-2" onClick={onGoDocuments}>Verifica le righe nei Documenti</button>}</div>}
       </div>
 
       {plan && (

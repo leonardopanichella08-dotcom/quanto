@@ -42,14 +42,33 @@ class AuditorVerificationEngine:
             verification_time_seconds=round(time.perf_counter() - started, 3),
         )
 
+    @staticmethod
+    def _registered_reference_date(project_id: str):
+        """Data di riferimento di Fonte B usata nel calcolo che ha prodotto la radice registrata (dalla memoria delle esecuzioni)."""
+        import json
+        from datetime import date as _date
+        from app.core.db import connect
+        att = Registry.lookup(project_id)
+        if att is None:
+            return None
+        with connect() as conn:
+            row = conn.execute("SELECT response_json FROM runs WHERE kind='VALIDATE' AND merkle_root IN (?,?) ORDER BY id DESC LIMIT 1",
+                               (att.merkle_root, "0x" + att.merkle_root)).fetchone()
+        if row:
+            ref = json.loads(row["response_json"]).get("reference_date")
+            if ref:
+                return _date.fromisoformat(ref)
+        return None
+
     def verify_root(self, project_id: str, merkle_root: str) -> AuditVerificationResponse:
         return self._compare(project_id, merkle_root, recomputed=False, started=time.perf_counter())
 
     def verify_from_data(self, project_id: str, cost_items: List[CostItemInput], grant_rules: GrantRuleSet,
                          entity_liquidity_eur: Optional[float] = None,
-                         baseline_totals: Optional[Dict[CostCategory, float]] = None) -> AuditVerificationResponse:
+                         baseline_totals: Optional[Dict[CostCategory, float]] = None, reference_date=None) -> AuditVerificationResponse:
         started = time.perf_counter()
+        reference_date = reference_date or self._registered_reference_date(project_id)
         validated = DeterministicEngine.validate_budget(cost_items, grant_rules, entity_liquidity_eur=entity_liquidity_eur,
-                                                        baseline_totals=baseline_totals)
+                                                        baseline_totals=baseline_totals, reference_date=reference_date)
         root = MerkleTreeEngine.compute_merkle_root([v.item_hash_sha256 for v in validated])
         return self._compare(project_id, root, recomputed=True, started=started)
