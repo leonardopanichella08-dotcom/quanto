@@ -243,6 +243,137 @@ FNC3: Dict[str, Any] = {
     ],
 }
 
+ACCESSED_2 = "2026-09-23"
+
+FONDO_GARANZIA: Dict[str, Any] = {
+    "bando_id": "FONDO-GARANZIA-PMI",
+    "name": "Fondo di Garanzia per le PMI",
+    "issuer": "Mediocredito Centrale (gestore) / MIMIT",
+    "status": "APERTO (modalità prorogate per tutto il 2026)",
+    "period": {"from": None, "to": "2026-12-31"},
+    "legal_refs": [
+        "Decreto-legge 31 dicembre 2025, n. 200, art. 14, comma 1 (proroga 2026)",
+        "Circolare Mediocredito Centrale n. 1/2026 (gestore del Fondo)",
+        "Art. 15-bis del D.L. 145/2023 (\"Decreto Anticipi\")",
+        "Legge 30 dicembre 2024, n. 207",
+    ],
+    "benefit": {
+        "type": "GARANZIA_PUBBLICA",
+        "summary": "Garanzia pubblica su finanziamenti bancari a PMI e professionisti: non è un contributo diretto sulle spese di progetto, riduce il rischio di credito per la banca (spesso condizione per ottenere il finanziamento).",
+        "tiers": [{"label": "Liquidità", "rate_pct": 50}, {"label": "Investimento", "rate_pct": 80}, {"label": "Nuova Sabatini / importo ridotto / microcredito", "rate_pct": 80},
+                   {"label": "PMI innovative, start-up innovative, incubatori certificati", "rate_pct": 80}],
+    },
+    "sources": [
+        {"title": "Mediocredito Centrale — Prorogate per il 2026 le modalità di funzionamento del Fondo di garanzia",
+         "url": "https://www.mcc.it/primopiano/notizie/prorogate-per-il-2026-le-modalita-di-funzionamento-del-fondo-di-garanzia/", "accessed": ACCESSED_2, "confidence": "PRIMARIA"},
+        {"title": "fondidigaranzia.it — Home (dati operativi, beneficiari, sezioni speciali)", "url": "https://www.fondidigaranzia.it/", "accessed": ACCESSED_2, "confidence": "PRIMARIA"},
+        {"title": "pmi.it — Fondo di Garanzia PMI 2026: regole confermate (importo massimo e plafond, fonte non ufficiale)",
+         "url": "https://www.pmi.it/finanza/investimenti-pmi/483436/fondo-garanzia-pmi-regole-2026.html", "accessed": ACCESSED_2, "confidence": "SECONDARIA"},
+    ],
+    "rules": {},
+    "rule_notes": {},
+    "requirements": [
+        R("Percentuali di copertura", "INFO", "50% per finanziamenti a fronte di liquidità; 80% per finanziamenti a fronte di investimento, operazioni Nuova Sabatini a importo ridotto, microcredito, e per PMI innovative/start-up innovative/incubatori certificati.", [], "MCC — comunicazione proroga 2026"),
+        R("Natura dello strumento", "INFO", "È una garanzia pubblica su un finanziamento bancario, non un contributo a fondo perduto: riduce il rischio per la banca ma non copre direttamente le spese del progetto. Per questo non attiva regole di voce di costo del motore (non ha una «intensità di aiuto» sulle spese, ma una percentuale di copertura sul prestito).", [], "Valutazione redazionale, in base alla natura dello strumento", "INTERPRETAZIONE"),
+        R("Beneficiari", "OBBLIGO", "PMI e professionisti; operazioni valutate con il modello di rating del Fondo.", [34], "fondidigaranzia.it — Home"),
+        R("Sezioni speciali", "INFO", "Il Fondo opera anche con sezioni dedicate a enti del terzo settore, alcune regioni (Sicilia, Emilia-Romagna, Piemonte, Veneto, Trento, Marche) e programmi specifici (Just Transition Fund, ricerca e innovazione).", [], "fondidigaranzia.it — Home"),
+        R("Importo massimo e plafond", "DA_REVISIONARE", "Fonti non ufficiali indicano un importo massimo garantito di 5 milioni di euro per impresa e un plafond 2026 di 140 miliardi di euro complessivi; non confermati su una pagina ufficiale MCC letta direttamente (rimandano alla Circolare 1/2026, non ancora acquisita in testo integrale).", [], "pmi.it", "SECONDARIA"),
+    ],
+    "not_specified": [
+        "Importo massimo garantito per impresa e plafond complessivo (solo da fonti non ufficiali)",
+        "Costo della garanzia (commissioni) per fascia di rating",
+        "Elenco completo dei finanziamenti/soggetti esclusi",
+        "Cumulabilità con altri strumenti sugli stessi costi",
+        "Testo integrale della Circolare MCC n. 1/2026 (non acquisito)",
+    ],
+}
+
+SIMEST_394: Dict[str, Any] = {
+    "bando_id": "SIMEST-FONDO-394-PNRR",
+    "name": "Fondo 394/81 — Finanziamenti agevolati per l'internazionalizzazione (PNRR)",
+    "issuer": "SIMEST (Gruppo CDP) / MAECI",
+    "status": "APERTO (sportello a fondo rotativo, fino a esaurimento risorse PNRR)",
+    "period": {"from": "2024-10-28", "to": None},
+    "legal_refs": [
+        "PNRR — Missione 1, Componente 2, Investimento 5 (internazionalizzazione delle PMI)",
+        "Legge 24 aprile 1990, n. 100 e Legge 394/1981 (Fondo 394, gestione SIMEST in convenzione con MAECI)",
+        "Delibera del Comitato Agevolazioni istitutiva del nuovo Fondo 394 finanziato con risorse PNRR/NextGenerationEU",
+    ],
+    "benefit": {
+        "type": "FINANZIAMENTO_AGEVOLATO_MISTO",
+        "summary": "Finanziamento a tasso agevolato (0,055% annuo) senza necessità di garanzie, combinato con una quota di cofinanziamento a fondo perduto fino al 25% dell'importo finanziato (fino al 40% per le PMI del Mezzogiorno), entro i limiti del Quadro Temporaneo sugli aiuti di Stato.",
+        "tiers": [{"label": "Quota fondo perduto standard", "rate_pct": 25}, {"label": "Quota fondo perduto PMI del Mezzogiorno", "rate_pct": 40}],
+    },
+    "sources": [
+        {"title": "SIMEST — Comunicato: dal Comitato Agevolazioni via libera al nuovo Fondo 394 finanziato dall'Unione europea",
+         "url": "https://www.simest.it/media/comunicati-stampa/simest-nuovo-fondo-394/", "accessed": ACCESSED_2, "confidence": "PRIMARIA"},
+        {"title": "Camera di Commercio di Genova — Il nuovo Fondo 394/81 per internazionalizzazione e transizione digitale/ecologica (SIMEST)",
+         "url": "https://www.ge.camcom.gov.it/it/gestisci/finanziamenti-e-contributi-per-limpresa/il-piano-nazionale-di-ripresa-e-resilienza-pnrr-1/missione-1/simest", "accessed": ACCESSED_2, "confidence": "SECONDARIA"},
+    ],
+    "rules": {"contribution_rate_pct": 0.25},
+    "rule_notes": {
+        "contribution_rate_pct": {"source": "SIMEST: quota di cofinanziamento a fondo perduto fino al 25% dell'importo finanziato (codificato il valore standard nazionale; la maggiorazione al 40% per le PMI del Mezzogiorno non è rappresentata come regola distinta).", "confidence": "PRIMARIA"},
+    },
+    "requirements": [
+        R("Tasso agevolato", "INFO", "Finanziamento a tasso agevolato pari allo 0,055% annuo (10% del tasso di riferimento UE), senza necessità di presentare garanzie.", [], "SIMEST — comunicato ufficiale"),
+        R("Quota a fondo perduto", "LIMITE", "Cofinanziamento a fondo perduto fino al 25% dell'importo finanziato; fino al 40% per le PMI con operatività nel Mezzogiorno (Abruzzo, Basilicata, Calabria, Campania, Molise, Puglia, Sardegna, Sicilia), entro i limiti del Quadro Temporaneo sugli aiuti di Stato.", [48, 49], "SIMEST — comunicato ufficiale"),
+        R("Dotazione e linee di intervento", "INFO", "Dotazione complessiva 1,2 miliardi di euro (400 milioni la quota a fondo perduto; 480 milioni riservati al Mezzogiorno). Tre linee: transizione digitale ed ecologica (fino a 300.000 €, max 25% del fatturato medio), partecipazione a fiere/missioni (fino a 150.000 €, max 15% del fatturato medio), sviluppo dell'e-commerce (10.000-300.000 € piattaforma propria / 10.000-200.000 € marketplace, max 15% del fatturato medio).", [], "SIMEST — comunicato ufficiale"),
+        R("Beneficiari", "OBBLIGO", "Esclusivamente PMI con vocazione internazionale; un solo finanziamento per impresa su questo Fondo.", [34], "SIMEST — comunicato ufficiale"),
+        R("Modalità di presentazione", "OBBLIGO", "Domande esclusivamente telematiche sul Portale SIMEST per i finanziamenti agevolati.", [], "SIMEST — comunicato ufficiale"),
+        R("Spese ammissibili dettagliate", "DA_REVISIONARE", "Il comunicato descrive le linee di intervento per finalità ma non l'elenco dettagliato delle spese ammissibili per ciascuna linea: serve il testo integrale della delibera del Comitato Agevolazioni.", [], "Assente nelle fonti consultate"),
+    ],
+    "not_specified": [
+        "Elenco dettagliato delle spese ammissibili per ciascuna linea di intervento",
+        "Durata e piano di rimborso del finanziamento",
+        "Regime di aiuto esatto (articolo del Quadro Temporaneo e massimali per impresa unica)",
+        "Maggiorazione al 40% per il Mezzogiorno non codificata come regola distinta (solo il 25% standard)",
+        "Scadenza dello sportello (fondo rotativo, fino a esaurimento delle risorse PNRR)",
+    ],
+}
+
+FVG_INNOVAZIONE: Dict[str, Any] = {
+    "bando_id": "FVG-FESR-INNOVAZIONE-PROCESSO",
+    "name": "Progetti di innovazione di processo e dell'organizzazione — PR FESR FVG 2021-2027",
+    "issuer": "Regione Autonoma Friuli Venezia Giulia",
+    "status": "CHIUSO (sportello 2024; possibili nuove edizioni sullo stesso PR FESR)",
+    "period": {"from": "2024-01-10", "to": "2024-02-29"},
+    "legal_refs": [
+        "Deliberazione della Giunta regionale n. 2003 del 15 dicembre 2023",
+        "Regolamento (UE) n. 651/2014 (GBER)",
+        "Legge regionale 20 marzo 2000, n. 7",
+        "Programma Regionale FESR Friuli Venezia Giulia 2021-2027",
+    ],
+    "benefit": {
+        "type": "CONTRIBUTO_IN_CONTO_CAPITALE",
+        "summary": "Contributo a fondo perduto su progetti di innovazione di processo e organizzativa: 45% per PMI in progetti autonomi, 50% per PMI in progetti congiunti, 15% per grandi imprese (ammesse solo in progetti congiunti).",
+        "tiers": [{"label": "PMI, progetto autonomo", "rate_pct": 45}, {"label": "PMI, progetto congiunto", "rate_pct": 50}, {"label": "Grande impresa, progetto congiunto", "rate_pct": 15}],
+    },
+    "sources": [
+        {"title": "Regione FVG — Progetti di innovazione di processo e dell'organizzazione (PR FESR 2021-2027, Bando 2024)",
+         "url": "https://www.regione.fvg.it/rafvg/cms/RAFVG/economia-imprese/industria/FOGLIA200/FOGLIA11/", "accessed": ACCESSED_2, "confidence": "PRIMARIA"},
+    ],
+    "rules": {"eligible_categories": ["PERSONNEL", "CAPITAL_ASSETS", "CONSULTING"], "max_aid_intensity_pct": 0.5},
+    "rule_notes": {
+        "eligible_categories": {"source": "Spese ammissibili: personale e manodopera, consulenze da enti di ricerca qualificati, prestazioni e servizi (test, cloud, certificazioni), strumenti e attrezzature, beni immateriali (software, licenze, brevetti), materiali e spese generali.", "confidence": "PRIMARIA"},
+        "max_aid_intensity_pct": {"source": "45% PMI progetto autonomo, 50% PMI progetto congiunto, 15% grande impresa (solo progetti congiunti): qui è codificato il valore massimo (50%); i livelli differenziati per tipo di beneficiario/progetto non sono rappresentati come regola distinta.", "confidence": "INTERPRETAZIONE"},
+    },
+    "requirements": [
+        R("Intensità di aiuto", "LIMITE", "45% per micro, piccole e medie imprese in progetti autonomi; 50% per PMI in progetti congiunti; 15% per grandi imprese, ammesse solo in progetti congiunti.", [48], "Regione FVG — Intensità di aiuto"),
+        R("Spese ammissibili", "OBBLIGO", "Personale e manodopera, consulenze da enti di ricerca qualificati, prestazioni e servizi (test, cloud, certificazioni), strumenti e attrezzature, beni immateriali (software, licenze, brevetti), materiali e spese generali.", [16, 31, 36], "Regione FVG — Spese ammissibili"),
+        R("Limiti economici", "LIMITE", "Progetto minimo 30.000 € per impresa; massimo 750.000 € per impresa; spese di certificazione ammissibili fino a 2.000 €.", [16], "Regione FVG — Limiti economici"),
+        R("Termini di presentazione (sportello 2024)", "INFO", "Domande dalle ore 10:00 del 10 gennaio 2024 alle ore 16:00 del 29 febbraio 2024, tramite sistema telematico IOL.", [46], "Regione FVG — Scadenza"),
+        R("Esito ed elenco ammessi", "INFO", "La Regione pubblica l'elenco delle domande finanziate in PDF, ma senza il dettaglio del piano dei costi per singolo beneficiario: non utilizzabile come fonte per la banca dei pattern.", [], "Regione FVG — Documentazione", "SECONDARIA"),
+        R("Regole di dettaglio non acquisite", "DA_REVISIONARE", "Percentuali per singola voce di spesa (es. tetto consulenze, spese generali forfettarie), regole di cumulo, tracciabilità dei pagamenti e obblighi DNSH non risultano dalla pagina di sintesi: serve il testo integrale del bando e degli allegati.", [], "Assenti nella pagina di sintesi consultata"),
+    ],
+    "not_specified": [
+        "Tetti per singola voce di spesa (consulenze, spese generali)",
+        "Regole di cumulo con altri aiuti",
+        "Tracciabilità dei pagamenti",
+        "Obblighi DNSH",
+        "Eventuali nuove edizioni/scadenze successive al 2024",
+    ],
+}
+
 SANDBOX: Dict[str, Any] = {
     "bando_id": "QUANTO-SANDBOX-60",
     "name": "QUANTO Sandbox — bando di prova a 60 criteri",
@@ -260,7 +391,7 @@ SANDBOX: Dict[str, Any] = {
     "not_specified": [],
 }
 
-BANDI: List[Dict[str, Any]] = [IPERAMMORTAMENTO, SABATINI, HORIZON, TRANSIZIONE_50, FNC3, SANDBOX]
+BANDI: List[Dict[str, Any]] = [IPERAMMORTAMENTO, SABATINI, HORIZON, TRANSIZIONE_50, FNC3, FONDO_GARANZIA, SIMEST_394, FVG_INNOVAZIONE, SANDBOX]
 
 REFERENCES: List[Dict[str, Any]] = [
     {

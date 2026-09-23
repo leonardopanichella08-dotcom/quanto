@@ -127,7 +127,7 @@ def test_project_dossier_collects_everything_about_a_project():
 def test_overview_operations_map_and_stats():
     client.post("/api/v2/budget/validate", json=_demo())
     ov = client.get("/api/v2/hq/overview", headers=hq_headers()).json()
-    assert ov["counts"]["runs"] == 1 and ov["counts"]["bandi"] == 6 and ov["validations"] == 1 and ov["storage"]["engine"] == "PostgreSQL"
+    assert ov["counts"]["runs"] == 1 and ov["counts"]["bandi"] == 9 and ov["validations"] == 1 and ov["storage"]["engine"] == "PostgreSQL"
     assert ov["registry"]["intact"] is True and len(ov["recent_events"]) >= 1
     ops = {o["id"]: o for o in client.get("/api/v2/hq/operations", headers=hq_headers()).json()}
     assert len(ops) >= 20 and ops["budget.validate"]["stats"]["count"] == 1 and ops["budget.validate"]["stages"]
