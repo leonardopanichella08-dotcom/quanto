@@ -123,19 +123,31 @@ def _meta(conn, bando_id: str) -> Dict[str, Any]:
 
 
 def list_bandi() -> List[Dict[str, Any]]:
+    """Elenco pubblico: solo i bandi curati o con una ricerca che ha prodotto qualcosa (regole, requisiti, fonti, run).
+
+    Il catalogo nazionale (Fonte A, aggiornato ogni notte da ``catalog_job``) può contenere migliaia di voci di sole
+    metadati (``CAT-*``): filtrarle qui in SQL — invece di leggerle tutte e scartarle in Python con 4-5 interrogazioni
+    a testa — evita che l'elenco pubblico faccia decine di migliaia di andate e ritorni al database a ogni apertura
+    della pagina Bandi.
+    """
     ensure_seeded()
     out = []
     with connect() as conn:
-        for b in conn.execute("SELECT * FROM bandi ORDER BY CASE catalog_status WHEN 'CURATED' THEN 0 ELSE 1 END, bando_id").fetchall():
+        rows = conn.execute(
+            "SELECT * FROM bandi b WHERE b.catalog_status='CURATED' "
+            "OR EXISTS (SELECT 1 FROM rules r WHERE r.bando_id=b.bando_id) "
+            "OR EXISTS (SELECT 1 FROM requirements q WHERE q.bando_id=b.bando_id) "
+            "OR EXISTS (SELECT 1 FROM bando_sources s WHERE s.bando_id=b.bando_id) "
+            "OR EXISTS (SELECT 1 FROM runs ru WHERE ru.bando_id=b.bando_id AND ru.kind='VALIDATE') "
+            "ORDER BY CASE b.catalog_status WHEN 'CURATED' THEN 0 ELSE 1 END, b.bando_id"
+        ).fetchall()
+        for b in rows:
             bid = b["bando_id"]
             meta = _meta(conn, bid)
             rules = conn.execute("SELECT rule_key, status FROM rules WHERE bando_id=?", (bid,)).fetchall()
             published = [r["rule_key"] for r in rules if r["status"] == "PUBLISHED"]
             reqs = conn.execute("SELECT COUNT(*) c, COALESCE(SUM((kind='DA_REVISIONARE')::int),0) r FROM requirements WHERE bando_id=?", (bid,)).fetchone()
             runs = conn.execute("SELECT COUNT(*) c, MAX(ts) t FROM runs WHERE bando_id=? AND kind='VALIDATE'", (bid,)).fetchone()
-            n_src = conn.execute("SELECT COUNT(*) c FROM bando_sources WHERE bando_id=?", (bid,)).fetchone()["c"]
-            if not meta.get("curated") and not rules and not (reqs["c"] or 0) and not n_src and not runs["c"]:
-                continue  # ricerca senza esito: resta visibile solo al manager (Archivio bandi), non nell'elenco pubblico
             out.append({
                 "bando_id": bid, "name": b["name"], "issuer": b["issuer"], "status": meta.get("status") or ("IN LAVORAZIONE" if b["extraction_status"] != "COMPLETED" else "ESTRATTO"),
                 "period": meta.get("period"), "curated": bool(meta.get("curated")), "extraction_status": b["extraction_status"],
