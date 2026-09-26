@@ -3,12 +3,11 @@ import { ChevronsRight, Pause, Play, RotateCcw } from 'lucide-react'
 import Guide from './Guide'
 import { Hint } from './Help'
 import { useNav } from '../lib/nav'
-import { CRITERIA_BLOCKS, STATUS_LABEL, fmtEur, fmtPct } from '../lib/format'
+import CriteriaHeatmap, { HEATMAP_CELL as CELL, HEATMAP_OUTCOME_LABEL as OUTCOME_LABEL } from './CriteriaHeatmap'
+import { fmtEur, fmtPct } from '../lib/format'
 
 const ORDER = ['LINE_CRITERIA', 'FTE', 'SHARE_CAPS', 'BUDGET_CHECKS', 'HASH', 'MERKLE', 'EXPLAIN']
 const TAIL = ['BUDGET_CHECKS', 'HASH', 'MERKLE', 'EXPLAIN']
-const CELL = { PASS: '#10b981', ADJUSTED: '#f59e0b', REJECTED: '#ef4444', SUSPENDED: '#38bdf8' }
-const OUTCOME_LABEL = { PASS: 'superato', ADJUSTED: 'ridotto', REJECTED: 'respinto', SUSPENDED: 'in attesa di documento' }
 const SPEEDS = { Lento: 450, Normale: 120, Veloce: 25 }
 const STATUS_DOT = { APPROVED: '#10b981', CAP_EXCEEDED_ADJUSTED: '#f59e0b', REJECTED: '#ef4444', MISSING_DOCUMENTS: '#38bdf8' }
 
@@ -46,51 +45,6 @@ function Pipeline({ stages, active }) {
           </div>
         )
       })}
-    </div>
-  )
-}
-
-function Heatmap({ items, byKey, notEval, budgetChecks, cursor, stepsLen, selected, onSelect, titles }) {
-  const cols = Array.from({ length: 60 }, (_, i) => i + 1)
-  const showBudget = cursor > stepsLen
-  const cell = (item, n) => {
-    const hit = byKey.get(`${item.item_id}:${n}`)
-    if (hit && hit.pos < cursor) return { color: CELL[hit.step.outcome], tip: `${item.item_id} · #${n} ${titles[n] || ''}\n${OUTCOME_LABEL[hit.step.outcome]}${hit.step.delta_eur ? ` (${fmtEur(hit.step.delta_eur)})` : ''}\n${hit.step.note}` }
-    if (hit) return { color: 'rgba(21,21,15,0.13)', tip: `${item.item_id} · #${n}: non ancora eseguito` }
-    if (notEval.get(item.item_id)?.has(n)) return { color: 'transparent', border: '1px dashed rgba(21,21,15,0.4)', tip: `${item.item_id} · #${n} ${titles[n] || ''}\nNON VALUTATO: manca un dato o la regola del bando` }
-    return { color: 'rgba(21,21,15,0.04)', tip: `#${n}: non pertinente a questa voce` }
-  }
-  return (
-    <div className="overflow-x-auto pb-2">
-      <div style={{ minWidth: 60 * 15 + 110 }} className="space-y-0.5">
-        <div className="flex" style={{ paddingLeft: 108 }}>
-          {CRITERIA_BLOCKS.map((b) => (
-            <div key={b.label} className="text-[9px] text-mute border-l border-line-strong pl-1 truncate" style={{ width: (b.to - b.from + 1) * 15 }}>{b.label}</div>
-          ))}
-        </div>
-        <div className="flex" style={{ paddingLeft: 108 }}>
-          {cols.map((n) => <div key={n} className="text-[7px] font-mono text-mute text-center" style={{ width: 15 }}>{n % 5 === 0 || n === 1 ? n : ''}</div>)}
-        </div>
-        {items.map((it) => (
-          <div key={it.item_id} onClick={() => onSelect(it.item_id)} className={`flex items-center cursor-pointer rounded ${selected === it.item_id ? 'bg-brand/10 ring-1 ring-brand/50' : 'hover:bg-tint'}`}>
-            <div className="w-[108px] shrink-0 pr-2 flex items-center gap-1.5 text-[10px] font-mono text-ink-2 truncate">
-              <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: cursor > stepsLen ? STATUS_DOT[it.status] : 'rgba(21,21,15,0.35)' }} />{it.item_id}
-            </div>
-            {cols.map((n) => {
-              const c = cell(it, n)
-              return <div key={n} title={c.tip} className="rounded-[2px] transition-colors" style={{ width: 13, height: 13, margin: 1, background: c.color, border: c.border }} />
-            })}
-          </div>
-        ))}
-        <div className="flex items-center rounded bg-white/45 mt-1">
-          <div className="w-[108px] shrink-0 pr-2 text-[10px] font-mono text-fuchsia-700">BUDGET</div>
-          {cols.map((n) => {
-            const c = budgetChecks.find((x) => x.criterion === n)
-            const color = !c ? 'rgba(21,21,15,0.04)' : !showBudget ? 'rgba(21,21,15,0.13)' : c.status === 'PASS' ? '#10b981' : c.status === 'FAIL' ? '#ef4444' : 'transparent'
-            return <div key={n} title={c ? `#${n} ${c.title}\n${c.status}\n${c.message}` : `#${n}`} style={{ width: 13, height: 13, margin: 1, background: color, border: c && c.status === 'NOT_EVALUATED' && showBudget ? '1px dashed rgba(21,21,15,0.4)' : undefined }} className="rounded-[2px]" />
-          })}
-        </div>
-      </div>
     </div>
   )
 }
@@ -262,7 +216,7 @@ export default function AlgorithmLab({ validation, title, criteriaTitles = {} })
       <div className="card p-4 space-y-3">
         <div className="flex flex-wrap items-center justify-between gap-2"><span className="label inline-flex items-center gap-1.5">2 · Mappa dei 60 controlli (una riga per voce) <Hint id="lab_mappa" /></span>
           <span className="text-xs text-mute">{items.length} voci · 60 controlli</span></div>
-        <Heatmap items={items} byKey={byKey} notEval={notEval} budgetChecks={validation.budget_checks || []} cursor={cursor} stepsLen={ordered.length} selected={selected} onSelect={setSelected} titles={titles} />
+        <CriteriaHeatmap items={items} byKey={byKey} notEval={notEval} budgetChecks={validation.budget_checks || []} cursor={cursor} stepsLen={ordered.length} selected={selected} onSelect={setSelected} titles={titles} statusDot={STATUS_DOT} />
         <div className="flex flex-wrap gap-3 text-[11px] text-ink-2">
           {Object.entries(CELL).map(([k, c]) => <span key={k}><span className="inline-block w-2.5 h-2.5 rounded-sm mr-1" style={{ background: c }} />{OUTCOME_LABEL[k]}</span>)}
           <span><span className="inline-block w-2.5 h-2.5 rounded-sm mr-1 border border-dashed border-line-strong" />non valutato</span>

@@ -1,10 +1,14 @@
 import React, { useMemo, useRef, useState } from 'react'
 import { AlertTriangle, Download, FileSpreadsheet, Loader2, Play, Plus, ShieldCheck, Upload, X } from 'lucide-react'
 import LineEditor from './LineEditor'
+import ItemTemplatePicker from './ItemTemplatePicker'
+import CriteriaHeatmap, { heatmapData } from './CriteriaHeatmap'
 import Guide from './Guide'
 import { Hint } from './Help'
 import { api } from '../lib/api'
 import { BANDO_STATUS_STYLE, CATEGORY_LABEL, CATEGORY_ORDER, STATUS_LABEL, STATUS_STYLE, fmtEur, fmtNum, fmtPct } from '../lib/format'
+
+const ITEM_STATUS_DOT = { APPROVED: '#10b981', CAP_EXCEEDED_ADJUSTED: '#f59e0b', REJECTED: '#ef4444', MISSING_DOCUMENTS: '#38bdf8' }
 
 const NEW_ITEM = {
   PERSONNEL: { ccnl_code: 'TERZO_SETTORE', employee_level: '3', ral_eur: 30000, fte_allocation: 0.5, duration_months: 12 },
@@ -111,7 +115,7 @@ function Inspector({ item, steps }) {
 }
 
 export default function BudgetCanvas({
-  bandi, bando, request, fields, validation, loading, error, busy, importInfo,
+  bandi, bando, request, fields, validation, loading, error, busy, importInfo, criteriaTitles,
   onSelectBando, onProjectId, onItemsChange, onDemo, onImport, onValidate, onRegister, onExport, onOpenLab, onDismissImport, onGoBandi,
 }) {
   const [selectedId, setSelectedId] = useState(null)
@@ -123,12 +127,17 @@ export default function BudgetCanvas({
   const selectedInput = items.find((i) => i.item_id === selectedId) || null
   const selectedResult = selectedId ? byId[selectedId] : null
   const steps = useMemo(() => (validation?.trace?.steps || []).filter((s) => s.item_id === selectedId), [validation, selectedId])
+  const heat = useMemo(() => heatmapData(validation, criteriaTitles), [validation, criteriaTitles])
+  // Il criterio #1 (tabella CCNL) è la porta d'ingresso di tutte le voci di personale: se manca la tabella in
+  // Fonte B la voce è respinta subito, e con lei tutti i controlli 2-15 che ne dipendono restano "non valutati" —
+  // non un difetto della singola voce, ma l'assenza di un dato che serve a *ogni* voce di personale.
+  const missingFonteB = validation?.items?.filter((i) => i.criteria_failed?.includes(1)) || []
 
   const groups = CATEGORY_ORDER.map((c) => [c, items.filter((i) => i.category === c)]).filter(([, l]) => l.length)
   const nextId = () => { let n = items.length + 1; while (items.some((i) => i.item_id === `NEW-${String(n).padStart(3, '0')}`)) n += 1; return `NEW-${String(n).padStart(3, '0')}` }
 
-  const add = (cat) => {
-    const item = { item_id: nextId(), description: `Nuova voce — ${CATEGORY_LABEL[cat]}`, category: cat, source_c_ref: '', ...NEW_ITEM[cat] }
+  const addFromTemplate = (t) => {
+    const item = { item_id: nextId(), description: t.label, category: t.category, source_c_ref: '', ...NEW_ITEM[t.category], ...t.defaults }
     onItemsChange([...items, item]); setSelectedId(item.item_id); setPanel('edit'); setAddOpen(false)
   }
   const update = (item) => { onItemsChange(items.map((i) => (i.item_id === selectedId ? item : i))); setSelectedId(item.item_id) }
@@ -180,9 +189,10 @@ export default function BudgetCanvas({
             <div className="relative">
               <button onClick={() => setAddOpen(!addOpen)} className="btn"><Plus className="w-3.5 h-3.5" />Aggiungi voce</button>
               {addOpen && (
-                <div className="absolute z-20 mt-1 w-48 card p-1 shadow-xl">
-                  {CATEGORY_ORDER.map((c) => <button key={c} onClick={() => add(c)} className="w-full text-left px-3 py-2 text-xs rounded-lg hover:bg-tint-2">{CATEGORY_LABEL[c]}</button>)}
-                </div>
+                <>
+                  <button aria-label="Chiudi" className="fixed inset-0 z-10 cursor-default" onClick={() => setAddOpen(false)} />
+                  <ItemTemplatePicker onPick={addFromTemplate} />
+                </>
               )}
             </div>
             <Hint id="budget_toolbar" />
@@ -201,6 +211,18 @@ export default function BudgetCanvas({
           )}
           {error && <div className="p-3 rounded-xl border border-red-500/30 text-red-700 text-xs">{error}</div>}
 
+          {missingFonteB.length > 0 && (
+            <div className="p-3 rounded-xl border border-amber-500/30 bg-amber-500/5 text-amber-900 text-xs leading-relaxed flex items-start gap-2">
+              <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5" />
+              <p>
+                <strong>{missingFonteB.length} {missingFonteB.length === 1 ? 'voce di personale è respinta' : 'voci di personale sono respinte'} per lo stesso motivo:</strong> non
+                c’è nessuna tabella CCNL caricata in Fonte B ({missingFonteB.map((i) => i.item_id).join(', ')}). Non è un errore di quelle righe: <em>tutte</em> le voci di personale,
+                per <em>qualunque</em> bando, restano respinte finché il Quartier Generale non carica almeno una tabella ufficiale (Fonte B → Tabelle ufficiali).
+                Finché manca, anche i controlli #2-#15 di quelle voci restano «non valutati», non «superati» — per questo il quadro qui sotto resta in gran parte vuoto su quelle righe.
+              </p>
+            </div>
+          )}
+
           {/* riepilogo */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
             <SummaryCard label="Punteggio" hint="punteggio" value={validation ? `${validation.conformity_score}/100` : '—'} tone="text-brand-ink" note="controlli superati su quelli eseguiti" />
@@ -208,6 +230,25 @@ export default function BudgetCanvas({
             <SummaryCard label="Ammesso" hint="ammesso" value={fmtEur(validation?.total_approved_eur)} tone="text-emerald-700" note={validation ? `${statusCount.APPROVED || 0} ok · ${statusCount.CAP_EXCEEDED_ADJUSTED || 0} ridotte` : 'Premi “Controlla il budget”'} />
             <SummaryCard label="Escluso o ridotto" value={fmtEur(validation?.total_rejected_eur)} tone="text-amber-700" note={validation ? `${statusCount.REJECTED || 0} respinte · ${statusCount.MISSING_DOCUMENTS || 0} in attesa di documento` : '—'} />
           </div>
+
+          {validation && (
+            <div className="card p-4 space-y-3">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <span className="text-xs text-ink-2 font-medium inline-flex items-center gap-1.5">Cosa ha deciso il motore, controllo per controllo <Hint id="budget_heatmap" /></span>
+                <button onClick={onOpenLab} className="text-xs text-brand-ink hover:underline">Vedi l’animazione passo-passo →</button>
+              </div>
+              <CriteriaHeatmap items={validation.items} byKey={heat.byKey} notEval={heat.notEval} budgetChecks={validation.budget_checks || []}
+                selected={selectedId} onSelect={pick} titles={heat.titles} statusDot={ITEM_STATUS_DOT} cellSize={11} />
+              <div className="flex flex-wrap gap-3 text-[11px] text-ink-2">
+                <span><span className="inline-block w-2.5 h-2.5 rounded-sm mr-1" style={{ background: '#10b981' }} />superato</span>
+                <span><span className="inline-block w-2.5 h-2.5 rounded-sm mr-1" style={{ background: '#f59e0b' }} />ridotto</span>
+                <span><span className="inline-block w-2.5 h-2.5 rounded-sm mr-1" style={{ background: '#ef4444' }} />respinto</span>
+                <span><span className="inline-block w-2.5 h-2.5 rounded-sm mr-1" style={{ background: '#38bdf8' }} />in attesa di documento</span>
+                <span><span className="inline-block w-2.5 h-2.5 rounded-sm mr-1 border border-dashed border-line-strong" />non valutato: manca un dato o una regola del bando</span>
+                <span><span className="inline-block w-2.5 h-2.5 rounded-sm mr-1 bg-tint-2 border border-line" />non pertinente a questa voce</span>
+              </div>
+            </div>
+          )}
 
           <div className="grid grid-cols-1 lg:grid-cols-5 gap-6 items-start">
             <div className="lg:col-span-3 card p-4 space-y-4">

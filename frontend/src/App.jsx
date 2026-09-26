@@ -205,7 +205,7 @@ export default function App() {
 
         {tab === 'bandi' && <BandiLibrary bandi={bandi} selectedId={bando?.bando_id} onSelect={selectBando} onReload={loadBandi} />}
         {tab === 'canvas' && (
-          <BudgetCanvas bandi={bandi} bando={bando} request={request} fields={fields} validation={validation} loading={loading} error={error} busy={busy} importInfo={importInfo}
+          <BudgetCanvas bandi={bandi} bando={bando} request={request} fields={fields} validation={validation} loading={loading} error={error} busy={busy} importInfo={importInfo} criteriaTitles={criteriaTitles}
             onSelectBando={(id) => selectBando(id).catch(() => {})} onProjectId={changeProject} onItemsChange={changeItems} onDemo={loadDemo} onImport={importFile}
             onValidate={() => validate(request)} onRegister={() => setModalOpen(true)} onExport={exportAs}
             onOpenLab={() => { setReplay(null); setLabFrom('canvas'); setTab('lab') }} onDismissImport={() => setImportInfo(null)} onGoBandi={() => setTab('bandi')} />

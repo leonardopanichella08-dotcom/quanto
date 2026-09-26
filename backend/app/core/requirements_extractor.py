@@ -305,18 +305,36 @@ def extract_more_rules(text: str) -> Dict[str, str]:
 
 
 # ------------------------------------------------------------------ riferimenti normativi citati nel testo
-_LEGAL = re.compile(
-    r"(Decreto[- ]Legge|Decreto\s+Legislativo|Decreto\s+Ministeriale|Decreto\s+Direttoriale|Decreto\s+Interministeriale|DPCM|D\.\s?L\.|D\.\s?Lgs\.|Legge|Regolamento\s+\((?:UE|CE)\)|Circolare|Delibera)"
-    r"\s+(?:n\.?\s*)?(\d{1,4}(?:/\d{2,4})?)(?:\s*(?:del|dell['’]|,)\s*(\d{1,2}[/.\-]\d{1,2}[/.\-]\d{2,4}|\d{1,2}\s+[a-zà-ù]+\s+\d{4}))?", re.I)
+_MONTHS = r"gennaio|febbraio|marzo|aprile|maggio|giugno|luglio|agosto|settembre|ottobre|novembre|dicembre"
+_DATE = rf"\d{{1,2}}[/.\-]\d{{1,2}}[/.\-]\d{{2,4}}|\d{{1,2}}\s+(?:{_MONTHS})\s+\d{{4}}"
+_KIND = (r"Decreto[- ]Legge|Decreto\s+Legislativo|Decreto\s+del\s+Presidente\s+della\s+Repubblica|Decreto\s+Interministeriale|"
+         r"Decreto\s+Direttoriale|Decreto\s+Ministeriale|Decreto\s+del\s+Ministro|DPCM|D\.\s?P\.\s?R\.|D\.\s?L\.|D\.\s?Lgs\.|"
+         r"Legge\s+[Rr]egionale|Legge|Regolamento\s+delegato\s+\((?:UE|CE)\)|Regolamento\s+\((?:UE|CE)\)|Regolamento\s+(?:UE|CE)|"
+         r"Direttiva\s+\((?:UE|CE)\)|Direttiva\s+(?:UE|CE)|Deliberazione|Delibera|Circolare|Determinazione|Determina")
+# Ordine «numero poi data»: «Legge n. 207/2024» oppure «Legge n. 207 del 30 dicembre 2024».
+_LEGAL_NUM_FIRST = re.compile(rf"({_KIND})\s+(?:n\.?\s*)?(\d{{1,4}}(?:/\d{{2,4}})?)(?:\s*(?:del|dell['’]|,)\s*({_DATE}))?", re.I)
+# Ordine «data poi numero», il più frequente nei testi ufficiali italiani: «Legge 30 dicembre 2024, n. 207».
+_LEGAL_DATE_FIRST = re.compile(rf"({_KIND})\s+({_DATE})\s*,?\s*n\.?\s*(\d{{1,4}}(?:/\d{{2,4}})?)", re.I)
 
 
 def extract_legal_refs(text: str, limit: int = 40) -> List[str]:
-    """Atti citati nel testo (decreti, leggi, regolamenti UE…), i più citati per primi."""
+    """Atti citati nel testo (decreti, leggi, regolamenti UE…), i più citati per primi.
+
+    Riconosce entrambi gli ordini di citazione usati nei testi ufficiali italiani: «Legge n. 207 del
+    30/12/2024» (meno comune) e «Legge 30 dicembre 2024, n. 207» (il più frequente in assoluto — la forma
+    che la versione precedente di questa funzione non riconosceva affatto).
+    """
     counts: Dict[str, int] = {}
-    for m in _LEGAL.finditer(text):
-        kind = re.sub(r"\s+", " ", m.group(1)).strip()
-        if not m.group(3) and "/" not in m.group(2):
+    for m in _LEGAL_NUM_FIRST.finditer(text):
+        kind, number, when = m.group(1), m.group(2), m.group(3)
+        if not when and "/" not in number:
             continue  # "legge n. 27" senza data né anno: ambiguo, non è un riferimento utilizzabile
-        ref = f"{kind[:1].upper() + kind[1:]} n. {m.group(2)}" + (f" del {m.group(3)}" if m.group(3) else "")
+        kind = re.sub(r"\s+", " ", kind).strip()
+        ref = f"{kind[:1].upper() + kind[1:]} n. {number}" + (f" del {when}" if when else "")
+        counts[ref] = counts.get(ref, 0) + 1
+    for m in _LEGAL_DATE_FIRST.finditer(text):
+        kind, when, number = m.group(1), m.group(2), m.group(3)
+        kind = re.sub(r"\s+", " ", kind).strip()
+        ref = f"{kind[:1].upper() + kind[1:]} n. {number} del {when}"
         counts[ref] = counts.get(ref, 0) + 1
     return [r for r, _ in sorted(counts.items(), key=lambda kv: -kv[1])][:limit]
