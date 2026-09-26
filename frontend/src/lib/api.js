@@ -74,6 +74,7 @@ export const api = {
   fcReview: (docId, fieldId, action, value) => post(`/fonte-c/documents/${docId}/fields/${fieldId}/review`, { action, value }),
   fcCostLine: (id) => call(`/fonte-c/documents/${id}/cost-line`).then((r) => r.json()),
   fcExpenses: (id) => call(`/fonte-c/documents/${id}/expenses`).then((r) => r.json()),
+  fcDraftItems: (id) => call(`/fonte-c/documents/${id}/draft-items`).then((r) => r.json()),
   // fondi per l'allocazione
   funds: () => call('/allocation/funds').then((r) => r.json()),
   deriveFund: (body) => post('/allocation/funds/from-bando', body),

@@ -1,11 +1,12 @@
 import React, { useMemo, useRef, useState } from 'react'
-import { AlertTriangle, Download, FileSpreadsheet, Loader2, Play, Plus, ShieldCheck, Upload, X } from 'lucide-react'
+import { AlertTriangle, Download, FileSpreadsheet, FileText, Loader2, Play, Plus, ShieldCheck, Upload, X } from 'lucide-react'
 import LineEditor from './LineEditor'
 import ItemTemplatePicker from './ItemTemplatePicker'
 import CriteriaHeatmap, { heatmapData } from './CriteriaHeatmap'
 import Guide from './Guide'
 import { Hint } from './Help'
 import { api } from '../lib/api'
+import { useNav } from '../lib/nav'
 import { BANDO_STATUS_STYLE, CATEGORY_LABEL, CATEGORY_ORDER, STATUS_LABEL, STATUS_STYLE, fmtEur, fmtNum, fmtPct } from '../lib/format'
 
 const ITEM_STATUS_DOT = { APPROVED: '#10b981', CAP_EXCEEDED_ADJUSTED: '#f59e0b', REJECTED: '#ef4444', MISSING_DOCUMENTS: '#38bdf8' }
@@ -118,6 +119,7 @@ export default function BudgetCanvas({
   bandi, bando, request, fields, validation, loading, error, busy, importInfo, criteriaTitles,
   onSelectBando, onProjectId, onItemsChange, onDemo, onImport, onValidate, onRegister, onExport, onOpenLab, onDismissImport, onGoBandi,
 }) {
+  const nav = useNav()
   const [selectedId, setSelectedId] = useState(null)
   const [panel, setPanel] = useState('inspect')
   const [addOpen, setAddOpen] = useState(false)
@@ -185,6 +187,9 @@ export default function BudgetCanvas({
             <button onClick={() => onDemo('realistic')} disabled={busy} className="btn">Progetto realistico (15 voci)</button>
             <button onClick={() => fileRef.current?.click()} disabled={busy} className="btn"><Upload className="w-3.5 h-3.5" />Importa Excel/CSV</button>
             <input ref={fileRef} type="file" accept=".xlsx,.csv" className="hidden" onChange={(e) => { if (e.target.files?.[0]) onImport(e.target.files[0]); e.target.value = '' }} />
+            <button onClick={() => nav.go('documents')} disabled={busy} className="btn" title="Carica il PDF di una candidatura già scritta: le voci di spesa che contiene si aggiungono qui">
+              <FileText className="w-3.5 h-3.5" />Importa da una candidatura (PDF)
+            </button>
             <a href={api.templateUrl} className="btn !border-line !text-ink-2 hover:!text-ink"><FileSpreadsheet className="w-3.5 h-3.5" />Template Excel</a>
             <div className="relative">
               <button onClick={() => setAddOpen(!addOpen)} className="btn"><Plus className="w-3.5 h-3.5" />Aggiungi voce</button>
@@ -215,10 +220,8 @@ export default function BudgetCanvas({
             <div className="p-3 rounded-xl border border-amber-500/30 bg-amber-500/5 text-amber-900 text-xs leading-relaxed flex items-start gap-2">
               <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5" />
               <p>
-                <strong>{missingFonteB.length} {missingFonteB.length === 1 ? 'voce di personale è respinta' : 'voci di personale sono respinte'} per lo stesso motivo:</strong> non
-                c’è nessuna tabella CCNL caricata in Fonte B ({missingFonteB.map((i) => i.item_id).join(', ')}). Non è un errore di quelle righe: <em>tutte</em> le voci di personale,
-                per <em>qualunque</em> bando, restano respinte finché il Quartier Generale non carica almeno una tabella ufficiale (Fonte B → Tabelle ufficiali).
-                Finché manca, anche i controlli #2-#15 di quelle voci restano «non valutati», non «superati» — per questo il quadro qui sotto resta in gran parte vuoto su quelle righe.
+                <strong>{missingFonteB.length} {missingFonteB.length === 1 ? 'voce di personale respinta' : 'voci di personale respinte'}</strong> ({missingFonteB.map((i) => i.item_id).join(', ')}):
+                manca la tabella CCNL in Fonte B. Succede con <em>qualunque</em> bando finché non ne carichi una — Quartier Generale → Tabelle ufficiali.
               </p>
             </div>
           )}

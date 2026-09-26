@@ -15,7 +15,7 @@ from app.core import crypto_store, events, fonte_b
 from app.core.db import connect
 from app.core.fonte_c import ocr, parsers
 
-DOC_TYPES = {"PAYSLIP": "Busta paga", "BALANCE_SHEET": "Bilancio", "F24": "Modello F24"}
+DOC_TYPES = {"PAYSLIP": "Busta paga", "BALANCE_SHEET": "Bilancio", "F24": "Modello F24", "APPLICATION_DRAFT": "Bozza di candidatura"}
 MAX_BYTES = 15 * 1024 * 1024
 USABLE = ("AUTO", "CONFIRMED", "CORRECTED")
 COST_CATEGORIES = ("PERSONNEL", "CAPITAL_ASSETS", "CONSULTING", "OVERHEAD", "TRAINING")
@@ -215,6 +215,30 @@ def payslip_cost_line(document_id: int, owner: Optional[str] = None) -> Dict[str
     pending = [f["field_key"] for f in doc["fields"] if f["status"] == "NEEDS_REVIEW"]
     return {"document_id": document_id, "cost_item": line, "missing": missing, "needs_review": pending,
             "note": "Compila a mano RAL dichiarata, quota FTE e durata: la busta paga non li contiene."}
+
+
+def application_draft_items(document_id: int, owner: Optional[str] = None) -> Dict[str, Any]:
+    """Voci di costo lette dalla bozza di candidatura del cliente (piano dei costi/quadro economico già scritto),
+    pronte da aggiungere al Budget: solo righe utilizzabili e con categoria. Le altre restano da assegnare o verificare —
+    mai un importo o una categoria indovinati per far tornare il conto."""
+    doc = get(document_id, owner)
+    if doc is None or doc["doc_type"] != "APPLICATION_DRAFT":
+        raise KeyError(document_id)
+    items, unassigned, review = [], [], []
+    n = 0
+    for f in doc["fields"]:
+        if f["field_key"] != "expense_line":
+            continue
+        p = f["parsed"]
+        if f["status"] == "NEEDS_REVIEW":
+            review.append({"field_id": f["id"], **p})
+        elif not p.get("category"):
+            unassigned.append({"field_id": f["id"], **p})
+        else:
+            n += 1
+            items.append({"item_id": f"DOC{document_id}-{n}", "description": p["description"][:200], "category": p["category"],
+                          "amount_eur": float(p["amount_eur"]), "source_c_ref": f"DOC-FC-{document_id}"})
+    return {"document_id": document_id, "cost_items": items, "needs_category": unassigned, "needs_review": review}
 
 
 def balance_expenses(document_id: int, owner: Optional[str] = None) -> Dict[str, Any]:

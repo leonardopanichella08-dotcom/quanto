@@ -230,9 +230,7 @@ export default function BandiLibrary({ bandi, selectedId, onSelect, onReload }) 
       <div className="grid lg:grid-cols-3 gap-6 items-start">
         <div className="space-y-3">
           <p className="text-[11px] text-mute leading-relaxed px-1">
-            «N/60 controlli» è quanti dei 60 criteri <em>questo</em> bando attiva con le sue regole — non un punteggio di
-            completezza. Un bando che finanzia solo attrezzature non parlerà mai di ore di lavoro straordinario: restare
-            sotto 60 è la norma, non un'analisi a metà. <Hint id="bando_controlli_attivi" />
+            «N/60» è quanti criteri <em>questo</em> bando attiva, non un punteggio di completezza. <Hint id="bando_controlli_attivi" />
           </p>
           {bandi.map((b) => (
             <button key={b.bando_id} onClick={() => load(b.bando_id)}
@@ -270,7 +268,7 @@ export default function BandiLibrary({ bandi, selectedId, onSelect, onReload }) 
             setTimeout(() => setPicking((p) => (p === item.bando_id ? null : p)), 20000)   // rete di sicurezza: non resta bloccato se qualcosa fallisce prima di "onDone"
           }} />
           <div ref={researchRef}>
-            <ResearchPanel pick={catalogPick} onDone={async (id) => { setPicking(null); await onReload(); await load(id) }} />
+            <ResearchPanel pick={catalogPick} onUse={use} onDone={async (id) => { setPicking(null); await onReload(); await load(id) }} />
           </div>
         </div>
       </div>

@@ -234,4 +234,43 @@ def parse_f24(lines: List[dict]) -> List[Field]:
     return out
 
 
-PARSERS: Dict[str, Callable[[List[dict]], List[Field]]] = {"PAYSLIP": parse_payslip, "BALANCE_SHEET": parse_balance, "F24": parse_f24}
+# ------------------------------------------------------------------------------------------------ bozza di candidatura
+# Un cliente che ha già scritto la propria domanda (o solo il piano dei costi/quadro economico) in un PDF: le stesse
+# etichette di spesa del bilancio, ma sotto intestazioni tipiche di un progetto, non di un bilancio civilistico.
+_DRAFT_SECTION_START = re.compile(r"PIANO DEI COSTI|QUADRO ECONOMICO|BUDGET DI PROGETTO|COSTI DI PROGETTO|COSTI AMMISSIBILI|"
+                                   r"SPESE (?:PREVISTE|AMMISSIBILI)|VOCI DI SPESA|DETTAGLIO (?:DEI )?COSTI|RIPARTIZIONE (?:DEI )?COSTI|PIANO FINANZIARIO")
+_DRAFT_SECTION_END = re.compile(r"\bTOTALE\s+(?:COSTI|SPESE|GENERALE|PROGETTO)\b|CRONOPROGRAMMA|ALLEGAT\w+|DICHIARAZION\w+")
+
+
+def parse_application_draft(lines: List[dict]) -> List[Field]:
+    """Righe di costo da una bozza di candidatura scritta dal cliente (non un bilancio civilistico): stessa idea di
+    ``parse_balance`` ma con intestazioni di sezione più ampie. Se il documento non usa nessuna delle intestazioni
+    note, si leggono comunque tutte le righe con un importo e una descrizione riconoscibile, con una confidenza più
+    bassa (il documento non dichiara esplicitamente «qui inizia il piano dei costi»: la verifica umana decide di più)."""
+    out: List[Field] = []
+    has_section_markers = any(_DRAFT_SECTION_START.search(norm(ln["text"])) for ln in lines)
+    in_costs: Optional[bool] = None if has_section_markers else True
+    for ln in lines:
+        n = norm(ln["text"])
+        if has_section_markers:
+            if _DRAFT_SECTION_START.search(n):
+                in_costs = True
+                continue
+            if in_costs and _DRAFT_SECTION_END.search(n):
+                in_costs = False
+        amt = parse_amount(ln["text"])
+        if amt is None or in_costs is not True:
+            continue
+        desc = _ACCOUNT_CODE.sub("", _AMOUNT.sub("", ln["text"])).strip(" .:-")
+        if len(desc) < 4 or re.search(r"\bTOTALE\b", norm(desc)):
+            continue
+        cat, cat_conf = classify_cost(desc)
+        base = 0.95 if has_section_markers else 0.75            # nessuna intestazione riconosciuta: più prudenza
+        conf = round(base * (cat_conf if cat else 0.0) * ln["conf_min"], 4)
+        out.append(Field("expense_line", json.dumps({"description": desc, "amount_eur": str(abs(amt)), "category": cat}, ensure_ascii=False), conf, ln["page"], _scrub(ln["text"])))
+    return out
+
+
+PARSERS: Dict[str, Callable[[List[dict]], List[Field]]] = {
+    "PAYSLIP": parse_payslip, "BALANCE_SHEET": parse_balance, "F24": parse_f24, "APPLICATION_DRAFT": parse_application_draft,
+}

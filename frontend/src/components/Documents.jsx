@@ -4,7 +4,7 @@ import { api, download, fileToBase64 } from '../lib/api'
 import { SectionTitle } from './ui'
 import Guide from './Guide'
 
-const TYPES = { PAYSLIP: 'Busta paga', BALANCE_SHEET: 'Bilancio', F24: 'Modello F24' }
+const TYPES = { PAYSLIP: 'Busta paga', BALANCE_SHEET: 'Bilancio', F24: 'Modello F24', APPLICATION_DRAFT: 'Bozza di candidatura' }
 const STATUS = {
   PARSED: ['letto', 'text-emerald-700 border-emerald-500/30'], CONFIRMED: ['confermato', 'text-emerald-700 border-emerald-500/30'],
   NEEDS_REVIEW: ['da verificare', 'text-amber-700 border-amber-500/30'], FAILED: ['non letto', 'text-red-700 border-red-500/30'],
@@ -59,7 +59,7 @@ function FieldRow({ f, doc, min, onDone }) {
   )
 }
 
-function Detail({ id, onChanged, onUsePayslip, onUseBalance }) {
+function Detail({ id, onChanged, onUsePayslip, onUseBalance, onUseDraft }) {
   const [doc, setDoc] = useState(null)
   const [msg, setMsg] = useState(null)
   const load = useCallback(() => api.fcDocument(id).then(setDoc), [id])
@@ -69,6 +69,14 @@ function Detail({ id, onChanged, onUsePayslip, onUseBalance }) {
   const usePayslip = async () => {
     setMsg(null)
     try { const r = await api.fcCostLine(id); onUsePayslip(r) } catch (e) { setMsg(e.message) }
+  }
+  const useDraft = async () => {
+    setMsg(null)
+    try {
+      const r = await api.fcDraftItems(id)
+      if (!r.cost_items.length) { setMsg('Nessuna voce pronta: conferma prima le righe da verificare qui sopra.'); return }
+      onUseDraft(r)
+    } catch (e) { setMsg(e.message) }
   }
   return (
     <div className="card p-5 space-y-3">
@@ -83,13 +91,14 @@ function Detail({ id, onChanged, onUsePayslip, onUseBalance }) {
       <div className="flex flex-wrap items-center gap-2 pt-1">
         {doc.doc_type === 'PAYSLIP' && doc.status !== 'FAILED' && <button className="btn-primary" onClick={usePayslip}>Aggiungi al budget come voce di personale</button>}
         {doc.doc_type === 'BALANCE_SHEET' && doc.status !== 'FAILED' && <button className="btn-primary" onClick={() => onUseBalance(id)}>Usa per l’allocazione annuale</button>}
+        {doc.doc_type === 'APPLICATION_DRAFT' && doc.status !== 'FAILED' && <button className="btn-primary" onClick={useDraft}>Usa tutte le voci nel Budget</button>}
         {msg && <span className="text-xs text-amber-700">{msg}</span>}
       </div>
     </div>
   )
 }
 
-export default function Documents({ onUsePayslip, onUseBalance }) {
+export default function Documents({ onUsePayslip, onUseBalance, onUseDraft }) {
   const [list, setList] = useState([])
   const [type, setType] = useState('PAYSLIP')
   const [open, setOpen] = useState(null)
@@ -108,7 +117,7 @@ export default function Documents({ onUsePayslip, onUseBalance }) {
       <Guide page="documents" />
       <div className="card p-5 space-y-3">
         <SectionTitle icon={FileUp}>Carica un documento</SectionTitle>
-        <p className="text-xs text-ink-2 leading-relaxed">PDF di buste paga, bilanci o F24 (anche scansionati, se il server ha il lettore OCR). Ogni campo letto ha una percentuale di sicurezza: sotto la soglia lo controlli tu prima di usarlo. Nomi e codici fiscali diventano codici anonimi; il file è conservato cifrato.</p>
+        <p className="text-xs text-ink-2 leading-relaxed">PDF di buste paga, bilanci, F24 o una bozza di candidatura già scritta (anche scansionati, se il server ha il lettore OCR). Ogni campo letto ha una percentuale di sicurezza: sotto la soglia lo controlli tu prima di usarlo. Nomi e codici fiscali diventano codici anonimi; il file è conservato cifrato.</p>
         <div className="flex flex-wrap items-center gap-3">
           <select className="field !w-auto" value={type} onChange={(e) => setType(e.target.value)}>{Object.entries(TYPES).map(([k, l]) => <option key={k} value={k}>{l}</option>)}</select>
           <input ref={file} type="file" accept=".pdf" className="hidden" onChange={(e) => upload(e.target.files?.[0])} />
@@ -128,7 +137,7 @@ export default function Documents({ onUsePayslip, onUseBalance }) {
           </div>
         ))}
       </div>
-      {open && <Detail key={open} id={open} onChanged={load} onUsePayslip={onUsePayslip} onUseBalance={onUseBalance} />}
+      {open && <Detail key={open} id={open} onChanged={load} onUsePayslip={onUsePayslip} onUseBalance={onUseBalance} onUseDraft={onUseDraft} />}
     </div>
   )
 }

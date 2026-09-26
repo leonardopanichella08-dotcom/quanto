@@ -1,7 +1,32 @@
 import React, { useEffect, useRef, useState } from 'react'
-import { AlertTriangle, CheckCircle2, ExternalLink, FileUp, Loader2, Plus, Search, XCircle } from 'lucide-react'
+import { AlertTriangle, CheckCircle2, ExternalLink, FileUp, Loader2, Play, Plus, Search, XCircle } from 'lucide-react'
 import { api, fileToBase64 } from '../lib/api'
 import { Hint } from './Help'
+
+const KIND_LABEL = { OBBLIGO: 'obbligo', DIVIETO: 'divieto', LIMITE: 'limite', INFO: 'info' }
+
+/** In breve: le poche righe del bando che contengono un numero (importi, percentuali, scadenze) — di solito
+ * proprio il tetto massimo, il minimo, la quota a fondo perduto che si cerca per prima. Nessun testo nuovo:
+ * solo i requisiti già letti dal documento, i più concreti per primi. */
+function Brief({ requirements }) {
+  const withNumbers = (requirements || []).filter((r) => r.kind !== 'DA_REVISIONARE' && /[€%]|\b\d{2,}/.test(r.text))
+  const rank = { LIMITE: 0, OBBLIGO: 1, INFO: 2, DIVIETO: 3 }
+  const top = [...withNumbers].sort((a, b) => (rank[a.kind] ?? 9) - (rank[b.kind] ?? 9)).slice(0, 5)
+  if (!top.length) return null
+  return (
+    <div className="p-3 rounded-xl border border-line bg-field space-y-1.5">
+      <p className="label">In breve</p>
+      <ul className="space-y-1">
+        {top.map((r) => (
+          <li key={r.seq} className="text-xs text-ink-2 flex gap-2">
+            <span className="text-[10px] font-medium text-mute shrink-0 mt-0.5 uppercase">{KIND_LABEL[r.kind] || r.kind}</span>
+            <span>{r.text}</span>
+          </li>
+        ))}
+      </ul>
+    </div>
+  )
+}
 
 const MAX_DOCS = 16          // documenti scaricati per ricerca
 const MAX_DEPTH = 2          // pagina → sue pagine/PDF → loro allegati
@@ -20,7 +45,7 @@ function Step({ n, state, title, children }) {
   )
 }
 
-export default function ResearchPanel({ onDone, pick }) {
+export default function ResearchPanel({ onDone, pick, onUse }) {
   const [name, setName] = useState('')
   const [hint, setHint] = useState('')
   const [urls, setUrls] = useState('')
@@ -37,6 +62,11 @@ export default function ResearchPanel({ onDone, pick }) {
   const [manual, setManual] = useState({ text: '', file: null, open: false })
   const bandoRef = useRef(null)
   const internalRef = useRef(null)                  // bando scelto dall'elenco interno (anche solo del catalogo nazionale)
+  const [using, setUsing] = useState(false)
+  const useNow = async () => {
+    setUsing(true); setError(null)
+    try { await onUse(bandoRef.current) } catch (e) { setError(e.message) } finally { setUsing(false) }
+  }
 
   const patchDoc = (key, patch) => setDocs((d) => d.map((x) => (x.key === key ? { ...x, ...patch } : x)))
 
@@ -72,8 +102,12 @@ export default function ResearchPanel({ onDone, pick }) {
           : 'Non ho trovato pagine ufficiali per questo nome. Prova con altre parole, oppure incolla il link della pagina ufficiale.')
         return
       }
+      // di default si scaricano TUTTE le fonti ufficiali trovate (non solo la prima): il tetto massimo, il minimo,
+      // la quota a fondo perduto raramente stanno tutti nella stessa pagina — servono più documenti letti insieme.
       const pre = s.candidates.filter((c) => c.preselected)
-      setPicked(new Set((pre.length ? pre : s.candidates.slice(0, 4)).map((c) => c.url)))
+      const official = s.candidates.filter((c) => c.tier === 'UFFICIALE')
+      const base = pre.length ? pre : official.length ? official : s.candidates.slice(0, 4)
+      setPicked(new Set(base.slice(0, 10).map((c) => c.url)))
       setPhase('pick')
     } catch (e) { setPhase('error'); setError(e.message) }
   }
@@ -204,7 +238,10 @@ export default function ResearchPanel({ onDone, pick }) {
         <div className="p-3 rounded-xl border border-emerald-500/30 bg-emerald-500/5 text-xs text-ink-2 space-y-2">
           <p className="flex items-center gap-1.5 text-emerald-700 font-medium"><CheckCircle2 className="w-4 h-4" />Le regole di questo bando sono già in memoria: le uso senza riscaricare nulla.</p>
           <p>{confirmInfo.sources} documenti · già richiesto da {confirmInfo.requested_by_clients_count} {confirmInfo.requested_by_clients_count === 1 ? 'cliente' : 'clienti'}.</p>
-          <button onClick={() => { setForce(true); webSearch() }} className="btn">Aggiorna dal web</button>
+          <div className="flex flex-wrap items-center gap-2">
+            {onUse && <button onClick={useNow} disabled={using || !confirmInfo.complete} className="btn-primary flex items-center gap-1.5">{using ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Play className="w-3.5 h-3.5" />}Usa nel Budget</button>}
+            <button onClick={() => { setForce(true); webSearch() }} className="btn">Aggiorna dal web</button>
+          </div>
         </div>
       )}
 
@@ -255,6 +292,12 @@ export default function ResearchPanel({ onDone, pick }) {
               <p key={x.sha256} className="text-amber-700">Da «{x.name.slice(0, 60)}» non ho ricavato requisiti: {x.note}.</p>
             ))}
           </Step>
+          {phase === 'done' && result?.detail && <Brief requirements={result.detail.requirements} />}
+          {phase === 'done' && onUse && (
+            <button onClick={useNow} disabled={using || !result?.detail?.grant_rules} className="btn-primary flex items-center gap-1.5">
+              {using ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Play className="w-3.5 h-3.5" />}Usa nel Budget
+            </button>
+          )}
         </div>
       )}
 

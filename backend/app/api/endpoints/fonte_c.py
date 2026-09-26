@@ -14,7 +14,7 @@ router = APIRouter()
 
 
 class UploadBody(BaseModel):
-    doc_type: str = Field(..., description="PAYSLIP | BALANCE_SHEET | F24")
+    doc_type: str = Field(..., description="PAYSLIP | BALANCE_SHEET | F24 | APPLICATION_DRAFT")
     filename: str = Field(..., max_length=200)
     content_base64: str
 
@@ -96,3 +96,11 @@ def expenses(document_id: int, request: Request) -> dict:
         return _guard(service.balance_expenses, document_id, _owner(request))
     except KeyError:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Bilancio non trovato") from None
+
+
+@router.get("/documents/{document_id}/draft-items", summary="Voci di costo lette da una bozza di candidatura già scritta, pronte per il Budget")
+def draft_items(document_id: int, request: Request) -> dict:
+    try:
+        return _guard(service.application_draft_items, document_id, _owner(request))
+    except KeyError:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Documento non trovato") from None

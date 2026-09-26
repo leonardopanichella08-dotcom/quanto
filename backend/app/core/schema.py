@@ -311,6 +311,11 @@ CREATE TABLE pattern_archetypes (
 );
 """
 
+_DRAFT_DOC_TYPE = """
+ALTER TABLE client_documents DROP CONSTRAINT client_documents_doc_type_check;
+ALTER TABLE client_documents ADD CONSTRAINT client_documents_doc_type_check CHECK (doc_type IN ('PAYSLIP', 'BALANCE_SHEET', 'F24', 'APPLICATION_DRAFT'));
+"""
+
 # (versione, nome, SQL). Aggiungere in coda, mai modificare le esistenti.
 MIGRATIONS: List[Tuple[int, str, str]] = [
     (1, "init", _INIT),
@@ -319,4 +324,5 @@ MIGRATIONS: List[Tuple[int, str, str]] = [
     (4, "funding_lines", _FUNDS),
     (5, "users", _USERS),
     (6, "pattern", _PATTERN),
+    (7, "draft_doc_type", _DRAFT_DOC_TYPE),
 ]

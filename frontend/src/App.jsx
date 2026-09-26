@@ -140,6 +140,12 @@ export default function App() {
     changeItems([...request.cost_items.filter((x) => x.item_id !== item.item_id), item])
     setTab('canvas'); window.scrollTo({ top: 0 })
   }
+  // tutte le voci lette da una bozza di candidatura già scritta (solo quelle confermate o già sicure)
+  const addDraftItems = (res) => {
+    const existing = new Set(request.cost_items.map((x) => x.item_id))
+    changeItems([...request.cost_items, ...res.cost_items.filter((it) => !existing.has(it.item_id))])
+    setTab('canvas'); window.scrollTo({ top: 0 })
+  }
   const changeProject = (project_id) => { setRequest((r) => ({ ...r, project_id })); setAttestation(null) }
 
   const exportAs = async (kind) => {
@@ -220,7 +226,7 @@ export default function App() {
           </div>
         )}
         {tab === 'allocation' && <AllocationView balanceRef={balanceRef} onPickBalance={setBalanceRef} onGoDocuments={() => nav.go('documents')} />}
-        {tab === 'documents' && <Documents onUseBalance={(id) => { setBalanceRef(id); nav.go('allocation') }} onUsePayslip={addPayslipItem} />}
+        {tab === 'documents' && <Documents onUseBalance={(id) => { setBalanceRef(id); nav.go('allocation') }} onUsePayslip={addPayslipItem} onUseDraft={addDraftItems} />}
         {tab === 'pattern' && <PatternDemo bando={bando} validation={validation} />}
         {tab === 'auditor' && (
           <AuditorPortal request={request} defaultProject={params.get('project') || validation?.project_id || request.project_id}

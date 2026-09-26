@@ -44,6 +44,10 @@ BALANCE = ["BILANCIO D'ESERCIZIO 2025", "B) COSTI DELLA PRODUZIONE", "B.9 Salari
            "B.7 Consulenze professionali 40.000,00", "B.7 Spese telefoniche 3.200,00", "B.10 Ammortamento macchinari 20.000,00", "B.7 Costi vari 1.500,00",
            "TOTALE COSTI DELLA PRODUZIONE 259.700,00", "C) PROVENTI E ONERI FINANZIARI", "Interessi attivi 100,00"]
 F24 = ["MODELLO F24 - SEZIONE ERARIO", "1001 2026 1.234,56", "6099 2025 500,00", "testo qualunque senza importi"]
+DRAFT_WITH_HEADER = ["PROGETTO ALFA - DOMANDA DI FINANZIAMENTO", "1. Descrizione del progetto", "Il progetto realizza...",
+                     "2. PIANO DEI COSTI", "Personale di progetto 40.000,00", "Consulenza legale 8.000,00", "Licenza software 5.000,00",
+                     "Spese varie non classificate 2.000,00", "TOTALE COSTI PROGETTO 55.000,00", "3. CRONOPROGRAMMA", "Mese 1: avvio"]
+DRAFT_NO_HEADER = ["Preventivo interno", "Consulenza tecnica 3.000,00", "Materiale di consumo 500,00"]
 
 
 def upload(doc_type, data, name="doc.pdf"):
@@ -112,6 +116,46 @@ def test_balance_sheet_lines_are_classified_and_unknown_ones_wait_for_a_person()
     body = '{"description": "Costi vari", "amount_eur": "1500.00", "category": "OVERHEAD"}'
     assert client.post(f"/api/v2/fonte-c/documents/{d['id']}/fields/{fid}/review", json={"action": "CORRECT", "value": body}).status_code == 200
     assert len(client.get(f"/api/v2/fonte-c/documents/{d['id']}/expenses").json()["lines"]) == 6
+
+
+def test_application_draft_with_a_recognized_section_header():
+    d = upload("APPLICATION_DRAFT", pdf(DRAFT_WITH_HEADER)).json()
+    lines = [f for f in d["fields"] if f["field_key"] == "expense_line"]
+    by_desc = {f["parsed"]["description"]: f for f in lines}
+    assert "Descrizione del progetto" not in by_desc and not any("TOTALE" in k.upper() for k in by_desc)   # fuori dal piano dei costi
+    assert "Mese 1: avvio" not in by_desc                                                                   # dopo il cronoprogramma: fuori sezione
+    assert by_desc["Personale di progetto"]["parsed"]["category"] == "PERSONNEL" and by_desc["Personale di progetto"]["status"] == "AUTO"
+    assert by_desc["Consulenza legale"]["parsed"]["category"] == "CONSULTING"
+    assert by_desc["Licenza software"]["parsed"]["category"] == "CAPITAL_ASSETS"
+    assert by_desc["Spese varie non classificate"]["parsed"]["category"] is None and by_desc["Spese varie non classificate"]["status"] == "NEEDS_REVIEW"
+
+    items = client.get(f"/api/v2/fonte-c/documents/{d['id']}/draft-items").json()
+    assert len(items["cost_items"]) == 3 and len(items["needs_review"]) == 1
+    ids = {i["item_id"] for i in items["cost_items"]}
+    assert all(i.startswith(f"DOC{d['id']}-") for i in ids) and len(ids) == 3
+    pm = next(i for i in items["cost_items"] if i["description"] == "Personale di progetto")
+    assert pm["category"] == "PERSONNEL" and pm["amount_eur"] == 40000.0 and pm["source_c_ref"] == f"DOC-FC-{d['id']}"
+
+
+def test_application_draft_without_any_header_falls_back_to_whole_document_with_lower_confidence():
+    d = upload("APPLICATION_DRAFT", pdf(DRAFT_NO_HEADER)).json()
+    lines = {f["parsed"]["description"]: f for f in d["fields"] if f["field_key"] == "expense_line"}
+    assert lines["Consulenza tecnica"]["parsed"]["category"] == "CONSULTING"
+    # niente intestazione riconosciuta: la riga è classificata ma la sicurezza resta sotto soglia, va confermata a mano
+    assert 0 < lines["Consulenza tecnica"]["confidence"] < 0.90 and lines["Consulenza tecnica"]["status"] == "NEEDS_REVIEW"
+    assert lines["Materiale di consumo"]["parsed"]["category"] is None and lines["Materiale di consumo"]["status"] == "NEEDS_REVIEW"
+    items = client.get(f"/api/v2/fonte-c/documents/{d['id']}/draft-items").json()
+    assert items["cost_items"] == [] and {x["description"] for x in items["needs_review"]} == {"Consulenza tecnica", "Materiale di consumo"}
+    # una volta confermata (la persona conferma che la lettura è giusta), entra tra le voci pronte per il budget
+    fid = lines["Consulenza tecnica"]["id"]
+    assert client.post(f"/api/v2/fonte-c/documents/{d['id']}/fields/{fid}/review", json={"action": "CONFIRM"}).status_code == 200
+    items = client.get(f"/api/v2/fonte-c/documents/{d['id']}/draft-items").json()
+    assert len(items["cost_items"]) == 1 and items["cost_items"][0]["description"] == "Consulenza tecnica"
+
+
+def test_draft_items_endpoint_rejects_the_wrong_document_type():
+    d = upload("BALANCE_SHEET", pdf(BALANCE)).json()
+    assert client.get(f"/api/v2/fonte-c/documents/{d['id']}/draft-items").status_code == 404
 
 
 def test_f24_rows_are_read():
