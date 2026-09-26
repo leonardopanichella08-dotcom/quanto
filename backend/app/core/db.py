@@ -157,23 +157,30 @@ atexit.register(close_pools)
 
 
 def migrate() -> List[int]:
-    """Applica le migrazioni mancanti. Restituisce le versioni applicate ora."""
+    """Applica le migrazioni mancanti. Restituisce le versioni applicate ora.
+
+    Il lock consultivo è **di transazione** (``pg_advisory_xact_lock``), non di sessione: con un connection
+    string in pooling (es. pooler transazionale di Supabase/PgBouncer) un lock e il suo sblocco possono finire
+    su due connessioni fisiche diverse quando sono due statement separati in autocommit — il lock resta preso
+    per sempre su una connessione che il pooler tiene aperta, e ogni avvio successivo si blocca in attesa.
+    Un lock di transazione, preso e rilasciato nella stessa transazione/connessione, non ha questo problema.
+    ``lock_timeout`` fa fallire subito (503, "il database non risponde") invece di restare in attesa a lungo
+    se qualcosa lo tiene comunque occupato.
+    """
     url = database_url()
     applied: List[int] = []
-    with psycopg.connect(url, autocommit=True, prepare_threshold=None, connect_timeout=10) as conn:
-        conn.execute("SELECT pg_advisory_lock(%s)", (MIGRATION_LOCK_KEY,))
-        try:
-            conn.execute("CREATE TABLE IF NOT EXISTS schema_migrations (version INTEGER PRIMARY KEY, name TEXT NOT NULL, applied_at TIMESTAMPTZ NOT NULL DEFAULT now())")
-            done = {r[0] for r in conn.execute("SELECT version FROM schema_migrations").fetchall()}
-            for version, name, sql in sorted(MIGRATIONS):
-                if version in done:
-                    continue
-                with conn.transaction():
-                    conn.execute(sql)
-                    conn.execute("INSERT INTO schema_migrations (version, name) VALUES (%s,%s)", (version, name))
-                applied.append(version)
-        finally:
-            conn.execute("SELECT pg_advisory_unlock(%s)", (MIGRATION_LOCK_KEY,))
+    with psycopg.connect(url, prepare_threshold=None, connect_timeout=10) as conn:
+        conn.execute("SET lock_timeout = '15s'")
+        conn.execute("SELECT pg_advisory_xact_lock(%s)", (MIGRATION_LOCK_KEY,))
+        conn.execute("CREATE TABLE IF NOT EXISTS schema_migrations (version INTEGER PRIMARY KEY, name TEXT NOT NULL, applied_at TIMESTAMPTZ NOT NULL DEFAULT now())")
+        done = {r[0] for r in conn.execute("SELECT version FROM schema_migrations").fetchall()}
+        for version, name, sql in sorted(MIGRATIONS):
+            if version in done:
+                continue
+            with conn.transaction():
+                conn.execute(sql)
+                conn.execute("INSERT INTO schema_migrations (version, name) VALUES (%s,%s)", (version, name))
+            applied.append(version)
     return applied
 
 
