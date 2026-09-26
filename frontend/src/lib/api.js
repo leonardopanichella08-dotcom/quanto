@@ -94,6 +94,14 @@ export const api = {
   bandoReferences: () => call('/bandi/references').then((r) => r.json()),
   bandoUpload: (body) => post('/bandi/upload', body),
   bandiSearch: (q) => call(`/bandi/search?q=${encodeURIComponent(q)}`).then((r) => r.json()),
+  bandiCatalog: ({ q = '', issuer = '', onlyNew = false, page = 1, pageSize = 30 } = {}) => {
+    const p = new URLSearchParams({ page: String(page), page_size: String(pageSize) })
+    if (q) p.set('q', q)
+    if (issuer) p.set('issuer', issuer)
+    if (onlyNew) p.set('only_new', 'true')
+    return call(`/bandi/catalog?${p}`).then((r) => r.json())
+  },
+  bandiCatalogIssuers: () => call('/bandi/catalog/issuers').then((r) => r.json()),
   researchConfirm: (body) => post('/bandi/research/confirm', body),
   researchSearch: (body) => post('/bandi/research/search', body),
   researchFetch: (body) => post('/bandi/research/fetch', body),

@@ -93,6 +93,18 @@ def search_internal(q: str = Query(..., min_length=2, max_length=120)) -> dict:
     return {"query": q, "matches": bandi.search_catalog(q)}
 
 
+@router.get("/catalog", summary="Sfoglia tutti i bandi in memoria: i curati e le voci del catalogo nazionale, con ricerca, filtro per ente e paginazione")
+def browse(q: str = Query(default="", max_length=120), issuer: Optional[str] = Query(default=None, max_length=200),
+           only_new: bool = Query(default=False, description="Solo le voci non ancora analizzate (né curate né con regole/fonti)"),
+           page: int = Query(default=1, ge=1), page_size: int = Query(default=30, ge=1, le=100)) -> dict:
+    return bandi.browse_catalog(q, issuer, only_new, page, page_size)
+
+
+@router.get("/catalog/issuers", summary="Elenco degli enti presenti nel catalogo, per il filtro della sfoglia")
+def catalog_issuers() -> list:
+    return bandi.catalog_issuers()
+
+
 @router.post("/research/confirm", dependencies=[Depends(require_auth)],
              summary="Il cliente conferma «è il bando giusto»: registra la richiesta e controlla la cache prima di scaricare")
 def research_confirm(body: ResearchConfirm, request: Request) -> dict:

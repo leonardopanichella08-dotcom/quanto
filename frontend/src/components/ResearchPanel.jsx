@@ -1,4 +1,4 @@
-import React, { useRef, useState } from 'react'
+import React, { useEffect, useRef, useState } from 'react'
 import { AlertTriangle, CheckCircle2, ExternalLink, FileUp, Loader2, Plus, Search, XCircle } from 'lucide-react'
 import { api, fileToBase64 } from '../lib/api'
 import { Hint } from './Help'
@@ -20,7 +20,7 @@ function Step({ n, state, title, children }) {
   )
 }
 
-export default function ResearchPanel({ onDone }) {
+export default function ResearchPanel({ onDone, pick }) {
   const [name, setName] = useState('')
   const [hint, setHint] = useState('')
   const [urls, setUrls] = useState('')
@@ -89,6 +89,16 @@ export default function ResearchPanel({ onDone }) {
       else { setName(payload.name); await webSearch(payload.name) }                             // bando interno ma incompleto: si cercano le fonti
     } catch (e) { setPhase('error'); setError(e.message) }
   }
+
+  // scelto dalla sfoglia del catalogo (bando non ancora analizzato): parte da sola la stessa conferma della ricerca interna
+  useEffect(() => {
+    if (!pick) return
+    setName(pick.name)
+    if (pick.source_url) setUrls((u) => u || pick.source_url)
+    internalRef.current = pick.bando_id
+    confirmBando({ name: pick.name, bando_id: pick.bando_id }, false)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pick])
 
   // 4) scarico le pagine scelte (e i PDF che citano), poi leggo tutto
   const downloadPicked = async (bandoId) => {

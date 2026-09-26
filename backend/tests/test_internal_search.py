@@ -37,3 +37,31 @@ def test_confirm_creates_the_catalog_entry_only_now_and_reports_cache():
     events.save_bando_source("WEB-NUOVO-FONDO", "doc", "testo del documento ufficiale", url="https://x.gov.it/a", tier="UFFICIALE")
     second = client.post("/api/v2/bandi/research/confirm", json={"name": "Nuovo Fondo"}).json()
     assert second["cache_hit"] is True and second["complete"] is True and second["requested_by_clients_count"] == 2       # riuso tra clienti
+
+
+# ------------------------------------------------------------------ sfoglia il catalogo (bandi non ancora analizzati, non solo per nome esatto)
+def browse(**params):
+    return client.get("/api/v2/bandi/catalog", params=params).json()
+
+
+def test_browse_paginates_and_finds_by_name_without_knowing_the_exact_title():
+    Ingestion.catalog("CAT-VOUCHER-DIGITALE-LOMBARDIA-1", "Voucher digitale Lombardia", "Regione Lombardia", None, "https://x.it/a")
+    Ingestion.catalog("CAT-VOUCHER-DIGITALE-PIEMONTE-2", "Voucher digitale Piemonte", "Regione Piemonte", None, "https://x.it/b")
+    r = browse(q="voucher digitale", page=1, page_size=1)
+    assert r["total"] == 2 and r["pages"] == 2 and len(r["items"]) == 1
+    ids = {browse(q="voucher digitale", page=1, page_size=1)["items"][0]["bando_id"], browse(q="voucher digitale", page=2, page_size=1)["items"][0]["bando_id"]}
+    assert ids == {"CAT-VOUCHER-DIGITALE-LOMBARDIA-1", "CAT-VOUCHER-DIGITALE-PIEMONTE-2"}
+
+
+def test_browse_marks_catalog_only_entries_and_only_new_hides_the_rest():
+    Ingestion.catalog("CAT-DA-ANALIZZARE-X", "Bando tutto da analizzare", "Comune di Test", None, "https://x.it/c")
+    only_this = browse(q="tutto da analizzare")["items"][0]
+    assert only_this["catalog_only"] is True and only_this["curated"] is False
+    assert any(x["bando_id"] == "NUOVA-SABATINI" for x in browse(q="sabatini", only_new=False)["items"])
+    assert not any(x["bando_id"] == "NUOVA-SABATINI" for x in browse(q="sabatini", only_new=True)["items"])   # già curato: non e' "da analizzare"
+
+
+def test_catalog_issuers_lists_distinct_non_empty_values():
+    Ingestion.catalog("CAT-ENTE-PROVA", "Bando dell'ente di prova", "Ente Prova Unico XYZ", None, "https://x.it/d")
+    issuers = client.get("/api/v2/bandi/catalog/issuers").json()
+    assert "Ente Prova Unico XYZ" in issuers and len(issuers) == len(set(issuers)) and None not in issuers and "" not in issuers

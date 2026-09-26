@@ -240,3 +240,50 @@ def search_catalog(query: str, limit: int = 8) -> List[Dict[str, Any]]:
                         "catalog_only": bool(catalogued and not (r["rules"] or r["sources"])), "source_url": r["source_url"], "deadline": r["deadline"]})
     out.sort(key=lambda x: (-x["score"], x["name"]))
     return out[:limit]
+
+
+# ------------------------------------------------------------------ sfoglia tutto il catalogo (curati + migliaia di voci nazionali)
+def catalog_issuers() -> List[str]:
+    """Elenco degli enti presenti nel catalogo, per il filtro della sfoglia (poche decine di valori: veloce anche su migliaia di righe)."""
+    ensure_seeded()
+    with connect() as conn:
+        rows = conn.execute("SELECT DISTINCT issuer FROM bandi WHERE issuer IS NOT NULL AND issuer <> '' ORDER BY 1").fetchall()
+    return [r["issuer"] for r in rows]
+
+
+def browse_catalog(query: str = "", issuer: Optional[str] = None, only_new: bool = False, page: int = 1, page_size: int = 30) -> Dict[str, Any]:
+    """Elenco paginato di TUTTI i bandi in memoria (i curati e le voci del catalogo nazionale), con ricerca libera ed
+    eventuale filtro per ente. ``only_new`` mostra solo le voci non ancora analizzate (né curate né con regole/requisiti/
+    fonti già estratti): quelle da cui partire per allargare la libreria. Il filtro sta nella query SQL, non in Python:
+    con migliaia di righe è l'unico modo per restare veloci (vedi il commento su ``list_bandi``)."""
+    ensure_seeded()
+    page = max(1, page)
+    page_size = max(1, min(page_size, 100))
+    where, params = [], []
+    q = query.strip()
+    if q:
+        where.append("(b.name ILIKE ? OR b.issuer ILIKE ?)")
+        params += [f"%{q}%", f"%{q}%"]
+    if issuer:
+        where.append("b.issuer = ?")
+        params.append(issuer)
+    if only_new:
+        where.append("b.catalog_status <> 'CURATED' AND NOT EXISTS (SELECT 1 FROM rules r WHERE r.bando_id=b.bando_id) "
+                      "AND NOT EXISTS (SELECT 1 FROM bando_sources s WHERE s.bando_id=b.bando_id)")
+    clause = ("WHERE " + " AND ".join(where)) if where else ""
+    with connect() as conn:
+        total = conn.execute(f"SELECT COUNT(*) c FROM bandi b {clause}", params).fetchone()["c"]
+        rows = conn.execute(
+            f"SELECT b.bando_id, b.name, b.issuer, b.source_url, b.deadline, b.catalog_status, b.extraction_status, "
+            "(SELECT COUNT(*) FROM rules r WHERE r.bando_id=b.bando_id AND r.status='PUBLISHED') AS rules, "
+            "(SELECT COUNT(*) FROM bando_sources s WHERE s.bando_id=b.bando_id) AS sources, "
+            "(SELECT COUNT(*) FROM requirements q2 WHERE q2.bando_id=b.bando_id) AS reqs "
+            f"FROM bandi b {clause} ORDER BY CASE b.catalog_status WHEN 'CURATED' THEN 0 ELSE 1 END, b.name "
+            "LIMIT ? OFFSET ?", params + [page_size, (page - 1) * page_size]).fetchall()
+    items = [{
+        "bando_id": r["bando_id"], "name": r["name"], "issuer": r["issuer"], "source_url": r["source_url"], "deadline": r["deadline"],
+        "curated": r["catalog_status"] == "CURATED", "extraction_status": r["extraction_status"],
+        "rules": r["rules"], "sources": r["sources"], "requirements": r["reqs"],
+        "catalog_only": r["catalog_status"] != "CURATED" and not (r["rules"] or r["sources"]),
+    } for r in rows]
+    return {"total": total, "page": page, "page_size": page_size, "pages": max(1, -(-total // page_size)), "items": items}

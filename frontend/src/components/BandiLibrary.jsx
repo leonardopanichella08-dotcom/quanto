@@ -1,10 +1,11 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react'
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { AlertTriangle, CheckCircle2, ExternalLink, Loader2, Scale } from 'lucide-react'
 import { api } from '../lib/api'
 import { BANDO_STATUS_STYLE, KIND_STYLE, fmtTs } from '../lib/format'
 import { ruleLabel } from '../data/ruleLabels'
 import Guide from './Guide'
 import ResearchPanel from './ResearchPanel'
+import CatalogBrowser from './CatalogBrowser'
 import { Hint, Term } from './Help'
 
 const COV_STYLE = {
@@ -204,6 +205,9 @@ export default function BandiLibrary({ bandi, selectedId, onSelect, onReload }) 
   const [using, setUsing] = useState(false)
   const [error, setError] = useState(null)
   const [refs, setRefs] = useState([])
+  const [catalogPick, setCatalogPick] = useState(null)
+  const [picking, setPicking] = useState(null)
+  const researchRef = useRef(null)
 
   const load = useCallback(async (id) => {
     setOpenId(id); setError(null)
@@ -225,6 +229,11 @@ export default function BandiLibrary({ bandi, selectedId, onSelect, onReload }) 
 
       <div className="grid lg:grid-cols-3 gap-6 items-start">
         <div className="space-y-3">
+          <p className="text-[11px] text-mute leading-relaxed px-1">
+            «N/60 controlli» è quanti dei 60 criteri <em>questo</em> bando attiva con le sue regole — non un punteggio di
+            completezza. Un bando che finanzia solo attrezzature non parlerà mai di ore di lavoro straordinario: restare
+            sotto 60 è la norma, non un'analisi a metà. <Hint id="bando_controlli_attivi" />
+          </p>
           {bandi.map((b) => (
             <button key={b.bando_id} onClick={() => load(b.bando_id)}
               className={`w-full text-left card p-4 space-y-2 transition hover:border-line-strong ${openId === b.bando_id ? '!border-brand' : ''}`}>
@@ -255,7 +264,14 @@ export default function BandiLibrary({ bandi, selectedId, onSelect, onReload }) 
           {detail ? <Detail bando={detail} onUse={use} using={using} /> : (
             <div className="card p-10 text-center text-sm text-mute">Scegli un bando dall’elenco per vederne regole, requisiti e fonti.</div>
           )}
-          <ResearchPanel onDone={async (id) => { await onReload(); await load(id) }} />
+          <CatalogBrowser picking={picking} onPick={(item) => {
+            setPicking(item.bando_id); setCatalogPick(item)
+            researchRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+            setTimeout(() => setPicking((p) => (p === item.bando_id ? null : p)), 20000)   // rete di sicurezza: non resta bloccato se qualcosa fallisce prima di "onDone"
+          }} />
+          <div ref={researchRef}>
+            <ResearchPanel pick={catalogPick} onDone={async (id) => { setPicking(null); await onReload(); await load(id) }} />
+          </div>
         </div>
       </div>
     </div>
