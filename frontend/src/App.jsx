@@ -8,21 +8,19 @@ import AuditorPortal from './components/AuditorPortal'
 import RegistrationModal from './components/RegistrationModal'
 import HQ from './components/hq/HQ'
 import Guida from './components/Guida'
-import Documents from './components/Documents'
-import { ArrowLeft, FileScan, KeyRound, LogOut, BookOpen, Building2, Calculator, GitCompare, Library, ShieldCheck, Split } from 'lucide-react'
+import { ArrowLeft, KeyRound, LogOut, BookOpen, Building2, Calculator, GitCompare, Library, ShieldCheck, Split } from 'lucide-react'
 import { Mark, PageHead, Wordmark } from './components/ui'
 import { NavContext } from './lib/nav'
 import { api, download, fileToBase64, session } from './lib/api'
 import { LoginScreen, PasswordModal } from './components/Login'
 
 const TABS = [
-  ['bandi', 'Bandi', Library], ['documents', 'Documenti', FileScan], ['canvas', 'Budget', Calculator], ['allocation', 'Allocazione', Split],
+  ['bandi', 'Bandi', Library], ['canvas', 'Budget', Calculator], ['allocation', 'Allocazione', Split],
   ['pattern', 'Confronto', GitCompare], ['auditor', 'Verifica', ShieldCheck], ['guida', 'Guida', BookOpen], ['hq', 'Quartier Generale', Building2],
 ]
 // Una riga per pagina: a cosa serve, in parole semplici.
 const HEADS = {
   bandi: ['Bandi', 'Cerca un bando, leggi le sue regole e scegli quello per il tuo budget.'],
-  documents: ['Documenti', 'Carica buste paga, bilanci e F24: ogni campo letto dice quanto è sicuro, e solo quello confermato entra nei calcoli.'],
   canvas: ['Budget', 'Inserisci le spese e controlla ogni regola del bando.'],
   allocation: ['Allocazione', 'Scopri quale fondo paga ogni spesa e quanto resta a carico tuo.'],
   pattern: ['Confronto', 'Guarda quanto il tuo budget somiglia a quelli dei progetti premiati.'],
@@ -214,7 +212,8 @@ export default function App() {
           <BudgetCanvas bandi={bandi} bando={bando} request={request} fields={fields} validation={validation} loading={loading} error={error} busy={busy} importInfo={importInfo} criteriaTitles={criteriaTitles}
             onSelectBando={(id) => selectBando(id).catch(() => {})} onProjectId={changeProject} onItemsChange={changeItems} onDemo={loadDemo} onImport={importFile}
             onValidate={() => validate(request)} onRegister={() => setModalOpen(true)} onExport={exportAs}
-            onOpenLab={() => { setReplay(null); setLabFrom('canvas'); setTab('lab') }} onDismissImport={() => setImportInfo(null)} onGoBandi={() => setTab('bandi')} />
+            onOpenLab={() => { setReplay(null); setLabFrom('canvas'); setTab('lab') }} onDismissImport={() => setImportInfo(null)} onGoBandi={() => setTab('bandi')}
+            onUsePayslip={addPayslipItem} onUseBalance={(id) => { setBalanceRef(id); nav.go('allocation') }} onUseDraft={addDraftItems} />
         )}
         {tab === 'lab' && (
           <div className="space-y-4">
@@ -225,8 +224,7 @@ export default function App() {
             <AlgorithmLab validation={labData} title={labData?.project_id} criteriaTitles={criteriaTitles} />
           </div>
         )}
-        {tab === 'allocation' && <AllocationView balanceRef={balanceRef} onPickBalance={setBalanceRef} onGoDocuments={() => nav.go('documents')} />}
-        {tab === 'documents' && <Documents onUseBalance={(id) => { setBalanceRef(id); nav.go('allocation') }} onUsePayslip={addPayslipItem} onUseDraft={addDraftItems} />}
+        {tab === 'allocation' && <AllocationView balanceRef={balanceRef} onPickBalance={setBalanceRef} onGoDocuments={() => nav.go('canvas')} />}
         {tab === 'pattern' && <PatternDemo bando={bando} validation={validation} />}
         {tab === 'auditor' && (
           <AuditorPortal request={request} defaultProject={params.get('project') || validation?.project_id || request.project_id}

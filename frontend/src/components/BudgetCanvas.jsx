@@ -1,12 +1,12 @@
 import React, { useMemo, useRef, useState } from 'react'
-import { AlertTriangle, Download, FileSpreadsheet, FileText, Loader2, Play, Plus, ShieldCheck, Upload, X } from 'lucide-react'
+import { AlertTriangle, ChevronDown, ChevronRight, Download, FileSpreadsheet, FileText, Loader2, Play, Plus, ShieldCheck, Upload, X } from 'lucide-react'
 import LineEditor from './LineEditor'
 import ItemTemplatePicker from './ItemTemplatePicker'
 import CriteriaHeatmap, { heatmapData } from './CriteriaHeatmap'
+import Documents from './Documents'
 import Guide from './Guide'
 import { Hint } from './Help'
 import { api } from '../lib/api'
-import { useNav } from '../lib/nav'
 import { BANDO_STATUS_STYLE, CATEGORY_LABEL, CATEGORY_ORDER, STATUS_LABEL, STATUS_STYLE, fmtEur, fmtNum, fmtPct } from '../lib/format'
 
 const ITEM_STATUS_DOT = { APPROVED: '#10b981', CAP_EXCEEDED_ADJUSTED: '#f59e0b', REJECTED: '#ef4444', MISSING_DOCUMENTS: '#38bdf8' }
@@ -118,11 +118,13 @@ function Inspector({ item, steps }) {
 export default function BudgetCanvas({
   bandi, bando, request, fields, validation, loading, error, busy, importInfo, criteriaTitles,
   onSelectBando, onProjectId, onItemsChange, onDemo, onImport, onValidate, onRegister, onExport, onOpenLab, onDismissImport, onGoBandi,
+  onUsePayslip, onUseBalance, onUseDraft,
 }) {
-  const nav = useNav()
   const [selectedId, setSelectedId] = useState(null)
   const [panel, setPanel] = useState('inspect')
   const [addOpen, setAddOpen] = useState(false)
+  const [docsOpen, setDocsOpen] = useState(false)
+  const docsRef = useRef(null)
   const fileRef = useRef(null)
   const items = request.cost_items
   const byId = useMemo(() => Object.fromEntries((validation?.items || []).map((i) => [i.item_id, i])), [validation])
@@ -179,6 +181,19 @@ export default function BudgetCanvas({
         </div>
       )}
 
+      {/* documenti a supporto: buste paga, bilanci, F24, bozze di candidatura — funzione secondaria, non serve un bando */}
+      <div ref={docsRef} className="card">
+        <button onClick={() => setDocsOpen(!docsOpen)} className="w-full flex items-center gap-2 px-4 py-3 text-left text-sm font-medium">
+          {docsOpen ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
+          Documenti a supporto (buste paga, bilanci, F24, bozze di candidatura)
+        </button>
+        {docsOpen && (
+          <div className="px-4 pb-4">
+            <Documents onUsePayslip={onUsePayslip} onUseBalance={onUseBalance} onUseDraft={onUseDraft} />
+          </div>
+        )}
+      </div>
+
       {bando && (
         <>
           {/* barra strumenti */}
@@ -187,7 +202,7 @@ export default function BudgetCanvas({
             <button onClick={() => onDemo('realistic')} disabled={busy} className="btn">Progetto realistico (15 voci)</button>
             <button onClick={() => fileRef.current?.click()} disabled={busy} className="btn"><Upload className="w-3.5 h-3.5" />Importa Excel/CSV</button>
             <input ref={fileRef} type="file" accept=".xlsx,.csv" className="hidden" onChange={(e) => { if (e.target.files?.[0]) onImport(e.target.files[0]); e.target.value = '' }} />
-            <button onClick={() => nav.go('documents')} disabled={busy} className="btn" title="Carica il PDF di una candidatura già scritta: le voci di spesa che contiene si aggiungono qui">
+            <button onClick={() => { setDocsOpen(true); docsRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }) }} disabled={busy} className="btn" title="Carica il PDF di una candidatura già scritta: le voci di spesa che contiene si aggiungono qui">
               <FileText className="w-3.5 h-3.5" />Importa da una candidatura (PDF)
             </button>
             <a href={api.templateUrl} className="btn !border-line !text-ink-2 hover:!text-ink"><FileSpreadsheet className="w-3.5 h-3.5" />Template Excel</a>

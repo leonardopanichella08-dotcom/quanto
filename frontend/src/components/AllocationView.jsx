@@ -117,7 +117,7 @@ export default function AllocationView({ balanceRef, onPickBalance, onGoDocument
         </div>
         <div className="flex flex-wrap gap-2 items-center">
           <span className="label mr-1 inline-flex items-center gap-1.5">Prova a togliere un fondo <Hint id="alloc_whatif" /></span>
-          {funds.length === 0 && <span className="text-xs text-mute">Nessuna linea di finanziamento attiva: un manager le crea dai bandi (Quartier Generale → Fondi).</span>}
+          {funds.length === 0 && <span className="text-xs text-mute">Nessuna linea di finanziamento attiva: un manager la crea dalla scheda “Fondo” del bando, in Quartier Generale → Bandi.</span>}
           {funds.map((f) => (
             <button key={f.fund_id} onClick={() => toggle(f.fund_id)} aria-pressed={excluded.includes(f.fund_id)}
               className={`px-3 py-1.5 rounded-lg text-xs font-medium border transition ${excluded.includes(f.fund_id) ? 'border-red-500/40 text-red-700 line-through' : 'border-line-strong text-ink-2 hover:border-line-strong'}`}>

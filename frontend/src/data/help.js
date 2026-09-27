@@ -159,7 +159,7 @@ export const GUIDE = {
   hq: {
     title: 'Quartier Generale',
     what: 'L’area dei manager: vede tutto ciò che è successo nel sistema — operazioni, documenti, bandi, progetti — e la memoria del database.',
-    steps: ['Inserisci il codice di accesso.', 'Panoramica: numeri chiave e stato.', 'Timeline: ogni operazione in ordine di tempo, con i passaggi.', 'Archivio bandi: ogni documento scaricato (anche il PDF originale), regole, requisiti e la scheda per il consulente; puoi correggere, rileggere, esportare o eliminare.', 'Fascicoli, Documenti, Database: cosa è stato lavorato e salvato; nel Database puoi eliminare righe ed esportare in CSV.'],
+    steps: ['Inserisci il codice di accesso.', 'Panoramica: numeri chiave e stato.', 'Timeline: ogni operazione in ordine di tempo, con i passaggi.', 'Bandi: ogni documento scaricato (anche il PDF originale), regole, requisiti e la scheda per il consulente; puoi correggere, rileggere, esportare o eliminare.', 'Fascicoli, Documenti, Database: cosa è stato lavorato e salvato; nel Database puoi eliminare righe ed esportare in CSV.'],
     example: 'Apri la Timeline, clicca “Controllare il budget” e poi “Rivedi nell’algoritmo”: rivedi in grafico quella specifica esecuzione.',
     terms: ['evento', 'timeline', 'esecuzione'],
   },
