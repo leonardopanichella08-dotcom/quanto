@@ -19,10 +19,25 @@ PROTECTED_TABLES = {"anchors"}
 
 
 def list_archive() -> List[Dict[str, Any]]:
+    """Elenco per il manager: bandi curati, richiesti da un cliente o confermati da una ricerca (anche se ancora
+    vuoti), o con qualcosa già in memoria (regole, requisiti, fonti, run) — a differenza dell'elenco pubblico, qui
+    un bando appena confermato ma non ancora letto deve comunque comparire, così il manager lo vede e può eliminarlo.
+
+    Il filtro in SQL (invece di leggere e scartare in Python) evita che il catalogo nazionale (Fonte A, migliaia di
+    voci di sole metadati ``CAT-*`` mai richieste da nessuno) faccia decine di migliaia di interrogazioni a ogni apertura.
+    """
     bandi.ensure_seeded()
     out = []
     with connect() as conn:
-        for b in conn.execute("SELECT * FROM bandi ORDER BY CASE catalog_status WHEN 'CURATED' THEN 1 ELSE 0 END, bando_id").fetchall():
+        rows = conn.execute(
+            "SELECT * FROM bandi b WHERE b.catalog_status <> 'CATALOGED' OR b.requested_by_clients > 0 "
+            "OR EXISTS (SELECT 1 FROM rules r WHERE r.bando_id=b.bando_id) "
+            "OR EXISTS (SELECT 1 FROM requirements q WHERE q.bando_id=b.bando_id) "
+            "OR EXISTS (SELECT 1 FROM bando_sources s WHERE s.bando_id=b.bando_id) "
+            "OR EXISTS (SELECT 1 FROM runs ru WHERE ru.bando_id=b.bando_id AND ru.kind='VALIDATE') "
+            "ORDER BY CASE b.catalog_status WHEN 'CURATED' THEN 1 ELSE 0 END, b.bando_id"
+        ).fetchall()
+        for b in rows:
             bid = b["bando_id"]
             meta = bandi._meta(conn, bid)
             s = conn.execute("SELECT COUNT(*) n, COALESCE(SUM(LENGTH(text)),0) chars FROM bando_sources WHERE bando_id=?", (bid,)).fetchone()
