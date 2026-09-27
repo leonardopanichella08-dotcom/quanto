@@ -60,7 +60,7 @@ def build_demo(rules: Optional[GrantRuleSet] = None, project_id: Optional[str] =
 
     def pers(item_id, description, ral, fte, **kw):
         return line(item_id, description, "PERSONNEL", ral_eur=ral, fte_allocation=fte, duration_months=kw.pop("duration_months", 12),
-                    **{"ccnl_code": "TERZO_SETTORE", "employee_level": "3", **kw})
+                    **{"ccnl_code": "COMMERCIO", "employee_level": "3", **kw})
 
     def asset(item_id, description, amount, **kw):
         base = {"is_new": True, "origin_eu": True, "iot_interconnected": True, "energy_saving_pct": 0.06, "dnsh_compliant": True,
@@ -80,7 +80,7 @@ def build_demo(rules: Optional[GrantRuleSet] = None, project_id: Optional[str] =
              contract_type="PERMANENT", superminimo_eur=3000, superminimo_recognized=False, overtime_hours=8, travel_allowance_eur=400,
              travel_documented=True, activity_type="PROJECT", role_min_level="2", role_max_level="4", payslip_ral_eur=38000),
         pers("P-02", "Software architect — supera il tetto orario, tempo determinato, trasferte non documentate", 58000, 0.8,
-             ccnl_code="METALMECCANICA", employee_level="5", employee_token="T-ARCH", contract_type="FIXED_TERM",
+             ccnl_code="METALMECCANICA", employee_level="B1", employee_token="T-ARCH", contract_type="FIXED_TERM",
              travel_allowance_eur=900, travel_documented=False),
         pers("P-03", "Collaboratore occasionale nei limiti di reddito", 6000, 0.2, duration_months=6, ccnl_code="COMMERCIO",
              contract_type="OCCASIONAL", occasional_annual_income_eur=4000, employee_token="T-OCC"),
