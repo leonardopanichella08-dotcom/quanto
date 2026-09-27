@@ -4,7 +4,8 @@
 - 5 errori di fila bloccano l'account per 15 minuti (il blocco sta nel database: vale su tutte le istanze del server).
   Un utente inesistente costa lo stesso tempo di uno esistente e dà lo stesso messaggio (niente elenco degli account).
 - Il token (JWT HS256) contiene utente, ruolo e ``tv`` (versione): cambiare password o disattivare l'utente lo invalida subito.
-- Ruoli: USER (usa l'app) e MANAGER (Quartier Generale, tabelle ufficiali, gestione utenti).
+- Ruoli: USER (usa l'app) e MANAGER (tabelle ufficiali, gestione utenti). Il Quartier Generale è riservato in più al
+  titolare (QUANTO_OWNER_EMAIL, vedi ``owner_email``/``is_owner``): un manager senza quell'indirizzo non lo vede.
 """
 from __future__ import annotations
 
@@ -86,9 +87,24 @@ def _dummy_hash() -> str:
 
 
 # ------------------------------------------------------------------------------------------------ archivio utenti
+def owner_email() -> str:
+    """L'unico indirizzo che può entrare nel Quartier Generale, se configurato (QUANTO_OWNER_EMAIL).
+
+    Senza questa variabile (sviluppo locale) l'accesso torna al solo ruolo MANAGER, per non rompere i test
+    e l'uso locale: la restrizione a un singolo titolare è pensata per la produzione.
+    """
+    return os.getenv("QUANTO_OWNER_EMAIL", "").strip().lower()
+
+
+def is_owner(email: str) -> bool:
+    owner = owner_email()
+    return bool(owner) and (email or "").strip().lower() == owner
+
+
 def _public(r) -> Dict[str, Any]:
     return {"id": r["id"], "email": r["email"], "name": r["name"], "role": r["role"], "active": r["active"], "created_at": r["created_at"],
-            "last_login_at": r["last_login_at"], "locked": bool(r["locked_until"] and r["locked_until"] > events.now_iso())}
+            "last_login_at": r["last_login_at"], "locked": bool(r["locked_until"] and r["locked_until"] > events.now_iso()),
+            "is_owner": is_owner(r["email"])}
 
 
 def _norm_email(email: str) -> str:
@@ -233,4 +249,4 @@ def user_from_token(token: Optional[str], now: Optional[float] = None) -> Option
     row = get(int(claims["sub"]))
     if row is None or not row["active"] or row["token_version"] != claims.get("tv"):
         return None
-    return {"id": row["id"], "email": row["email"], "name": row["name"], "role": row["role"]}
+    return {"id": row["id"], "email": row["email"], "name": row["name"], "role": row["role"], "is_owner": is_owner(row["email"])}

@@ -62,6 +62,7 @@ const fbSend = (method, path, body) => call(`/fonte-b${path}`, { method, headers
 export const api = {
   login: (email, password) => post('/auth/login', { email, password }),
   changePassword: (current_password, new_password) => post('/auth/change-password', { current_password, new_password }),
+  meActivity: (limit = 30) => call(`/auth/me/activity?limit=${limit}`).then((r) => r.json()),
   users: () => hqGet('/users'),
   createUser: (body) => hqSend('POST', '/users', body),
   patchUser: (id, body) => hqSend('PATCH', `/users/${id}`, body),

@@ -1,9 +1,9 @@
-"""Quartier Generale (HQ): accesso con codice, memoria del sistema, timeline, dossier, archivio bandi e database.
+"""Quartier Generale (HQ): memoria del sistema, timeline, dossier, bandi e database.
 
-Sicurezza: il codice si verifica SEMPRE sul server (mai nel frontend), a tempo costante, con blocco temporaneo dopo
-tentativi errati. Il codice predefinito è ``QUANTO_1`` e si sostituisce con ``QUANTO_HQ_CODE``: un codice breve e
-pubblicato nella documentazione è una barriera di comodità, non un segreto forte — in produzione va cambiato.
-Il manager può leggere tutto e correggere/eliminare i dati (bandi, fonti, regole, righe del database) tranne il registro firmato (append-only).
+Sicurezza: l'accesso richiede il login utente (``require_hq``, sempre verificato sul server) ed è riservato al
+titolare dell'account quando ``QUANTO_OWNER_EMAIL`` è configurata (vedi ``app.core.users``), altrimenti a chi ha
+ruolo MANAGER. Il titolare può leggere tutto e correggere/eliminare i dati (bandi, fonti, regole, righe del
+database) tranne il registro firmato (append-only).
 """
 from __future__ import annotations
 

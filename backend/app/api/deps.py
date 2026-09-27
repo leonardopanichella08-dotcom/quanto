@@ -71,9 +71,14 @@ def actor_of(request: Request) -> str:
 
 
 def require_hq(request: Request) -> None:
-    """Quartier Generale, tabelle ufficiali, utenti: serve un utente con ruolo MANAGER."""
+    """Quartier Generale, tabelle ufficiali, utenti: riservato al titolare (QUANTO_OWNER_EMAIL) quando configurato,
+    altrimenti a chi ha ruolo MANAGER (sviluppo locale, senza quella variabile)."""
     u = user_of(request)
     if u is None:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Accesso richiesto: effettua il login")
+    if users.owner_email():
+        if not users.is_owner(u["email"]):
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Il Quartier Generale è riservato al titolare dell'account")
+        return
     if u["role"] != "MANAGER":
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Serve il ruolo di manager")

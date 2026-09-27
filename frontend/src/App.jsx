@@ -8,7 +8,8 @@ import AuditorPortal from './components/AuditorPortal'
 import RegistrationModal from './components/RegistrationModal'
 import HQ from './components/hq/HQ'
 import Guida from './components/Guida'
-import { ArrowLeft, KeyRound, LogOut, BookOpen, Building2, Calculator, GitCompare, Library, ShieldCheck, Split } from 'lucide-react'
+import Profile from './components/Profile'
+import { ArrowLeft, LogOut, BookOpen, Calculator, GitCompare, Library, ShieldCheck, Split, User } from 'lucide-react'
 import { Mark, PageHead, Wordmark } from './components/ui'
 import { NavContext } from './lib/nav'
 import { api, download, fileToBase64, session } from './lib/api'
@@ -16,7 +17,7 @@ import { LoginScreen, PasswordModal } from './components/Login'
 
 const TABS = [
   ['bandi', 'Bandi', Library], ['canvas', 'Budget', Calculator], ['allocation', 'Allocazione', Split],
-  ['pattern', 'Confronto', GitCompare], ['auditor', 'Verifica', ShieldCheck], ['guida', 'Guida', BookOpen], ['hq', 'Quartier Generale', Building2],
+  ['pattern', 'Confronto', GitCompare], ['auditor', 'Verifica', ShieldCheck], ['guida', 'Guida', BookOpen], ['profilo', 'Profilo', User],
 ]
 // Una riga per pagina: a cosa serve, in parole semplici.
 const HEADS = {
@@ -25,6 +26,7 @@ const HEADS = {
   allocation: ['Allocazione', 'Scopri quale fondo paga ogni spesa e quanto resta a carico tuo.'],
   pattern: ['Confronto', 'Guarda quanto il tuo budget somiglia a quelli dei progetti premiati.'],
   auditor: ['Verifica', 'Controlla che un budget certificato non sia stato modificato.'],
+  profilo: ['Profilo', 'I tuoi dati, le operazioni recenti e i documenti che hai caricato.'],
 }
 
 const params = new URLSearchParams(window.location.search)
@@ -163,8 +165,7 @@ export default function App() {
           : { dot: 'bg-emerald-500', text: `Registro integro · ${registry.entries} ${registry.entries === 1 ? 'registrazione' : 'registrazioni'}`, tone: 'text-ink-2' }
 
   const labData = replay || validation
-  const isManager = user?.role === 'MANAGER'
-  const tabs = TABS.filter(([id]) => id !== 'hq' || isManager)
+  const isOwner = !!user?.is_owner
 
   if (!user && tab !== 'auditor') return <LoginScreen onLogin={setUser} onAuditor={() => setTab('auditor')} />
 
@@ -179,8 +180,8 @@ export default function App() {
             <Wordmark height={20} className="text-ink" />
           </button>
           <nav className="flex items-center gap-1 overflow-x-auto max-w-full md:ml-auto order-3 md:order-none w-full md:w-auto -mx-1 px-1 pb-0.5" aria-label="Pagine">
-            {tabs.map(([id, label, Icon]) => {
-              const on = tab === id || (tab === 'lab' && id === 'canvas')
+            {TABS.map(([id, label, Icon]) => {
+              const on = tab === id || (tab === 'lab' && id === 'canvas') || (tab === 'hq' && id === 'profilo')
               return (
                 <button key={id} onClick={() => nav.go(id)} aria-current={on ? 'page' : undefined}
                   className={`inline-flex items-center gap-1.5 px-3 py-2 rounded-full text-[13px] whitespace-nowrap transition duration-200 ${on ? 'bg-liquid text-ink font-medium shadow-[0_6px_16px_-8px_rgba(200,185,0,0.9),0_0_0_1px_rgba(150,135,0,0.16)]' : 'text-ink-2 hover:text-ink hover:bg-white/70'}`}>
@@ -192,7 +193,6 @@ export default function App() {
           {user && (
             <div className="flex items-center gap-1 text-xs text-ink-2 order-2 md:order-none">
               <span className="hidden 2xl:inline max-w-[160px] truncate" title={user.email}>{user.name}</span>
-              <button onClick={() => setPwOpen(true)} className="btn !px-2.5 !py-1.5" title="Cambia password" aria-label="Cambia password"><KeyRound className="w-3.5 h-3.5" /></button>
               <button onClick={logout} className="btn !px-2.5 !py-1.5" title="Esci" aria-label="Esci"><LogOut className="w-3.5 h-3.5" /></button>
             </div>
           )}
@@ -231,7 +231,11 @@ export default function App() {
             defaultRoot={params.get('root') || validation?.merkle_root} />
         )}
         {tab === 'guida' && <Guida anchor={guideAnchor} />}
-        {tab === 'hq' && isManager && <HQ onReplay={openReplay} user={user} />}
+        {tab === 'profilo' && (
+          <Profile user={user} isOwner={isOwner} onChangePassword={() => setPwOpen(true)} onGoHQ={() => nav.go('hq')}
+            onUsePayslip={addPayslipItem} onUseBalance={(id) => { setBalanceRef(id); nav.go('allocation') }} onUseDraft={addDraftItems} />
+        )}
+        {tab === 'hq' && isOwner && <HQ onReplay={openReplay} user={user} />}
       </main>
 
       {pwOpen && <PasswordModal onClose={() => setPwOpen(false)} />}

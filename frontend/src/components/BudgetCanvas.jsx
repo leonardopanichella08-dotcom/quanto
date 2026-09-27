@@ -1,12 +1,11 @@
 import React, { useMemo, useRef, useState } from 'react'
-import { AlertTriangle, ChevronDown, ChevronRight, Download, FileSpreadsheet, FileText, Loader2, Play, Plus, ShieldCheck, Upload, X } from 'lucide-react'
+import { AlertTriangle, ChevronDown, ChevronRight, Download, FileText, Loader2, Play, Plus, ShieldCheck, Upload, X } from 'lucide-react'
 import LineEditor from './LineEditor'
 import ItemTemplatePicker from './ItemTemplatePicker'
 import CriteriaHeatmap, { heatmapData } from './CriteriaHeatmap'
 import Documents from './Documents'
 import Guide from './Guide'
 import { Hint } from './Help'
-import { api } from '../lib/api'
 import { BANDO_STATUS_STYLE, CATEGORY_LABEL, CATEGORY_ORDER, STATUS_LABEL, STATUS_STYLE, fmtEur, fmtNum, fmtPct } from '../lib/format'
 
 const ITEM_STATUS_DOT = { APPROVED: '#10b981', CAP_EXCEEDED_ADJUSTED: '#f59e0b', REJECTED: '#ef4444', MISSING_DOCUMENTS: '#38bdf8' }
@@ -205,7 +204,6 @@ export default function BudgetCanvas({
             <button onClick={() => { setDocsOpen(true); docsRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }) }} disabled={busy} className="btn" title="Carica il PDF di una candidatura già scritta: le voci di spesa che contiene si aggiungono qui">
               <FileText className="w-3.5 h-3.5" />Importa da una candidatura (PDF)
             </button>
-            <a href={api.templateUrl} className="btn !border-line !text-ink-2 hover:!text-ink"><FileSpreadsheet className="w-3.5 h-3.5" />Template Excel</a>
             <div className="relative">
               <button onClick={() => setAddOpen(!addOpen)} className="btn"><Plus className="w-3.5 h-3.5" />Aggiungi voce</button>
               {addOpen && (

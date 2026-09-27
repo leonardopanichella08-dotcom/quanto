@@ -144,9 +144,9 @@ def list_bando_sources(bando_id: str) -> List[dict]:
 
 
 def list_events(op: Optional[str] = None, project_id: Optional[str] = None, bando_id: Optional[str] = None,
-                status: Optional[str] = None, limit: int = 100, before_id: Optional[int] = None) -> List[dict]:
+                status: Optional[str] = None, actor: Optional[str] = None, limit: int = 100, before_id: Optional[int] = None) -> List[dict]:
     clauses, args = [], []
-    for col, val in (("op", op), ("project_id", project_id), ("bando_id", bando_id), ("status", status)):
+    for col, val in (("op", op), ("project_id", project_id), ("bando_id", bando_id), ("status", status), ("actor", actor)):
         if val:
             clauses.append(f"{col} = ?")
             args.append(val)

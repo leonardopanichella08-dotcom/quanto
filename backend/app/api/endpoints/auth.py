@@ -58,7 +58,7 @@ def login(body: LoginBody, request: Request) -> dict:
         raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail=str(exc)) from exc
     except auth.AuthConfigError:
         raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="Autenticazione non configurata sul server (QUANTO_JWT_SECRET)") from None
-    return {**token, "user": {k: user[k] for k in ("id", "email", "name", "role")}}
+    return {**token, "user": {k: user[k] for k in ("id", "email", "name", "role", "is_owner")}}
 
 
 @router.get("/me", dependencies=[Depends(require_auth)], summary="Chi sono")
@@ -67,6 +67,14 @@ def me(request: Request) -> dict:
     if u is None:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Accesso richiesto")
     return u
+
+
+@router.get("/me/activity", dependencies=[Depends(require_auth)], summary="Le tue operazioni recenti")
+def my_activity(request: Request, limit: int = 30) -> list:
+    u = user_of(request)
+    if u is None:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Accesso richiesto")
+    return events.list_events(actor=f"user:{u['email']}", limit=limit)
 
 
 @router.post("/change-password", dependencies=[Depends(require_auth)], summary="Cambia la tua password (tutti i token già emessi decadono)")
