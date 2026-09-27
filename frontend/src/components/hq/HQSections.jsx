@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useState } from 'react'
 import { ChevronLeft, ChevronRight, Download, FileText, FolderOpen, Loader2, Play, ShieldCheck, Trash2 } from 'lucide-react'
 import { api, download } from '../../lib/api'
-import { BANDO_STATUS_STYLE, fmtBytes, fmtEur, fmtTs } from '../../lib/format'
+import { fmtBytes, fmtEur, fmtTs } from '../../lib/format'
 
 const KIND_LABEL = {
   BANDO_TEXT: 'Bando (testo)', BANDO_PDF: 'Bando (PDF)', BANDO_WEB: 'Bando (pagina web)', EXPORT_XLSX: 'Export Excel', EXPORT_PDF: 'Export PDF', IMPORT_XLSX: 'Import voci', ATTESTATION: 'Certificazione',
@@ -66,52 +66,14 @@ function ProjectDossier({ id, onReplay, opsById }) {
   )
 }
 
-function BandoDossier({ id }) {
-  const { data, error, busy } = useLoad(() => api.hqBando(id), [id])
-  if (busy && !data) return <p className="text-xs text-mute flex gap-2"><Loader2 className="w-3.5 h-3.5 animate-spin" />Caricamento…</p>
-  if (error) return <p className="text-xs text-red-700">{error}</p>
-  if (!data) return null
-  const bySource = data.rules.reduce((a, r) => ({ ...a, [r.origin]: (a[r.origin] || 0) + 1 }), {})
-  return (
-    <div className="space-y-4">
-      <div className="card p-4 space-y-2">
-        <h4 className="font-bold text-sm">{data.name}</h4>
-        <span className={`inline-block px-2 py-0.5 text-[11px] font-bold rounded border ${BANDO_STATUS_STYLE(data.status || '')}`}>{data.status || data.extraction_status}</span>
-        <p className="text-xs text-ink-2">{data.rules.length} regole ({Object.entries(bySource).map(([k, v]) => `${v} ${k.toLowerCase().replace('_', ' ')}`).join(', ')}) · {data.requirements.length} requisiti · {data.coverage_summary.REGOLA_DEL_BANDO}/60 controlli attivati · {data.not_specified.length} lacune dichiarate</p>
-        {data.grant_rules && <p className="text-[11px] font-mono text-mute">versione delle regole: {data.grant_rules.rule_version_hash}</p>}
-      </div>
-      <div className="card p-4 space-y-2">
-        <span className="label">Progetti che hanno usato il bando ({data.projects.length})</span>
-        {data.projects.map((p) => <p key={p.project_id} className="text-xs font-mono text-ink-2">{p.project_id} · {p.n} controlli · ultimo {fmtTs(p.last_ts)}</p>)}
-        {data.projects.length === 0 && <p className="text-xs text-mute italic">Nessun controllo fatto con questo bando.</p>}
-      </div>
-      <div className="card p-4 space-y-2">
-        <span className="label">Fonti</span>
-        {data.sources.map((s) => <p key={s.url} className="text-xs text-ink-2">{s.confidence} · {s.title}</p>)}
-        {data.usage.uploaded_sources.map((s) => <p key={s.sha256} className="text-xs font-mono text-ink-2">testo caricato: {s.name} · {s.chars.toLocaleString('it-IT')} car. · {s.sha256.slice(0, 12)}…</p>)}
-        {data.sources.length === 0 && data.usage.uploaded_sources.length === 0 && <p className="text-xs text-mute italic">Nessuna fonte registrata.</p>}
-      </div>
-      <div className="card p-4 space-y-2">
-        <span className="label">Timeline del bando</span>
-        {data.timeline.map((e) => <div key={e.id} className="flex gap-3 text-xs"><span className="font-mono text-[11px] text-mute w-32 shrink-0">{fmtTs(e.ts)}</span><span className="text-ink-2">{e.summary}</span></div>)}
-        {data.timeline.length === 0 && <p className="text-xs text-mute italic">Nessun evento.</p>}
-      </div>
-    </div>
-  )
-}
-
-export function Dossiers({ bandi, onReplay, opsById }) {
-  const [mode, setMode] = useState('projects')
+export function Dossiers({ onReplay, opsById }) {
   const [selected, setSelected] = useState(null)
   const projects = useLoad(() => api.hqProjects(), [])
-  const list = mode === 'projects' ? (projects.data || []).map((p) => ({ id: p.project_id, title: p.project_id, sub: `${p.events} eventi · ${fmtTs(p.last_ts)}` }))
-    : bandi.map((b) => ({ id: b.bando_id, title: b.name, sub: `${b.runs_count} controlli · ${b.rules_count} regole` }))
+  const list = (projects.data || []).map((p) => ({ id: p.project_id, title: p.project_id, sub: `${p.events} eventi · ${fmtTs(p.last_ts)}` }))
   return (
     <div className="grid lg:grid-cols-3 gap-6 items-start">
       <div className="space-y-3">
-        <div className="flex gap-5 border-b border-line w-fit">
-          {[['projects', 'Progetti'], ['bandi', 'Bandi']].map(([id, l]) => <button key={id} onClick={() => { setMode(id); setSelected(null) }} className={`pb-2 text-xs -mb-px border-b-2 ${mode === id ? 'border-brand text-ink font-medium' : 'border-transparent text-ink-2'}`}>{l}</button>)}
-        </div>
+        <p className="text-xs text-mute">Il fascicolo di ogni bando (documenti, regole, utilizzo) si trova ora nella sezione Bandi.</p>
         {list.map((it) => (
           <button key={it.id} onClick={() => setSelected(it.id)} className={`w-full text-left card p-3 hover:border-line-strong ${selected === it.id ? '!border-brand' : ''}`}>
             <p className="text-xs font-bold truncate flex items-center gap-1.5"><FolderOpen className="w-3.5 h-3.5 text-mute shrink-0" />{it.title}</p><p className="text-[11px] text-mute mt-0.5">{it.sub}</p>
@@ -120,8 +82,8 @@ export function Dossiers({ bandi, onReplay, opsById }) {
         {list.length === 0 && <p className="text-xs text-mute italic">Ancora niente da mostrare.</p>}
       </div>
       <div className="lg:col-span-2">
-        {!selected ? <div className="card p-10 text-center text-sm text-mute">Scegli un {mode === 'projects' ? 'progetto' : 'bando'} per aprirne il fascicolo.</div>
-          : mode === 'projects' ? <ProjectDossier id={selected} onReplay={onReplay} opsById={opsById} /> : <BandoDossier id={selected} />}
+        {!selected ? <div className="card p-10 text-center text-sm text-mute">Scegli un progetto per aprirne il fascicolo.</div>
+          : <ProjectDossier id={selected} onReplay={onReplay} opsById={opsById} />}
       </div>
     </div>
   )

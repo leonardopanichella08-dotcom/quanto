@@ -233,7 +233,7 @@ export default function App() {
             defaultRoot={params.get('root') || validation?.merkle_root} />
         )}
         {tab === 'guida' && <Guida anchor={guideAnchor} />}
-        {tab === 'hq' && isManager && <HQ bandi={bandi} onReplay={openReplay} user={user} />}
+        {tab === 'hq' && isManager && <HQ onReplay={openReplay} user={user} />}
       </main>
 
       {pwOpen && <PasswordModal onClose={() => setPwOpen(false)} />}

@@ -1,23 +1,22 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react'
-import { AlertTriangle, Archive as Archive2, GitCompare, Landmark, Scale, Building2, Database, FileText, FolderOpen, Gauge, History, KeyRound, ListTree, Loader2, LogOut, Lock, Network, Play, Wrench } from 'lucide-react'
+import { AlertTriangle, Archive as Archive2, GitCompare, Scale, Building2, Database, FileText, FolderOpen, Gauge, History, KeyRound, ListTree, Loader2, LogOut, Lock, Network, Play } from 'lucide-react'
 import { api } from '../../lib/api'
 import { fmtBytes, fmtTs } from '../../lib/format'
 import Guide from '../Guide'
 import { PageHead } from '../ui'
 import { Hint } from '../Help'
-import IngestionPanel from '../IngestionPanel'
 import { DbExplorer, Dossiers, Documents } from './HQSections'
 import Archive from './Archive'
 import FonteB from './FonteB'
 import Users from './Users'
-import { CatalogRefresh, FundsAdmin, PatternAdmin } from './DataAdmin'
+import { PatternAdmin } from './DataAdmin'
 
 const SECTIONS = [
   ['overview', 'Panoramica', Gauge], ['timeline', 'Timeline', History], ['operations', 'Mappa operazioni', Network],
-  ['archive', 'Archivio bandi', Archive2], ['fonteb', 'Tabelle ufficiali', Scale], ['funds', 'Fondi', Landmark], ['patterns', 'Banca pattern', GitCompare], ['users', 'Utenti', KeyRound], ['dossiers', 'Fascicoli', FolderOpen], ['documents', 'Documenti', FileText], ['database', 'Database', Database], ['ingestion', 'Caricamento bandi', Wrench],
+  ['archive', 'Bandi', Archive2], ['fonteb', 'Tabelle ufficiali', Scale], ['patterns', 'Banca pattern', GitCompare], ['users', 'Utenti', KeyRound], ['dossiers', 'Fascicoli', FolderOpen], ['documents', 'Documenti', FileText], ['database', 'Database', Database],
 ]
 const STATUS_LABEL = { OK: 'OK', WARN: 'Attenzione', FAIL: 'Non superato', DENIED: 'Negato', LOCKED: 'Bloccato', CONFLICT: 'Conflitto', NOT_FOUND: 'Non trovato' }
-const SECTION_HINT = { overview: 'hq_panoramica', timeline: 'hq_timeline', operations: 'hq_operazioni', archive: 'hq_archivio', fonteb: 'hq_archivio', users: 'hq_archivio', funds: 'hq_archivio', patterns: 'hq_archivio', dossiers: 'hq_fascicoli', documents: 'hq_documenti', database: 'hq_database', ingestion: 'hq_caricamento' }
+const SECTION_HINT = { overview: 'hq_panoramica', timeline: 'hq_timeline', operations: 'hq_operazioni', archive: 'hq_archivio', fonteb: 'hq_archivio', users: 'hq_archivio', patterns: 'hq_archivio', dossiers: 'hq_fascicoli', documents: 'hq_documenti', database: 'hq_database' }
 const STATUS_TONE = { OK: 'text-emerald-700', WARN: 'text-amber-700', FAIL: 'text-red-700', DENIED: 'text-red-700', LOCKED: 'text-red-700', CONFLICT: 'text-amber-700', NOT_FOUND: 'text-amber-700' }
 
 function Kpi({ label, value, note, tone = 'text-ink' }) {
@@ -176,7 +175,7 @@ function Operations({ ops, onShow }) {
   )
 }
 
-export default function HQ({ bandi, onReplay, user }) {
+export default function HQ({ onReplay, user }) {
   const [section, setSection] = useState('overview')
   const [overview, setOverview] = useState(null)
   const [ops, setOps] = useState([])
@@ -214,13 +213,11 @@ export default function HQ({ bandi, onReplay, user }) {
       {overview && section === 'operations' && <Operations ops={ops} onShow={(id) => goto('timeline', id)} />}
       {overview && section === 'archive' && <Archive />}
       {overview && section === 'fonteb' && <FonteB />}
-      {overview && section === 'funds' && <FundsAdmin bandi={bandi} />}
       {overview && section === 'patterns' && <PatternAdmin />}
       {overview && section === 'users' && <Users me={user} />}
-      {overview && section === 'dossiers' && <Dossiers bandi={bandi} onReplay={onReplay} opsById={opsById} />}
+      {overview && section === 'dossiers' && <Dossiers onReplay={onReplay} opsById={opsById} />}
       {overview && section === 'documents' && <Documents />}
       {overview && section === 'database' && <DbExplorer />}
-      {overview && section === 'ingestion' && <div className="space-y-5"><CatalogRefresh /><IngestionPanel /></div>}
     </div>
   )
 }

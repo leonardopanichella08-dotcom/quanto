@@ -46,36 +46,34 @@ export function PatternAdmin() {
   )
 }
 
-/** Linee di finanziamento dell'allocazione: ricavate dalle regole pubblicate dei bandi. */
-export function FundsAdmin({ bandi }) {
+/** Linea di finanziamento dell'allocazione per QUESTO bando: ricavata dalle sue regole pubblicate. */
+export function FundsAdmin({ bandoId, bandoName }) {
   const [funds, setFunds] = useState([])
-  const [form, setForm] = useState({ bando_id: '', fiscal_year: new Date().getFullYear() + 1, max_total_eur: '', de_minimis: false })
+  const [form, setForm] = useState({ fiscal_year: new Date().getFullYear() + 1, max_total_eur: '', de_minimis: false })
   const [error, setError] = useState(null)
   const [busy, setBusy] = useState(false)
-  const load = useCallback(() => api.funds().then(setFunds).catch(setError), [])
+  const load = useCallback(() => api.funds().then((all) => setFunds(all.filter((f) => f.bando_id === bandoId))).catch(setError), [bandoId])
   useEffect(() => { load() }, [load])
   const derive = async () => {
     setBusy(true); setError(null)
-    try { await api.deriveFund({ bando_id: form.bando_id, fiscal_year: Number(form.fiscal_year), max_total_eur: form.max_total_eur ? Number(form.max_total_eur) : null, de_minimis: form.de_minimis }); await load() } catch (e) { setError(e) } finally { setBusy(false) }
+    try { await api.deriveFund({ bando_id: bandoId, fiscal_year: Number(form.fiscal_year), max_total_eur: form.max_total_eur ? Number(form.max_total_eur) : null, de_minimis: form.de_minimis }); await load() } catch (e) { setError(e) } finally { setBusy(false) }
   }
   return (
     <div className="space-y-5">
       <div className="card p-5 space-y-3">
-        <SectionTitle icon={Landmark}>Nuova linea di finanziamento da un bando</SectionTitle>
-        <p className="text-xs text-ink-2 leading-relaxed">Si ricava dalle regole <b>pubblicate</b> del bando: categorie ammesse, percentuale di contributo, finestra di ammissibilità, fondi non cumulabili, tetti di consulenze e spese generali. Quello che il bando non dice — la <b>dotazione massima</b> per l’ente e il regime <b>de minimis</b> — lo indichi tu; se lasci vuoto non c’è tetto.</p>
-        <div className="grid md:grid-cols-4 gap-3 text-xs">
-          <label className="space-y-1 md:col-span-2"><span className="label">Bando</span>
-            <select className="field" value={form.bando_id} onChange={(e) => setForm({ ...form, bando_id: e.target.value })}><option value="">Scegli…</option>{bandi.map((b) => <option key={b.bando_id} value={b.bando_id}>{b.name}</option>)}</select></label>
+        <SectionTitle icon={Landmark}>Linea di finanziamento per l’allocazione</SectionTitle>
+        <p className="text-xs text-ink-2 leading-relaxed">Si ricava dalle regole <b>pubblicate</b> di «{bandoName}»: categorie ammesse, percentuale di contributo, finestra di ammissibilità, fondi non cumulabili, tetti di consulenze e spese generali. Quello che il bando non dice — la <b>dotazione massima</b> e il regime <b>de minimis</b> — lo indichi tu; se lasci vuoto non c’è tetto.</p>
+        <div className="grid md:grid-cols-3 gap-3 text-xs">
           <label className="space-y-1"><span className="label">Anno fiscale</span><input type="number" className="field" value={form.fiscal_year} onChange={(e) => setForm({ ...form, fiscal_year: e.target.value })} /></label>
           <label className="space-y-1"><span className="label">Dotazione massima (€)</span><input type="number" className="field" value={form.max_total_eur} onChange={(e) => setForm({ ...form, max_total_eur: e.target.value })} /></label>
-          <label className="flex items-center gap-2 md:col-span-4"><input type="checkbox" className="accent-brand" checked={form.de_minimis} onChange={(e) => setForm({ ...form, de_minimis: e.target.checked })} />Aiuto in regime de minimis</label>
+          <label className="flex items-center gap-2"><input type="checkbox" className="accent-brand" checked={form.de_minimis} onChange={(e) => setForm({ ...form, de_minimis: e.target.checked })} />de minimis</label>
         </div>
-        <button className="btn-primary" disabled={!form.bando_id || busy} onClick={derive}>{busy && <Loader2 className="w-3.5 h-3.5 animate-spin" />}Crea la linea</button>
+        <button className="btn-primary" disabled={busy} onClick={derive}>{busy && <Loader2 className="w-3.5 h-3.5 animate-spin" />}Crea la linea</button>
         <Err e={error} />
       </div>
       <div className="card p-5 space-y-2">
         <SectionTitle>Linee attive ({funds.length})</SectionTitle>
-        {funds.length === 0 && <p className="text-xs text-mute">Nessuna: la pagina Allocazione non può pianificare finché non ce n’è almeno una.</p>}
+        {funds.length === 0 && <p className="text-xs text-mute">Nessuna: la pagina Allocazione non può pianificare con questo bando finché non ce n’è una.</p>}
         {funds.map((f) => (
           <div key={f.fund_id} className="p-3 rounded-xl border border-line bg-field text-xs flex flex-wrap items-center gap-2">
             <span className="font-medium text-ink">{f.name}</span>

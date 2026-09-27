@@ -3,6 +3,7 @@ import { AlertTriangle, CheckCircle2, ChevronDown, ChevronRight, Download, Exter
 import { api, download } from '../../lib/api'
 import { fmtBytes, fmtTs } from '../../lib/format'
 import { Hint } from '../Help'
+import { FundsAdmin } from './DataAdmin'
 
 const esc = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
 const KINDS = ['OBBLIGO', 'DIVIETO', 'LIMITE', 'INFO', 'DA_REVISIONARE']
@@ -277,6 +278,78 @@ function Sheet({ id, sheet, onChanged }) {
   )
 }
 
+/** Cosa ne è stato fatto: progetti che l'hanno usato, fonti trovate sul web, cronologia. */
+function Usage({ id }) {
+  const [data, setData] = useState(null)
+  const [error, setError] = useState(null)
+  useEffect(() => { setData(null); setError(null); api.hqBando(id).then(setData).catch((e) => setError(e.message)) }, [id])
+  if (error) return <p className="text-xs text-red-700">{error}</p>
+  if (!data) return <p className="text-xs text-mute flex items-center gap-2"><Loader2 className="w-3.5 h-3.5 animate-spin" />Carico…</p>
+  return (
+    <div className="space-y-3">
+      <div className="p-3 bg-field border border-line rounded-xl space-y-1">
+        <p className="text-xs text-ink-2">{data.coverage_summary.REGOLA_DEL_BANDO}/60 controlli attivati · {data.not_specified.length} lacune dichiarate</p>
+        {data.grant_rules && <p className="text-[11px] font-mono text-mute">versione delle regole: {data.grant_rules.rule_version_hash}</p>}
+      </div>
+      <Fold title="Progetti che hanno usato questo bando" count={data.projects.length} defaultOpen>
+        {data.projects.map((p) => <p key={p.project_id} className="text-xs font-mono text-ink-2">{p.project_id} · {p.n} controlli · ultimo {fmtTs(p.last_ts)}</p>)}
+        {data.projects.length === 0 && <p className="text-xs text-mute italic">Nessun controllo fatto con questo bando.</p>}
+      </Fold>
+      <Fold title="Fonti trovate sul web" count={data.sources.length}>
+        {data.sources.map((s) => <p key={s.url} className="text-xs text-ink-2">{s.confidence} · {s.title}</p>)}
+        {data.sources.length === 0 && <p className="text-xs text-mute italic">Nessuna fonte web registrata.</p>}
+      </Fold>
+      <Fold title="Cronologia di questo bando" count={data.timeline.length}>
+        {data.timeline.map((e) => <div key={e.id} className="flex gap-3 text-xs"><span className="font-mono text-[11px] text-mute w-32 shrink-0">{fmtTs(e.ts)}</span><span className="text-ink-2">{e.summary}</span></div>)}
+        {data.timeline.length === 0 && <p className="text-xs text-mute italic">Nessun evento.</p>}
+      </Fold>
+    </div>
+  )
+}
+
+/** Crea un nuovo bando: codice, nome e (facoltativo) il testo da cui estrarre subito le regole. */
+function NewBando({ onCreated }) {
+  const [open, setOpen] = useState(false)
+  const [bandoId, setBandoId] = useState('')
+  const [name, setName] = useState('')
+  const [text, setText] = useState('')
+  const { busy, error, run } = useAction()
+  const create = () => run('new', async () => {
+    await api.ingestionAddBando({ bando_id: bandoId.trim(), name: name.trim() })
+    if (text.trim()) await api.ingestionExtract({ bando_id: bandoId.trim(), source_text: text })
+    const created = bandoId.trim()
+    setBandoId(''); setName(''); setText(''); setOpen(false)
+    await onCreated(created)
+  })
+  if (!open) return <button onClick={() => setOpen(true)} className="btn-primary w-full justify-center"><Plus className="w-3.5 h-3.5" />Nuovo bando</button>
+  return (
+    <div className="card p-3 space-y-2">
+      {error && <p className="text-xs text-red-700">{error}</p>}
+      <input value={bandoId} onChange={(e) => setBandoId(e.target.value)} placeholder="Codice (es. NUOVO-BANDO-2026)" aria-label="Codice del bando" className="field font-mono" />
+      <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Nome del bando" aria-label="Nome del bando" className="field" />
+      <textarea value={text} onChange={(e) => setText(e.target.value)} rows={5} placeholder="Testo del bando (facoltativo: puoi anche caricare i PDF dopo averlo creato)" aria-label="Testo del bando" className="field" />
+      <div className="flex gap-2">
+        <button onClick={create} disabled={busy === 'new' || bandoId.trim().length < 3 || name.trim().length < 3} className="btn-primary flex-1 justify-center">{busy === 'new' && <Loader2 className="w-3.5 h-3.5 animate-spin" />}Crea</button>
+        <button onClick={() => setOpen(false)} className="btn">Annulla</button>
+      </div>
+    </div>
+  )
+}
+
+/** Aggiornamento del catalogo nazionale (metadati): parte da solo ogni notte, qui si può lanciare a mano. */
+function CatalogRefreshLine() {
+  const { busy, error, run } = useAction()
+  const [res, setRes] = useState(null)
+  const refresh = () => run('cat', async () => setRes(await api.catalogRefresh()))
+  return (
+    <div className="text-[11px] text-mute">
+      <button onClick={refresh} disabled={busy === 'cat'} className="hover:text-ink underline decoration-dotted">{busy === 'cat' ? 'Aggiorno…' : 'Aggiorna il catalogo nazionale'}</button>
+      {res && <span className="ml-1">· {res.inserted} nuovi</span>}
+      {error && <span className="ml-1 text-red-700">{error}</span>}
+    </div>
+  )
+}
+
 function BandoManager({ id, deletedDefaults, onList }) {
   const [detail, setDetail] = useState(null)
   const [sheet, setSheet] = useState(null)
@@ -302,7 +375,7 @@ function BandoManager({ id, deletedDefaults, onList }) {
 
   if (error) return <p className="text-xs text-red-700">{error}</p>
   if (!detail || !sheet) return <p className="text-xs text-mute flex items-center gap-2"><Loader2 className="w-3.5 h-3.5 animate-spin" />Carico…</p>
-  const tabs = [['sheet', 'Scheda consulente'], ['docs', `Documenti (${detail.sources_detail.length})`], ['rules', `Regole (${detail.rules.length})`], ['reqs', `Requisiti (${detail.requirements.length})`], ['actions', 'Azioni']]
+  const tabs = [['sheet', 'Scheda consulente'], ['docs', `Documenti (${detail.sources_detail.length})`], ['rules', `Regole (${detail.rules.length})`], ['reqs', `Requisiti (${detail.requirements.length})`], ['fund', 'Fondo'], ['usage', 'Utilizzo'], ['actions', 'Azioni']]
   return (
     <div className="card p-5 space-y-4">
       <div><h3 className="font-semibold text-lg break-words">{detail.name}</h3><p className="text-xs font-mono text-mute">{detail.bando_id} · {detail.extraction_status}</p></div>
@@ -313,6 +386,8 @@ function BandoManager({ id, deletedDefaults, onList }) {
       {tab === 'docs' && <Documents id={id} sources={detail.sources_detail} onChanged={changed} />}
       {tab === 'rules' && <Rules id={id} detail={detail} sheet={sheet} onChanged={changed} />}
       {tab === 'reqs' && <Requirements id={id} items={detail.requirements} onChanged={changed} />}
+      {tab === 'fund' && <FundsAdmin bandoId={id} bandoName={detail.name} />}
+      {tab === 'usage' && <Usage id={id} />}
       {tab === 'actions' && (
         <div className="space-y-4">
           {actErr && <p className="text-xs text-red-700">{actErr}</p>}
@@ -341,9 +416,11 @@ export default function Archive() {
   }, [])
   useEffect(() => { load() }, [load])
   const list = data.bandi.filter((b) => !q.trim() || `${b.name} ${b.bando_id}`.toLowerCase().includes(q.trim().toLowerCase()))
+  const created = async (id) => { await load(); setSelected(id) }
   return (
     <div className="grid lg:grid-cols-3 gap-6 items-start">
       <div className="space-y-3">
+        <NewBando onCreated={created} />
         <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Cerca un bando" aria-label="Cerca un bando" className="field" />
         {error && <p className="text-xs text-red-700">{error}</p>}
         {list.map((b) => (
@@ -355,6 +432,7 @@ export default function Archive() {
         ))}
         {list.length === 0 && <p className="text-xs text-mute">Nessun bando.</p>}
         {data.deleted_defaults.length > 0 && !selected && <button onClick={async () => { await api.hqRestoreDefaults(); load() }} className="btn">Ripristina i {data.deleted_defaults.length} bandi predefiniti eliminati</button>}
+        <CatalogRefreshLine />
       </div>
       <div className="lg:col-span-2 min-w-0">
         {selected ? <BandoManager id={selected} deletedDefaults={data.deleted_defaults} onList={load} />
