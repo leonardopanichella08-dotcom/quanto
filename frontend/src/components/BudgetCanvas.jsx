@@ -12,7 +12,7 @@ import { BANDO_STATUS_STYLE, CATEGORY_LABEL, CATEGORY_ORDER, STATUS_LABEL, STATU
 const ITEM_STATUS_DOT = { APPROVED: '#10b981', CAP_EXCEEDED_ADJUSTED: '#f59e0b', REJECTED: '#ef4444', MISSING_DOCUMENTS: '#38bdf8' }
 
 const NEW_ITEM = {
-  PERSONNEL: { ccnl_code: 'TERZO_SETTORE', employee_level: '3', ral_eur: 30000, fte_allocation: 0.5, duration_months: 12 },
+  PERSONNEL: { ccnl_code: 'COMMERCIO', employee_level: '3', ral_eur: 30000, fte_allocation: 0.5, duration_months: 12 },
   CAPITAL_ASSETS: { amount_eur: 10000, asset_nature: 'HARDWARE' },
   CONSULTING: { amount_eur: 10000 },
   OVERHEAD: { amount_eur: 5000 },
