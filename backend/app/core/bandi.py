@@ -60,14 +60,13 @@ def seed() -> None:
             rules = dict(b["rules"])
             if b["bando_id"] == "QUANTO-SANDBOX-60":
                 rules = {k: v for k, v in SANDBOX_RULES.items() if k not in IDENTITY_FIELDS}
-            partial = b["bando_id"] == "FNC3-2024"
             period = b.get("period") or {}
             conn.execute(
                 "INSERT INTO bandi (bando_id, name, issuer, deadline, source_url, catalog_status, extraction_status) VALUES (?,?,?,?,?,?,?) "
                 "ON CONFLICT(bando_id) DO UPDATE SET name=excluded.name, issuer=excluded.issuer, deadline=excluded.deadline, "
                 "source_url=excluded.source_url, catalog_status='CURATED', extraction_status=excluded.extraction_status",
                 (b["bando_id"], b["name"], b["issuer"], period.get("to"), (b["sources"][0]["url"] if b["sources"] else None),
-                 "CURATED", "PARTIAL" if partial else "COMPLETED"))
+                 "CURATED", b.get("extraction_status", "COMPLETED")))
             meta = {k: b[k] for k in ("status", "period", "legal_refs", "benefit", "sources", "not_specified", "rule_notes")}
             meta["curated"] = True
             conn.execute("INSERT INTO bando_meta (bando_id, meta) VALUES (?,?) ON CONFLICT(bando_id) DO UPDATE SET meta=excluded.meta",

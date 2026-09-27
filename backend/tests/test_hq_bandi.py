@@ -180,14 +180,14 @@ def test_db_explorer_is_read_only_and_whitelisted():
 def test_library_lists_curated_bandi_with_coverage():
     lst = client.get("/api/v2/bandi").json()
     ids = {b["bando_id"] for b in lst}
-    assert {"IPERAMMORTAMENTO-2026", "NUOVA-SABATINI", "HORIZON-EUROPE-MGA", "TRANSIZIONE-5.0-2024-2025", "FNC3-2024", "QUANTO-SANDBOX-60"} <= ids
+    assert {"IPERAMMORTAMENTO-2026", "NUOVA-SABATINI", "HORIZON-EUROPE-MGA", "SMART-START-ITALIA", "INVESTIMENTI-SOSTENIBILI-4.0-2026", "QUANTO-SANDBOX-60"} <= ids
     for b in lst:
         assert sum(b["coverage"].values()) == 60
     assert next(b for b in lst if b["bando_id"] == "QUANTO-SANDBOX-60")["coverage"]["NON_ATTIVO"] == 0
 
 
 def test_every_rule_has_a_source_and_confidence_and_gaps_are_declared():
-    for bid in ("IPERAMMORTAMENTO-2026", "NUOVA-SABATINI", "HORIZON-EUROPE-MGA", "TRANSIZIONE-5.0-2024-2025", "FNC3-2024"):
+    for bid in ("IPERAMMORTAMENTO-2026", "NUOVA-SABATINI", "HORIZON-EUROPE-MGA", "SMART-START-ITALIA", "INVESTIMENTI-SOSTENIBILI-4.0-2026"):
         d = client.get(f"/api/v2/bandi/{bid}").json()
         assert d["sources"] and d["legal_refs"] and d["not_specified"] and d["requirements"]
         assert all(r["source_ref"] and r["confidence"] for r in d["rules"]), bid
@@ -207,11 +207,11 @@ def test_secondary_sources_are_never_presented_as_primary():
     rules = {r["key"]: r for r in d["rules"]}
     assert rules["requires_eu_origin"]["confidence"] == "SECONDARIA" and rules["appraisal_threshold_eur"]["confidence"] == "INTERPRETAZIONE"
     assert rules["eligible_categories"]["value"] == ["CAPITAL_ASSETS"]
-    assert d["status"] == "APERTO" and next(b for b in client.get("/api/v2/bandi").json() if b["bando_id"] == "TRANSIZIONE-5.0-2024-2025")["status"] == "CHIUSO"
+    assert d["status"] == "APERTO"
 
 
 def test_partial_bando_is_shown_as_partial_with_items_to_review():
-    b = next(x for x in client.get("/api/v2/bandi").json() if x["bando_id"] == "FNC3-2024")
+    b = next(x for x in client.get("/api/v2/bandi").json() if x["bando_id"] == "SMART-START-ITALIA")
     assert b["extraction_status"] == "PARTIAL" and b["requirements_to_review"] >= 1 and b["rules_count"] == 1
 
 

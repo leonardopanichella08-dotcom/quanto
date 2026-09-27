@@ -14,6 +14,9 @@ from __future__ import annotations
 from typing import Any, Dict, List
 
 ACCESSED = "2026-09-19"
+ACCESSED_2 = "2026-09-23"
+ACCESSED_3 = "2026-09-26"
+ACCESSED_4 = "2026-09-27"
 
 
 def R(topic: str, kind: str, text: str, criteria: List[int], source_ref: str, confidence: str = "PRIMARIA") -> Dict[str, Any]:
@@ -168,83 +171,89 @@ HORIZON: Dict[str, Any] = {
     ],
 }
 
-TRANSIZIONE_50: Dict[str, Any] = {
-    "bando_id": "TRANSIZIONE-5.0-2024-2025",
-    "name": "Piano Transizione 5.0 — credito d'imposta 2024-2025",
-    "issuer": "MIMIT / GSE",
-    "status": "CHIUSO",
-    "period": {"from": "2024-01-01", "to": "2025-12-31"},
+SMART_START: Dict[str, Any] = {
+    "bando_id": "SMART-START-ITALIA",
+    "name": "Smart&Start Italia — finanziamento a tasso zero per start-up innovative",
+    "issuer": "Invitalia S.p.A. / MIMIT",
+    "status": "APERTO (sportello sempre aperto, senza graduatorie né click day)",
+    "period": {"from": None, "to": None},
+    "extraction_status": "PARTIAL",
     "legal_refs": [
-        "Art. 38 D.L. 2 marzo 2024, n. 19 (conv. L. 29 aprile 2024, n. 56)", "Decreto interministeriale 24 luglio 2024",
-        "Decreti direttoriali 6 agosto 2024, 11 settembre 2024, 6 novembre 2025", "Circolare operativa 16 agosto 2024, n. 25877",
-        "Legge 30 dicembre 2024, n. 207, commi 427-429",
+        "Art. 25, decreto-legge 18 ottobre 2012, n. 179, conv. L. 17 dicembre 2012, n. 221 (definizione di start-up innovativa), come modificato dalla legge 16 dicembre 2024, n. 193",
+        "Decreto MIMIT 24 settembre 2014 (istitutivo)", "Decreto MIMIT 30 agosto 2019 (revisione disciplina)",
+        "Decreto MIMIT 13 luglio 2026 (ultimo aggiornamento)", "Decreto interministeriale 24 novembre 2021 (risorse PNRR)",
     ],
     "benefit": {
-        "type": "CREDITO_D_IMPOSTA",
-        "summary": "Credito d'imposta sulla quota di investimento, in funzione della riduzione dei consumi energetici (struttura 3-6/6-10/≥10%; processo 5-10/10-15/≥15%). Fino a 10 mln: 35%/40%/45%; oltre 10 mln (fino a 50): 5%/10%/15%. Limite 50 mln per impresa e anno.",
-        "tiers": [{"up_to_eur": 10_000_000, "rate_pct": [35, 40, 45]}, {"up_to_eur": 50_000_000, "rate_pct": [5, 10, 15]}],
+        "type": "FINANZIAMENTO_A_TASSO_ZERO",
+        "summary": "Finanziamento senza interessi (fino a 10 anni) pari all'80-90% delle spese ammissibili, in parte convertibile in contributo a fondo perduto; fondo perduto pieno al 30% per i comuni colpiti dal sisma 2016-2017.",
+        "tiers": [{"label": "Finanziamento base", "rate_pct": 80}, {"label": "Start-up a prevalenza femminile/giovanile o con ricercatore PhD", "rate_pct": 90},
+                   {"label": "Fondo perduto — comuni sisma 2016-2017", "rate_pct": 30}],
     },
     "sources": [
-        {"title": "MIMIT — Piano Transizione 5.0", "url": "https://www.mimit.gov.it/it/incentivi/piano-transizione-5-0", "accessed": ACCESSED, "confidence": "PRIMARIA"},
-        {"title": "GSE — Credito d'imposta Transizione 5.0: calcolo", "url": "https://www.gse.it/servizi-per-te/attuazione-misure-pnrr/transizione-5-0/il-calcolo-del-credito-d-imposta", "accessed": ACCESSED, "confidence": "PRIMARIA"},
+        {"title": "MIMIT — Sostegno alle startup innovative (Smart & Start Italia)", "url": "https://www.mimit.gov.it/it/incentivi/sostegno-alle-startup-innovative-smart-start-italia",
+         "accessed": ACCESSED_4, "confidence": "PRIMARIA"},
     ],
-    "rules": {"eligible_categories": ["CAPITAL_ASSETS", "TRAINING"], "min_energy_saving_pct": 0.03, "appraisal_threshold_eur": 0,
-              "eligibility_start": "2024-01-01", "eligibility_end": "2025-12-31", "non_cumulable_funding_ids": ["TRANSIZIONE-4.0"]},
+    "rules": {"eligible_categories": ["CAPITAL_ASSETS", "CONSULTING", "PERSONNEL"]},
     "rule_notes": {
-        "eligible_categories": {"source": "MIMIT: beni 4.0 (Allegati A e B L. 232/2016), software di monitoraggio energetico, autoproduzione FER e formazione del personale.", "confidence": "PRIMARIA"},
-        "min_energy_saving_pct": {"source": "MIMIT: riduzione dei consumi di almeno il 3% per la struttura produttiva o del 5% per il processo (il motore codifica la soglia più bassa: 3%).", "confidence": "PRIMARIA"},
-        "appraisal_threshold_eur": {"source": "MIMIT: certificazioni ex ante ed ex post rilasciate da valutatori indipendenti (EGE, ESCo, ingegneri, periti industriali).", "confidence": "INTERPRETAZIONE"},
-        "eligibility_start": {"source": "MIMIT: investimenti nel biennio 2024-2025.", "confidence": "PRIMARIA"},
-        "eligibility_end": {"source": "MIMIT: fino al 31 dicembre 2025.", "confidence": "PRIMARIA"},
-        "non_cumulable_funding_ids": {"source": "MIMIT: i crediti 5.0 e 4.0 non sono cumulabili per i medesimi beni.", "confidence": "PRIMARIA"},
+        "eligible_categories": {"source": "MIMIT: immobilizzazioni materiali (impianti, macchinari, attrezzature tecnologiche nuovi), immobilizzazioni immateriali (brevetti, marchi, licenze, know-how), servizi funzionali (progettazione, consulenze specialistiche, marketing, collaborazioni di ricerca) e personale dipendente/collaboratori. È ammesso anche capitale circolante fino al 20% (materie prime, servizi, hosting), non rappresentabile con le categorie di costo del motore.", "confidence": "PRIMARIA"},
     },
     "requirements": [
-        R("Stato della misura", "INFO", "CHIUSA: risorse esaurite (decreto 6 novembre 2025); sostituita dal Nuovo Piano Transizione 5.0 - Iperammortamento dal 12 giugno 2026. Utile per progetti già in corso o per confronto.", [], "MIMIT — Stato attuale"),
-        R("Riduzione dei consumi", "LIMITE", "Almeno 3% sulla struttura produttiva o 5% sul processo interessato dall'investimento; semplificazioni dalla legge di bilancio 2025 (macchinari ammortizzati da oltre 24 mesi; contratti EPC con ESCo).", [21], "MIMIT — Requisiti"),
-        R("Certificazioni ex ante ed ex post", "OBBLIGO", "Certificazione ex ante della riduzione dei consumi e certificazione ex post della realizzazione, da valutatori indipendenti abilitati.", [30], "MIMIT — Documenti"),
-        R("Acconto", "OBBLIGO", "Pagamento di un acconto di almeno il 20% del costo totale degli investimenti (inclusi i costi accessori) e degli impianti di autoproduzione.", [52], "MIMIT — Tracciabilità/acconto"),
-        R("Formazione", "LIMITE", "Formazione del personale ammessa fino al 10% degli investimenti e comunque max 300.000 € (limite non codificato come regola).", [16], "MIMIT — Spese ammissibili"),
-        R("Cumulo", "LIMITE", "Cumulabile con altre agevolazioni (anche UE) purché non coprano le medesime quote di costo; non cumulabile con il credito Transizione 4.0 per i medesimi beni.", [47], "MIMIT — Cumulo; L. 207/2024"),
-        R("Utilizzo del credito", "INFO", "Utilizzabile solo in compensazione (F24) dopo 10 giorni dalla comunicazione all'Agenzia delle entrate.", [], "MIMIT"),
+        R("Beneficiari", "OBBLIGO", "Start-up innovative iscritte alla sezione speciale del registro imprese con i requisiti dell'art. 25 D.L. 179/2012 (come modificato dalla L. 193/2024); ammesse anche persone fisiche che costituiscono la start-up entro 30 giorni dall'ammissione e imprese estere con sede operativa in Italia.", [34], "MIMIT — Beneficiari"),
+        R("Importo del piano", "LIMITE", "Piani di spesa tra 100.000 € e 1.500.000 €, da concludere entro 24 mesi dalla stipula del contratto di finanziamento.", [46], "MIMIT — Importi"),
+        R("Intensità del finanziamento", "INFO", "Finanziamento a tasso zero (durata massima 10 anni) pari all'80% delle spese ammissibili; 90% se la start-up è composta interamente da donne e/o giovani under 35, o include un ricercatore con dottorato da non più di 6 anni; per le regioni del Mezzogiorno la restituzione richiesta è pari al 70% dell'importo finanziato.", [48], "MIMIT — Intensità dell'agevolazione"),
+        R("Servizi di tutoraggio", "INFO", "10.000 € di servizi di tutoraggio tecnico-gestionale per le start-up costituite da non più di 36 mesi.", [], "MIMIT — Tutoraggio"),
+        R("Conversione in fondo perduto", "INFO", "Fino al 50% delle somme investite da soggetti terzi o soci persone fisiche può essere convertito in contributo a fondo perduto, entro il 50% del totale delle agevolazioni concesse.", [48], "MIMIT — Conversione"),
+        R("Fondo perduto zone sismiche", "INFO", "Contributo a fondo perduto pari al 30% delle spese per le imprese nei comuni colpiti dagli eventi sismici 2016-2017.", [48], "MIMIT — Sezione sisma"),
+        R("Regime di aiuto", "OBBLIGO", "Regolamenti (UE) n. 1407/2013 (de minimis), n. 651/2014 (GBER) e n. 717/2014 (pesca).", [48, 49], "MIMIT — Regime di aiuto"),
+        R("Gestione e domanda", "INFO", "Gestito da Invitalia S.p.A.; domanda esclusivamente tramite la piattaforma web dedicata; valutazione su competenze tecniche del team, carattere innovativo, sostenibilità economico-finanziaria e fattibilità tecnica; erogazione per stati di avanzamento, con rendicontazione a costi standard per il personale.", [57], "MIMIT — Modalità di presentazione e valutazione"),
+        R("Regole non acquisite", "DA_REVISIONARE", "Non risultano dalla pagina: elenco ATECO ammessi/esclusi, dettaglio dei criteri di valutazione a punteggio, condizioni esatte per il capitale circolante (20%) e trattamento IVA.", [], "Assenti nella pagina MIMIT consultata"),
     ],
     "not_specified": [
-        "Elenco delle spese non ammissibili (la pagina non lo riporta)",
-        "Trattamento di IVA e leasing (le FAQ n. 4.25 citano il riscatto di beni in leasing senza dettagli)",
-        "Vincoli di mantenimento e destinazione d'uso post-investimento",
-        "DNSH: una fonte di ricerca lo indica come condizione imprescindibile, la pagina MIMIT non lo cita — NON codificato",
+        "Elenco ATECO ammessi/esclusi", "Dettaglio dei criteri di valutazione a punteggio",
+        "Condizioni esatte per il capitale circolante (limite 20%)", "Trattamento IVA sulle spese ammissibili",
+        "Testo integrale del Decreto 13 luglio 2026",
     ],
 }
 
-FNC3: Dict[str, Any] = {
-    "bando_id": "FNC3-2024",
-    "name": "Fondo Nuove Competenze 3 — Competenze per le innovazioni",
-    "issuer": "Ministero del Lavoro / ANPAL",
-    "status": "CHIUSO (finestra 10/02-10/04/2025; dotazione incrementata con D.D. 9/2026)",
-    "period": {"from": "2025-02-10", "to": "2025-04-10"},
-    "legal_refs": ["Decreto direttoriale n. 439 del 5 dicembre 2024 (Avviso)", "Decreto direttoriale n. 9 del 9 gennaio 2026 (+125.952.000 €)", "Art. 88 D.L. 34/2020"],
-    "benefit": {"type": "RIMBORSO_COSTO_DEL_LAVORO", "summary": "Rimborso del costo del lavoro delle ore di lavoro destinate alla formazione, in base ad accordi collettivi di rimodulazione dell'orario.", "tiers": []},
+INVESTIMENTI_SOSTENIBILI_40: Dict[str, Any] = {
+    "bando_id": "INVESTIMENTI-SOSTENIBILI-4.0-2026",
+    "name": "Investimenti Sostenibili 4.0 — Bando 2026 (PN RIC 2021-2027)",
+    "issuer": "Invitalia S.p.A. / MIMIT",
+    "status": "APERTO (invio domande dal 6 ottobre 2026)",
+    "period": {"from": "2026-10-06", "to": None},
+    "legal_refs": [
+        "Programma Nazionale «Ricerca, Innovazione e Competitività per la transizione verde e digitale» FESR 2021-2027",
+        "Art. 1, comma 101, legge 30 dicembre 2023, n. 213 (obbligo di copertura assicurativa contro le calamità naturali)",
+    ],
+    "benefit": {
+        "type": "CONTRIBUTO_E_FINANZIAMENTO_MISTO",
+        "summary": "Contributo in conto impianti e finanziamento agevolato che coprono complessivamente fino al 75% delle spese ammissibili.",
+        "tiers": [{"label": "Copertura complessiva (contributo + finanziamento agevolato)", "rate_pct": 75}],
+    },
     "sources": [
-        {"title": "Ministero del Lavoro — FNC3: pubblicato l'Avviso", "url": "https://lavoro.gov.it/notizie/pagine/fondo-nuove-competenze-3-competenze-per-le-innovazioni-pubblicato-avviso", "accessed": ACCESSED, "confidence": "PRIMARIA"},
-        {"title": "Ministero del Lavoro — Fondo nuove competenze", "url": "https://www.lavoro.gov.it/temi-e-priorita/orientamento-e-formazione/focus/fondi-alle-imprese-la-formazione-continua/pagine-0", "accessed": ACCESSED, "confidence": "PRIMARIA"},
+        {"title": "Invitalia — Investimenti sostenibili 4.0 – Bando 2026", "url": "https://www.invitalia.it/incentivi-e-strumenti/investimenti-sostenibili-40-bando-2026",
+         "accessed": ACCESSED_4, "confidence": "PRIMARIA"},
     ],
-    "rules": {"eligible_categories": ["PERSONNEL"]},
-    "rule_notes": {"eligible_categories": {"source": "Le pagine consultate indicano il rimborso del costo del lavoro; i costi di docenza non sono dettagliati.", "confidence": "INTERPRETAZIONE"}},
+    "rules": {"eligible_categories": ["CAPITAL_ASSETS"], "contribution_rate_pct": 0.75},
+    "rule_notes": {
+        "eligible_categories": {"source": "Invitalia: agevolazione erogata come «contributo in conto impianti», tipico degli investimenti in beni strumentali; la pagina non riporta un elenco analitico delle voci di spesa ammissibili.", "confidence": "INTERPRETAZIONE"},
+        "contribution_rate_pct": {"source": "Invitalia: «contributo in conto impianti e finanziamento agevolato, che coprono fino al 75% delle spese ammissibili» — qui il motore codifica la copertura complessiva, senza distinguere la quota a fondo perduto da quella di finanziamento.", "confidence": "PRIMARIA"},
+    },
     "requirements": [
-        R("Beneficiari", "OBBLIGO", "Datori di lavoro privati (anche a partecipazione pubblica) che abbiano sottoscritto accordi collettivi di rimodulazione dell'orario di lavoro finalizzati a percorsi formativi.", [15], "Ministero del Lavoro — Beneficiari"),
-        R("Costo del lavoro", "INFO", "Il contributo è commisurato al costo del lavoro del personale per le ore dedicate alla formazione.", [2, 3], "Ministero del Lavoro"),
-        R("Regole numeriche non acquisite", "DA_REVISIONARE", "Ore massime di formazione, calcolo della retribuzione oraria, oneri contributivi inclusi, tetti, regime di aiuto e requisiti dell'accordo non sono riportati nelle pagine consultate: serve il testo integrale dell'Avviso (D.D. 439/2024) e le FAQ.", [], "Assenti nelle fonti consultate"),
+        R("Beneficiari e territorio", "OBBLIGO", "Imprese di micro, piccola e media dimensione con sede in Molise, Basilicata, Calabria, Campania, Puglia, Sicilia e Sardegna.", [34], "Invitalia — Destinatari"),
+        R("Intensità dell'agevolazione", "LIMITE", "Contributo in conto impianti e finanziamento agevolato che coprono complessivamente fino al 75% delle spese ammissibili.", [48], "Invitalia — Agevolazioni"),
+        R("Calendario", "INFO", "Precompilazione della domanda dalle ore 12:00 del 10 settembre 2026; presentazione formale dalle ore 10:00 del 6 ottobre 2026, esclusivamente per via telematica tramite l'area riservata Invitalia (SPID o CIE).", [46], "Invitalia — Tempistiche"),
+        R("Dotazione finanziaria", "INFO", "447,6 milioni di euro disponibili, al lordo degli oneri di gestione dell'Agenzia.", [], "Invitalia — Risorse"),
+        R("Requisito assicurativo 2026", "OBBLIGO", "Le imprese devono essere in regola con l'obbligo di copertura assicurativa contro le calamità naturali (art. 1, comma 101, L. 213/2023).", [34], "Invitalia — Nuovo requisito 2026"),
+        R("Classificazione ATECO", "INFO", "Le attività economiche sono classificate secondo ATECO 2025.", [34], "Invitalia — Classificazione"),
+        R("Regole non acquisite", "DA_REVISIONARE", "La pagina non riporta: importo minimo/massimo di progetto, elenco analitico delle spese ammissibili, ripartizione esatta tra fondo perduto e finanziamento agevolato nel 75%, regime di aiuto, data di chiusura dello sportello. Serve il testo integrale del bando.", [], "Assenti nella pagina Invitalia consultata"),
     ],
     "not_specified": [
-        "Numero massimo di ore di formazione per lavoratore",
-        "Modalità di calcolo della retribuzione oraria e inclusione degli oneri contributivi",
-        "Percentuale di finanziamento e tetti per beneficiario",
-        "Regime di aiuto (de minimis / GBER)",
-        "Requisiti specifici dell'accordo collettivo",
+        "Importo minimo e massimo di progetto", "Elenco analitico delle spese ammissibili",
+        "Ripartizione tra fondo perduto e finanziamento agevolato nel 75%", "Regime di aiuto (de minimis / GBER)",
+        "Data di chiusura dello sportello",
     ],
 }
-
-ACCESSED_2 = "2026-09-23"
-ACCESSED_3 = "2026-09-26"
 
 FONDO_GARANZIA: Dict[str, Any] = {
     "bando_id": "FONDO-GARANZIA-PMI",
@@ -346,46 +355,57 @@ SIMEST_394: Dict[str, Any] = {
     ],
 }
 
-FVG_INNOVAZIONE: Dict[str, Any] = {
-    "bando_id": "FVG-FESR-INNOVAZIONE-PROCESSO",
-    "name": "Progetti di innovazione di processo e dell'organizzazione — PR FESR FVG 2021-2027",
+FVG_VALIDAZIONE: Dict[str, Any] = {
+    "bando_id": "FVG-VALIDAZIONE-TRL-2026",
+    "name": "Validazione di idee e tecnologie innovative (TRL 6-8) — PR FESR FVG 2021-2027, Bando 2026",
     "issuer": "Regione Autonoma Friuli Venezia Giulia",
-    "status": "CHIUSO (sportello 2024; possibili nuove edizioni sullo stesso PR FESR)",
-    "period": {"from": "2024-01-10", "to": "2024-02-29"},
+    "status": "A SPORTELLO RICORRENTE (finestra 27/07-21/09/2026 chiusa; riapre 1° febbraio-31 marzo e 1° giugno-31 agosto, ogni anno)",
+    "period": {"from": "2026-07-27", "to": None},
     "legal_refs": [
-        "Deliberazione della Giunta regionale n. 2003 del 15 dicembre 2023",
+        "Deliberazione della Giunta regionale n. 916 del 26 giugno 2026",
+        "Legge regionale 12 dicembre 2022, n. 22, art. 7, commi 56, 57 e 60",
+        "Legge regionale 20 marzo 2000, n. 7", "Decreto del Presidente della Regione n. 61/2026",
         "Regolamento (UE) n. 651/2014 (GBER)",
-        "Legge regionale 20 marzo 2000, n. 7",
-        "Programma Regionale FESR Friuli Venezia Giulia 2021-2027",
     ],
     "benefit": {
         "type": "CONTRIBUTO_IN_CONTO_CAPITALE",
-        "summary": "Contributo a fondo perduto su progetti di innovazione di processo e organizzativa: 45% per PMI in progetti autonomi, 50% per PMI in progetti congiunti, 15% per grandi imprese (ammesse solo in progetti congiunti).",
-        "tiers": [{"label": "PMI, progetto autonomo", "rate_pct": 45}, {"label": "PMI, progetto congiunto", "rate_pct": 50}, {"label": "Grande impresa, progetto congiunto", "rate_pct": 15}],
+        "summary": "Contributo a fondo perduto differenziato per TRL (livello di maturità tecnologica) e dimensione d'impresa: dal 25% (grande impresa, TRL 7-8) all'80% (università/organismi di ricerca).",
+        "tiers": [
+            {"label": "TRL 6 — micro/piccola impresa", "rate_pct": 55}, {"label": "TRL 6 — micro/piccola impresa innovativa/PMI innovativa", "rate_pct": 70},
+            {"label": "TRL 6 — media impresa", "rate_pct": 40}, {"label": "TRL 6 — media impresa innovativa", "rate_pct": 50}, {"label": "TRL 6 — grande impresa", "rate_pct": 30},
+            {"label": "TRL 7-8 — micro/piccola impresa", "rate_pct": 45}, {"label": "TRL 7-8 — media impresa", "rate_pct": 35}, {"label": "TRL 7-8 — grande impresa", "rate_pct": 25},
+            {"label": "Università/organismi di ricerca (ogni TRL)", "rate_pct": 80},
+        ],
     },
     "sources": [
-        {"title": "Regione FVG — Progetti di innovazione di processo e dell'organizzazione (PR FESR 2021-2027, Bando 2024)",
-         "url": "https://www.regione.fvg.it/rafvg/cms/RAFVG/economia-imprese/industria/FOGLIA200/FOGLIA11/", "accessed": ACCESSED_2, "confidence": "PRIMARIA"},
+        {"title": "Regione FVG — Bando 2026 per contributi a fondo perduto a progetti di validazione di idee e tecnologie innovative TRL 6-7-8",
+         "url": "https://www.regione.fvg.it/rafvg/cms/RAFVG/ricerca/fare-ricerca/FOGLIA21/articolo.html", "accessed": ACCESSED_4, "confidence": "PRIMARIA"},
     ],
-    "rules": {"eligible_categories": ["PERSONNEL", "CAPITAL_ASSETS", "CONSULTING"], "max_aid_intensity_pct": 0.5},
+    "rules": {"eligible_categories": ["PERSONNEL", "CAPITAL_ASSETS", "CONSULTING"], "max_consulting_percentage": 0.45,
+              "overhead_flat_rate_pct": 0.10, "overhead_flat_base": "PERSONNEL"},
     "rule_notes": {
-        "eligible_categories": {"source": "Spese ammissibili: personale e manodopera, consulenze da enti di ricerca qualificati, prestazioni e servizi (test, cloud, certificazioni), strumenti e attrezzature, beni immateriali (software, licenze, brevetti), materiali e spese generali.", "confidence": "PRIMARIA"},
-        "max_aid_intensity_pct": {"source": "45% PMI progetto autonomo, 50% PMI progetto congiunto, 15% grande impresa (solo progetti congiunti): qui è codificato il valore massimo (50%); i livelli differenziati per tipo di beneficiario/progetto non sono rappresentati come regola distinta.", "confidence": "INTERPRETAZIONE"},
+        "eligible_categories": {"source": "Regione FVG: personale (costi standard), strumenti e attrezzature, servizi di consulenza qualificata, prestazioni e servizi, beni immateriali, realizzazione di prototipi, materiali di consumo, spese generali forfettarie. Beni immateriali/materiali di consumo/prototipi non hanno una categoria distinta nel motore: qui accorpati a CAPITAL_ASSETS/CONSULTING per approssimazione.", "confidence": "INTERPRETAZIONE"},
+        "max_consulting_percentage": {"source": "Regione FVG: «la somma delle spese per i servizi di consulenza qualificata, le prestazioni e servizi e la realizzazione di prototipi è ammissibile nel limite massimo del 45% della spesa presentata» — il tetto ufficiale copre tre voci insieme (consulenza+prestazioni+prototipi), qui codificato solo sulla voce consulenze del motore: una sovra-approssimazione se le tre voci sono usate insieme.", "confidence": "INTERPRETAZIONE"},
+        "overhead_flat_rate_pct": {"source": "Regione FVG: spese generali forfettarie al 10% dei costi di personale.", "confidence": "PRIMARIA"},
+        "overhead_flat_base": {"source": "Regione FVG: base di calcolo del forfait sono i costi di personale.", "confidence": "PRIMARIA"},
     },
     "requirements": [
-        R("Intensità di aiuto", "LIMITE", "45% per micro, piccole e medie imprese in progetti autonomi; 50% per PMI in progetti congiunti; 15% per grandi imprese, ammesse solo in progetti congiunti.", [48], "Regione FVG — Intensità di aiuto"),
-        R("Spese ammissibili", "OBBLIGO", "Personale e manodopera, consulenze da enti di ricerca qualificati, prestazioni e servizi (test, cloud, certificazioni), strumenti e attrezzature, beni immateriali (software, licenze, brevetti), materiali e spese generali.", [16, 31, 36], "Regione FVG — Spese ammissibili"),
-        R("Limiti economici", "LIMITE", "Progetto minimo 30.000 € per impresa; massimo 750.000 € per impresa; spese di certificazione ammissibili fino a 2.000 €.", [16], "Regione FVG — Limiti economici"),
-        R("Termini di presentazione (sportello 2024)", "INFO", "Domande dalle ore 10:00 del 10 gennaio 2024 alle ore 16:00 del 29 febbraio 2024, tramite sistema telematico IOL.", [46], "Regione FVG — Scadenza"),
-        R("Esito ed elenco ammessi", "INFO", "La Regione pubblica l'elenco delle domande finanziate in PDF, ma senza il dettaglio del piano dei costi per singolo beneficiario: non utilizzabile come fonte per la banca dei pattern.", [], "Regione FVG — Documentazione", "SECONDARIA"),
-        R("Regole di dettaglio non acquisite", "DA_REVISIONARE", "Percentuali per singola voce di spesa (es. tetto consulenze, spese generali forfettarie), regole di cumulo, tracciabilità dei pagamenti e obblighi DNSH non risultano dalla pagina di sintesi: serve il testo integrale del bando e degli allegati.", [], "Assenti nella pagina di sintesi consultata"),
+        R("Beneficiari", "OBBLIGO", "Imprese del territorio regionale di ogni dimensione (comprese start-up innovative e spin-off), università insediate in regione, organismi di ricerca pubblici o di diritto pubblico/privato insediati in regione.", [34], "Regione FVG — Beneficiari"),
+        R("Intensità di aiuto per TRL 6 (ricerca industriale)", "INFO", "Micro/piccola impresa 55% (70% se start-up/PMI innovativa); media impresa 40% (50% se innovativa); grande impresa 30%; università/organismi di ricerca 80%.", [48], "Regione FVG — Intensità TRL 6"),
+        R("Intensità di aiuto per TRL 7-8 (sviluppo sperimentale)", "INFO", "Micro/piccola impresa 45%; media impresa 35%; grande impresa 25%; università/organismi di ricerca 80%.", [48], "Regione FVG — Intensità TRL 7-8"),
+        R("Limite alle consulenze, prestazioni e prototipi", "LIMITE", "La somma di consulenza qualificata, prestazioni/servizi e realizzazione di prototipi non può superare il 45% della spesa presentata.", [31], "Regione FVG — Vincolo di spesa"),
+        R("Spese generali", "INFO", "Forfettario del 10% dei costi di personale.", [36], "Regione FVG — Spese generali"),
+        R("Contributo massimo e durata per TRL", "LIMITE", "TRL 6: max 150.000 €, durata 6-12 mesi. TRL 7: max 250.000 €, durata 6-18 mesi. TRL 8: max 500.000 €, durata 6-24 mesi.", [46], "Regione FVG — Importi e durata"),
+        R("Calendario a sportello", "INFO", "Prima finestra 2026: dalle ore 10:00 del 27 luglio alle ore 16:00 del 21 settembre 2026 (chiusa). Finestre successive ricorrenti: 1° febbraio-31 marzo e 1° giugno-31 agosto, ogni anno.", [46], "Regione FVG — Calendario sportello"),
+        R("Dotazione finanziaria", "INFO", "2.217.871 €, integrabile con ulteriori risorse se disponibili.", [], "Regione FVG — Dotazione"),
+        R("Limiti di partecipazione", "LIMITE", "Massimo una domanda per sportello per impresa; massimo due domande per dipartimento universitario.", [], "Regione FVG — Limiti"),
+        R("Regime di aiuto", "OBBLIGO", "Regolamento (UE) n. 651/2014 (GBER); il regime de minimis è escluso per le imprese, salvo per le garanzie.", [48, 49], "Regione FVG — Regime di aiuto"),
+        R("Regole di dettaglio non acquisite", "DA_REVISIONARE", "Tabelle standard di costo del personale (UCS), procedura di valutazione a punteggio, elenco analitico delle spese escluse e cause di esclusione non risultano dalla pagina di sintesi: serve il testo integrale della DGR 916/2026 e dell'allegato.", [], "Assenti nella pagina di sintesi consultata"),
     ],
     "not_specified": [
-        "Tetti per singola voce di spesa (consulenze, spese generali)",
-        "Regole di cumulo con altri aiuti",
-        "Tracciabilità dei pagamenti",
-        "Obblighi DNSH",
-        "Eventuali nuove edizioni/scadenze successive al 2024",
+        "Tabelle standard di costo del personale (UCS)", "Procedura di valutazione a punteggio",
+        "Elenco analitico delle spese escluse", "Cause di esclusione ed eventuali revoche",
+        "Testo integrale della DGR 916/2026 (non ancora letto per intero)",
     ],
 }
 
@@ -406,7 +426,7 @@ SANDBOX: Dict[str, Any] = {
     "not_specified": [],
 }
 
-BANDI: List[Dict[str, Any]] = [IPERAMMORTAMENTO, SABATINI, HORIZON, TRANSIZIONE_50, FNC3, FONDO_GARANZIA, SIMEST_394, FVG_INNOVAZIONE, SANDBOX]
+BANDI: List[Dict[str, Any]] = [IPERAMMORTAMENTO, SABATINI, HORIZON, SMART_START, INVESTIMENTI_SOSTENIBILI_40, FONDO_GARANZIA, SIMEST_394, FVG_VALIDAZIONE, SANDBOX]
 
 REFERENCES: List[Dict[str, Any]] = [
     {
