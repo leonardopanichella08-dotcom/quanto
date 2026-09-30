@@ -154,3 +154,13 @@ def test_api_reports_row_errors_with_line_numbers():
     body = upload_body(content_base64=base64.b64encode(b"level;standard_hours;social_charges_pct;tfr_pct\n1;1656;30;7%\n2;x;30%;7%\n").decode())
     res = client.post("/api/v2/fonte-b/datasets", json=body, headers=hq_headers())
     assert res.status_code == 422 and [e["line"] for e in res.json()["detail"]["errors"]] == [2, 3]
+
+
+def test_kinds_lists_the_four_table_types_with_their_expected_columns_and_is_manager_only():
+    assert client.get("/api/v2/fonte-b/kinds").status_code == 401
+    res = client.get("/api/v2/fonte-b/kinds", headers=hq_headers())
+    assert res.status_code == 200
+    body = res.json()
+    assert set(body) == {"CCNL", "PARAMS", "AMORTIZATION", "BENCHMARK"}
+    assert body["CCNL"]["required"] == ["level", "standard_hours", "social_charges_pct", "tfr_pct"]
+    assert "category_code" in body["AMORTIZATION"]["columns"] and "rate_pct" in body["AMORTIZATION"]["required"]

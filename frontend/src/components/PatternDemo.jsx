@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react'
-import { AlertTriangle, GitCompare } from 'lucide-react'
+import { AlertTriangle, GitCompare, Loader2 } from 'lucide-react'
 import { api } from '../lib/api'
 import { SectionTitle } from './ui'
 import Guide from './Guide'
@@ -58,6 +58,8 @@ export default function PatternDemo({ bando, validation }) {
           <SectionTitle icon={GitCompare} className="!text-lg">Il tuo budget somiglia a quelli premiati?</SectionTitle>
           <p className="text-xs text-ink-2 mt-0.5 leading-relaxed">Confronta come ripartisci la spesa con i budget storici di bandi comparabili (graduatorie pubbliche e dati del pilota, con la fonte di ciascuno). Non stima la probabilità di vincere: misura una distanza.</p>
         </div>
+
+        {cats === null && !error && <p className="text-xs text-mute flex items-center gap-2"><Loader2 className="w-3.5 h-3.5 animate-spin" />Carico la banca dei pattern…</p>}
 
         {empty && (
           <div className="p-4 rounded-xl border border-amber-500/30 bg-amber-500/5 text-xs text-amber-800 flex gap-2"><AlertTriangle className="w-4 h-4 shrink-0" />

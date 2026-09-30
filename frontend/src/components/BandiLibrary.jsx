@@ -214,7 +214,9 @@ export default function BandiLibrary({ bandi, selectedId, onSelect, onReload }) 
     try { setDetail(await api.bandoDetail(id)) } catch (e) { setError(e.message) }
   }, [])
 
-  useEffect(() => { if (openId) load(openId) }, []) // eslint-disable-line react-hooks/exhaustive-deps
+  // Ricarica il dettaglio quando il bando selezionato cambia da fuori (non solo al primo montaggio):
+  // "load" imposta anche openId, quindi un clic nella lista non fa ripartire questo effetto in loop.
+  useEffect(() => { if (selectedId && selectedId !== openId) load(selectedId) }, [selectedId]) // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => { api.bandoReferences().then(setRefs).catch(() => {}) }, [])
 
   const use = async (id) => {

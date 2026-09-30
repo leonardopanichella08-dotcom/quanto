@@ -84,6 +84,19 @@ def test_credits_start_full_and_drop_by_one_per_validation(secured):
     assert after["used"] == 1 and after["remaining"] == 99
 
 
+def test_my_activity_lists_only_this_users_own_events_most_recent_first():
+    make(email="attivita1@example.test")
+    make(email="attivita2@example.test")
+    me = login(email="attivita1@example.test")
+    other = login(email="attivita2@example.test")
+    client.post("/api/v2/bandi/QUANTO-SANDBOX-60/select", headers=bearer(me))
+    client.post("/api/v2/bandi/NUOVA-SABATINI/select", headers=bearer(other))
+    mine = client.get("/api/v2/auth/me/activity", headers=bearer(me)).json()
+    assert mine and all(e["actor"] == "user:attivita1@example.test" for e in mine)
+    assert mine[0]["ts"] >= mine[-1]["ts"]
+    assert client.get("/api/v2/auth/me/activity").status_code == 401
+
+
 def test_passwords_are_hashed_with_scrypt_and_never_stored_or_returned():
     make()
     from app.core.db import connect
