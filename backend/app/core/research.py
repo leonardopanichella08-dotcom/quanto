@@ -384,6 +384,27 @@ def docx_to_text(data: bytes) -> str:
     return re.sub(r"[ \t]+", " ", unescape(re.sub(r"<[^>]+>", "", xml))).strip()
 
 
+def xlsx_to_text(data: bytes, max_rows_per_sheet: int = 2000) -> str:
+    """Un foglio elettronico non ha «prosa»: lo si rende come testo tabellare (una riga per record, colonne separate da ' | ')
+    così può essere salvato e cercato come una qualunque fonte del bando, invece di essere rifiutato come «tipo non supportato»."""
+    from openpyxl import load_workbook
+
+    wb = load_workbook(io.BytesIO(data), read_only=True, data_only=True)
+    blocks = []
+    for ws in wb.worksheets:
+        rows = []
+        for i, row in enumerate(ws.iter_rows(values_only=True)):
+            if i >= max_rows_per_sheet:
+                rows.append(f"[… altre righe troncate oltre le prime {max_rows_per_sheet}]")
+                break
+            cells = ["" if c is None else str(c) for c in row]
+            if any(c.strip() for c in cells):
+                rows.append(" | ".join(cells))
+        if rows:
+            blocks.append(f"### Foglio: {ws.title}\n" + "\n".join(rows))
+    return "\n\n".join(blocks).strip()
+
+
 # ------------------------------------------------------------------ collegamenti da seguire
 _DOC_WORDS = re.compile(r"normativ|decret|avvis|bando|circolar|regolament|allegat|faq|dpcm|legge|linee guida|modulistic|domanda|istruzion|vademecum|gazzetta|eur-lex|normattiva|disposizion|direttiv", re.I)
 _BAD_LINK = re.compile(r"^(mailto|tel|javascript):|\.(jpe?g|png|gif|svg|webp|zip|rar|mp4|mp3|xlsx?|pptx?|css|js|ico)(\?|$)|/(login|accedi|area-riservata|newsletter|cookie|privacy|sitemap|accessibilit|rss|contatti|search|ricerca)(/|\?|$)|[?&](lang|language)=", re.I)
@@ -672,6 +693,13 @@ def fetch_document(url: str) -> Dict[str, Any]:
             text = docx_to_text(raw)
         except Exception as exc:
             raise ResearchError("File Word non leggibile") from exc
+        title = urllib.parse.unquote(final.rsplit("/", 1)[-1].split("?")[0])
+    elif raw[:2] == b"PK" and (final.lower().split("?")[0].endswith((".xlsx", ".xlsm")) or "spreadsheetml" in ctype):
+        kind = "XLSX"
+        try:
+            text = xlsx_to_text(raw)
+        except Exception as exc:
+            raise ResearchError("File Excel non leggibile") from exc
         title = urllib.parse.unquote(final.rsplit("/", 1)[-1].split("?")[0])
     elif ctype.startswith("text/") or "xml" in ctype or ctype in ("", "application/octet-stream"):
         html = _decode(raw, ctype)
