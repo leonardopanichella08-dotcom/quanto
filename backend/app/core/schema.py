@@ -316,6 +316,37 @@ ALTER TABLE client_documents DROP CONSTRAINT client_documents_doc_type_check;
 ALTER TABLE client_documents ADD CONSTRAINT client_documents_doc_type_check CHECK (doc_type IN ('PAYSLIP', 'BALANCE_SHEET', 'F24', 'APPLICATION_DRAFT'));
 """
 
+# Supabase espone di serie ogni tabella dello schema "public" tramite PostgREST (l'API REST automatica, raggiungibile
+# con la chiave "anon"): senza RLS, chiunque avesse quella chiave potrebbe leggere/scrivere queste tabelle bypassando
+# del tutto login e permessi del backend. Nessuna funzione di QUANTO passa da PostgREST (il backend si collega
+# direttamente a Postgres con QUANTO_DATABASE_URL, con un ruolo che ha BYPASSRLS e quindi ignora questo blocco): qui
+# si chiude solo quella porta secondaria, senza policy permissive perché non deve passare nessuno tranne il backend.
+_ENABLE_RLS = """
+ALTER TABLE anchors ENABLE ROW LEVEL SECURITY;
+ALTER TABLE schema_migrations ENABLE ROW LEVEL SECURITY;
+ALTER TABLE bandi ENABLE ROW LEVEL SECURITY;
+ALTER TABLE events ENABLE ROW LEVEL SECURITY;
+ALTER TABLE runs ENABLE ROW LEVEL SECURITY;
+ALTER TABLE documents ENABLE ROW LEVEL SECURITY;
+ALTER TABLE bando_meta ENABLE ROW LEVEL SECURITY;
+ALTER TABLE requirements ENABLE ROW LEVEL SECURITY;
+ALTER TABLE bando_sources ENABLE ROW LEVEL SECURITY;
+ALTER TABLE bando_files ENABLE ROW LEVEL SECURITY;
+ALTER TABLE bando_tombstones ENABLE ROW LEVEL SECURITY;
+ALTER TABLE rules ENABLE ROW LEVEL SECURITY;
+ALTER TABLE fonte_b_datasets ENABLE ROW LEVEL SECURITY;
+ALTER TABLE fonte_b_ccnl ENABLE ROW LEVEL SECURITY;
+ALTER TABLE fonte_b_params ENABLE ROW LEVEL SECURITY;
+ALTER TABLE fonte_b_amort ENABLE ROW LEVEL SECURITY;
+ALTER TABLE fonte_b_benchmarks ENABLE ROW LEVEL SECURITY;
+ALTER TABLE client_documents ENABLE ROW LEVEL SECURITY;
+ALTER TABLE client_document_fields ENABLE ROW LEVEL SECURITY;
+ALTER TABLE funding_lines ENABLE ROW LEVEL SECURITY;
+ALTER TABLE users ENABLE ROW LEVEL SECURITY;
+ALTER TABLE pattern_budgets ENABLE ROW LEVEL SECURITY;
+ALTER TABLE pattern_archetypes ENABLE ROW LEVEL SECURITY;
+"""
+
 # (versione, nome, SQL). Aggiungere in coda, mai modificare le esistenti.
 MIGRATIONS: List[Tuple[int, str, str]] = [
     (1, "init", _INIT),
@@ -325,4 +356,5 @@ MIGRATIONS: List[Tuple[int, str, str]] = [
     (5, "users", _USERS),
     (6, "pattern", _PATTERN),
     (7, "draft_doc_type", _DRAFT_DOC_TYPE),
+    (8, "enable_rls", _ENABLE_RLS),
 ]
