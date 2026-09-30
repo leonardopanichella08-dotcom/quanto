@@ -143,6 +143,12 @@ def list_bando_sources(bando_id: str) -> List[dict]:
     return [dict(r) for r in rows]
 
 
+def count_events_since(op: str, actor: str, since_iso: str) -> int:
+    """Quante volte l'attore ha eseguito l'operazione da un certo momento in poi (i timestamp ISO-8601 si confrontano come stringhe)."""
+    with connect() as conn:
+        return conn.execute("SELECT COUNT(*) c FROM events WHERE op=? AND actor=? AND ts>=?", (op, actor, since_iso)).fetchone()["c"]
+
+
 def list_events(op: Optional[str] = None, project_id: Optional[str] = None, bando_id: Optional[str] = None,
                 status: Optional[str] = None, actor: Optional[str] = None, limit: int = 100, before_id: Optional[int] = None) -> List[dict]:
     clauses, args = [], []

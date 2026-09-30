@@ -58,6 +58,32 @@ def test_login_gives_a_token_that_opens_the_api_and_wrong_credentials_are_indist
     assert wrong_pw.status_code == unknown.status_code == 401 and wrong_pw.json() == unknown.json()          # nessun elenco degli account
 
 
+def test_self_registration_creates_a_free_user_and_logs_in_immediately(secured):
+    r = client.post("/api/v2/auth/register", json={"email": "nuova@example.test", "name": "Nuova Utente", "password": PW})
+    assert r.status_code == 200
+    body = r.json()
+    assert body["user"]["role"] == "USER" and body["user"]["is_owner"] is False and body["user"]["email"] == "nuova@example.test"
+    assert client.get("/api/v2/auth/me", headers=bearer(r)).status_code == 200
+    dupe = client.post("/api/v2/auth/register", json={"email": "nuova@example.test", "name": "Altra", "password": PW})
+    assert dupe.status_code == 422
+    weak = client.post("/api/v2/auth/register", json={"email": "altra@example.test", "name": "Altra", "password": "corta"})
+    assert weak.status_code == 422
+
+
+def test_credits_start_full_and_drop_by_one_per_validation(secured):
+    make(email="crediti@example.test")
+    ok = login(email="crediti@example.test")
+    before = client.get("/api/v2/auth/me/credits", headers=bearer(ok)).json()
+    assert before["limit"] == 100 and before["used"] == 0 and before["pct_remaining"] == 100 and before["days_until_renewal"] <= 365
+    grant_rules = client.post("/api/v2/bandi/QUANTO-SANDBOX-60/select", headers=bearer(ok)).json()["grant_rules"]
+    body = {"project_id": "PRJ-CREDITI", "grant_rules": grant_rules,
+            "cost_items": [{"item_id": "I-1", "category": "CONSULTING", "amount_eur": 1000, "description": "test", "source_c_ref": ""}]}
+    v = client.post("/api/v2/budget/validate", json=body, headers=bearer(ok))
+    assert v.status_code == 200
+    after = client.get("/api/v2/auth/me/credits", headers=bearer(ok)).json()
+    assert after["used"] == 1 and after["remaining"] == 99
+
+
 def test_passwords_are_hashed_with_scrypt_and_never_stored_or_returned():
     make()
     from app.core.db import connect

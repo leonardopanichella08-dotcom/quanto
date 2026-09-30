@@ -10,6 +10,8 @@ import HQ from './components/hq/HQ'
 import Guida from './components/Guida'
 import Profile from './components/Profile'
 import Landing from './components/Landing'
+import Vision from './components/Vision'
+import CreditsBadge from './components/CreditsBadge'
 import { ArrowLeft, LogOut, BookOpen, Calculator, GitCompare, Library, ShieldCheck, Split, User } from 'lucide-react'
 import { Mark, PageHead, Wordmark } from './components/ui'
 import { NavContext } from './lib/nav'
@@ -168,7 +170,8 @@ export default function App() {
   const labData = replay || validation
   const isOwner = !!user?.is_owner
 
-  if (!user && tab !== 'auditor') return <Landing onLogin={setUser} onAuditor={() => setTab('auditor')} />
+  if (!user && tab === 'visione') return <Vision onGoHome={() => nav.go('bandi')} onStart={() => nav.go('bandi')} />
+  if (!user && tab !== 'auditor') return <Landing onLogin={setUser} onAuditor={() => setTab('auditor')} onVision={() => nav.go('visione')} />
 
   return (
     <NavContext.Provider value={nav}>
@@ -194,6 +197,7 @@ export default function App() {
           {user && (
             <div className="flex items-center gap-1 text-xs text-ink-2 order-2 md:order-none">
               <span className="hidden 2xl:inline max-w-[160px] truncate" title={user.email}>{user.name}</span>
+              <CreditsBadge onClick={() => nav.go('profilo')} />
               <button onClick={logout} className="btn !px-2.5 !py-1.5" title="Esci" aria-label="Esci"><LogOut className="w-3.5 h-3.5" /></button>
             </div>
           )}

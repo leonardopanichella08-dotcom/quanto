@@ -1,10 +1,10 @@
 import React, { useMemo, useState } from 'react'
-import { ArrowRight, Check, Loader2, Lock, ShieldCheck, X } from 'lucide-react'
+import { ArrowRight, Check, Loader2, Lock, ShieldCheck, Sparkles, Target, X } from 'lucide-react'
 import { api, session } from '../lib/api'
 import { Mark, Wordmark } from './ui'
 import './Landing.css'
 
-const CELL_COLOR = { OK: '#10b981', ADJUSTED: '#f59e0b', REJECTED: '#ef4444', WAIT: '#38bdf8', NONE: '#0E0E0A1f' }
+const CELL_COLOR = { OK: '#10b981', ADJUSTED: '#f59e0b', REJECTED: '#ef4444', WAIT: '#38bdf8', NONE: '#F6F2E21f' }
 // esempio fisso (non è un bando reale): illustra la distribuzione tipica di un controllo a 60 criteri
 const DEMO_OUTCOMES = [
   'OK', 'OK', 'OK', 'ADJUSTED', 'OK', 'OK', 'OK', 'REJECTED', 'OK', 'OK', 'OK', 'OK', 'WAIT', 'OK', 'OK',
@@ -16,6 +16,39 @@ const BLOCKS = [
   { from: 1, to: 15, label: 'Personale' }, { from: 16, to: 30, label: 'Beni strumentali' },
   { from: 31, to: 45, label: 'Consulenze e spese generali' }, { from: 46, to: 60, label: 'Date, cumulo, tracciabilità' },
 ]
+
+// PRNG deterministico (nessuna libreria): un campo di nodi stabile, non casuale ad ogni render.
+function mulberry32(seed) {
+  let a = seed
+  return () => { a |= 0; a = (a + 0x6D2B79F5) | 0; let t = Math.imul(a ^ (a >>> 15), 1 | a); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296 }
+}
+
+function NodeField() {
+  const { dots, links, active } = useMemo(() => {
+    const rnd = mulberry32(42)
+    const pts = Array.from({ length: 70 }, (_, i) => ({ id: i, x: rnd() * 1200, y: rnd() * 460, r: 1.1 + rnd() * 1.1 }))
+    const activeColors = ['#10b981', '#10b981', '#f59e0b', '#ef4444', '#10b981', '#38bdf8']
+    const act = Array.from({ length: 6 }, (_, i) => ({ ...pts[i * 9], color: activeColors[i], delay: i * 0.5 }))
+    const lk = []
+    for (let i = 0; i < pts.length; i++) {
+      for (let j = i + 1; j < pts.length; j++) {
+        const dx = pts[i].x - pts[j].x, dy = pts[i].y - pts[j].y
+        const d = Math.sqrt(dx * dx + dy * dy)
+        if (d < 95 && rnd() > 0.55) lk.push([pts[i], pts[j]])
+      }
+    }
+    return { dots: pts, links: lk, active: act }
+  }, [])
+  return (
+    <svg className="node-field" viewBox="0 0 1200 460" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
+      {links.map(([a, b], i) => <line key={i} x1={a.x} y1={a.y} x2={b.x} y2={b.y} stroke="#F6F2E2" strokeOpacity="0.06" strokeWidth="1" />)}
+      {dots.map((p) => <circle key={p.id} cx={p.x} cy={p.y} r={p.r} fill="#F6F2E2" fillOpacity="0.22" />)}
+      {active.map((p, i) => (
+        <circle key={i} cx={p.x} cy={p.y} r={2} fill={p.color} className="node-pulse" style={{ '--d': `${p.delay}s`, '--base-r': 2 }} />
+      ))}
+    </svg>
+  )
+}
 
 function AuthModal({ mode, onClose, onSwitch, onDone }) {
   const isRegister = mode === 'register'
@@ -59,64 +92,85 @@ function AuthModal({ mode, onClose, onSwitch, onDone }) {
   )
 }
 
+function Gauge({ sharePct, limitPct, size = 128 }) {
+  const r = 52, c = 2 * Math.PI * r
+  const ok = sharePct <= limitPct
+  const color = ok ? '#10b981' : '#ef4444'
+  const ceiling = limitPct * 1.4 // il cerchio si riempie del tutto a 1,4 volte il tetto: dà margine visivo per mostrare quanto si è andati oltre
+  const fraction = ceiling > 0 ? Math.min(1, sharePct / ceiling) : 0
+  return (
+    <svg width={size} height={size} viewBox="0 0 120 120">
+      <circle cx="60" cy="60" r={r} fill="none" stroke="var(--l-line)" strokeWidth="10" />
+      <circle cx="60" cy="60" r={r} fill="none" stroke={color} strokeWidth="10" strokeLinecap="round"
+        strokeDasharray={c} strokeDashoffset={c * (1 - fraction)} transform="rotate(-90 60 60)" style={{ transition: 'stroke-dashoffset .3s ease, stroke .3s ease' }} />
+      <text x="60" y="56" textAnchor="middle" fontSize="22" fontWeight="700" fill="var(--l-ink)" fontFamily="JetBrains Mono, monospace">{Math.round(sharePct)}%</text>
+      <text x="60" y="74" textAnchor="middle" fontSize="9" fill="var(--l-mute)" fontFamily="Archivo, sans-serif">del totale</text>
+    </svg>
+  )
+}
+
 function MicroTool() {
   const [total, setTotal] = useState(150000)
   const [consulenze, setConsulenze] = useState(40000)
   const limitPct = 0.20
   const limit = total * limitPct
-  const pct = total > 0 ? consulenze / total : 0
+  const pct = total > 0 ? (consulenze / total) * 100 : 0
   const over = Math.max(0, consulenze - limit)
   const ok = consulenze <= limit
   return (
-    <div className="tool-card">
-      <div>
-        <div className="tool-field">
-          <label htmlFor="mt-total">Totale del progetto</label>
-          <div className="row"><span>€</span><input id="mt-total" type="number" min={1000} step={1000} value={total} onChange={(e) => setTotal(Math.max(1000, Number(e.target.value) || 0))} /></div>
+    <div className="tool-window">
+      <div className="chrome"><i /><i /><i /><span className="url mono">quanto.app — controllo in tempo reale</span></div>
+      <div className="tool-body">
+        <div>
+          <div className="tool-field">
+            <label htmlFor="mt-total">Totale del progetto</label>
+            <div className="row"><span>€</span><input id="mt-total" type="number" min={1000} step={1000} value={total} onChange={(e) => setTotal(Math.max(1000, Number(e.target.value) || 0))} /></div>
+          </div>
+          <div className="tool-field">
+            <label htmlFor="mt-cons">Di cui consulenze</label>
+            <div className="row"><span>€</span><input id="mt-cons" type="number" min={0} step={1000} value={consulenze} onChange={(e) => setConsulenze(Math.max(0, Number(e.target.value) || 0))} /></div>
+            <input type="range" min={0} max={total} step={1000} value={Math.min(consulenze, total)} onChange={(e) => setConsulenze(Number(e.target.value))} />
+          </div>
+          <p className="tool-rule">Regola d'esempio, come tante nei bandi reali: <b>le consulenze non possono superare il 20% del totale ammissibile</b>.</p>
         </div>
-        <div className="tool-field">
-          <label htmlFor="mt-cons">Di cui consulenze</label>
-          <div className="row"><span>€</span><input id="mt-cons" type="number" min={0} step={1000} value={consulenze} onChange={(e) => setConsulenze(Math.max(0, Number(e.target.value) || 0))} /></div>
-          <input type="range" min={0} max={total} step={1000} value={Math.min(consulenze, total)} onChange={(e) => setConsulenze(Number(e.target.value))} style={{ marginTop: 10 }} />
-        </div>
-        <p className="tool-rule">Regola d'esempio, come tante nei bandi reali: <b>le consulenze non possono superare il 20% del totale ammissibile</b>.</p>
-      </div>
-      <div>
-        <div className={`tool-result ${ok ? 'ok' : 'fail'}`}>
-          <div className="verdict">{ok ? 'Ammesso' : 'Ridotto'}</div>
-          <div className="bar-track"><div className="bar-fill" style={{ width: `${Math.min(100, pct * 100)}%`, background: ok ? 'var(--l-green)' : 'var(--l-red)' }} /></div>
-          <div className="detail mono">{Math.round(pct * 100)}% del totale · tetto {Math.round(limitPct * 100)}% ({limit.toLocaleString('it-IT')} €)</div>
-          <p className="detail" style={{ marginTop: 10 }}>
-            {ok
-              ? `Le consulenze richieste rientrano nel tetto: ${consulenze.toLocaleString('it-IT')} € ammessi.`
-              : `Superano il tetto di ${over.toLocaleString('it-IT')} €: verrebbero ammessi solo ${limit.toLocaleString('it-IT')} €, il resto respinto — con la regola citata, non a caso.`}
+        <div className="gauge-wrap">
+          <Gauge sharePct={pct} limitPct={limitPct * 100} />
+          <div className={`gauge-verdict ${ok ? 'ok' : 'fail'}`}>{ok ? 'Ammesso' : 'Ridotto'}</div>
+          <p className="gauge-detail">
+            {ok ? `${consulenze.toLocaleString('it-IT')} € rientrano nel tetto di ${limit.toLocaleString('it-IT')} €.`
+              : `Superano il tetto di ${over.toLocaleString('it-IT')} €: ne verrebbero ammessi solo ${limit.toLocaleString('it-IT')} €.`}
           </p>
         </div>
-        <p className="tool-note">Esempio illustrativo, non collegato a un bando reale. Nel prodotto ogni regola come questa ha una fonte ufficiale dichiarata, e i controlli sono fino a 60.</p>
       </div>
+      <p className="tool-note">Esempio illustrativo, non collegato a un bando reale. Nel prodotto ogni regola come questa ha una fonte ufficiale dichiarata, e i controlli sono fino a 60.</p>
     </div>
   )
 }
 
-export default function Landing({ onLogin, onAuditor }) {
+export default function Landing({ onLogin, onAuditor, onVision }) {
   const [modal, setModal] = useState(null) // null | 'login' | 'register'
   return (
     <div className="qt-land">
-      <nav className="qt-nav"><div className="wrap row">
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}><Mark size={30} /><Wordmark height={17} /></div>
-        <div className="links">
-          <a href="#come-funziona">Come funziona</a>
-          <a href="#controlli">I 60 controlli</a>
-          <a href="#prezzi">Prezzi</a>
-        </div>
-        <div className="actions">
-          <button className="btn-ghost" onClick={() => setModal('login')}>Accedi</button>
-          <button className="btn-solid" onClick={() => setModal('register')}>Inizia gratis</button>
-        </div>
-      </div></nav>
+      <div className="dark-zone">
+        <div className="glow-yellow" style={{ width: 520, height: 520, top: -160, left: '50%', transform: 'translateX(-50%)' }} />
+        <NodeField />
+        <svg className="grain" width="100%" height="100%"><filter id="n"><feTurbulence type="fractalNoise" baseFrequency="0.85" numOctaves="2" stitchTiles="stitch" /></filter><rect width="100%" height="100%" filter="url(#n)" /></svg>
 
-      <header className="hero"><div className="wrap hero-grid">
-        <div>
+        <nav className="qt-nav"><div className="wrap row">
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}><Mark size={30} /><Wordmark height={17} className="wordmark-mask" /></div>
+          <div className="links">
+            <a href="#come-funziona">Come funziona</a>
+            <a href="#controlli">I 60 controlli</a>
+            <a href="#prezzi">Prezzi</a>
+            <button onClick={onVision}><Sparkles className="w-3.5 h-3.5" style={{ marginRight: 5 }} />La visione</button>
+          </div>
+          <div className="actions">
+            <button className="btn-ghost" onClick={() => setModal('login')}>Accedi</button>
+            <button className="btn-solid" onClick={() => setModal('register')}>Inizia gratis</button>
+          </div>
+        </div></nav>
+
+        <header className="hero"><div className="wrap hero-inner">
           <span className="eyebrow"><span className="dot" />Controllo budget per bandi pubblici</span>
           <h1>Sai se il budget verrà <mark>respinto</mark>. Prima di inviarlo.</h1>
           <p className="sub">QUANTO controlla ogni voce di spesa contro le regole ufficiali del bando scelto — fino a 60 criteri, ciascuno con la sua fonte dichiarata. Non un'intelligenza artificiale che indovina: un motore che calcola, sempre allo stesso modo.</p>
@@ -125,22 +179,28 @@ export default function Landing({ onLogin, onAuditor }) {
             <a href="#prova" className="btn-line">Prova un controllo</a>
           </div>
           <p className="fineprint">Gratuito oggi. Nessuna carta di credito richiesta.</p>
-        </div>
-        <div className="heat-card">
-          <div className="top"><span className="name">Beni strumentali — Nuova Sabatini</span><span className="score mono">46/60</span></div>
-          <div className="heat-grid">{DEMO_OUTCOMES.map((o, i) => <div key={i} className="heat-cell" style={{ background: CELL_COLOR[o] }} title={`#${i + 1}`} />)}</div>
-          <div className="heat-legend">
-            <span><i style={{ background: CELL_COLOR.OK }} />superato</span>
-            <span><i style={{ background: CELL_COLOR.ADJUSTED }} />ridotto</span>
-            <span><i style={{ background: CELL_COLOR.REJECTED }} />respinto</span>
-            <span><i style={{ background: CELL_COLOR.WAIT }} />da documentare</span>
-            <span><i style={{ background: CELL_COLOR.NONE }} />non valutato</span>
-          </div>
-        </div>
-      </div></header>
 
-      <section className="sect" id="prova"><div className="wrap">
-        <div className="sect-head">
+          <div className="window-wrap"><div className="window">
+            <div className="chrome"><i /><i /><i /><span className="url">quanto.app/budget</span></div>
+            <div className="body">
+              <div className="top"><span className="name">Beni strumentali — Nuova Sabatini</span><span className="score mono">46/60 superati</span></div>
+              <div className="heat-grid">{DEMO_OUTCOMES.map((o, i) => <div key={i} className="heat-cell" style={{ background: CELL_COLOR[o] }} title={`#${i + 1}`} />)}</div>
+              <div className="heat-legend">
+                <span><i style={{ background: CELL_COLOR.OK }} />superato</span>
+                <span><i style={{ background: CELL_COLOR.ADJUSTED }} />ridotto</span>
+                <span><i style={{ background: CELL_COLOR.REJECTED }} />respinto</span>
+                <span><i style={{ background: CELL_COLOR.WAIT }} />da documentare</span>
+                <span><i style={{ background: CELL_COLOR.NONE }} />non valutato</span>
+              </div>
+            </div>
+          </div></div>
+        </div></header>
+
+        <svg className="curve-divider" viewBox="0 0 1200 64" preserveAspectRatio="none"><path d="M0,64 C300,0 900,0 1200,64 L1200,64 L0,64 Z" fill="var(--l-bg)" /></svg>
+      </div>
+
+      <section className="sect tight" id="prova"><div className="wrap">
+        <div className="sect-head center">
           <span className="kicker">Provalo subito</span>
           <h2>Un assaggio di una delle 60 regole</h2>
           <p>Cambia i numeri e guarda il risultato aggiornarsi. Nel prodotto vero, questo succede per ogni voce del tuo budget, con la fonte della regola sempre visibile.</p>
@@ -151,14 +211,14 @@ export default function Landing({ onLogin, onAuditor }) {
       <section className="sect" id="come-funziona"><div className="wrap">
         <div className="sect-head">
           <span className="kicker">Come funziona</span>
-          <h2>Dal bando al budget certificato, cinque passaggi</h2>
+          <h2>Dal bando al budget certificato</h2>
         </div>
-        <div className="steps">
-          <div className="step"><div className="n mono">01</div><h3>Scegli il bando</h3><p>Cercalo per nome: QUANTO naviga le pagine ufficiali e scarica i documenti da solo.</p></div>
-          <div className="step"><div className="n mono">02</div><h3>Costruisci il budget</h3><p>Voci di spesa a mano, da un esempio o importate da Excel.</p></div>
-          <div className="step"><div className="n mono">03</div><h3>QUANTO controlla</h3><p>Fino a 60 criteri, ognuno con la fonte da cui viene la regola.</p></div>
-          <div className="step"><div className="n mono">04</div><h3>Registra l'impronta</h3><p>Un'impronta digitale firmata, a prova di manomissione.</p></div>
-          <div className="step"><div className="n mono">05</div><h3>Alloca ai fondi</h3><p>Decide chi paga cosa nell'anno, riducendo quanto resta a tuo carico.</p></div>
+        <div className="steps-ed">
+          <div className="step-ed"><span className="ghost-n">01</span><div><h3>Scegli il bando</h3><p>Cercalo per nome: QUANTO naviga le pagine ufficiali e scarica i documenti da solo.</p></div></div>
+          <div className="step-ed"><span className="ghost-n">02</span><div><h3>Costruisci il budget</h3><p>Voci di spesa a mano, da un esempio o importate da Excel.</p></div></div>
+          <div className="step-ed"><span className="ghost-n">03</span><div><h3>QUANTO controlla</h3><p>Fino a 60 criteri, ognuno con la fonte da cui viene la regola.</p></div></div>
+          <div className="step-ed"><span className="ghost-n">04</span><div><h3>Registra l'impronta</h3><p>Un'impronta digitale firmata, a prova di manomissione.</p></div></div>
+          <div className="step-ed"><span className="ghost-n">05</span><div><h3>Alloca ai fondi</h3><p>Decide chi paga cosa nell'anno, riducendo quanto resta a tuo carico.</p></div></div>
         </div>
       </div></section>
 
@@ -185,9 +245,9 @@ export default function Landing({ onLogin, onAuditor }) {
           <h2>Tre principi, non uno slogan</h2>
         </div>
         <div className="pillars">
-          <div className="pillar"><div className="num mono">01</div><h3>Deterministico</h3><p>Stesso budget, stesso risultato. Nessuna generazione: solo calcolo e regole tracciabili, riga per riga.</p></div>
-          <div className="pillar"><div className="num mono">02</div><h3>Fonti dichiarate</h3><p>Ogni regola cita da dove viene — un decreto, una circolare — e quanto ci si può fidare di quella lettura.</p></div>
-          <div className="pillar"><div className="num mono">03</div><h3>Verificabile</h3><p>Registro firmato, a prova di manomissione: chiunque può controllare che un budget certificato non sia stato toccato.</p></div>
+          <div className="pillar"><div className="icon"><Target className="w-5 h-5" /></div><h3>Deterministico</h3><p>Stesso budget, stesso risultato. Nessuna generazione: solo calcolo e regole tracciabili, riga per riga.</p></div>
+          <div className="pillar"><div className="icon"><Check className="w-5 h-5" /></div><h3>Fonti dichiarate</h3><p>Ogni regola cita da dove viene — un decreto, una circolare — e quanto ci si può fidare di quella lettura.</p></div>
+          <div className="pillar"><div className="icon"><ShieldCheck className="w-5 h-5" /></div><h3>Verificabile</h3><p>Registro firmato, a prova di manomissione: chiunque può controllare che un budget certificato non sia stato toccato.</p></div>
         </div>
       </div></section>
 
@@ -203,7 +263,7 @@ export default function Landing({ onLogin, onAuditor }) {
         </div>
       </div></section>
 
-      <section className="sect" id="prezzi" style={{ borderBottom: 'none' }}><div className="wrap">
+      <section className="sect" id="prezzi"><div className="wrap">
         <div className="sect-head">
           <span className="kicker">Prezzi</span>
           <h2>Gratuito oggi. Onesto sempre.</h2>
@@ -219,31 +279,35 @@ export default function Landing({ onLogin, onAuditor }) {
               <li>Registro firmato e verifica</li>
               <li>Documenti privati e allocazione dei fondi</li>
             </ul>
-            <button className="btn-solid" style={{ width: '100%', justifyContent: 'center' }} onClick={() => setModal('register')}>Inizia gratis</button>
+            <button className="btn-line" style={{ width: '100%', justifyContent: 'center' }} onClick={() => setModal('register')}>Inizia gratis</button>
           </div>
           <div className="price-card dim">
             <div className="tier">Presto</div>
             <div className="amount">In arrivo</div>
             <ul>
-              <li>Piani per team ed enti</li>
+              <li>Piani annuali a consumo per team ed enti</li>
               <li>Prezzi non ancora definiti</li>
             </ul>
           </div>
         </div>
       </div></section>
 
-      <div className="cta-final"><div className="wrap">
-        <h2>Prima di inviare il prossimo budget, controllalo.</h2>
-        <p>Gratis, senza carta di credito, pronto in un minuto.</p>
-        <button className="btn-yellow btn-solid" onClick={() => setModal('register')}>Inizia gratis<ArrowRight className="w-3.5 h-3.5" /></button>
-      </div></div>
+      <div className="dark-zone">
+        <div className="glow-yellow" style={{ width: 460, height: 460, bottom: -200, left: '50%', transform: 'translateX(-50%)' }} />
+        <div className="cta-final"><div className="wrap">
+          <h2>Prima di inviare il prossimo budget, controllalo.</h2>
+          <p>Gratis, senza carta di credito, pronto in un minuto.</p>
+          <button className="btn-solid" onClick={() => setModal('register')}>Inizia gratis<ArrowRight className="w-3.5 h-3.5" /></button>
+        </div></div>
 
-      <footer className="qt-foot"><div className="wrap" style={{ display: 'flex', alignItems: 'center', gap: 14, width: '100%' }}>
-        <span className="copy">© 2026 QUANTO</span>
-        <button className="btn-ghost" style={{ padding: '4px 0' }} onClick={onAuditor}><ShieldCheck className="w-3.5 h-3.5" style={{ marginRight: 4 }} />Sei un revisore? Verifica un budget certificato</button>
-        <span className="sp" />
-        <button className="btn-ghost" style={{ padding: '4px 0' }} onClick={() => setModal('login')}><Lock className="w-3 h-3" style={{ marginRight: 4 }} />Accedi</button>
-      </div></footer>
+        <footer className="qt-foot"><div className="wrap" style={{ display: 'flex', alignItems: 'center', gap: 14, width: '100%', flexWrap: 'wrap' }}>
+          <span className="copy">© 2026 QUANTO</span>
+          <button onClick={onVision}><Sparkles className="w-3.5 h-3.5" style={{ marginRight: 4 }} />La visione</button>
+          <button onClick={onAuditor}><ShieldCheck className="w-3.5 h-3.5" style={{ marginRight: 4 }} />Sei un revisore?</button>
+          <span className="sp" />
+          <button onClick={() => setModal('login')}><Lock className="w-3 h-3" style={{ marginRight: 4 }} />Accedi</button>
+        </div></footer>
+      </div>
 
       {modal && <AuthModal mode={modal} onClose={() => setModal(null)} onSwitch={setModal} onDone={onLogin} />}
     </div>

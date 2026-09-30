@@ -1,13 +1,41 @@
 import React, { useCallback, useEffect, useState } from 'react'
-import { Building2, KeyRound, Loader2, ShieldCheck, User } from 'lucide-react'
+import { Building2, KeyRound, Loader2, ShieldCheck, Sparkles, User } from 'lucide-react'
 import { api } from '../lib/api'
 import { fmtTs } from '../lib/format'
 import { SectionTitle } from './ui'
 import Documents from './Documents'
 import Guide from './Guide'
+import { CreditsRing } from './CreditsBadge'
 
 const STATUS_TONE = { OK: 'text-emerald-700', WARN: 'text-amber-700', FAIL: 'text-red-700', DENIED: 'text-red-700', LOCKED: 'text-red-700', CONFLICT: 'text-amber-700', NOT_FOUND: 'text-amber-700' }
 const ROLE_LABEL = { MANAGER: 'Manager', USER: 'Utente' }
+
+function Credits() {
+  const [c, setC] = useState(null)
+  const [error, setError] = useState(null)
+  useEffect(() => { api.meCredits().then(setC).catch((e) => setError(e.message)) }, [])
+  return (
+    <div className="card p-5 space-y-3">
+      <SectionTitle icon={Sparkles}>Piano e crediti</SectionTitle>
+      {error && <p className="text-xs text-red-700">{error}</p>}
+      {!c && !error && <p className="text-xs text-mute flex items-center gap-2"><Loader2 className="w-3.5 h-3.5 animate-spin" />Carico…</p>}
+      {c && (
+        <div className="flex flex-wrap items-center gap-5">
+          <CreditsRing pct={c.pct_remaining} size={64} />
+          <div className="min-w-[14rem] flex-1">
+            <p className="text-sm font-semibold text-ink">{c.plan}</p>
+            <p className="text-xs text-ink-2 mt-0.5">{c.remaining} crediti disponibili su {c.limit} · {c.used} usati in questo ciclo</p>
+            <div className="h-1.5 rounded-full bg-tint-2 overflow-hidden mt-2 max-w-xs">
+              <div className="h-full rounded-full bg-brand" style={{ width: `${100 - c.pct_remaining}%` }} />
+            </div>
+            <p className="text-[11px] text-mute mt-2">Se finiscono, si ricaricano tra {c.days_until_renewal} giorni ({c.renews_at}). Un credito = un controllo del budget.</p>
+          </div>
+        </div>
+      )}
+      <p className="text-[11px] text-mute border-t border-line pt-2.5">Oggi QUANTO è gratuito: questa è un'anteprima di come funzionerà un piano annuale a consumo quando arriveranno i piani a pagamento.</p>
+    </div>
+  )
+}
 
 function Activity() {
   const [list, setList] = useState(null)
@@ -47,6 +75,8 @@ export default function Profile({ user, isOwner, onChangePassword, onGoHQ, onUse
         </div>
         <button onClick={onChangePassword} className="btn ml-auto"><KeyRound className="w-3.5 h-3.5" />Cambia password</button>
       </div>
+
+      <Credits />
 
       {isOwner && (
         <button onClick={onGoHQ} className="w-full card p-5 flex items-center gap-4 text-left hover:border-line-strong transition">
