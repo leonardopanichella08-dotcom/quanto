@@ -61,6 +61,7 @@ const fbSend = (method, path, body) => call(`/fonte-b${path}`, { method, headers
 
 export const api = {
   login: (email, password) => post('/auth/login', { email, password }),
+  register: (email, name, password) => post('/auth/register', { email, name, password }),
   changePassword: (current_password, new_password) => post('/auth/change-password', { current_password, new_password }),
   meActivity: (limit = 30) => call(`/auth/me/activity?limit=${limit}`).then((r) => r.json()),
   users: () => hqGet('/users'),

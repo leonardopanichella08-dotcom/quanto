@@ -38,6 +38,12 @@ class LoginBody(BaseModel):
     password: str = Field(..., min_length=1, max_length=200)
 
 
+class RegisterBody(BaseModel):
+    email: str = Field(..., max_length=200)
+    name: str = Field(..., min_length=1, max_length=120)
+    password: str = Field(..., min_length=1, max_length=200)
+
+
 class PasswordBody(BaseModel):
     current_password: str = Field(..., max_length=200)
     new_password: str = Field(..., max_length=200)
@@ -56,6 +62,18 @@ def login(body: LoginBody, request: Request) -> dict:
                             headers={"Retry-After": str(exc.retry_after)}) from exc
     except users.UserError as exc:                       # bootstrap con password debole
         raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail=str(exc)) from exc
+    except auth.AuthConfigError:
+        raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="Autenticazione non configurata sul server (QUANTO_JWT_SECRET)") from None
+    return {**token, "user": {k: user[k] for k in ("id", "email", "name", "role", "is_owner")}}
+
+
+@router.post("/register", summary="Iscrizione libera: crea un account USER gratuito e accede subito (nessuna e-mail di conferma)")
+def register(body: RegisterBody, request: Request) -> dict:
+    try:
+        user = users.create_user(body.email, body.name, body.password, role="USER", actor="self-signup")
+        token = users.issue_token(user | {"token_version": 1})
+    except users.UserError as exc:
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(exc)) from exc
     except auth.AuthConfigError:
         raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="Autenticazione non configurata sul server (QUANTO_JWT_SECRET)") from None
     return {**token, "user": {k: user[k] for k in ("id", "email", "name", "role", "is_owner")}}

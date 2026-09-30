@@ -9,11 +9,12 @@ import RegistrationModal from './components/RegistrationModal'
 import HQ from './components/hq/HQ'
 import Guida from './components/Guida'
 import Profile from './components/Profile'
+import Landing from './components/Landing'
 import { ArrowLeft, LogOut, BookOpen, Calculator, GitCompare, Library, ShieldCheck, Split, User } from 'lucide-react'
 import { Mark, PageHead, Wordmark } from './components/ui'
 import { NavContext } from './lib/nav'
 import { api, download, fileToBase64, session } from './lib/api'
-import { LoginScreen, PasswordModal } from './components/Login'
+import { PasswordModal } from './components/Login'
 
 const TABS = [
   ['bandi', 'Bandi', Library], ['canvas', 'Budget', Calculator], ['allocation', 'Allocazione', Split],
@@ -167,7 +168,7 @@ export default function App() {
   const labData = replay || validation
   const isOwner = !!user?.is_owner
 
-  if (!user && tab !== 'auditor') return <LoginScreen onLogin={setUser} onAuditor={() => setTab('auditor')} />
+  if (!user && tab !== 'auditor') return <Landing onLogin={setUser} onAuditor={() => setTab('auditor')} />
 
   return (
     <NavContext.Provider value={nav}>
