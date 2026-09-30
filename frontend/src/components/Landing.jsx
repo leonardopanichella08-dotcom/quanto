@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react'
-import { ArrowRight, Check, Loader2, Lock, ShieldCheck, Sparkles, Target, X } from 'lucide-react'
+import { ArrowRight, Check, Loader2, Lock, Search, ShieldCheck, Sparkles, Target, X } from 'lucide-react'
 import { api, session } from '../lib/api'
 import { Mark, Wordmark } from './ui'
 import './Landing.css'
@@ -147,6 +147,73 @@ function MicroTool() {
   )
 }
 
+const CAT_COLOR = { p: '#38bdf8', b: '#f59e0b', c: '#10b981' }
+const MINI_HEAT = ['OK', 'OK', 'ADJUSTED', 'OK', 'OK', 'OK', 'OK', 'REJECTED', 'OK', 'OK', 'OK', 'OK', 'OK', 'OK', 'WAIT', 'OK', 'OK', 'OK']
+
+function SearchMockup() {
+  return (
+    <div className="mini-window" style={{ '--tilt': '-1.4deg' }}>
+      <div className="chrome"><i /><i /><i /></div>
+      <div className="mw-body">
+        <div className="mw-search"><Search className="w-3.5 h-3.5" style={{ opacity: 0.6 }} />Resto al Sud</div>
+        <div className="mw-result">✓ Trovato — Invitalia, decreto ufficiale</div>
+        <div className="mw-result muted">Scarico 3 PDF ufficiali…</div>
+      </div>
+    </div>
+  )
+}
+function BudgetMockup() {
+  const rows = [['Project manager', 'p', '42.000 €'], ['Macchinario CNC', 'b', '68.500 €'], ['Consulenza audit', 'c', '12.000 €']]
+  return (
+    <div className="mini-window" style={{ '--tilt': '1.2deg' }}>
+      <div className="chrome"><i /><i /><i /></div>
+      <div className="mw-body" style={{ minHeight: 'auto', padding: '18px 20px' }}>
+        {rows.map(([label, cat, amt]) => <div key={label} className="mw-line"><span className="dot" style={{ background: CAT_COLOR[cat] }} />{label}<span className="amt">{amt}</span></div>)}
+      </div>
+    </div>
+  )
+}
+function HeatMockup() {
+  return (
+    <div className="mini-window" style={{ '--tilt': '-1deg' }}>
+      <div className="chrome"><i /><i /><i /></div>
+      <div className="mw-body" style={{ minHeight: 'auto' }}>
+        <div className="mw-heat">{MINI_HEAT.map((o, i) => <i key={i} style={{ background: CELL_COLOR[o] }} />)}</div>
+      </div>
+    </div>
+  )
+}
+function HashMockup() {
+  return (
+    <div className="mini-window" style={{ '--tilt': '1.6deg' }}>
+      <div className="chrome"><i /><i /><i /></div>
+      <div className="mw-body">
+        <div className="mw-hash">0x7f3a9c1e5b8d2f4a…<br />6c0e9b1d3a7f5c2e</div>
+        <span className="mw-badge"><ShieldCheck className="w-3.5 h-3.5" />Firmato e verificabile</span>
+      </div>
+    </div>
+  )
+}
+function AllocationMockup() {
+  return (
+    <div className="mini-window" style={{ '--tilt': '-1.3deg' }}>
+      <div className="chrome"><i /><i /><i /></div>
+      <div className="mw-body" style={{ minHeight: 'auto' }}>
+        <div className="mw-bar"><span style={{ width: '62%', background: '#10b981' }}>Fondo · 62%</span><span style={{ width: '38%', background: 'var(--d-line)', color: 'var(--d-ink)' }}>Ente · 38%</span></div>
+        <div className="mw-bar-labels"><span>€ 0</span><span>€ 100.000</span></div>
+      </div>
+    </div>
+  )
+}
+
+const STEPS = [
+  { n: '01', title: 'Scegli il bando', body: "Cercalo per nome: QUANTO naviga le pagine ufficiali e scarica i documenti da solo.", Visual: SearchMockup },
+  { n: '02', title: 'Costruisci il budget', body: 'Voci di spesa a mano, da un esempio o importate da Excel.', Visual: BudgetMockup },
+  { n: '03', title: 'QUANTO controlla', body: 'Fino a 60 criteri, ognuno con la fonte da cui viene la regola.', Visual: HeatMockup },
+  { n: '04', title: "Registra l'impronta", body: "Un'impronta digitale firmata, a prova di manomissione.", Visual: HashMockup },
+  { n: '05', title: 'Alloca ai fondi', body: 'Decide chi paga cosa nell\'anno, riducendo quanto resta a tuo carico.', Visual: AllocationMockup },
+]
+
 export default function Landing({ onLogin, onAuditor, onVision }) {
   const [modal, setModal] = useState(null) // null | 'login' | 'register'
   return (
@@ -213,84 +280,97 @@ export default function Landing({ onLogin, onAuditor, onVision }) {
           <span className="kicker">Come funziona</span>
           <h2>Dal bando al budget certificato</h2>
         </div>
-        <div className="steps-ed">
-          <div className="step-ed"><span className="ghost-n">01</span><div><h3>Scegli il bando</h3><p>Cercalo per nome: QUANTO naviga le pagine ufficiali e scarica i documenti da solo.</p></div></div>
-          <div className="step-ed"><span className="ghost-n">02</span><div><h3>Costruisci il budget</h3><p>Voci di spesa a mano, da un esempio o importate da Excel.</p></div></div>
-          <div className="step-ed"><span className="ghost-n">03</span><div><h3>QUANTO controlla</h3><p>Fino a 60 criteri, ognuno con la fonte da cui viene la regola.</p></div></div>
-          <div className="step-ed"><span className="ghost-n">04</span><div><h3>Registra l'impronta</h3><p>Un'impronta digitale firmata, a prova di manomissione.</p></div></div>
-          <div className="step-ed"><span className="ghost-n">05</span><div><h3>Alloca ai fondi</h3><p>Decide chi paga cosa nell'anno, riducendo quanto resta a tuo carico.</p></div></div>
-        </div>
-      </div></section>
-
-      <section className="sect" id="controlli"><div className="wrap">
-        <div className="sect-head">
-          <span className="kicker">Il motore</span>
-          <h2>60 criteri, in quattro gruppi</h2>
-          <p>Ogni criterio è attivo solo se il bando dice qualcosa in merito: quello che i documenti non dicono resta dichiarato, mai inventato.</p>
-        </div>
-        <div className="blocks">
-          {BLOCKS.map((b) => (
-            <div key={b.label} className="block-card">
-              <div className="range mono">#{b.from}–{b.to}</div>
-              <h4>{b.label}</h4>
-              <div className="block-mini">{Array.from({ length: 15 }).map((_, i) => <i key={i} />)}</div>
+        <div className="funziona-rows">
+          {STEPS.map((s, i) => (
+            <div key={s.n} className={`funziona-row ${i % 2 ? 'rev' : ''}`}>
+              <div className="fr-text"><span className="step-n">{s.n}</span><h3>{s.title}</h3><p>{s.body}</p></div>
+              <div className="fr-visual"><s.Visual /></div>
             </div>
           ))}
         </div>
       </div></section>
 
-      <section className="sect"><div className="wrap">
-        <div className="sect-head">
-          <span className="kicker">Perché fidarsi</span>
-          <h2>Tre principi, non uno slogan</h2>
-        </div>
-        <div className="pillars">
-          <div className="pillar"><div className="icon"><Target className="w-5 h-5" /></div><h3>Deterministico</h3><p>Stesso budget, stesso risultato. Nessuna generazione: solo calcolo e regole tracciabili, riga per riga.</p></div>
-          <div className="pillar"><div className="icon"><Check className="w-5 h-5" /></div><h3>Fonti dichiarate</h3><p>Ogni regola cita da dove viene — un decreto, una circolare — e quanto ci si può fidare di quella lettura.</p></div>
-          <div className="pillar"><div className="icon"><ShieldCheck className="w-5 h-5" /></div><h3>Verificabile</h3><p>Registro firmato, a prova di manomissione: chiunque può controllare che un budget certificato non sia stato toccato.</p></div>
-        </div>
-      </div></section>
-
-      <section className="sect"><div className="wrap">
-        <div className="sect-head">
-          <span className="kicker">Per chi è</span>
-          <h2>Chi lo usa già così</h2>
-        </div>
-        <div className="audience">
-          <div className="aud-card"><h4>Consulenti e commercialisti</h4><p>Controllano il budget di un cliente prima di firmarlo, con la fonte di ogni regola pronta da mostrare.</p></div>
-          <div className="aud-card"><h4>PMI e startup</h4><p>Costruiscono il budget del progetto e sanno subito cosa verrebbe respinto, prima di candidarsi.</p></div>
-          <div className="aud-card"><h4>Enti ed associazioni</h4><p>Pianificano più fondi insieme e sanno chi paga cosa lungo tutto l'anno.</p></div>
-        </div>
-      </div></section>
-
-      <section className="sect" id="prezzi"><div className="wrap">
-        <div className="sect-head">
-          <span className="kicker">Prezzi</span>
-          <h2>Gratuito oggi. Onesto sempre.</h2>
-          <p>QUANTO è gratuito in questa fase. Più avanti arriveranno piani a pagamento per team ed enti — chi si iscrive ora userà il prodotto gratuitamente più a lungo.</p>
-        </div>
-        <div className="pricing">
-          <div className="price-card">
-            <div className="tier">Oggi</div>
-            <div className="amount">Gratis</div>
-            <ul>
-              <li>Bandi, ricerca e controllo del budget</li>
-              <li>Fino a 60 criteri per bando</li>
-              <li>Registro firmato e verifica</li>
-              <li>Documenti privati e allocazione dei fondi</li>
-            </ul>
-            <button className="btn-line" style={{ width: '100%', justifyContent: 'center' }} onClick={() => setModal('register')}>Inizia gratis</button>
+      <section className="sect" id="controlli">
+        <div className="pattern-grid" aria-hidden="true" />
+        <div className="wrap">
+          <div className="sect-head">
+            <span className="kicker">Il motore</span>
+            <h2>60 criteri, in quattro gruppi</h2>
+            <p>Ogni criterio è attivo solo se il bando dice qualcosa in merito: quello che i documenti non dicono resta dichiarato, mai inventato.</p>
           </div>
-          <div className="price-card dim">
-            <div className="tier">Presto</div>
-            <div className="amount">In arrivo</div>
-            <ul>
-              <li>Piani annuali a consumo per team ed enti</li>
-              <li>Prezzi non ancora definiti</li>
-            </ul>
+          <div className="blocks">
+            {BLOCKS.map((b) => (
+              <div key={b.label} className="block-card">
+                <div className="range mono">#{b.from}–{b.to}</div>
+                <h4>{b.label}</h4>
+                <div className="block-mini">{Array.from({ length: 15 }).map((_, i) => <i key={i} />)}</div>
+              </div>
+            ))}
           </div>
         </div>
-      </div></section>
+      </section>
+
+      <section className="sect">
+        <div className="glow-warm" style={{ width: 700, height: 500, top: '10%', left: '50%', transform: 'translateX(-50%)' }} aria-hidden="true" />
+        <div className="wrap">
+          <div className="sect-head center">
+            <span className="kicker">Perché fidarsi</span>
+            <h2>Tre principi, non uno slogan</h2>
+          </div>
+          <div className="pillars">
+            <div className="pillar"><div className="icon"><Target className="w-5 h-5" /></div><h3>Deterministico</h3><p>Stesso budget, stesso risultato. Nessuna generazione: solo calcolo e regole tracciabili, riga per riga.</p></div>
+            <div className="pillar"><div className="icon"><Check className="w-5 h-5" /></div><h3>Fonti dichiarate</h3><p>Ogni regola cita da dove viene — un decreto, una circolare — e quanto ci si può fidare di quella lettura.</p></div>
+            <div className="pillar"><div className="icon"><ShieldCheck className="w-5 h-5" /></div><h3>Verificabile</h3><p>Registro firmato, a prova di manomissione: chiunque può controllare che un budget certificato non sia stato toccato.</p></div>
+          </div>
+        </div>
+      </section>
+
+      <section className="sect band-alt">
+        <div className="pattern-dots" aria-hidden="true" />
+        <div className="wrap">
+          <div className="sect-head">
+            <span className="kicker">Per chi è</span>
+            <h2>Chi lo usa già così</h2>
+          </div>
+          <div className="audience">
+            <div className="aud-card"><h4>Consulenti e commercialisti</h4><p>Controllano il budget di un cliente prima di firmarlo, con la fonte di ogni regola pronta da mostrare.</p></div>
+            <div className="aud-card"><h4>PMI e startup</h4><p>Costruiscono il budget del progetto e sanno subito cosa verrebbe respinto, prima di candidarsi.</p></div>
+            <div className="aud-card"><h4>Enti ed associazioni</h4><p>Pianificano più fondi insieme e sanno chi paga cosa lungo tutto l'anno.</p></div>
+          </div>
+        </div>
+      </section>
+
+      <section className="sect" id="prezzi">
+        <div className="pattern-dots" aria-hidden="true" />
+        <div className="wrap">
+          <div className="sect-head">
+            <span className="kicker">Prezzi</span>
+            <h2>Gratuito oggi. Onesto sempre.</h2>
+            <p>QUANTO è gratuito in questa fase. Più avanti arriveranno piani a pagamento per team ed enti — chi si iscrive ora userà il prodotto gratuitamente più a lungo.</p>
+          </div>
+          <div className="pricing">
+            <div className="price-card">
+              <div className="tier">Oggi</div>
+              <div className="amount">Gratis</div>
+              <ul>
+                <li>Bandi, ricerca e controllo del budget</li>
+                <li>Fino a 60 criteri per bando</li>
+                <li>Registro firmato e verifica</li>
+                <li>Documenti privati e allocazione dei fondi</li>
+              </ul>
+              <button className="btn-line" style={{ width: '100%', justifyContent: 'center' }} onClick={() => setModal('register')}>Inizia gratis</button>
+            </div>
+            <div className="price-card dim">
+              <div className="tier">Presto</div>
+              <div className="amount">In arrivo</div>
+              <ul>
+                <li>Piani annuali a consumo per team ed enti</li>
+                <li>Prezzi non ancora definiti</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+      </section>
 
       <div className="dark-zone">
         <div className="glow-yellow" style={{ width: 460, height: 460, bottom: -200, left: '50%', transform: 'translateX(-50%)' }} />

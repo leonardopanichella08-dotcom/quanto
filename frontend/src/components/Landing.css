@@ -3,6 +3,7 @@
    generate (nodi, rumore, luce) e legate al soggetto reale del prodotto — la rete di 60 controlli che osserva un budget. */
 .qt-land {
   --l-bg: #FAF6E9;
+  --l-bg-2: #EFE2BC;
   --l-ink: #15130A;
   --l-ink-2: #4E4B3A;
   --l-mute: #8C8770;
@@ -130,14 +131,6 @@
 .qt-land .gauge-detail { font-size: 13px; color: var(--l-ink-2); line-height: 1.55; text-align: center; max-width: 30ch; }
 .qt-land .tool-note { font-size: 11.5px; color: var(--l-mute); margin-top: 18px; text-align: center; }
 
-/* ---------------------------------------------------------------- come funziona: step editoriale con numeri fantasma */
-.qt-land .steps-ed { display: grid; gap: 0; }
-.qt-land .step-ed { display: grid; grid-template-columns: 110px 1fr; gap: 24px; padding: 28px 0; border-top: 1px solid var(--l-line); align-items: center; }
-.qt-land .step-ed:last-child { border-bottom: 1px solid var(--l-line); }
-.qt-land .step-ed .ghost-n { font-family: 'Archivo', sans-serif; font-size: 56px; font-weight: 700; color: transparent; -webkit-text-stroke: 1.5px var(--l-line-strong); line-height: 1; }
-.qt-land .step-ed h3 { font-size: 17px; font-weight: 700; margin-bottom: 6px; }
-.qt-land .step-ed p { font-size: 13.5px; color: var(--l-ink-2); line-height: 1.55; max-width: 52ch; }
-@media (max-width: 640px) { .qt-land .step-ed { grid-template-columns: 56px 1fr; gap: 14px; } .qt-land .step-ed .ghost-n { font-size: 34px; } }
 
 /* ---------------------------------------------------------------- 60 controlli grid */
 .qt-land .blocks { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; }
@@ -203,3 +196,47 @@
 
 @keyframes pulse-node { 0%, 100% { opacity: var(--base-op, 0.5); r: var(--base-r, 1.6); } 50% { opacity: 1; r: calc(var(--base-r, 1.6) * 1.8); } }
 .qt-land .node-pulse { animation: pulse-node 3.4s ease-in-out infinite; animation-delay: var(--d, 0s); transform-box: fill-box; transform-origin: center; }
+
+/* ============================================================== texture e sfondi variati per le sezioni chiare
+   (niente più un'unica tinta piatta dall'inizio alla fine: ogni sezione ha un fondo o una texture propri) */
+.qt-land section.sect { position: relative; overflow: hidden; }
+.qt-land .band-alt { background: var(--l-bg-2); }
+.qt-land .pattern-dots { position: absolute; inset: 0; z-index: 0; opacity: 0.5;
+  background-image: radial-gradient(var(--l-line-strong) 1.2px, transparent 1.2px); background-size: 26px 26px; }
+.qt-land .pattern-grid { position: absolute; inset: 0; z-index: 0; opacity: 0.6;
+  background-image: linear-gradient(var(--l-line) 1px, transparent 1px), linear-gradient(90deg, var(--l-line) 1px, transparent 1px);
+  background-size: 46px 46px; mask-image: radial-gradient(ellipse 70% 60% at 50% 40%, #000 40%, transparent 85%); }
+.qt-land .glow-warm { position: absolute; border-radius: 50%; filter: blur(100px); pointer-events: none; z-index: 0;
+  background: radial-gradient(circle, rgba(241,226,27,0.35), transparent 70%); }
+.qt-land .tilt-card { position: absolute; border: 1.5px solid var(--l-line-strong); border-radius: 12px; background: #fff;
+  box-shadow: 0 30px 60px -30px rgba(21,19,10,0.25); z-index: 0; pointer-events: none; opacity: 0.9; }
+
+/* ---------------------------------------------------------------- come funziona: righe alternate con mini-mockup */
+.qt-land .funziona-rows { display: grid; gap: 64px; margin-top: 8px; }
+.qt-land .funziona-row { display: grid; grid-template-columns: 1fr 1fr; gap: 48px; align-items: center; }
+.qt-land .funziona-row.rev .fr-text { order: 2; }
+.qt-land .funziona-row.rev .fr-visual { order: 1; }
+@media (max-width: 760px) { .qt-land .funziona-row, .qt-land .funziona-row.rev { grid-template-columns: 1fr; } .qt-land .funziona-row.rev .fr-text, .qt-land .funziona-row.rev .fr-visual { order: unset; } }
+.qt-land .fr-text .step-n { font-family: 'JetBrains Mono', monospace; font-size: 12px; font-weight: 700; color: var(--yellow-ink); background: var(--yellow); display: inline-flex; align-items: center; justify-content: center; width: 26px; height: 26px; border-radius: 7px; margin-bottom: 16px; }
+.qt-land .fr-text h3 { font-size: 21px; font-weight: 700; margin-bottom: 10px; }
+.qt-land .fr-text p { font-size: 14.5px; color: var(--l-ink-2); line-height: 1.65; max-width: 42ch; }
+
+.qt-land .mini-window { background: var(--d-bg-2); border: 1px solid var(--d-line); border-radius: 12px; overflow: hidden; box-shadow: 0 40px 70px -30px rgba(21,19,10,0.35); transform: rotate(var(--tilt, -1.2deg)); transition: transform .3s ease; }
+.qt-land .mini-window:hover { transform: rotate(0deg) scale(1.015); }
+.qt-land .mini-window .chrome { display: flex; gap: 6px; padding: 10px 14px; border-bottom: 1px solid var(--d-line); }
+.qt-land .mini-window .chrome i { width: 8px; height: 8px; border-radius: 50%; background: var(--d-line); }
+.qt-land .mw-body { padding: 20px; min-height: 150px; display: flex; flex-direction: column; justify-content: center; gap: 10px; }
+.qt-land .mw-search { display: flex; align-items: center; gap: 8px; background: var(--d-bg); border: 1px solid var(--d-line); border-radius: 8px; padding: 9px 12px; font-size: 12.5px; color: var(--d-ink); }
+.qt-land .mw-result { font-size: 11.5px; padding: 8px 12px; border-radius: 7px; background: rgba(16,185,129,0.1); color: #6ee7b7; border: 1px solid rgba(16,185,129,0.25); }
+.qt-land .mw-result.muted { background: transparent; color: var(--d-ink-2); border-color: var(--d-line); }
+.qt-land .mw-line { display: flex; align-items: center; gap: 10px; font-size: 12px; color: var(--d-ink); padding: 8px 0; border-bottom: 1px solid var(--d-line); }
+.qt-land .mw-line:last-child { border-bottom: none; }
+.qt-land .mw-line .dot { width: 8px; height: 8px; border-radius: 2px; flex-shrink: 0; }
+.qt-land .mw-line .amt { margin-left: auto; font-family: 'JetBrains Mono', monospace; color: var(--d-ink-2); }
+.qt-land .mw-heat { display: grid; grid-template-columns: repeat(6, 1fr); gap: 3px; }
+.qt-land .mw-heat i { aspect-ratio: 1; border-radius: 2px; display: block; }
+.qt-land .mw-hash { font-family: 'JetBrains Mono', monospace; font-size: 12.5px; color: var(--yellow); background: var(--d-bg); border: 1px solid var(--d-line); border-radius: 8px; padding: 12px 14px; word-break: break-all; line-height: 1.5; }
+.qt-land .mw-badge { display: inline-flex; align-items: center; gap: 6px; font-size: 11.5px; color: #6ee7b7; }
+.qt-land .mw-bar { display: flex; height: 30px; border-radius: 7px; overflow: hidden; }
+.qt-land .mw-bar span { display: flex; align-items: center; justify-content: center; font-size: 10.5px; font-weight: 700; color: var(--yellow-ink); }
+.qt-land .mw-bar-labels { display: flex; justify-content: space-between; font-size: 11px; color: var(--d-ink-2); margin-top: 10px; }
