@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react'
 import { AlertTriangle, GitCompare, Loader2 } from 'lucide-react'
 import { api } from '../lib/api'
-import { SectionTitle } from './ui'
+import { ChromeCard, SectionTitle } from './ui'
 import Guide from './Guide'
 import { Hint } from './Help'
 
@@ -53,7 +53,7 @@ export default function PatternDemo({ bando, validation }) {
   return (
     <div className="space-y-6">
       <Guide page="pattern" />
-      <div className="card p-6 space-y-5">
+      <ChromeCard label="quanto.app/confronto" bodyClassName="p-6 space-y-5">
         <div className="pb-3 border-b border-line">
           <SectionTitle icon={GitCompare} className="!text-lg">Il tuo budget somiglia a quelli premiati?</SectionTitle>
           <p className="text-xs text-ink-2 mt-0.5 leading-relaxed">Confronta come ripartisci la spesa con i budget storici di bandi comparabili (graduatorie pubbliche e dati del pilota, con la fonte di ciascuno). Non stima la probabilità di vincere: misura una distanza.</p>
@@ -131,7 +131,7 @@ export default function PatternDemo({ bando, validation }) {
             </div>
           </div>
         )}
-      </div>
+      </ChromeCard>
     </div>
   )
 }

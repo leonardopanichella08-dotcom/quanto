@@ -3,6 +3,7 @@ import { AlertTriangle, CheckCircle2, Clock, ExternalLink, Loader2, Scale } from
 import { api } from '../lib/api'
 import { BANDO_STATUS_STYLE, KIND_STYLE, fmtTs } from '../lib/format'
 import { ruleLabel } from '../data/ruleLabels'
+import { ChromeCard } from './ui'
 import Guide from './Guide'
 import ResearchPanel from './ResearchPanel'
 import CatalogBrowser from './CatalogBrowser'
@@ -118,10 +119,10 @@ function Detail({ bando, onUse, using }) {
   const requirements = bando.requirements.filter((r) => r.kind !== 'DA_REVISIONARE')
   const tabs = [['rules', `Regole (${rules.length})`], ['reqs', `Requisiti (${requirements.length})`], ['cov', 'Controlli attivati'], ['src', 'Fonti']]
   return (
-    <div className="card p-5 space-y-4">
+    <ChromeCard label={`quanto.app/bandi/${bando.bando_id}`} bodyClassName="p-5 space-y-4">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="min-w-0">
-          <h3 className="font-semibold text-lg">{bando.name}</h3>
+          <h3 className="font-display font-bold tracking-tight text-lg">{bando.name}</h3>
           <p className="text-xs text-ink-2">{bando.issuer}{bando.period ? ` · dal ${bando.period.from} al ${bando.period.to}` : ''}</p>
           <span className={`inline-block mt-2 px-2 py-0.5 text-[11px] font-medium rounded border ${BANDO_STATUS_STYLE(bando.status || '')}`}>{bando.status || bando.extraction_status}</span>
         </div>
@@ -195,7 +196,7 @@ function Detail({ bando, onUse, using }) {
           <p className="text-xs text-mute">Queste schede non sostituiscono il bando: fai controllare le regole da un consulente prima di presentare la domanda.</p>
         </div>
       )}
-    </div>
+    </ChromeCard>
   )
 }
 

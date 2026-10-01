@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useRef, useState } from 'react'
 import { api } from '../lib/api'
 import { fmtEur, fmtNum } from '../lib/format'
 import { Wallet } from 'lucide-react'
-import { SectionTitle } from './ui'
+import { ChromeCard, SectionTitle } from './ui'
 import Guide from './Guide'
 import { Hint } from './Help'
 
@@ -93,7 +93,7 @@ export default function AllocationView({ balanceRef, onPickBalance, onGoDocument
   return (
     <div className="space-y-6">
       <Guide page="allocation" />
-      <div className="card p-6 space-y-4">
+      <ChromeCard label="quanto.app/allocazione" bodyClassName="p-6 space-y-4">
         <div className="pb-3 border-b border-line flex flex-wrap items-center justify-between gap-3">
           <div className="max-w-xl">
             <SectionTitle icon={Wallet} className="!text-lg">Chi paga cosa, nell’anno</SectionTitle>
@@ -128,7 +128,7 @@ export default function AllocationView({ balanceRef, onPickBalance, onGoDocument
         {error && <div className="p-3 rounded-xl border border-red-500/30 text-red-700 text-xs">{error}
           {pending && <ul className="list-disc pl-5 mt-1">{pending.slice(0, 6).map((l) => <li key={l.field_id}>{l.description} — {l.amount_eur} €</li>)}</ul>}
           {pending && <button className="btn mt-2" onClick={onGoDocuments}>Verifica le righe nei Documenti</button>}</div>}
-      </div>
+      </ChromeCard>
 
       {plan && (
         <>

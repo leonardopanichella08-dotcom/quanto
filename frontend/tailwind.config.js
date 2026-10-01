@@ -20,6 +20,7 @@ export default {
         sans: ['Now', 'Outfit', 'ui-sans-serif', 'system-ui', 'sans-serif'],
         mono: ['Now', 'Outfit', 'ui-sans-serif', 'system-ui', 'sans-serif'],   // cifre in colonna, stesso carattere
         code: ['JetBrains Mono', 'ui-monospace', 'monospace'],                 // solo impronte e codici
+        display: ['Archivo', 'Outfit', 'ui-sans-serif', 'system-ui', 'sans-serif'],   // titoli di pagina: lo stesso carattere deciso della homepage
       },
       boxShadow: {
         glass: '0 1px 0 rgba(255,255,255,0.95) inset, 0 12px 32px -14px rgba(110,100,0,0.22), 0 2px 6px rgba(21,21,15,0.04)',

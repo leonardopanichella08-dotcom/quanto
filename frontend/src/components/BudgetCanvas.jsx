@@ -6,6 +6,7 @@ import CriteriaHeatmap, { heatmapData } from './CriteriaHeatmap'
 import Documents from './Documents'
 import Guide from './Guide'
 import { Hint } from './Help'
+import { ChromeCard } from './ui'
 import { BANDO_STATUS_STYLE, CATEGORY_LABEL, CATEGORY_ORDER, STATUS_LABEL, STATUS_STYLE, fmtEur, fmtNum, fmtPct } from '../lib/format'
 
 const ITEM_STATUS_DOT = { APPROVED: '#10b981', CAP_EXCEEDED_ADJUSTED: '#f59e0b', REJECTED: '#ef4444', MISSING_DOCUMENTS: '#38bdf8' }
@@ -155,7 +156,7 @@ export default function BudgetCanvas({
       <Guide page="budget" />
 
       {/* barra del bando */}
-      <div className="card p-4 flex flex-wrap items-center gap-3">
+      <ChromeCard label={`quanto.app/budget${bando ? `/${bando.bando_id}` : ''}`} bodyClassName="p-4 flex flex-wrap items-center gap-3">
         <div className="flex items-center gap-2 min-w-0">
           <span className="label shrink-0">Bando</span>
           <select value={bando?.bando_id || ''} onChange={(e) => onSelectBando(e.target.value)} disabled={busy} className="field !w-auto max-w-[260px] md:max-w-sm">
@@ -172,7 +173,7 @@ export default function BudgetCanvas({
         <label className="flex items-center gap-2 md:ml-auto text-xs text-ink-2 w-full md:w-auto min-w-0">Nome del progetto
           <input value={request.project_id} onChange={(e) => onProjectId(e.target.value)} className="field !w-full md:!w-56 min-w-0 font-mono" />
         </label>
-      </div>
+      </ChromeCard>
       {bando && bando.rules.length === 0 && (
         <div className="p-3 rounded-xl border border-amber-500/30 bg-amber-500/5 text-xs text-amber-800 flex flex-wrap items-center gap-2">
           <AlertTriangle className="w-4 h-4 shrink-0" />
