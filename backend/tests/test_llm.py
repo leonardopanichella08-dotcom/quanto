@@ -4,6 +4,7 @@ Le chiamate al provider sono simulate con un trasporto HTTP finto (nessuna rete,
 controllo — citazioni verificate, confronto fatto dal codice, validatore numerico — non il modello.
 """
 import json
+from datetime import date, timedelta
 
 import httpx
 import pytest
@@ -146,17 +147,18 @@ def test_catalog_refresh_lists_entries_as_metadata_only_and_they_become_searchab
 
 
 def test_catalog_enrichment_accepts_metadata_only_with_a_real_quote(monkeypatch):
-    page = "Fondo Cultura 2026. Ente erogatore: Ministero della Cultura. Le domande si presentano entro il 30/09/2026."
+    future = (date.today() + timedelta(days=365)).isoformat()                 # sempre nel futuro: la pulizia del catalogo non deve toccarla
+    page = f"Fondo Cultura. Ente erogatore: Ministero della Cultura. Le domande si presentano entro il {future}."
     monkeypatch.setattr(discovery, "load_catalog", lambda cat, force=False: [(f"{cat['site']}{cat['path']}fondo-cultura", "fondo cultura")] if cat["name"] == "incentivi.gov.it" else [])
     monkeypatch.setattr(catalog_job.research, "fetch_document", lambda url: {"text": page})
-    good = json.dumps({"name": "Fondo Cultura 2026", "issuer": "Ministero della Cultura", "quote_issuer": "Ente erogatore: Ministero della Cultura",
-                       "deadline": "2026-09-30", "quote_deadline": "entro il 30/09/2026"})
+    good = json.dumps({"name": "Fondo Cultura", "issuer": "Ministero della Cultura", "quote_issuer": "Ente erogatore: Ministero della Cultura",
+                       "deadline": future, "quote_deadline": f"entro il {future}"})
     c, _ = anthropic([good])
     monkeypatch.setattr(llm, "get_client", lambda: c)
     rep = catalog_job.refresh()
     assert rep["enriched"] == 1
     row = client.get("/api/v2/bandi/search", params={"q": "fondo cultura"}).json()["matches"][0]
-    assert row["issuer"] == "Ministero della Cultura" and row["deadline"] == "2026-09-30"
+    assert row["issuer"] == "Ministero della Cultura" and row["deadline"] == future
 
 
 def test_cron_endpoint_needs_the_cron_secret_or_a_manager(monkeypatch):

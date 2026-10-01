@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { AlertTriangle, CheckCircle2, ExternalLink, Loader2, Scale } from 'lucide-react'
+import { AlertTriangle, CheckCircle2, Clock, ExternalLink, Loader2, Scale } from 'lucide-react'
 import { api } from '../lib/api'
 import { BANDO_STATUS_STYLE, KIND_STYLE, fmtTs } from '../lib/format'
 import { ruleLabel } from '../data/ruleLabels'
@@ -244,6 +244,7 @@ export default function BandiLibrary({ bandi, selectedId, onSelect, onReload }) 
               <div className="flex flex-wrap items-center gap-2">
                 <span className={`px-2 py-0.5 text-[11px] font-medium rounded border ${BANDO_STATUS_STYLE(b.status || '')}`}>{(b.status || '').split(' (')[0] || b.extraction_status}</span>
                 <span className="text-xs text-mute">{b.issuer}</span>
+                {b.last_activity_ts && <span className="text-[11px] text-mute inline-flex items-center gap-1 ml-auto"><Clock className="w-3 h-3" />visto {fmtTs(b.last_activity_ts)}</span>}
               </div>
               <div className="grid grid-cols-3 gap-2 text-[11px] text-ink-2 font-mono">
                 <span>{b.rules_count} regole</span><span>{b.requirements_count} requisiti</span><span>{b.coverage.REGOLA_DEL_BANDO}/60 controlli</span>

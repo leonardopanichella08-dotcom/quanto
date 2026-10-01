@@ -173,6 +173,13 @@ export default function BudgetCanvas({
           <input value={request.project_id} onChange={(e) => onProjectId(e.target.value)} className="field !w-full md:!w-56 min-w-0 font-mono" />
         </label>
       </div>
+      {bando && bando.rules.length === 0 && (
+        <div className="p-3 rounded-xl border border-amber-500/30 bg-amber-500/5 text-xs text-amber-800 flex flex-wrap items-center gap-2">
+          <AlertTriangle className="w-4 h-4 shrink-0" />
+          <span>Per questo bando non ho ancora nessuna regola numerica: la ricerca sul web non è stata completata (serve scegliere le pagine ufficiali e confermare lo scaricamento).</span>
+          <button onClick={onGoBandi} className="btn !py-1 ml-auto shrink-0">Completa la ricerca</button>
+        </div>
+      )}
       {!bando && (
         <div className="card p-8 text-center space-y-3">
           <p className="text-sm text-ink-2">Per iniziare scegli il bando su cui vuoi lavorare.</p>

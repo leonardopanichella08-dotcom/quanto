@@ -11,6 +11,7 @@ import hashlib
 import logging
 import re
 import urllib.parse
+from datetime import date
 from typing import Any, Dict, List
 
 from app.core import discovery, events, llm, research
@@ -18,10 +19,41 @@ from app.core.db import connect
 
 logger = logging.getLogger("quanto.catalog")
 
+_LEADING_YEAR = re.compile(r"^(19|20)\d{2}\b")
+
 
 def _bando_id(url: str, title: str) -> str:
     slug = re.sub(r"[^A-Za-z0-9]+", "-", title).strip("-").upper()[:36] or "VOCE"
     return f"CAT-{slug}-{hashlib.sha1(url.encode()).hexdigest()[:6].upper()}"
+
+
+def cleanup_stale(actor: str = "cron") -> Dict[str, Any]:
+    """Elimina dal catalogo nazionale (mai dai bandi curati) le voci ormai certamente chiuse:
+    misure locali «una tantum» il cui nome inizia con un anno passato (es. «2021 Bando...»),
+    o con una scadenza passata — e solo se nessuno le ha mai toccate (nessuna ricerca avviata,
+    nessun cliente le ha richieste): un bando su cui è già stato fatto del lavoro non si cancella mai in automatico."""
+    this_year = date.today().year
+    today_iso = date.today().isoformat()
+    with connect() as conn:
+        rows = conn.execute(
+            "SELECT bando_id, name, deadline FROM bandi WHERE bando_id LIKE 'CAT-%' AND catalog_status != 'CURATED' "
+            "AND extraction_status = 'NOT_STARTED' AND requested_by_clients = 0"
+        ).fetchall()
+        stale = []
+        for r in rows:
+            m = _LEADING_YEAR.match(r["name"] or "")
+            by_name = bool(m) and int(m.group(0)[:4]) < this_year
+            by_deadline = bool(r["deadline"]) and re.fullmatch(r"\d{4}-\d{2}-\d{2}", r["deadline"] or "") and r["deadline"] < today_iso
+            if by_name or by_deadline:
+                stale.append(r["bando_id"])
+        if stale:
+            placeholders = ",".join("?" * len(stale))
+            for table in ("rules", "requirements", "bando_sources", "bandi"):
+                conn.execute(f"DELETE FROM {table} WHERE bando_id IN ({placeholders})", stale)
+    if stale:
+        events.record("catalog.cleanup", f"Eliminate {len(stale)} voci del catalogo ormai chiuse (misure passate, mai toccate)", actor=actor,
+                      details={"deleted": len(stale)})
+    return {"deleted": len(stale)}
 
 
 def refresh(enrich: int = 15, actor: str = "cron") -> Dict[str, Any]:
@@ -55,6 +87,8 @@ def refresh(enrich: int = 15, actor: str = "cron") -> Dict[str, Any]:
                 conn.execute("UPDATE bandi SET name=COALESCE(?, name), issuer=COALESCE(?, issuer), deadline=COALESCE(?, deadline) WHERE bando_id=?",
                              (meta.get("name"), meta.get("issuer"), meta.get("deadline") or "non indicata", r["bando_id"]))
             report["enriched"] += 1
-    events.record("catalog.refresh", f"Catalogo aggiornato: {report['inserted']} voci nuove, {report['enriched']} arricchite" + (f", {len(report['errors'])} errori" if report["errors"] else ""),
+    report["deleted"] = cleanup_stale(actor)["deleted"]
+    events.record("catalog.refresh", f"Catalogo aggiornato: {report['inserted']} voci nuove, {report['enriched']} arricchite, {report['deleted']} eliminate perché ormai chiuse"
+                  + (f", {len(report['errors'])} errori" if report["errors"] else ""),
                   status="WARN" if report["errors"] and not report["inserted"] else "OK", actor=actor, details=report)
     return report

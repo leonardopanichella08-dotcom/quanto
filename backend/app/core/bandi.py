@@ -147,6 +147,8 @@ def list_bandi() -> List[Dict[str, Any]]:
             published = [r["rule_key"] for r in rules if r["status"] == "PUBLISHED"]
             reqs = conn.execute("SELECT COUNT(*) c, COALESCE(SUM((kind='DA_REVISIONARE')::int),0) r FROM requirements WHERE bando_id=?", (bid,)).fetchone()
             runs = conn.execute("SELECT COUNT(*) c, MAX(ts) t FROM runs WHERE bando_id=? AND kind='VALIDATE'", (bid,)).fetchone()
+            src_ts = conn.execute("SELECT MAX(ts) t FROM bando_sources WHERE bando_id=?", (bid,)).fetchone()["t"]
+            last_activity = max((t for t in (runs["t"], src_ts) if t), default=None)
             out.append({
                 "bando_id": bid, "name": b["name"], "issuer": b["issuer"], "status": meta.get("status") or ("IN LAVORAZIONE" if b["extraction_status"] != "COMPLETED" else "ESTRATTO"),
                 "period": meta.get("period"), "curated": bool(meta.get("curated")), "extraction_status": b["extraction_status"],
@@ -154,8 +156,13 @@ def list_bandi() -> List[Dict[str, Any]]:
                 "rules_pending": sum(1 for r in rules if r["status"] == "PENDING_REVIEW"),
                 "requirements_count": reqs["c"] or 0, "requirements_to_review": int(reqs["r"] or 0),
                 "sources_count": len(meta.get("sources", [])), "gaps_count": len(meta.get("not_specified", [])),
-                "coverage": _summary(coverage(published)), "runs_count": runs["c"], "last_run_ts": runs["t"],
+                "coverage": _summary(coverage(published)), "runs_count": runs["c"], "last_run_ts": runs["t"], "last_activity_ts": last_activity,
             })
+    # i bandi usati o cercati più di recente vengono per primi: tre ordinamenti stabili, dal meno al più prioritario,
+    # così chi non ha ancora attività resta in coda ordinato come prima (curati, poi per id) invece di mischiarsi a caso
+    out.sort(key=lambda b: b["bando_id"])
+    out.sort(key=lambda b: 0 if b["curated"] else 1)
+    out.sort(key=lambda b: b["last_activity_ts"] or "", reverse=True)
     return out
 
 
