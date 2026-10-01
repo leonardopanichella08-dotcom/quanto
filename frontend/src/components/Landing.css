@@ -35,7 +35,6 @@
 /* ============================================================== zona scura (hero + cta finale) ============================================================== */
 .qt-land .dark-zone { position: relative; background: var(--d-bg); color: var(--d-ink); overflow: hidden; }
 .qt-land .grain { position: absolute; inset: 0; opacity: 0.05; mix-blend-mode: overlay; pointer-events: none; z-index: 1; }
-.qt-land .node-field { position: absolute; inset: 0; z-index: 0; opacity: 0.85; }
 .qt-land .glow-yellow { position: absolute; border-radius: 50%; filter: blur(90px); background: radial-gradient(circle, rgba(241,226,27,0.28), transparent 70%); pointer-events: none; z-index: 0; }
 
 /* ---------------------------------------------------------------- nav */
@@ -142,20 +141,6 @@
 .qt-land .block-mini { display: grid; grid-template-columns: repeat(5, 1fr); gap: 3px; }
 .qt-land .block-mini i { aspect-ratio: 1; background: var(--l-line-strong); border-radius: 2px; display: block; }
 
-/* ---------------------------------------------------------------- pilastri */
-.qt-land .pillars { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; }
-@media (max-width: 760px) { .qt-land .pillars { grid-template-columns: 1fr; } }
-.qt-land .pillar .icon { width: 40px; height: 40px; border-radius: 10px; background: var(--yellow); display: flex; align-items: center; justify-content: center; margin-bottom: 16px; color: var(--yellow-ink); }
-.qt-land .pillar h3 { font-size: 17px; font-weight: 700; margin-bottom: 8px; }
-.qt-land .pillar p { font-size: 13.5px; color: var(--l-ink-2); line-height: 1.6; }
-
-/* ---------------------------------------------------------------- per chi */
-.qt-land .audience { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1px; background: var(--l-line-strong); border-radius: 12px; overflow: hidden; border: 1px solid var(--l-line-strong); }
-@media (max-width: 760px) { .qt-land .audience { grid-template-columns: 1fr; } }
-.qt-land .aud-card { padding: 26px 22px; background: var(--l-bg); }
-.qt-land .aud-card h4 { font-size: 15px; font-weight: 700; margin-bottom: 8px; }
-.qt-land .aud-card p { font-size: 13px; color: var(--l-ink-2); line-height: 1.55; }
-
 /* ---------------------------------------------------------------- prezzi */
 .qt-land .pricing { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
 @media (max-width: 760px) { .qt-land .pricing { grid-template-columns: 1fr; } }
@@ -196,13 +181,12 @@
 
 @keyframes pulse-node { 0%, 100% { opacity: var(--base-op, 0.5); r: var(--base-r, 1.6); } 50% { opacity: 1; r: calc(var(--base-r, 1.6) * 1.8); } }
 .qt-land .node-pulse { animation: pulse-node 3.4s ease-in-out infinite; animation-delay: var(--d, 0s); transform-box: fill-box; transform-origin: center; }
+@keyframes pulse-block { 0%, 100% { opacity: 0.55; } 50% { opacity: 1; } }
+.qt-land .block-pulse { animation: pulse-block 3.4s ease-in-out infinite; animation-delay: var(--d, 0s); transform-box: fill-box; transform-origin: center; }
 
-/* ============================================================== texture e sfondi variati per le sezioni chiare
+/* ============================================================== texture e sfondi variati per le sezioni
    (niente più un'unica tinta piatta dall'inizio alla fine: ogni sezione ha un fondo o una texture propri) */
 .qt-land section.sect { position: relative; overflow: hidden; }
-.qt-land .band-alt { background: var(--l-bg-2); }
-.qt-land .pattern-dots { position: absolute; inset: 0; z-index: 0; opacity: 0.5;
-  background-image: radial-gradient(var(--l-line-strong) 1.2px, transparent 1.2px); background-size: 26px 26px; }
 .qt-land .pattern-grid { position: absolute; inset: 0; z-index: 0; opacity: 0.6;
   background-image: linear-gradient(var(--l-line) 1px, transparent 1px), linear-gradient(90deg, var(--l-line) 1px, transparent 1px);
   background-size: 46px 46px; mask-image: radial-gradient(ellipse 70% 60% at 50% 40%, #000 40%, transparent 85%); }
@@ -240,3 +224,34 @@
 .qt-land .mw-bar { display: flex; height: 30px; border-radius: 7px; overflow: hidden; }
 .qt-land .mw-bar span { display: flex; align-items: center; justify-content: center; font-size: 10.5px; font-weight: 700; color: var(--yellow-ink); }
 .qt-land .mw-bar-labels { display: flex; justify-content: space-between; font-size: 11px; color: var(--d-ink-2); margin-top: 10px; }
+.qt-land .mw-run { display: flex; justify-content: space-between; align-items: center; font-size: 11.5px; color: var(--d-ink-2); padding: 7px 0; border-bottom: 1px solid var(--d-line); }
+.qt-land .mw-run:last-of-type { border-bottom: none; }
+.qt-land .mw-run .mono { color: var(--yellow); font-size: 11px; }
+.qt-land .ok-badge { display: inline-flex; align-items: center; gap: 6px; font-size: 11.5px; color: #6ee7b7; margin-top: 6px; }
+.qt-land .mw-rule-line { display: flex; justify-content: space-between; align-items: center; background: var(--d-bg); border: 1px solid var(--d-line); border-radius: 8px; padding: 10px 12px; margin-bottom: 10px; }
+.qt-land .rule-k { font-size: 12.5px; color: var(--d-ink); font-weight: 600; }
+.qt-land .rule-v { font-size: 12px; color: var(--yellow); }
+.qt-land .mw-src { font-size: 11px; color: var(--d-ink-2); line-height: 1.5; }
+.qt-land .mw-check { display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--d-ink); padding: 6px 0; }
+.qt-land .mw-check svg { color: #6ee7b7; flex-shrink: 0; }
+.qt-land .mini-window.compact .mw-body { min-height: 112px; padding: 16px; }
+
+/* ============================================================== sezioni scure di chiusura (fiducia, pubblico, prezzi):
+   stesso trattamento della testata, non più il fondo chiaro a pois/griglia usato prima */
+.qt-land .sect.dark-sect { background: var(--d-bg); color: var(--d-ink); }
+.qt-land .sect.dark-sect .kicker { color: var(--d-ink-2); }
+.qt-land .sect.dark-sect .sect-head h2 { color: var(--d-ink); }
+.qt-land .sect.dark-sect .sect-head p { color: var(--d-ink-2); }
+.qt-land .sect.dark-sect .btn-line { border-color: var(--d-line); color: var(--d-ink); }
+.qt-land .sect.dark-sect .btn-line:hover { border-color: var(--yellow); color: var(--yellow); }
+.qt-land .chain-field { position: absolute; inset: 0; z-index: 0; opacity: 0.5; }
+.qt-land .trio { position: relative; z-index: 2; display: grid; grid-template-columns: repeat(3, 1fr); gap: 28px; }
+@media (max-width: 760px) { .qt-land .trio { grid-template-columns: 1fr; } }
+.qt-land .trio-item { display: flex; flex-direction: column; gap: 16px; }
+.qt-land .trio-item h3 { font-size: 17px; font-weight: 700; color: var(--d-ink); }
+.qt-land .trio-item p { font-size: 13.5px; color: var(--d-ink-2); line-height: 1.6; }
+.qt-land .price-card.dark-card { background: var(--d-bg-2); border-color: var(--d-line); color: var(--d-ink); }
+.qt-land .price-card.dark-card .tier { color: var(--d-ink-2); }
+.qt-land .price-card.dark-card .amount { color: var(--d-ink); }
+.qt-land .price-card.dark-card li { color: var(--d-ink-2); }
+.qt-land .price-card.dark-card.dim { border-style: dashed; border-color: var(--d-line); background: transparent; }

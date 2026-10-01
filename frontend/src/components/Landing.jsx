@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react'
-import { ArrowRight, Check, Loader2, Lock, Search, ShieldCheck, Sparkles, Target, X } from 'lucide-react'
+import { ArrowRight, Check, Loader2, Lock, Search, ShieldCheck, Sparkles, X } from 'lucide-react'
 import { api, session } from '../lib/api'
 import { Mark, Wordmark } from './ui'
 import './Landing.css'
@@ -23,28 +23,42 @@ function mulberry32(seed) {
   return () => { a |= 0; a = (a + 0x6D2B79F5) | 0; let t = Math.imul(a ^ (a >>> 15), 1 | a); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296 }
 }
 
-function NodeField() {
-  const { dots, links, active } = useMemo(() => {
-    const rnd = mulberry32(42)
-    const pts = Array.from({ length: 70 }, (_, i) => ({ id: i, x: rnd() * 1200, y: rnd() * 460, r: 1.1 + rnd() * 1.1 }))
-    const activeColors = ['#10b981', '#10b981', '#f59e0b', '#ef4444', '#10b981', '#38bdf8']
-    const act = Array.from({ length: 6 }, (_, i) => ({ ...pts[i * 9], color: activeColors[i], delay: i * 0.5 }))
-    const lk = []
-    for (let i = 0; i < pts.length; i++) {
-      for (let j = i + 1; j < pts.length; j++) {
-        const dx = pts[i].x - pts[j].x, dy = pts[i].y - pts[j].y
-        const d = Math.sqrt(dx * dx + dy * dy)
-        if (d < 95 && rnd() > 0.55) lk.push([pts[i], pts[j]])
-      }
-    }
-    return { dots: pts, links: lk, active: act }
-  }, [])
+const HEX = '0123456789abcdef'
+function hexStr(rnd, n) { let s = ''; for (let i = 0; i < n; i++) s += HEX[Math.floor(rnd() * 16)]; return s }
+
+/** Non punti a caso: una catena di blocchi firmati, come il registro vero di QUANTO — ogni blocco porta un'impronta
+ * e si lega al precedente. Disposta in righe larghe così resta leggibile come "catena" anche a distanza. */
+function ChainField({ rows = 3, perRow = 7, seed = 7 }) {
+  const { blocks, links, active } = useMemo(() => {
+    const rnd = mulberry32(seed)
+    const w = 1200, h = 460
+    const bx = Array.from({ length: rows }, (_, r) => {
+      const y = (h / (rows + 1)) * (r + 1) + (rnd() - 0.5) * 30
+      const offset = (rnd() - 0.5) * 60
+      return Array.from({ length: perRow }, (_, i) => ({
+        id: `${r}-${i}`, x: offset + (w / (perRow - 0.4)) * (i + 0.4) + (rnd() - 0.5) * 24, y: y + (rnd() - 0.5) * 18, hex: hexStr(rnd, 4),
+      }))
+    })
+    const flat = bx.flat()
+    const lk = bx.flatMap((row) => row.slice(1).map((p, i) => [row[i], p]))
+    const activeColors = ['#10b981', '#f59e0b', '#38bdf8']
+    const act = [flat[4], flat[Math.floor(flat.length / 2)], flat[flat.length - 5]].filter(Boolean).map((p, i) => ({ ...p, color: activeColors[i], delay: i * 0.7 }))
+    return { blocks: flat, links: lk, active: act }
+  }, [rows, perRow, seed])
   return (
-    <svg className="node-field" viewBox="0 0 1200 460" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
-      {links.map(([a, b], i) => <line key={i} x1={a.x} y1={a.y} x2={b.x} y2={b.y} stroke="#F6F2E2" strokeOpacity="0.06" strokeWidth="1" />)}
-      {dots.map((p) => <circle key={p.id} cx={p.x} cy={p.y} r={p.r} fill="#F6F2E2" fillOpacity="0.22" />)}
+    <svg className="chain-field" viewBox="0 0 1200 460" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
+      {links.map(([a, b], i) => <line key={i} x1={a.x + 18} y1={a.y} x2={b.x - 18} y2={b.y} stroke="#F6F2E2" strokeOpacity="0.08" strokeWidth="1" strokeDasharray="2 3" />)}
+      {blocks.map((p) => (
+        <g key={p.id} transform={`translate(${p.x}, ${p.y})`} opacity="0.5">
+          <rect x="-17" y="-10" width="34" height="20" rx="4" fill="none" stroke="#F6F2E2" strokeOpacity="0.28" />
+          <text x="0" y="4" textAnchor="middle" fontSize="6.5" fontFamily="JetBrains Mono, monospace" fill="#F6F2E2" fillOpacity="0.4">{p.hex}</text>
+        </g>
+      ))}
       {active.map((p, i) => (
-        <circle key={i} cx={p.x} cy={p.y} r={2} fill={p.color} className="node-pulse" style={{ '--d': `${p.delay}s`, '--base-r': 2 }} />
+        <g key={i} transform={`translate(${p.x}, ${p.y})`}>
+          <rect x="-17" y="-10" width="34" height="20" rx="4" fill="none" stroke={p.color} strokeWidth="1.3" className="block-pulse" style={{ '--d': `${p.delay}s` }} />
+          <text x="0" y="4" textAnchor="middle" fontSize="6.5" fontFamily="JetBrains Mono, monospace" fill={p.color}>{p.hex}</text>
+        </g>
       ))}
     </svg>
   )
@@ -206,6 +220,41 @@ function AllocationMockup() {
   )
 }
 
+function DeterministicMockup() {
+  return (
+    <div className="mini-window compact" style={{ '--tilt': '0.8deg' }}>
+      <div className="chrome"><i /><i /><i /></div>
+      <div className="mw-body">
+        <div className="mw-run"><span>Esecuzione di lunedì</span><span className="mono">a7f3…9c1e</span></div>
+        <div className="mw-run"><span>Esecuzione di venerdì</span><span className="mono">a7f3…9c1e</span></div>
+        <span className="ok-badge"><Check className="w-3.5 h-3.5" />Impronta identica</span>
+      </div>
+    </div>
+  )
+}
+function SourceMockup() {
+  return (
+    <div className="mini-window compact" style={{ '--tilt': '-0.6deg' }}>
+      <div className="chrome"><i /><i /><i /></div>
+      <div className="mw-body">
+        <div className="mw-rule-line"><span className="rule-k">Consulenze</span><span className="rule-v mono">max 20%</span></div>
+        <p className="mw-src">Fonte: Art. 25, D.L. 18 ottobre 2012, n. 179, conv. L. 17 dicembre 2012, n. 221</p>
+      </div>
+    </div>
+  )
+}
+function ApprovalMockup() {
+  return (
+    <div className="mini-window compact" style={{ '--tilt': '1deg' }}>
+      <div className="chrome"><i /><i /><i /></div>
+      <div className="mw-body">
+        {['Personale', 'Beni strumentali', 'Consulenze', 'Documenti'].map((t) => <div key={t} className="mw-check"><Check className="w-3 h-3" />{t}</div>)}
+        <span className="ok-badge"><ShieldCheck className="w-3.5 h-3.5" />Pronto da firmare</span>
+      </div>
+    </div>
+  )
+}
+
 const STEPS = [
   { n: '01', title: 'Scegli il bando', body: "Cercalo per nome: QUANTO naviga le pagine ufficiali e scarica i documenti da solo.", Visual: SearchMockup },
   { n: '02', title: 'Costruisci il budget', body: 'Voci di spesa a mano, da un esempio o importate da Excel.', Visual: BudgetMockup },
@@ -220,7 +269,7 @@ export default function Landing({ onLogin, onAuditor, onVision }) {
     <div className="qt-land">
       <div className="dark-zone">
         <div className="glow-yellow" style={{ width: 520, height: 520, top: -160, left: '50%', transform: 'translateX(-50%)' }} />
-        <NodeField />
+        <ChainField />
         <svg className="grain" width="100%" height="100%"><filter id="n"><feTurbulence type="fractalNoise" baseFrequency="0.85" numOctaves="2" stitchTiles="stitch" /></filter><rect width="100%" height="100%" filter="url(#n)" /></svg>
 
         <nav className="qt-nav"><div className="wrap row">
@@ -310,38 +359,38 @@ export default function Landing({ onLogin, onAuditor, onVision }) {
         </div>
       </section>
 
-      <section className="sect">
-        <div className="glow-warm" style={{ width: 700, height: 500, top: '10%', left: '50%', transform: 'translateX(-50%)' }} aria-hidden="true" />
+      <section className="sect dark-sect">
+        <ChainField rows={2} perRow={9} seed={23} />
         <div className="wrap">
           <div className="sect-head center">
             <span className="kicker">Perché fidarsi</span>
             <h2>Tre principi, non uno slogan</h2>
           </div>
-          <div className="pillars">
-            <div className="pillar"><div className="icon"><Target className="w-5 h-5" /></div><h3>Deterministico</h3><p>Stesso budget, stesso risultato. Nessuna generazione: solo calcolo e regole tracciabili, riga per riga.</p></div>
-            <div className="pillar"><div className="icon"><Check className="w-5 h-5" /></div><h3>Fonti dichiarate</h3><p>Ogni regola cita da dove viene — un decreto, una circolare — e quanto ci si può fidare di quella lettura.</p></div>
-            <div className="pillar"><div className="icon"><ShieldCheck className="w-5 h-5" /></div><h3>Verificabile</h3><p>Registro firmato, a prova di manomissione: chiunque può controllare che un budget certificato non sia stato toccato.</p></div>
+          <div className="trio">
+            <div className="trio-item"><DeterministicMockup /><h3>Deterministico</h3><p>Stesso budget, stesso risultato. Nessuna generazione: solo calcolo e regole tracciabili, riga per riga.</p></div>
+            <div className="trio-item"><SourceMockup /><h3>Fonti dichiarate</h3><p>Ogni regola cita da dove viene — un decreto, una circolare — e quanto ci si può fidare di quella lettura.</p></div>
+            <div className="trio-item"><HashMockup /><h3>Verificabile</h3><p>Registro firmato, a prova di manomissione: chiunque può controllare che un budget certificato non sia stato toccato.</p></div>
           </div>
         </div>
       </section>
 
-      <section className="sect band-alt">
-        <div className="pattern-dots" aria-hidden="true" />
+      <section className="sect dark-sect">
+        <div className="glow-warm" style={{ width: 700, height: 500, top: '10%', left: '50%', transform: 'translateX(-50%)' }} aria-hidden="true" />
         <div className="wrap">
           <div className="sect-head">
             <span className="kicker">Per chi è</span>
             <h2>Chi lo usa già così</h2>
           </div>
-          <div className="audience">
-            <div className="aud-card"><h4>Consulenti e commercialisti</h4><p>Controllano il budget di un cliente prima di firmarlo, con la fonte di ogni regola pronta da mostrare.</p></div>
-            <div className="aud-card"><h4>PMI e startup</h4><p>Costruiscono il budget del progetto e sanno subito cosa verrebbe respinto, prima di candidarsi.</p></div>
-            <div className="aud-card"><h4>Enti ed associazioni</h4><p>Pianificano più fondi insieme e sanno chi paga cosa lungo tutto l'anno.</p></div>
+          <div className="trio">
+            <div className="trio-item"><ApprovalMockup /><h3>Consulenti e commercialisti</h3><p>Controllano il budget di un cliente prima di firmarlo, con la fonte di ogni regola pronta da mostrare.</p></div>
+            <div className="trio-item"><HeatMockup /><h3>PMI e startup</h3><p>Costruiscono il budget del progetto e sanno subito cosa verrebbe respinto, prima di candidarsi.</p></div>
+            <div className="trio-item"><AllocationMockup /><h3>Enti ed associazioni</h3><p>Pianificano più fondi insieme e sanno chi paga cosa lungo tutto l'anno.</p></div>
           </div>
         </div>
       </section>
 
-      <section className="sect" id="prezzi">
-        <div className="pattern-dots" aria-hidden="true" />
+      <section className="sect dark-sect" id="prezzi">
+        <ChainField rows={2} perRow={8} seed={41} />
         <div className="wrap">
           <div className="sect-head">
             <span className="kicker">Prezzi</span>
@@ -349,7 +398,7 @@ export default function Landing({ onLogin, onAuditor, onVision }) {
             <p>QUANTO è gratuito in questa fase. Più avanti arriveranno piani a pagamento per team ed enti — chi si iscrive ora userà il prodotto gratuitamente più a lungo.</p>
           </div>
           <div className="pricing">
-            <div className="price-card">
+            <div className="price-card dark-card">
               <div className="tier">Oggi</div>
               <div className="amount">Gratis</div>
               <ul>
@@ -358,9 +407,9 @@ export default function Landing({ onLogin, onAuditor, onVision }) {
                 <li>Registro firmato e verifica</li>
                 <li>Documenti privati e allocazione dei fondi</li>
               </ul>
-              <button className="btn-line" style={{ width: '100%', justifyContent: 'center' }} onClick={() => setModal('register')}>Inizia gratis</button>
+              <button className="btn-solid" style={{ width: '100%', justifyContent: 'center' }} onClick={() => setModal('register')}>Inizia gratis</button>
             </div>
-            <div className="price-card dim">
+            <div className="price-card dark-card dim">
               <div className="tier">Presto</div>
               <div className="amount">In arrivo</div>
               <ul>
