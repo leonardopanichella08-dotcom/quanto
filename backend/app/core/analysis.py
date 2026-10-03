@@ -24,12 +24,12 @@ GENERIC_LAW_HOSTS = ("gazzettaufficiale.it", "normattiva.it", "eur-lex.europa.eu
 
 
 def is_own_document(s: Dict[str, Any], bando_name: str) -> bool:
-    """Il documento dell'ente che emette il bando (decreto, circolare, avviso) o un testo caricato a mano è il bando stesso: si legge intero.
+    """Il documento dell'ente che emette il bando (decreto, circolare, avviso) è il bando stesso: si legge intero. Un testo incollato a mano che non nomina mai il bando resta soggetto al filtro.
     Solo le raccolte di norme generali (Gazzetta, Normattiva, EUR-Lex) si leggono nei passaggi che citano il bando."""
     if research.match_score(bando_name, f"{s.get('name') or ''} {research.url_text(s.get('url') or '')}") is not None:
         return True
     url = s.get("url")
-    return not url or not any(h in research.host_of(url) for h in GENERIC_LAW_HOSTS)
+    return bool(url) and not any(h in research.host_of(url) for h in GENERIC_LAW_HOSTS)
 
 
 def _label(s: Dict[str, Any]) -> str:
