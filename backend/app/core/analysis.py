@@ -101,7 +101,9 @@ def superseded_shas(sources: List[Dict[str, Any]]) -> Dict[str, str]:
     return out
 
 
-_STOP = {"bando", "avviso", "agevolazioni", "agevolazione", "incentivo", "incentivi", "contributi", "contributo", "delle", "della", "dello", "dei", "degli", "per", "con", "anno"}
+_STOP = {"bando", "avviso", "agevolazioni", "agevolazione", "incentivo", "incentivi", "contributi", "contributo", "delle", "della", "dello", "dei", "degli", "per", "con", "anno",
+         # parole che identificano l'ente e non il bando: un altro bando della stessa Camera di Commercio le condivide
+         "camera", "commercio", "regione", "provincia", "comune", "metropolitana", "ministero", "cciaa", "ente", "citta"}
 
 
 def distinctive_tokens(name: str) -> List[str]:

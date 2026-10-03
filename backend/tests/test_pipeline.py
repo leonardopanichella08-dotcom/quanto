@@ -121,3 +121,14 @@ def test_documents_about_another_bando_are_discarded_and_the_search_limit_does_n
     report = pipeline.run("CAT-PIPE-GGG777", urls=[good], actor="test")                 # la ricerca è limitata ma l'indirizzo già noto viene studiato lo stesso
     assert report["documents_official"] == 1 and "Troppe richieste" in report["engine_errors"][0]
     assert research.normalize_url(other) not in {research.normalize_url(s["url"]) for s in __import__("app.core.events", fromlist=["x"]).list_bando_sources("CAT-PIPE-GGG777")}
+
+
+def test_a_sibling_bando_of_the_same_issuer_is_not_mistaken_for_this_one():
+    from app.core import analysis
+    name = "Agevolazioni Servizi Campo Ambientale 2026 Camera Di Commercio Di Torino"
+    sibling = {"title": "Voucher transizione ecologica 2024", "url": "https://www.to.camcom.it/bando-transizione-ecologica-2024",
+               "text": "La Camera di commercio di Torino concede voucher alle imprese per servizi di consulenza sulla transizione ecologica."}
+    own = {"title": "Servizi in campo ambientale", "url": "https://www.to.camcom.it/campo-ambientale",
+           "text": "Servizi di analisi in campo ambientale del Laboratorio Chimico della Camera di commercio di Torino."}
+    assert not analysis.is_about(name, sibling)
+    assert analysis.is_about(name, own)
