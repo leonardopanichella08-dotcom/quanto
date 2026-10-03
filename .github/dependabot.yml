@@ -15,8 +15,9 @@ updates:
       frontend-minor-patch:
         update-types: [minor, patch]
     ignore:
-      # Tailwind 4 cambia i valori predefiniti di bordi, ombre e ring: va migrato con un confronto visivo, non con un aggiornamento automatico.
-      - dependency-name: tailwindcss
+      # Gli aggiornamenti di versione maggiore del frontend (React 19, Tailwind 4, plugin di Vite 6) cambiano il comportamento dell'app:
+      # si fanno apposta, con un confronto visivo, non con una proposta automatica che poi fallisce. Gli avvisi di sicurezza restano attivi.
+      - dependency-name: "*"
         update-types: ["version-update:semver-major"]
   - package-ecosystem: github-actions
     directory: /
