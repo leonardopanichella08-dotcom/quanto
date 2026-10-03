@@ -132,3 +132,8 @@ def test_a_sibling_bando_of_the_same_issuer_is_not_mistaken_for_this_one():
            "text": "Servizi di analisi in campo ambientale del Laboratorio Chimico della Camera di commercio di Torino."}
     assert not analysis.is_about(name, sibling)
     assert analysis.is_about(name, own)
+
+
+def test_percentages_with_three_decimals_are_read_whole():
+    assert figs("2,75% per gli investimenti ordinari, 3,575% per gli investimenti 4.0") == [("PERCENT", 2.75, "RIF"), ("PERCENT", 3.575, "RIF")]
+    assert figs("contributo maggiorato al 3,575% annuo") == [("PERCENT", 3.575, "RIF")]

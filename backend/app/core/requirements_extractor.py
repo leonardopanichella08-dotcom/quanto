@@ -171,7 +171,7 @@ def looks_garbled(text: str) -> bool:
 
 
 # ------------------------------------------------------------------ cifre: tetti, soglie, importi, durate
-_FIG_PERCENT = re.compile(r"(\d{1,3}(?:[.,]\d{1,2})?)\s*(?:%|per\s*cento\b)", re.I)
+_FIG_PERCENT = re.compile(r"(?<![\d.,])(\d{1,3}(?:[.,]\d{1,4})?)\s*(?:%|per\s*cento\b)", re.I)       # «3,575%» ha tre decimali: con due si leggeva 575
 _FIG_EUR = re.compile(r"(?:€|euro|EUR)\s*(\d[\d.,]*)(?:\s*(milioni|mln|mila|miliardi))?|(\d[\d.,]*)\s*(milioni|mln|mila|miliardi)?\s*(?:di\s+)?(?:€|euro|EUR)\b", re.I)
 _FIG_DURATION = re.compile(r"(\d{1,3})\s*(giorni|mesi|anni|days|months|years)\b", re.I)
 _BOUND_MAX = re.compile(r"non\s+(?:pu[oò]\s+|possono\s+|deve\s+|devono\s+)?(?:essere\s+)?(?:superior\w+|superare|eccedere|oltre)|massim\w+|fino\s+(?:a|al|ad)|al\s+più|entro|non\s+oltre|up\s+to|no\s+more\s+than|not\s+exceed\w*|maximum|at\s+most|limite\s+di", re.I)
