@@ -60,10 +60,34 @@ def test_a_long_document_titled_like_the_bando_is_read_whole_not_only_where_the_
     assert any("20%" in r["text"] for r in out["requirements"])
 
 
-def test_issuer_documents_are_read_whole_but_general_law_collections_stay_filtered():
+def test_a_document_is_strict_only_if_titled_like_the_bando_or_it_mentions_it_often():
     from app.core import analysis
     name = "Fondo Test Innovazione"
-    assert analysis.is_own_document({"name": "Circolare 4-2026.pdf", "url": "https://www.simest.it/app/uploads/circolare.pdf"}, name)
-    assert not analysis.is_own_document({"name": "testo-incollato.txt", "url": None}, name)      # senza indirizzo e senza il nome nel titolo: resta filtrato
-    assert not analysis.is_own_document({"name": "Regolamento UE 1407", "url": "https://eur-lex.europa.eu/legal-content/IT/TXT/?uri=CELEX:32013R1407"}, name)
-    assert not analysis.is_own_document({"name": "DL 179", "url": "https://www.normattiva.it/uri-res/N2Ls?urn:nir:stato:decreto.legge:2012-10-18;179"}, name)
+    assert analysis.is_strict_source({"name": "disposizioni_fondo_test_innovazione.pdf", "url": None}, name, "testo")          # il titolo lo dice
+    assert analysis.is_strict_source({"name": "circolare.pdf", "url": "https://x.it/c.pdf"}, name, ("Il Fondo Test Innovazione concede. " * 9))      # citato spesso
+    assert analysis.is_strict_source({"name": "scheda.pdf", "url": "https://x.it/s.pdf"}, name, "Il Fondo Test Innovazione. " * 3 + "x" * 2000)        # breve e denso
+    assert not analysis.is_strict_source({"name": "bilancio-consolidato.pdf", "url": "https://x.it/b.pdf"}, name, "Il Fondo Test Innovazione. " * 2 + "x" * 500_000)   # citato di passaggio
+
+
+def test_only_the_latest_edition_of_the_same_document_is_read():
+    from app.core import analysis
+    mk = lambda sha, url, ts: {"sha256": sha, "name": url.rsplit("/", 1)[-1], "url": url, "ts": ts, "content_type": "application/pdf"}
+    old = mk("a", "https://www.simest.it/app/uploads/2025/04/Circolare-4-394-2023-DE-17.04.2025_clean.pdf", "1")
+    mid = mk("b", "https://www.simest.it/app/uploads/2025/11/Circolare-4-394-2023-DE-3.11.2025.pdf", "2")
+    new = mk("c", "https://www.simest.it/app/uploads/2026/08/Circolare-4-394-2023-DE-30.07.2026.pdf", "3")
+    other = mk("d", "https://www.simest.it/app/uploads/2024/07/Circolare-modifica-art-3.6-v-25.07.2024.pdf", "4")
+    out = analysis.superseded_shas([old, mid, new, other])
+    assert set(out) == {"a", "b"} and out["a"].startswith("Circolare-4-394-2023-DE-30.07.2026")
+
+
+def test_a_rule_read_by_one_regex_hit_from_a_non_strict_source_waits_for_review_unless_two_sources_agree():
+    from app.core import events
+    from app.core.ingestion import Ingestion
+    Ingestion.catalog("CAT-RULES-HHH888", "Fondo Regole Prova", "Ente", None, None)
+    text = "Il contributo a fondo perduto è pari al 50% delle spese ammissibili del progetto presentato dall'impresa beneficiaria."
+    one = Ingestion.extract("CAT-RULES-HHH888", sources=[("Bilancio generale", text)], strict_refs=set())
+    assert "contribution_rate_pct" not in one.published
+    two = Ingestion.extract("CAT-RULES-HHH888", sources=[("Bilancio generale", text), ("Altro documento", text)], strict_refs=set())
+    assert two.published.get("contribution_rate_pct") == "0.5"
+    Ingestion.catalog("CAT-RULES-III999", "Fondo Regole Seconda", "Ente", None, None)
+    assert Ingestion.extract("CAT-RULES-III999", sources=[("Regolamento del Fondo", text)], strict_refs={"Regolamento del Fondo"}).published.get("contribution_rate_pct") == "0.5"

@@ -190,8 +190,10 @@ class Ingestion:
     # ------------------------------------------------------------------ estrazione (Stadi 2 e 3)
     @classmethod
     def extract(cls, bando_id: str, source_text: Optional[str] = None, ai_passes: Optional[List[Dict[str, Any]]] = None,
-                source_ref: Optional[str] = None, sources: Optional[List[Tuple[str, str]]] = None) -> ExtractionOutcome:
-        """``sources`` = [(riferimento, testo)] in ordine di fiducia (prima le ufficiali): regole e requisiti si leggono da tutte, ciascuno con la propria fonte."""
+                source_ref: Optional[str] = None, sources: Optional[List[Tuple[str, str]]] = None, strict_refs: Optional[set] = None) -> ExtractionOutcome:
+        """``sources`` = [(riferimento, testo)] in ordine di fiducia (prima le ufficiali): regole e requisiti si leggono da tutte, ciascuno con la propria fonte.
+        ``strict_refs`` = i riferimenti dei documenti che parlano senza dubbio di questo bando: una regola letta con un solo colpo di regex si pubblica solo se
+        viene da uno di quelli o se due fonti diverse concordano; altrimenti resta in revisione. Senza ``strict_refs`` tutte le fonti valgono."""
         published: Dict[str, str] = {}
         pending: List[str] = []
         with connect() as conn:
@@ -234,7 +236,8 @@ class Ingestion:
                     if is_published(key):
                         continue
                     values = list(dict.fromkeys(v for _, v in hits))
-                    if len(values) == 1:
+                    trusted = strict_refs is None or any(r in strict_refs for r, _ in hits) or len({r for r, _ in hits}) >= 2
+                    if len(values) == 1 and trusted:
                         put(key, values[0], "STRUCTURED_PARSING", "PUBLISHED", ref=hits[0][0])
                         published[key] = values[0]
                         existing[key] = {"status": "PUBLISHED", "origin": "STRUCTURED_PARSING"}
