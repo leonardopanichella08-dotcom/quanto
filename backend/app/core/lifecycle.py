@@ -48,7 +48,7 @@ def classify(opens: Optional[str], closes: Optional[str], today: Optional[str] =
 
 def _read(url: str) -> Tuple[Optional[str], Optional[str], Optional[str]]:
     try:
-        raw, _, ctype = research.http_get(url)
+        raw, _, ctype = research.http_get(url, limited=False)
         text, _, _ = research.html_to_text(research._decode(raw, ctype))
     except Exception as exc:  # noqa: BLE001 - una pagina che non risponde non ferma il lotto
         return None, None, type(exc).__name__

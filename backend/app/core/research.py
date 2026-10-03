@@ -194,9 +194,10 @@ def check_public_url(url: str) -> None:
             raise ResearchError("Indirizzo non consentito (rete interna)")
 
 
-def http_get(url: str, max_bytes: int = MAX_BINARY_BYTES, accept_error_body: bool = False, timeout: float = TIMEOUT) -> Tuple[bytes, str, str]:
+def http_get(url: str, max_bytes: int = MAX_BINARY_BYTES, accept_error_body: bool = False, timeout: float = TIMEOUT, limited: bool = True) -> Tuple[bytes, str, str]:
     """Scarica ``url`` seguendo i redirect a mano (ricontrollando ogni destinazione). Ritorna (contenuto, url finale, content-type)."""
-    _rate_check()
+    if limited:                      # i lavori di servizio (lettura delle date del catalogo) non consumano il limite pensato per le ricerche degli utenti
+        _rate_check()
     headers = {"User-Agent": UA, "Accept": "text/html,application/pdf,application/xhtml+xml,text/plain;q=0.8,*/*;q=0.5", "Accept-Language": "it-IT,it;q=0.9"}
     current = url
     with httpx.Client(timeout=timeout, follow_redirects=False, headers=headers) as client:
