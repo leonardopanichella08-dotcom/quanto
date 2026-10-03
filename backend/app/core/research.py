@@ -41,7 +41,7 @@ PDF_TIME_BUDGET = 18.0            # secondi: una richiesta su serverless ha un l
 LONG_DOC_CHARS = 60_000         # oltre questa lunghezza si analizzano solo i passaggi che parlano del bando
 TIMEOUT = 12.0
 MAX_REDIRECTS = 5
-RATE_LIMIT = (120, 600)          # richieste in uscita ogni 10 minuti, per processo
+RATE_LIMIT = (400, 600)          # richieste in uscita ogni 10 minuti, per processo (lo studio di un bando ne usa 20-30)
 
 OFFICIAL_SUFFIXES = (
     "gazzettaufficiale.it", "normattiva.it", "eur-lex.europa.eu", "europa.eu", "invitalia.it", "governo.it", "gov.it", "inps.it", "camera.it", "senato.it",
@@ -552,7 +552,10 @@ def _search_one(query: str, name: Optional[str] = None) -> Tuple[List[Dict[str, 
     """Prova i motori in ordine e si ferma al primo che dà risultati PERTINENTI (da un server cloud Bing risponde spesso con risultati senza alcun legame)."""
     notes: List[str] = []
     for engine, fn in _engines():
-        _rate_check()
+        try:
+            _rate_check()
+        except ResearchError as exc:          # limite raggiunto: la ricerca lo dice, non va in errore
+            return [], str(exc)
         hits, err = fn(query)
         if hits and _relevant(name, hits):
             return [{**h, "engine": engine} for h in hits], None

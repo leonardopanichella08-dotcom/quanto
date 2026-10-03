@@ -83,7 +83,7 @@ def test_pipeline_searches_downloads_reads_and_reports_completeness(monkeypatch)
         return {"candidates": mine + [{"url": url, "title": "Regolamento", "tier": "UFFICIALE", "score": 200, "is_pdf": True, "user_supplied": False, "preselected": True}],
                 "engine_errors": []}
     monkeypatch.setattr(research, "search_web", fake_search)
-    monkeypatch.setattr(research, "fetch_document", lambda u: fake_doc(u, long_official_text()) if u == url else (_ for _ in ()).throw(research.ResearchError("non raggiungibile")))
+    monkeypatch.setattr(research, "fetch_document", lambda u: fake_doc(u, "Regolamento del Fondo Prova Pipeline.\n" + long_official_text()) if u == url else (_ for _ in ()).throw(research.ResearchError("non raggiungibile")))
 
     report = pipeline.run("CAT-PIPE-EEE555", actor="test")
     assert report["status"] == "COMPLETA"
@@ -105,3 +105,19 @@ def test_pipeline_with_nothing_found_is_declared_insufficient_with_the_reason(mo
 
 def test_run_endpoint_rejects_unknown_bando():
     assert client.post("/api/v2/bandi/research/run", json={"bando_id": "NON-ESISTE"}).status_code == 404
+
+
+def test_documents_about_another_bando_are_discarded_and_the_search_limit_does_not_crash_the_run(monkeypatch):
+    name = "Investimenti Sostenibili 4.0 — Bando 2026 (PN RIC 2021-2027)"
+    assert pipeline.distinctive_tokens(name) == ["investimenti", "sostenibili"]
+    assert not pipeline.is_about(name, {"title": "Bando investimenti campagna 2026", "url": "https://regione.sicilia.it/x", "text": "Contributi agricoli per la campagna"})
+    assert pipeline.is_about(name, {"title": "FAQ", "url": "https://pnric.gov.it/faq.pdf", "text": "Investimenti sostenibili 4.0: domande frequenti"})
+
+    Ingestion.catalog("CAT-PIPE-GGG777", "Investimenti Sostenibili 4.0", "Ente", None, None)
+    good, other = "https://www.pnric.gov.it/faq.pdf", "https://www.regione.sicilia.it/bando-campagna.pdf"
+    monkeypatch.setattr(research, "search_web", lambda *a, **k: (_ for _ in ()).throw(research.ResearchError("Troppe richieste di ricerca in poco tempo")))
+    texts = {good: long_official_text() + " Investimenti sostenibili 4.0.", other: long_official_text().replace("consulenze", "trattori")}
+    monkeypatch.setattr(research, "fetch_document", lambda u: fake_doc(u, texts[u]))
+    report = pipeline.run("CAT-PIPE-GGG777", urls=[good], actor="test")                 # la ricerca è limitata ma l'indirizzo già noto viene studiato lo stesso
+    assert report["documents_official"] == 1 and "Troppe richieste" in report["engine_errors"][0]
+    assert research.normalize_url(other) not in {research.normalize_url(s["url"]) for s in __import__("app.core.events", fromlist=["x"]).list_bando_sources("CAT-PIPE-GGG777")}
