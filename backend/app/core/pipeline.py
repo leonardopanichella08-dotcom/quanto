@@ -9,13 +9,12 @@ Le soglie sono costanti qui sotto: cambiarle cambia il criterio per tutti i band
 """
 from __future__ import annotations
 
-import math
-import re
 import time
 from concurrent.futures import ThreadPoolExecutor
 from typing import Any, Dict, List, Optional
 
 from app.core import analysis, bandi, events, research
+from app.core.analysis import distinctive_tokens, is_about  # noqa: F401 - la stessa regola vale al download e all'analisi
 from app.core.ingestion import Ingestion
 
 MAX_DOCS = 8                 # documenti scaricati per esecuzione
@@ -41,25 +40,6 @@ def store_fetched(bando_id: str, doc: Dict[str, Any], actor: str = "pipeline") -
     events.add_document("BANDO_PDF" if doc["kind"] == "PDF" else "BANDO_WEB", doc["url"], doc["raw"], bando_id=bando_id,
                         meta={"url": doc["url"], "kind": doc["kind"], "chars": doc["chars"], "pages": doc["pages"], "tier": doc["tier"]})
     return digest
-
-
-_STOP = {"bando", "avviso", "agevolazioni", "agevolazione", "incentivo", "incentivi", "contributi", "contributo", "delle", "della", "dello", "dei", "degli", "per", "con", "anno"}
-
-
-def distinctive_tokens(name: str) -> List[str]:
-    """Le parole che identificano il bando: tutto il nome tranne la parentesi, gli anni e le parole generiche (un anno non distingue un bando da quello di un'altra regione)."""
-    base = re.sub(r"\([^)]*\)", " ", name).lower()
-    return [w for w in re.findall(r"[a-zà-ù0-9]+(?:\.[0-9]+)?", base) if len(w) >= 4 and w not in _STOP and not re.fullmatch(r"(19|20)\d\d", w)]
-
-
-def is_about(name: str, doc: Dict[str, Any]) -> bool:
-    """Un documento trovato dalla ricerca entra solo se parla davvero di questo bando: almeno il 60% delle parole che lo identificano compare nel titolo, nell'indirizzo o nel testo.
-    Evita che il bando di un'altra regione con un nome simile riempia i requisiti di regole non sue."""
-    tokens = distinctive_tokens(name)
-    if not tokens:
-        return True
-    hay = f"{doc.get('title', '')} {doc.get('url', '')} {doc.get('text', '')[:400_000]}".lower()
-    return sum(1 for t in tokens if t in hay) >= math.ceil(0.6 * len(tokens))
 
 
 def _fetch(url: str) -> Dict[str, Any]:

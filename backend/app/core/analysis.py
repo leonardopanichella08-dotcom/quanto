@@ -12,6 +12,7 @@ Tre decisioni uguali per ogni bando:
 """
 from __future__ import annotations
 
+import math
 import re
 from typing import Any, Dict, List, Optional, Set
 
@@ -38,7 +39,8 @@ def name_parts(bando_name: str) -> List[List[str]]:
     parts: List[List[str]] = []
     for p in re.split(r"\s[—–-]\s", base):
         words = re.findall(r"[\wà-ù/.&]+", p)
-        if len(words) >= 2 or any(ch.isdigit() for ch in p):
+        meaningful = [w for w in words if w.lower() not in _STOP and not re.fullmatch(r"(19|20)\d\d", w)]      # «Bando 2026» non identifica nulla
+        if len(meaningful) >= 2:
             parts.append(words)
     return parts
 
@@ -99,6 +101,28 @@ def superseded_shas(sources: List[Dict[str, Any]]) -> Dict[str, str]:
     return out
 
 
+_STOP = {"bando", "avviso", "agevolazioni", "agevolazione", "incentivo", "incentivi", "contributi", "contributo", "delle", "della", "dello", "dei", "degli", "per", "con", "anno"}
+
+
+def distinctive_tokens(name: str) -> List[str]:
+    """Le parole che identificano il bando: tutto il nome tranne la parentesi, gli anni e le parole generiche (un anno non distingue un bando da quello di un'altra regione)."""
+    base = re.sub(r"\([^)]*\)", " ", name).lower()
+    return [w for w in re.findall(r"[a-zà-ù0-9]+(?:\.[0-9]+)?", base) if len(w) >= 4 and w not in _STOP and not re.fullmatch(r"(19|20)\d\d", w)]
+
+
+def is_about(name: str, doc: Dict[str, Any]) -> bool:
+    """Un documento entra solo se parla davvero di questo bando: ne cita il nome, oppure almeno il 60% delle parole che lo identificano compare nel titolo, nell'indirizzo o nel testo.
+    Evita che il bando di un'altra regione con un nome simile riempia i requisiti di regole non sue."""
+    text = doc.get("text", "")[:400_000]
+    if mentions(text, name) >= 1:
+        return True
+    tokens = distinctive_tokens(name)
+    if not tokens:
+        return True
+    hay = f"{doc.get('title', '')} {doc.get('url', '')} {text}".lower()
+    return sum(1 for t in tokens if t in hay) >= math.ceil(0.6 * len(tokens))
+
+
 def _label(s: Dict[str, Any]) -> str:
     return (s["name"] + (f" — {s['url']}" if s.get("url") else "") + (" (fonte secondaria)" if s.get("tier") == "SECONDARIA" else ""))[:300]
 
@@ -128,6 +152,10 @@ def run_analysis(bando_id: str) -> Dict[str, Any]:
         label = _label(s)
         if is_reference_dataset(s):
             meta[s["sha256"]] = {"label": label, "chars": len(text), "used_chars": 0, "lang": "—", "garbled": False, "special": "Elenco di dati di riferimento (non è un testo del bando): conservato, non letto per ricavare regole"}
+            continue
+        if s.get("origin") != "UPLOAD" and not is_about(name, {"title": s.get("name"), "url": s.get("url"), "text": text}):
+            meta[s["sha256"]] = {"label": label, "chars": len(text), "used_chars": 0, "lang": detect_lang(text), "garbled": False,
+                                 "special": "Non parla di questo bando (pagina o documento generico): conservato, non letto per ricavare regole"}
             continue
         if s["sha256"] in old:
             meta[s["sha256"]] = {"label": label, "chars": len(text), "used_chars": 0, "lang": detect_lang(text), "garbled": False,
