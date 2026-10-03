@@ -173,7 +173,7 @@ def run_analysis(bando_id: str) -> Dict[str, Any]:
             srcs.append((label, focus))
             # Affidabile per le regole: un documento severo, un testo caricato apposta da una persona, o un documento breve (che si legge intero e
             # difficilmente è un bilancio). Il rischio sono i documenti lunghi e generici, dove una frase sparsa basta a far scattare una regola.
-            if is_strict or s.get("origin") == "UPLOAD" or len(text) <= research.LONG_DOC_CHARS:
+            if is_strict or s.get("origin") == "UPLOAD" or (len(text) <= research.LONG_DOC_CHARS and mentions(text, name) >= 1):
                 strict.add(label)
     Ingestion.confirm(bando_id)
     passes = None
