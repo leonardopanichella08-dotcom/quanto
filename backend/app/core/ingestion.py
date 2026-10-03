@@ -24,6 +24,7 @@ from typing import Any, Dict, List, Optional, Tuple
 
 from pydantic import TypeAdapter, ValidationError
 
+from app.core import research
 from app.core.db import connect
 from app.core.requirements_extractor import extract_more_rules, extract_requirements
 from app.models.schemas import GrantRuleSet
@@ -219,9 +220,13 @@ class Ingestion:
                     conn.execute("DELETE FROM rules WHERE bando_id=? AND origin='STRUCTURED_PARSING'", (bando_id,))
                     existing = {k: v for k, v in existing.items() if v["origin"] != "STRUCTURED_PARSING"}
                 found: Dict[str, List[Tuple[str, str]]] = {}
+                bando_name = (conn.execute("SELECT name FROM bandi WHERE bando_id=?", (bando_id,)).fetchone() or {"name": ""})["name"]
                 for ref, txt in srcs:
                     amb: Dict[str, List[str]] = {}
-                    for key, value in extract_deterministic(txt, amb).items():
+                    # I requisiti si leggono su tutto il documento; le regole numeriche solo dai passaggi che parlano del bando:
+                    # su 200 pagine una frase sparsa basterebbe ad accendere una regola, e una regola sbagliata altera le validazioni.
+                    rule_txt = txt if len(txt) <= research.LONG_DOC_CHARS else research.focus_text(txt, bando_name)
+                    for key, value in extract_deterministic(rule_txt, amb).items():
                         found.setdefault(key, []).append((ref, value))
                     for key, values in amb.items():
                         found.setdefault(key, []).extend((ref, v) for v in values)
