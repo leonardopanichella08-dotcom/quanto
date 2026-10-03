@@ -9,7 +9,7 @@ from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query, R
 from pydantic import BaseModel, Field, model_validator
 
 from app.api.deps import actor_of, require_auth, require_hq
-from app.core import analysis, bandi, discovery, events, research, webhooks
+from app.core import analysis, bandi, discovery, events, pipeline, research, webhooks
 from app.core.ingestion import Ingestion
 
 router = APIRouter()
@@ -51,6 +51,11 @@ class ResearchSearch(BaseModel):
 class ResearchFetch(BaseModel):
     bando_id: str = Field(..., max_length=64, pattern=r"^[A-Za-z0-9._\-]+$")
     url: str = Field(..., min_length=8, max_length=800)
+
+
+class ResearchRun(BaseModel):
+    bando_id: str = Field(..., max_length=64, pattern=r"^[A-Za-z0-9._\-]+$")
+    urls: List[str] = Field(default_factory=list, max_length=8, description="Indirizzi ufficiali già noti (passano per primi)")
 
 
 class ResearchAnalyze(BaseModel):
@@ -136,11 +141,7 @@ def research_fetch(body: ResearchFetch, request: Request) -> dict:
     warns = list(doc["warnings"])
     if doc["chars"] > events.MAX_SOURCE_TEXT:
         warns.append(f"Testo salvato solo per i primi {events.MAX_SOURCE_TEXT:,} caratteri su {doc['chars']:,} (il file originale è conservato per intero)".replace(",", "."))
-    file_sha = events.save_bando_file(body.bando_id, doc["title"], doc["raw"], doc["content_type"])
-    digest = events.save_bando_source(body.bando_id, doc["title"], doc["text"], url=doc["url"], tier=doc["tier"], content_type=doc["content_type"],
-                                      pages=doc["pages"], origin="WEB", file_sha256=file_sha, warnings=warns)
-    events.add_document("BANDO_PDF" if doc["kind"] == "PDF" else "BANDO_WEB", doc["url"], doc["raw"], bando_id=body.bando_id,
-                        meta={"url": doc["url"], "kind": doc["kind"], "chars": doc["chars"], "pages": doc["pages"], "tier": doc["tier"]})
+    digest = pipeline.store_fetched(body.bando_id, doc, actor_of(request))
     known = {research.normalize_url(s["url"]) for s in events.list_bando_sources(body.bando_id) if s.get("url")}
     links = research.find_links(doc["url"], doc["links"], known, focus=(Ingestion.get_bando(body.bando_id) or {}).get("name", ""))
     events.record("bando.research.fetch", f"Scaricato {doc['kind']} ({doc['tier'].lower()}): {doc['title'][:80]}, {doc['chars']} caratteri",
@@ -148,6 +149,16 @@ def research_fetch(body: ResearchFetch, request: Request) -> dict:
                   details={"url": doc["url"], "sha256": digest, "size_bytes": doc["size_bytes"], "pages": doc["pages"], "links_found": len(links), "warnings": doc["warnings"]})
     return {"source": {"name": doc["title"], "url": doc["url"], "tier": doc["tier"], "kind": doc["kind"], "chars": doc["chars"], "pages": doc["pages"],
                        "size_bytes": doc["size_bytes"], "sha256": digest, "warnings": warns}, "links": links}
+
+
+@router.post("/research/run", dependencies=[Depends(require_auth)],
+             summary="Processo standard: cerca, scarica, legge e valuta un bando in un colpo solo, con il rapporto di completezza")
+def research_run(body: ResearchRun, request: Request) -> dict:
+    if Ingestion.get_bando(body.bando_id) is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Bando non trovato")
+    Ingestion.confirm(body.bando_id)
+    report = pipeline.run(body.bando_id, body.urls, actor=actor_of(request))
+    return {"bando_id": body.bando_id, "report": report, "detail": bandi.get_bando_detail(body.bando_id)}
 
 
 @router.post("/research/analyze", dependencies=[Depends(require_auth)], summary="Legge tutti i documenti in memoria: regole, requisiti, dati chiave, riferimenti di legge")

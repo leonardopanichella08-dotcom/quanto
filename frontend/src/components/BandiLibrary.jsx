@@ -4,6 +4,7 @@ import { api } from '../lib/api'
 import { BANDO_STATUS_STYLE, KIND_STYLE, fmtTs } from '../lib/format'
 import { ruleLabel } from '../data/ruleLabels'
 import { ChromeCard } from './ui'
+import PipelineButton from './PipelineButton'
 import Guide from './Guide'
 import ResearchPanel from './ResearchPanel'
 import CatalogBrowser from './CatalogBrowser'
@@ -69,7 +70,13 @@ function Sources({ bando }) {
   )
 }
 
+const fmtFigure = (f) => {
+  const v = f.kind === 'EUR' ? `${Number(f.value).toLocaleString('it-IT')} €` : f.kind === 'PERCENT' ? `${String(f.value).replace('.', ',')} %` : `${f.value} ${f.unit}`
+  return `${f.bound === 'MAX' ? 'max ' : f.bound === 'MIN' ? 'min ' : ''}${v}`
+}
+
 function Requirements({ items }) {
+  const [onlyFigures, setOnlyFigures] = useState(false)
   const [topic, setTopic] = useState('')
   const [q, setQ] = useState('')
   const [limit, setLimit] = useState(40)
@@ -78,13 +85,15 @@ function Requirements({ items }) {
     items.forEach((r) => r.topic.split(' / ').forEach((t) => { m[t] = (m[t] || 0) + 1 }))
     return Object.entries(m).sort((a, b) => b[1] - a[1])
   }, [items])
-  const rows = items.filter((r) => (!topic || r.topic.split(' / ').includes(topic)) && (!q.trim() || `${r.text} ${r.topic}`.toLowerCase().includes(q.trim().toLowerCase())))
+  const withFigures = items.filter((r) => r.figures?.length).length
+  const rows = items.filter((r) => (!onlyFigures || r.figures?.length) && (!topic || r.topic.split(' / ').includes(topic)) && (!q.trim() || `${r.text} ${r.topic}`.toLowerCase().includes(q.trim().toLowerCase())))
   const link = (ref) => { const m = ref && ref.match(/^(.*?) — (https?:\/\/\S+)/); return m ? { label: m[1], url: m[2] } : null }
   return (
     <div className="space-y-3">
       <input value={q} onChange={(e) => { setQ(e.target.value); setLimit(40) }} placeholder="Cerca nei requisiti (es. età, fondo perduto, CUP)" aria-label="Cerca nei requisiti" className="field" />
       <div className="flex flex-wrap gap-1.5">
         <button onClick={() => { setTopic(''); setLimit(40) }} className={`px-2 py-1 rounded-lg border text-[11px] ${!topic ? 'border-brand text-ink' : 'border-line-strong text-ink-2 hover:text-ink'}`}>Tutti ({items.length})</button>
+        <button onClick={() => { setOnlyFigures(!onlyFigures); setLimit(40) }} className={`px-2 py-1 rounded-lg border text-[11px] ${onlyFigures ? 'border-brand text-ink' : 'border-line-strong text-ink-2 hover:text-ink'}`}>Tetti e soglie ({withFigures})</button>
         {topics.slice(0, 14).map(([t, n]) => (
           <button key={t} onClick={() => { setTopic(t === topic ? '' : t); setLimit(40) }} className={`px-2 py-1 rounded-lg border text-[11px] ${topic === t ? 'border-brand text-ink' : 'border-line-strong text-ink-2 hover:text-ink'}`}>{t} ({n})</button>
         ))}
@@ -100,6 +109,7 @@ function Requirements({ items }) {
               {r.criteria.map((c) => <span key={c} className="font-mono text-[11px] text-brand-ink">#{c}</span>)}
             </div>
             <p className="text-ink-2 leading-relaxed">{r.text}</p>
+            {r.figures?.length > 0 && <div className="flex flex-wrap gap-1.5">{r.figures.map((f, i) => <span key={i} className="px-1.5 py-0.5 rounded border border-brand/40 text-[11px] font-mono text-brand-ink">{fmtFigure(f)}</span>)}</div>}
             {l ? <p className="text-[11px] text-mute truncate">Fonte: <a href={l.url} target="_blank" rel="noreferrer" className="hover:underline text-sky-700">{l.label}</a></p>
               : r.source_ref && <p className="text-[11px] text-mute">{r.source_ref}</p>}
           </div>
@@ -113,7 +123,7 @@ function Requirements({ items }) {
 
 const TAB_HINT = { rules: 'bando_scheda_regole', reqs: 'bando_scheda_req', cov: 'bando_scheda_cov', src: 'bando_scheda_fonti' }
 
-function Detail({ bando, onUse, using }) {
+function Detail({ bando, onUse, using, onStudied }) {
   const [tab, setTab] = useState('rules')
   const rules = bando.rules.filter((r) => r.status === 'PUBLISHED')        // le regole in disaccordo le vede solo il Quartier Generale
   const requirements = bando.requirements.filter((r) => r.kind !== 'DA_REVISIONARE')
@@ -136,6 +146,7 @@ function Detail({ bando, onUse, using }) {
           <span className="label block mb-1">Che tipo di aiuto è: {bando.benefit.type}</span>{bando.benefit.summary}
         </div>
       )}
+      {!bando.curated && <PipelineButton bandoId={bando.bando_id} onDone={onStudied} label={bando.requirements.length ? 'Rileggi le fonti ufficiali' : 'Studia il bando (cerca, scarica, leggi)'} />}
       {bando.status?.startsWith('CHIUSO') && <p className="text-xs text-amber-700 flex gap-2"><AlertTriangle className="w-4 h-4 shrink-0" />Bando chiuso: utile per progetti in corso o per fare confronti.</p>}
 
       <div className="flex items-center gap-3">
@@ -263,7 +274,7 @@ export default function BandiLibrary({ bandi, selectedId, onSelect, onReload }) 
         </div>
 
         <div className="lg:col-span-2 space-y-6">
-          {detail ? <Detail bando={detail} onUse={use} using={using} /> : (
+          {detail ? <Detail bando={detail} onUse={use} using={using} onStudied={async () => { await onReload(); await load(detail.bando_id) }} /> : (
             <div className="card p-10 text-center text-sm text-mute">Scegli un bando dall’elenco per vederne regole, requisiti e fonti.</div>
           )}
           <CatalogBrowser picking={picking} onPick={(item) => {

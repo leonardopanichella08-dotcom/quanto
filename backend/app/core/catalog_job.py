@@ -14,7 +14,7 @@ import urllib.parse
 from datetime import date
 from typing import Any, Dict, List
 
-from app.core import discovery, events, llm, research
+from app.core import discovery, events, lifecycle, llm, research
 from app.core.db import connect
 
 logger = logging.getLogger("quanto.catalog")
@@ -36,15 +36,20 @@ def cleanup_stale(actor: str = "cron") -> Dict[str, Any]:
     today_iso = date.today().isoformat()
     with connect() as conn:
         rows = conn.execute(
-            "SELECT bando_id, name, deadline FROM bandi WHERE bando_id LIKE 'CAT-%' AND catalog_status != 'CURATED' "
+            "SELECT bando_id, name, deadline, source_url FROM bandi WHERE bando_id LIKE 'CAT-%' AND catalog_status != 'CURATED' "
             "AND extraction_status = 'NOT_STARTED' AND requested_by_clients = 0"
         ).fetchall()
         stale = []
         for r in rows:
-            m = _LEADING_YEAR.match(r["name"] or "")
+            name, deadline = r["name"] or "", r["deadline"]
+            m = _LEADING_YEAR.match(name)
             by_name = bool(m) and int(m.group(0)[:4]) < this_year
-            by_deadline = bool(r["deadline"]) and re.fullmatch(r"\d{4}-\d{2}-\d{2}", r["deadline"] or "") and r["deadline"] < today_iso
-            if by_name or by_deadline:
+            by_deadline = bool(deadline) and re.fullmatch(r"\d{4}-\d{2}-\d{2}", deadline) is not None and deadline < today_iso
+            # Nessuna data dichiarata dalla pagina e il nome cita solo anni passati: nessuna prova che sia aperto, quindi chiuso.
+            years = [int(y) for y in re.findall(r"\b(20[0-3]\d)\b", name)]
+            undated = deadline in (None, "non indicata")
+            by_old_year = undated and bool(years) and max(years) < this_year and (deadline == "non indicata" or "incentivi.gov.it" not in (r["source_url"] or ""))
+            if by_name or by_deadline or by_old_year:
                 stale.append(r["bando_id"])
         if stale:
             placeholders = ",".join("?" * len(stale))
@@ -87,6 +92,7 @@ def refresh(enrich: int = 15, actor: str = "cron") -> Dict[str, Any]:
                 conn.execute("UPDATE bandi SET name=COALESCE(?, name), issuer=COALESCE(?, issuer), deadline=COALESCE(?, deadline) WHERE bando_id=?",
                              (meta.get("name"), meta.get("issuer"), meta.get("deadline") or "non indicata", r["bando_id"]))
             report["enriched"] += 1
+    report["lifecycle"] = lifecycle.scan_catalog(limit=60, budget_s=25.0)            # prima si leggono le date, poi si eliminano le voci chiuse
     report["deleted"] = cleanup_stale(actor)["deleted"]
     events.record("catalog.refresh", f"Catalogo aggiornato: {report['inserted']} voci nuove, {report['enriched']} arricchite, {report['deleted']} eliminate perché ormai chiuse"
                   + (f", {len(report['errors'])} errori" if report["errors"] else ""),

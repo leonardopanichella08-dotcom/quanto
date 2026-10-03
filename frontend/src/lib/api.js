@@ -110,6 +110,7 @@ export const api = {
   researchSearch: (body) => post('/bandi/research/search', body),
   researchFetch: (body) => post('/bandi/research/fetch', body),
   researchAnalyze: (body) => post('/bandi/research/analyze', body),
+  researchRun: (body) => post('/bandi/research/run', body),
   sourceText: (bandoId, sha) => call(`/bandi/${encodeURIComponent(bandoId)}/sources/${encodeURIComponent(sha)}`).then((r) => r.json()),
   // --- missione uno
   fields: () => call('/budget/fields').then((r) => r.json()),

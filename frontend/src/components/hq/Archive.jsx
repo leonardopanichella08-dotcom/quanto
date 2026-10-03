@@ -4,6 +4,7 @@ import { api, download } from '../../lib/api'
 import { fmtBytes, fmtTs } from '../../lib/format'
 import { Hint } from '../Help'
 import { FundsAdmin } from './DataAdmin'
+import PipelineButton from '../PipelineButton'
 
 const esc = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
 const KINDS = ['OBBLIGO', 'DIVIETO', 'LIMITE', 'INFO', 'DA_REVISIONARE']
@@ -391,6 +392,8 @@ function BandoManager({ id, deletedDefaults, onList }) {
       {tab === 'actions' && (
         <div className="space-y-4">
           {actErr && <p className="text-xs text-red-700">{actErr}</p>}
+          <PipelineButton bandoId={id} onDone={changed} />
+          <p className="text-xs text-mute">È il processo standard, uguale per ogni bando: cerca le fonti ufficiali, le scarica, legge requisiti, tetti e regole e dice con precisione cosa manca.</p>
           <div className="flex flex-wrap gap-2"><button onClick={reanalyze} disabled={busy === 're' || !detail.sources_detail.length} className="btn-primary flex items-center gap-1.5">{busy === 're' ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <RefreshCw className="w-3.5 h-3.5" />}Rileggi tutto</button>
             <button onClick={exportZip} disabled={busy === 'zip'} className="btn"><Download className="w-3.5 h-3.5" />Esporta tutto (ZIP)</button></div>
           <p className="text-xs text-mute">“Rileggi tutto” ricalcola regole automatiche e requisiti da tutti i documenti in memoria (le decisioni che hai preso a mano restano). L’esportazione contiene la scheda JSON, i testi estratti e i file originali.</p>

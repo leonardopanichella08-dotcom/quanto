@@ -255,8 +255,8 @@ class Ingestion:
                         reqs.append(r)
                 conn.execute("DELETE FROM requirements WHERE bando_id=? AND origin='STRUCTURED_PARSING'", (bando_id,))
                 base = conn.execute("SELECT COALESCE(MAX(seq), 0) m FROM requirements WHERE bando_id=?", (bando_id,)).fetchone()["m"]
-                conn.executemany("INSERT INTO requirements (bando_id, seq, topic, kind, text, criteria, source_ref, origin) VALUES (?,?,?,?,?,?,?,?)",
-                                 [(bando_id, i, r["topic"], r["kind"], r["text"], json.dumps(r["criteria"]), r["source_ref"], "STRUCTURED_PARSING")
+                conn.executemany("INSERT INTO requirements (bando_id, seq, topic, kind, text, criteria, source_ref, origin, figures) VALUES (?,?,?,?,?,?,?,?,?)",
+                                 [(bando_id, i, r["topic"], r["kind"], r["text"], json.dumps(r["criteria"]), r["source_ref"], "STRUCTURED_PARSING", json.dumps(r.get("figures") or []))
                                   for i, r in enumerate(reqs, base + 1)])
 
             if ai_passes:                                              # Stadio 3: il confronto lo fa il codice

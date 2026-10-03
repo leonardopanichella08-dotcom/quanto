@@ -120,7 +120,7 @@ CATEGORY_WORDS: Dict[str, str] = {
 
 
 _ART_HEAD = re.compile(r"^(?:Art(?:icolo|\.)?|Article)\s*\d+", re.I)
-_HEAD_BLOCK = re.compile(r"^(?:PARTE|TITOLO|CAPO|SEZIONE|ALLEGATO|PART|CHAPTER|SECTION|ANNEX)\s+(?:[IVXLC]+|\d+|[A-Z])", re.I)
+_HEAD_BLOCK = re.compile(r"^(?:PARTE|TITOLO|CAPO|SEZIONE|ALLEGATO|PART|CHAPTER|SECTION|ANNEX)\s+(?:[IVXLC]+|\d+|[A-Z])\b", re.I)
 _HEAD_NUM = re.compile(r"^(?:\d{1,2}(?:\.\d{1,2}){0,2}|[A-Z](?:\.\d{1,2})?)\.?\s+[A-ZÀ-Ý]")
 _CITATION = re.compile(r"^\d{1,4}/\d{2,4}\s+del\s", re.I)       # «1407/2013 del 18 dicembre 2013: …»: un atto citato, non un limite
 
@@ -170,6 +170,53 @@ def looks_garbled(text: str) -> bool:
     return sample.count("(cid:") > 20 or letters / max(len(sample), 1) < 0.45
 
 
+# ------------------------------------------------------------------ cifre: tetti, soglie, importi, durate
+_FIG_PERCENT = re.compile(r"(\d{1,3}(?:[.,]\d{1,2})?)\s*(?:%|per\s*cento\b)", re.I)
+_FIG_EUR = re.compile(r"(?:€|euro|EUR)\s*(\d[\d.,]*)(?:\s*(milioni|mln|mila|miliardi))?|(\d[\d.,]*)\s*(milioni|mln|mila|miliardi)?\s*(?:di\s+)?(?:€|euro|EUR)\b", re.I)
+_FIG_DURATION = re.compile(r"(\d{1,3})\s*(giorni|mesi|anni|days|months|years)\b", re.I)
+_BOUND_MAX = re.compile(r"non\s+(?:pu[oò]\s+|possono\s+|deve\s+|devono\s+)?(?:essere\s+)?(?:superior\w+|superare|eccedere|oltre)|massim\w+|fino\s+(?:a|al|ad)|al\s+più|entro|non\s+oltre|up\s+to|no\s+more\s+than|not\s+exceed\w*|maximum|at\s+most|limite\s+di", re.I)
+_BOUND_MIN = re.compile(r"almeno|minim\w+|non\s+inferior\w+|pari\s+o\s+superior\w+|a\s+partire\s+da|at\s+least|minimum|no\s+less\s+than|not\s+less\s+than", re.I)
+_MULT = {"mila": 1_000, "milioni": 1_000_000, "mln": 1_000_000, "miliardi": 1_000_000_000}
+_UNIT = {"giorni": "giorni", "days": "giorni", "mesi": "mesi", "months": "mesi", "anni": "anni", "years": "anni"}
+
+
+def _bound(before: str) -> str:
+    """Il verbo che precede la cifra dice se è un tetto o una soglia minima; senza indicazione è un valore di riferimento."""
+    window = re.split(r"[;:]", before[-55:])[-1]      # il verbo vale solo per la cifra della sua stessa clausola
+    mx, mn = list(_BOUND_MAX.finditer(window)), list(_BOUND_MIN.finditer(window))
+    if mx and (not mn or mx[-1].start() > mn[-1].start()):
+        return "MAX"
+    if mn:
+        return "MIN"
+    return "RIF"
+
+
+def extract_figures(sentence: str) -> List[Dict]:
+    """Cifre di una frase come dati strutturati: {kind: PERCENT|EUR|DURATION, value, unit, bound: MAX|MIN|RIF}. Le date e i numeri di atto non sono cifre."""
+    out: List[Dict] = []
+    for m in _FIG_PERCENT.finditer(sentence):
+        try:
+            out.append({"kind": "PERCENT", "value": _num(m.group(1)), "unit": "%", "bound": _bound(sentence[:m.start()])})
+        except ValueError:
+            continue
+    for m in _FIG_EUR.finditer(sentence):
+        raw, mult = (m.group(1), m.group(2)) if m.group(1) else (m.group(3), m.group(4))
+        try:
+            value = _num(raw.strip(".,")) * _MULT.get((mult or "").lower(), 1)
+        except ValueError:
+            continue
+        out.append({"kind": "EUR", "value": value, "unit": "€", "bound": _bound(sentence[:m.start()])})
+    for m in _FIG_DURATION.finditer(sentence):
+        out.append({"kind": "DURATION", "value": int(m.group(1)), "unit": _UNIT[m.group(2).lower()], "bound": _bound(sentence[:m.start()])})
+    seen, uniq = set(), []
+    for f in out:
+        k = (f["kind"], f["value"], f["bound"])
+        if k not in seen:
+            seen.add(k)
+            uniq.append(f)
+    return uniq[:6]
+
+
 def extract_requirements(text: str, max_items: int = 3000, source_ref: str = "testo caricato") -> List[Dict]:
     """Ogni frase con un tema noto o con un obbligo/divieto diventa un requisito tracciato, in tutto il documento
     (non solo le prime pagine), con l'articolo in cui si trova quando il testo ne ha."""
@@ -202,10 +249,10 @@ def extract_requirements(text: str, max_items: int = 3000, source_ref: str = "te
         if topics:
             criteria = sorted({n for _, cs in topics for n in cs})
             out.append({"topic": " / ".join(t for t, _ in topics[:3]), "kind": kind, "text": (f"[{article}] " if article else "") + sentence[:600], "criteria": criteria,
-                        "source_ref": source_ref, "confidence": "PARSING"})
+                        "source_ref": source_ref, "confidence": "PARSING", "figures": extract_figures(sentence)})
         elif kind in ("DIVIETO", "OBBLIGO"):
             out.append({"topic": "Non classificato", "kind": "DA_REVISIONARE", "text": (f"[{article}] " if article else "") + sentence[:600], "criteria": [],
-                        "source_ref": source_ref, "confidence": "PARSING"})
+                        "source_ref": source_ref, "confidence": "PARSING", "figures": extract_figures(sentence)})
         if len(out) >= max_items:
             break
     if len(out) < 8 and len(text) > 1500:

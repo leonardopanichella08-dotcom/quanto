@@ -196,7 +196,7 @@ def get_bando_detail(bando_id: str) -> Optional[Dict[str, Any]]:
         "curated": bool(meta.get("curated")), "extraction_status": b["extraction_status"], "legal_refs": legal_refs,
         "benefit": meta.get("benefit"), "sources": meta.get("sources", []), "not_specified": meta.get("not_specified", []),
         "rules": rules,
-        "requirements": [{"seq": r["seq"], "topic": r["topic"], "kind": r["kind"], "text": r["text"], "criteria": json.loads(r["criteria"]),
+        "requirements": [{"seq": r["seq"], "topic": r["topic"], "kind": r["kind"], "text": r["text"], "criteria": json.loads(r["criteria"]), "figures": json.loads(r["figures"] or "[]"),
                           "source_ref": r["source_ref"], "origin": r["origin"]} for r in req_rows],
         "coverage": cov, "coverage_summary": _summary(cov),
         "grant_rules": rule_set.model_dump(mode="json") if rule_set else None,

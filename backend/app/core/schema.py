@@ -347,6 +347,10 @@ ALTER TABLE pattern_budgets ENABLE ROW LEVEL SECURITY;
 ALTER TABLE pattern_archetypes ENABLE ROW LEVEL SECURITY;
 """
 
+_REQUIREMENT_FIGURES = """
+ALTER TABLE requirements ADD COLUMN figures TEXT;
+"""
+
 # (versione, nome, SQL). Aggiungere in coda, mai modificare le esistenti.
 MIGRATIONS: List[Tuple[int, str, str]] = [
     (1, "init", _INIT),
@@ -357,4 +361,5 @@ MIGRATIONS: List[Tuple[int, str, str]] = [
     (6, "pattern", _PATTERN),
     (7, "draft_doc_type", _DRAFT_DOC_TYPE),
     (8, "enable_rls", _ENABLE_RLS),
+    (9, "requirement_figures", _REQUIREMENT_FIGURES),
 ]
