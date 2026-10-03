@@ -13,6 +13,13 @@ from app.core.ingestion import Ingestion
 from app.core.requirements_extractor import detect_lang, looks_garbled
 
 
+def is_reference_dataset(s: Dict[str, Any]) -> bool:
+    """Un foglio elettronico (es. l'elenco delle imprese finanziate) è un dato di riferimento, non un testo normativo:
+    non contiene obblighi né tetti e leggerlo come un bando riempirebbe i requisiti di righe di anagrafica."""
+    ctype = (s.get("content_type") or "").lower()
+    return "spreadsheetml" in ctype or (s.get("name") or "").lower().endswith((".xlsx", ".xlsm", ".xls"))
+
+
 def _label(s: Dict[str, Any]) -> str:
     return (s["name"] + (f" — {s['url']}" if s.get("url") else "") + (" (fonte secondaria)" if s.get("tier") == "SECONDARIA" else ""))[:300]
 
@@ -37,8 +44,11 @@ def run_analysis(bando_id: str) -> Dict[str, Any]:
     meta: Dict[str, Dict[str, Any]] = {}
     for s in sources:
         text = s["text"]
-        focus = research.focus_text(text, name)
         label = _label(s)
+        if is_reference_dataset(s):
+            meta[s["sha256"]] = {"label": label, "chars": len(text), "used_chars": 0, "lang": "—", "garbled": False, "reference": True}
+            continue
+        focus = research.focus_text(text, name)
         garbled = looks_garbled(text)
         meta[s["sha256"]] = {"label": label, "chars": len(text), "used_chars": len(focus), "lang": detect_lang(text), "garbled": garbled}
         if focus.strip() and not garbled:
@@ -58,7 +68,7 @@ def run_analysis(bando_id: str) -> Dict[str, Any]:
     for s in sources:
         m = meta[s["sha256"]]
         n = by_ref.get(m["label"], 0)
-        note = source_note(m["chars"], m["used_chars"], m["garbled"], n)
+        note = "Elenco di dati di riferimento (non è un testo del bando): conservato, non letto per ricavare regole" if m.get("reference") else source_note(m["chars"], m["used_chars"], m["garbled"], n)
         events.save_source_analysis(bando_id, s["sha256"], {"requirements": n, "lang": m["lang"], "used_chars": m["used_chars"], "chars": m["chars"], "note": note})
         report.append({"sha256": s["sha256"], "name": s["name"], "url": s.get("url"), "requirements": n, "lang": m["lang"], "note": note})
     return {"outcome": outcome, "requirements": reqs, "report": report, "sources": len(sources)}

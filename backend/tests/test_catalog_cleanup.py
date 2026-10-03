@@ -35,3 +35,14 @@ def test_refresh_runs_cleanup_too_and_reports_how_many_were_deleted(monkeypatch)
     assert report["deleted"] == 1
     with connect() as conn:
         assert not conn.execute("SELECT 1 FROM bandi WHERE bando_id = 'CAT-STALE-FOR-REFRESH-EEE555'").fetchone()
+
+
+def test_a_spreadsheet_source_is_kept_but_never_read_as_if_it_were_the_bando_text():
+    from app.core import analysis, events
+    Ingestion.catalog("CAT-WITH-DATASET-FFF666", "Bando Con Elenco Beneficiari", "Ente", None, "https://example.test/x")
+    sheet = "### Foglio: Foglio1\n" + "\n".join(f"AZIENDA {i} SRL | 1234567890{i} | Lazio | RM | ROMA | 100000 | Life sciences | 2023-01-01" for i in range(40))
+    events.save_bando_source("CAT-WITH-DATASET-FFF666", "elenco.xlsx", sheet, url="https://example.test/elenco.xlsx", tier="UFFICIALE",
+                             content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", pages=None, origin="WEB", file_sha256=None, warnings=[])
+    out = analysis.run_analysis("CAT-WITH-DATASET-FFF666")
+    assert out["requirements"] == []
+    assert "dati di riferimento" in out["report"][0]["note"]
