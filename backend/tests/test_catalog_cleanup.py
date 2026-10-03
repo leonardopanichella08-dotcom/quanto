@@ -46,3 +46,15 @@ def test_a_spreadsheet_source_is_kept_but_never_read_as_if_it_were_the_bando_tex
     out = analysis.run_analysis("CAT-WITH-DATASET-FFF666")
     assert out["requirements"] == []
     assert "dati di riferimento" in out["report"][0]["note"]
+
+
+def test_a_long_document_titled_like_the_bando_is_read_whole_not_only_where_the_exact_name_appears():
+    from app.core import analysis, events
+    Ingestion.catalog("CAT-OWN-DOC-GGG777", "Fondo Test Innovazione", "Ente", None, "https://example.test/f")
+    filler = "Il Fondo concede un contributo alle imprese ammissibili secondo le condizioni stabilite. " * 700
+    body = filler + "\n\nLe consulenze non possono superare il 20% del totale delle spese ammissibili del progetto presentato. " + filler
+    events.save_bando_source("CAT-OWN-DOC-GGG777", "disposizioni_fondo_test_innovazione.pdf", body, url="https://example.test/disposizioni_fondo_test_innovazione.pdf",
+                             tier="UFFICIALE", content_type="application/pdf", pages=90, origin="WEB", file_sha256=None, warnings=[])
+    assert len(body) > 60_000
+    out = analysis.run_analysis("CAT-OWN-DOC-GGG777")
+    assert any("20%" in r["text"] for r in out["requirements"])

@@ -48,7 +48,11 @@ def run_analysis(bando_id: str) -> Dict[str, Any]:
         if is_reference_dataset(s):
             meta[s["sha256"]] = {"label": label, "chars": len(text), "used_chars": 0, "lang": "—", "garbled": False, "reference": True}
             continue
-        focus = research.focus_text(text, name)
+        # Il filtro «solo i passaggi che nominano il bando» serve per le leggi e i manuali che lo citano di passaggio.
+        # Un documento che si intitola come il bando (o ha il suo nome nell'indirizzo) è il bando stesso: va letto per intero,
+        # altrimenti di un decreto di 200 pagine che dice sempre «il Fondo» resterebbe il 3%.
+        own = research.match_score(name, f"{s.get('name') or ''} {research.url_text(s.get('url') or '')}") is not None
+        focus = text if own else research.focus_text(text, name)
         garbled = looks_garbled(text)
         meta[s["sha256"]] = {"label": label, "chars": len(text), "used_chars": len(focus), "lang": detect_lang(text), "garbled": garbled}
         if focus.strip() and not garbled:

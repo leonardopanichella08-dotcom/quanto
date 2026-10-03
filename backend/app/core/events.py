@@ -21,7 +21,7 @@ from app.core.db import connect
 
 logger = logging.getLogger("quanto.events")
 MAX_DETAILS = 20_000
-MAX_SOURCE_TEXT = 500_000
+MAX_SOURCE_TEXT = 1_500_000
 
 
 def now_iso() -> str:
