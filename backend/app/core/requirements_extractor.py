@@ -119,6 +119,25 @@ CATEGORY_WORDS: Dict[str, str] = {
 }
 
 
+_ART_HEAD = re.compile(r"^(?:Art(?:icolo|\.)?|Article)\s*\d+", re.I)
+_HEAD_BLOCK = re.compile(r"^(?:PARTE|TITOLO|CAPO|SEZIONE|ALLEGATO|PART|CHAPTER|SECTION|ANNEX)\s+(?:[IVXLC]+|\d+|[A-Z])", re.I)
+_HEAD_NUM = re.compile(r"^(?:\d{1,2}(?:\.\d{1,2}){0,2}|[A-Z](?:\.\d{1,2})?)\.?\s+[A-ZÀ-Ý]")
+_CITATION = re.compile(r"^\d{1,4}/\d{2,4}\s+del\s", re.I)       # «1407/2013 del 18 dicembre 2013: …»: un atto citato, non un limite
+
+
+def _mark_sections(text: str) -> str:
+    """Le intestazioni (Art. 5, PARTE II, 5.1 Spese ammissibili, D.2 …) diventano righe-segnaposto così ogni requisito sa in che sezione sta.
+    Una riga con un obbligo, un divieto o un limite non è mai un'intestazione, anche se corta: è un requisito."""
+    out = []
+    for line in text.split("\n"):
+        t = line.strip()
+        is_head = (3 <= len(t) <= 110 and not t.endswith((":", ";", ",")) and not (_OBLIGE.search(t) or _PROHIBIT.search(t) or _LIMIT.search(t))
+                   and (_ART_HEAD.match(t) or _HEAD_BLOCK.match(t) or (_HEAD_NUM.match(t) and not t.endswith("."))))
+        label = re.sub(r"[§\s]+", " ", t)[:70]
+        out.append(f"\n\n§§{label}§§\n\n" if is_head else line)
+    return "\n".join(out)
+
+
 def reflow(text: str) -> str:
     """Ricompone le frasi spezzate dall'estrazione dei PDF: «…dei\ngiovani con esigenze» → una riga; le divisioni con trattino tornano parole intere."""
     text = text.replace("\r", "\n")
@@ -151,11 +170,18 @@ def looks_garbled(text: str) -> bool:
     return sample.count("(cid:") > 20 or letters / max(len(sample), 1) < 0.45
 
 
-def extract_requirements(text: str, max_items: int = 150, source_ref: str = "testo caricato") -> List[Dict]:
-    """Ogni frase con un tema noto o con un obbligo/divieto diventa un requisito tracciato."""
+def extract_requirements(text: str, max_items: int = 3000, source_ref: str = "testo caricato") -> List[Dict]:
+    """Ogni frase con un tema noto o con un obbligo/divieto diventa un requisito tracciato, in tutto il documento
+    (non solo le prime pagine), con l'articolo in cui si trova quando il testo ne ha."""
     out: List[Dict] = []
     seen: Set[str] = set()
-    for sentence in split_sentences(text):
+    article = ""
+    for sentence in split_sentences(_mark_sections(text)):
+        if sentence.startswith("§§"):
+            article = sentence.strip("§ ")
+            continue
+        if _CITATION.match(sentence):
+            continue
         key = sentence.lower()
         if key in seen:
             continue
@@ -175,10 +201,10 @@ def extract_requirements(text: str, max_items: int = 150, source_ref: str = "tes
             kind = "INFO"
         if topics:
             criteria = sorted({n for _, cs in topics for n in cs})
-            out.append({"topic": " / ".join(t for t, _ in topics[:3]), "kind": kind, "text": sentence[:600], "criteria": criteria,
+            out.append({"topic": " / ".join(t for t, _ in topics[:3]), "kind": kind, "text": (f"[{article}] " if article else "") + sentence[:600], "criteria": criteria,
                         "source_ref": source_ref, "confidence": "PARSING"})
         elif kind in ("DIVIETO", "OBBLIGO"):
-            out.append({"topic": "Non classificato", "kind": "DA_REVISIONARE", "text": sentence[:600], "criteria": [],
+            out.append({"topic": "Non classificato", "kind": "DA_REVISIONARE", "text": (f"[{article}] " if article else "") + sentence[:600], "criteria": [],
                         "source_ref": source_ref, "confidence": "PARSING"})
         if len(out) >= max_items:
             break

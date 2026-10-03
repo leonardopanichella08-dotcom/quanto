@@ -403,7 +403,7 @@ def test_official_directory_finds_bando_by_name_without_search_engine(monkeypatc
     assert next(c for c in r["candidates"])["tier"] == "UFFICIALE" and next(c for c in r["candidates"])["preselected"]
     assert "smartstart" not in " ".join(urls) and not any("nissan" in u for u in urls)          # risultati senza legame scartati
     d = r["diagnostics"]
-    assert d["raw_hits"] == 3 * 2 and d["kept"] == len(urls) and any(x["matched"] == 2 for x in d["directories"]) and any(x["error"] for x in d["directories"])
+    assert d["raw_hits"] == len(research.build_queries(NAME)) and d["kept"] == len(urls) and any(x["matched"] == 2 for x in d["directories"]) and any(x["error"] for x in d["directories"])
 
 
 def test_search_engine_garbage_only_gives_actionable_message(monkeypatch):

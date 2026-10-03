@@ -153,6 +153,10 @@ class ExtractionOutcome:
     requirements: Optional[List[dict]] = None
 
 
+MAX_REQUIREMENTS = 2500
+MAX_TO_REVIEW = 400
+
+
 class Ingestion:
     # ------------------------------------------------------------------ catalogo (Stadio 1)
     @staticmethod
@@ -238,17 +242,17 @@ class Ingestion:
                 for ref, txt in srcs:
                     for r in extract_requirements(txt, source_ref=ref):
                         k = re.sub(r"\s+", " ", r["text"].lower())[:160]
-                        if k in seen_req or len(reqs) >= 300:
+                        if k in seen_req or len(reqs) >= MAX_REQUIREMENTS:
                             continue
-                        if r["kind"] == "DA_REVISIONARE" and sum(1 for x in reqs if x["kind"] == "DA_REVISIONARE") >= 80:
-                            continue  # una persona non può rivedere centinaia di frasi: le prime 80 bastano a segnalare il problema
+                        if r["kind"] == "DA_REVISIONARE" and sum(1 for x in reqs if x["kind"] == "DA_REVISIONARE") >= MAX_TO_REVIEW:
+                            continue  # le frasi non classificate le rivede una persona: oltre questa soglia il segnale è già chiaro
                         seen_req.add(k)
                         reqs.append(r)
                 conn.execute("DELETE FROM requirements WHERE bando_id=? AND origin='STRUCTURED_PARSING'", (bando_id,))
                 base = conn.execute("SELECT COALESCE(MAX(seq), 0) m FROM requirements WHERE bando_id=?", (bando_id,)).fetchone()["m"]
-                for i, r in enumerate(reqs, base + 1):
-                    conn.execute("INSERT INTO requirements (bando_id, seq, topic, kind, text, criteria, source_ref, origin) VALUES (?,?,?,?,?,?,?,?)",
-                                 (bando_id, i, r["topic"], r["kind"], r["text"], json.dumps(r["criteria"]), r["source_ref"], "STRUCTURED_PARSING"))
+                conn.executemany("INSERT INTO requirements (bando_id, seq, topic, kind, text, criteria, source_ref, origin) VALUES (?,?,?,?,?,?,?,?)",
+                                 [(bando_id, i, r["topic"], r["kind"], r["text"], json.dumps(r["criteria"]), r["source_ref"], "STRUCTURED_PARSING")
+                                  for i, r in enumerate(reqs, base + 1)])
 
             if ai_passes:                                              # Stadio 3: il confronto lo fa il codice
                 keys = sorted({k for p in ai_passes for k in p})

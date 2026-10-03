@@ -599,6 +599,7 @@ def official_directory(name: str) -> Tuple[List[Dict[str, str]], List[Dict[str, 
 
 def build_queries(name: str, hint: str = "") -> List[str]:
     n = f'"{name.strip()}"' + (f" {hint.strip()}" if hint.strip() else "")
+    plain = name.strip() + (f" {hint.strip()}" if hint.strip() else "")     # senza virgolette: una misura locale raramente ha il nome esatto in una pagina
     return [
         f"{n} bando",
         f"{n} normativa decreto avviso",
@@ -606,6 +607,8 @@ def build_queries(name: str, hint: str = "") -> List[str]:
         f"{n} site:gov.it",
         f"{n} site:gazzettaufficiale.it",
         f"{n} filetype:pdf avviso decreto",
+        f"{plain} requisiti spese ammissibili",
+        f"{plain} regolamento filetype:pdf",
     ]
 
 
