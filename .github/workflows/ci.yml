@@ -6,10 +6,22 @@ on:
   pull_request:
     branches: [main]
 
+# Permessi minimi: il CI legge il codice e basta (nessun token di scrittura).
+permissions:
+  contents: read
+
+# Un nuovo push sullo stesso ramo annulla la prova ancora in corso.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+# Le azioni sono fissate per impronta del commit (non per etichetta modificabile): è la pratica consigliata da GitHub contro gli attacchi alla catena di fornitura.
+# Dependabot le tiene aggiornate (vedi dependabot.yml). L'immagine è ubuntu-24.04 e non «latest», che il 19 ottobre 2026 passa a Ubuntu 26.
 jobs:
   test-backend:
     name: Backend tests (60 criteri, Merkle, registro firmato, allocazione MILP, ingestion, auth, API)
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
     services:
       postgres:
         image: postgres:16
@@ -24,10 +36,10 @@ jobs:
       run:
         working-directory: backend
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
-          python-version: "3.11"
+          python-version: "3.12"   # la stessa versione che usa Vercel in produzione
           cache: pip
           cache-dependency-path: backend/requirements-dev.txt
       - run: python -m pip install --upgrade pip && pip install -r requirements-dev.txt
@@ -35,16 +47,34 @@ jobs:
 
   build-frontend:
     name: Frontend build
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
     defaults:
       run:
         working-directory: frontend
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
-          node-version: "20"
+          node-version: "24"
           cache: npm
           cache-dependency-path: frontend/package-lock.json
       - run: npm ci
       - run: npm run build
+
+  dependency-audit:
+    name: Sicurezza delle dipendenze (quelle che finiscono in produzione)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.12"
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: "24"
+      # Falliscono solo per vulnerabilità note nelle dipendenze di produzione: gli strumenti di sviluppo (es. Tailwind) non entrano nel pacchetto pubblicato.
+      - run: pip install pip-audit && pip-audit -r backend/requirements.txt
+      - run: npm audit --omit=dev --audit-level=high
+        working-directory: frontend
