@@ -58,3 +58,12 @@ def test_a_long_document_titled_like_the_bando_is_read_whole_not_only_where_the_
     assert len(body) > 60_000
     out = analysis.run_analysis("CAT-OWN-DOC-GGG777")
     assert any("20%" in r["text"] for r in out["requirements"])
+
+
+def test_issuer_documents_are_read_whole_but_general_law_collections_stay_filtered():
+    from app.core import analysis
+    name = "Fondo Test Innovazione"
+    assert analysis.is_own_document({"name": "Circolare 4-2026.pdf", "url": "https://www.simest.it/app/uploads/circolare.pdf"}, name)
+    assert analysis.is_own_document({"name": "testo-incollato.txt", "url": None}, name)
+    assert not analysis.is_own_document({"name": "Regolamento UE 1407", "url": "https://eur-lex.europa.eu/legal-content/IT/TXT/?uri=CELEX:32013R1407"}, name)
+    assert not analysis.is_own_document({"name": "DL 179", "url": "https://www.normattiva.it/uri-res/N2Ls?urn:nir:stato:decreto.legge:2012-10-18;179"}, name)

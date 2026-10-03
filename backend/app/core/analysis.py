@@ -20,6 +20,18 @@ def is_reference_dataset(s: Dict[str, Any]) -> bool:
     return "spreadsheetml" in ctype or (s.get("name") or "").lower().endswith((".xlsx", ".xlsm", ".xls"))
 
 
+GENERIC_LAW_HOSTS = ("gazzettaufficiale.it", "normattiva.it", "eur-lex.europa.eu", "curia.europa.eu")
+
+
+def is_own_document(s: Dict[str, Any], bando_name: str) -> bool:
+    """Il documento dell'ente che emette il bando (decreto, circolare, avviso) o un testo caricato a mano è il bando stesso: si legge intero.
+    Solo le raccolte di norme generali (Gazzetta, Normattiva, EUR-Lex) si leggono nei passaggi che citano il bando."""
+    if research.match_score(bando_name, f"{s.get('name') or ''} {research.url_text(s.get('url') or '')}") is not None:
+        return True
+    url = s.get("url")
+    return not url or not any(h in research.host_of(url) for h in GENERIC_LAW_HOSTS)
+
+
 def _label(s: Dict[str, Any]) -> str:
     return (s["name"] + (f" — {s['url']}" if s.get("url") else "") + (" (fonte secondaria)" if s.get("tier") == "SECONDARIA" else ""))[:300]
 
@@ -51,7 +63,7 @@ def run_analysis(bando_id: str) -> Dict[str, Any]:
         # Il filtro «solo i passaggi che nominano il bando» serve per le leggi e i manuali che lo citano di passaggio.
         # Un documento che si intitola come il bando (o ha il suo nome nell'indirizzo) è il bando stesso: va letto per intero,
         # altrimenti di un decreto di 200 pagine che dice sempre «il Fondo» resterebbe il 3%.
-        own = research.match_score(name, f"{s.get('name') or ''} {research.url_text(s.get('url') or '')}") is not None
+        own = is_own_document(s, name)
         focus = text if own else research.focus_text(text, name)
         garbled = looks_garbled(text)
         meta[s["sha256"]] = {"label": label, "chars": len(text), "used_chars": len(focus), "lang": detect_lang(text), "garbled": garbled}
