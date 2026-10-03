@@ -369,6 +369,50 @@ def category_scope(text: str) -> Optional[List[str]]:
     return sorted(result) if result and result != universe else None
 
 
+# ------------------------------------------------------------------ regole numeriche dalle cifre (tabella dichiarativa)
+# (chiave della regola, parola chiave nella frase, tipo di cifra, versi ammessi, conversione). Una frase conta solo se ha UNA cifra di quel tipo e verso:
+# con due cifre non si sa a quale riferirla, e una regola sbagliata altera le validazioni.
+FIGURE_RULES = [
+    ("max_installation_pct", re.compile(r"installazion\w+|trasport\w+|collaud\w+", re.I), "PERCENT", ("MAX",), "fraction"),
+    # un tetto esplicito («intensità massima», «l'intensità non può superare»): non basta la parola «intensità», che compare anche nelle statistiche di una relazione
+    ("max_aid_intensity_pct", re.compile(r"intensit[àa]\s+(?:di\s+aiut\w+\s+)?massima|massima\s+intensit[àa]|intensit[àa][^.;]{0,70}non\s+(?:pu[oò]|possono)\s+(?:essere\s+)?(?:superior\w+|superare)", re.I), "PERCENT", ("MAX", "RIF"), "fraction"),
+    # l'anticipo del contributo, non l'acconto dell'impresa al fornitore: la frase deve legare l'anticipo all'agevolazione
+    ("advance_pct", re.compile(r"anticip\w+[^.;]{0,90}(?:agevolazion\w+|contribut\w+|finanziament\w+|intervento)|(?:agevolazion\w+|contribut\w+|intervento)[^.;]{0,90}anticip\w+|a\s+titolo\s+di\s+anticip\w+", re.I), "PERCENT", ("MAX", "RIF"), "fraction"),
+    ("max_inter_chapter_variation_pct", re.compile(r"(?:variazion\w+|compensazion\w+|scostament\w+)[^.;]{0,80}(?:voci|capitol\w+|categori\w+)", re.I), "PERCENT", ("MAX", "RIF"), "fraction"),
+    ("reimbursement_lag_months", re.compile(r"(?:rimbors\w+|liquidazion\w+|erogazion\w+|saldo)[^.;]{0,70}entro", re.I), "DURATION", ("MAX",), "months"),
+]
+
+
+def extract_figure_rules(text: str) -> Dict[str, List[str]]:
+    """{chiave: [valori distinti]} dalle frasi che hanno la parola chiave della regola e una sola cifra del tipo giusto.
+    Più valori diversi per la stessa chiave restano tutti: sarà ingestion a trattarli come ambigui (revisione umana)."""
+    found: Dict[str, List[str]] = {}
+    for sentence in split_sentences(text):
+        figs = None
+        for key, cue, kind, bounds, conv in FIGURE_RULES:
+            if not cue.search(sentence):
+                continue
+            figs = extract_figures(sentence) if figs is None else figs
+            same = [f for f in figs if f["kind"] == kind and f["bound"] in bounds]
+            if len(same) != 1:
+                continue
+            f = same[0]
+            if conv == "fraction":
+                if not 0 < f["value"] <= 100:
+                    continue
+                value = _fmt(f["value"] / 100)
+            else:                                   # durata in mesi: i giorni non si arrotondano a mesi, si lasciano fuori
+                if f["unit"] == "mesi":
+                    value = str(int(f["value"]))
+                elif f["unit"] == "anni":
+                    value = str(int(f["value"]) * 12)
+                else:
+                    continue
+            if value not in found.setdefault(key, []):
+                found[key].append(value)
+    return found
+
+
 def extract_more_rules(text: str) -> Dict[str, str]:
     rules = {**_flag_rules(text), **_cap_rules(text)}
     scope = category_scope(text)

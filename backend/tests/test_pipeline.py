@@ -137,3 +137,29 @@ def test_a_sibling_bando_of_the_same_issuer_is_not_mistaken_for_this_one():
 def test_percentages_with_three_decimals_are_read_whole():
     assert figs("2,75% per gli investimenti ordinari, 3,575% per gli investimenti 4.0") == [("PERCENT", 2.75, "RIF"), ("PERCENT", 3.575, "RIF")]
     assert figs("contributo maggiorato al 3,575% annuo") == [("PERCENT", 3.575, "RIF")]
+
+
+# ------------------------------------------------------------------ regole numeriche dalle cifre
+def test_figure_rules_need_the_cue_words_and_exactly_one_matching_figure():
+    from app.core.requirements_extractor import extract_figure_rules as fr
+    assert fr("Le spese di installazione, trasporto e collaudo non possono superare il 5% del costo del bene.") == {"max_installation_pct": ["0.05"]}
+    assert fr("L'intensità massima comprensiva di tutte le maggiorazioni non può superare l'80%.") == {"max_aid_intensity_pct": ["0.8"]}
+    assert fr("La prima tranche, a titolo di anticipo, è pari al 25% dell'agevolazione concessa.") == {"advance_pct": ["0.25"]}
+    assert fr("Il saldo del contributo è erogato entro 6 mesi dalla rendicontazione.") == {"reimbursement_lag_months": ["6"]}
+    # nessuna parola chiave del contributo: l'acconto dell'impresa al fornitore e le statistiche di una relazione non sono regole
+    assert fr("È sufficiente l'emissione di una fattura di acconto di almeno il 20% a favore del fornitore.") == {}
+    assert fr("Una parte delle aziende ha dichiarato che a fronte di una maggiore intensità dell'aiuto avrebbe investito di più, per il 33,8%.") == {}
+    # due cifre della stessa famiglia nella frase: non si sa a quale riferirsi
+    assert fr("L'anticipo del contributo è del 25% oppure del 50% se l'impresa è energivora.") == {}
+    # i giorni non si arrotondano a mesi
+    assert fr("Il saldo è erogato entro 30 giorni dalla richiesta.") == {}
+
+
+def test_conflicting_figure_rules_wait_for_review_with_their_candidates():
+    Ingestion.catalog("CAT-FIG-JJJ000", "Fondo Cifre Prova", "Ente", None, None)
+    text = ("Prima tranche, a titolo di anticipo, pari al 25% dell'agevolazione concessa per le imprese ordinarie. "
+            "Prima tranche, a titolo di anticipo, pari al 50% dell'agevolazione concessa per le imprese energivore.")
+    out = Ingestion.extract("CAT-FIG-JJJ000", sources=[("Regolamento del Fondo", text)], strict_refs={"Regolamento del Fondo"})
+    assert "advance_pct" not in out.published and "advance_pct" in out.pending_review
+    ok = Ingestion.extract("CAT-FIG-JJJ000", sources=[("Regolamento del Fondo", text.split(". ")[0] + ".")], strict_refs={"Regolamento del Fondo"})
+    assert ok.published.get("advance_pct") == "0.25"

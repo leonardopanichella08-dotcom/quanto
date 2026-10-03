@@ -26,7 +26,7 @@ from pydantic import TypeAdapter, ValidationError
 
 from app.core import research
 from app.core.db import connect
-from app.core.requirements_extractor import extract_more_rules, extract_requirements
+from app.core.requirements_extractor import extract_figure_rules, extract_more_rules, extract_requirements
 from app.models.schemas import GrantRuleSet
 
 IDENTITY_FIELDS = {"bando_id", "bando_name", "rule_version_hash"}
@@ -136,6 +136,21 @@ def extract_deterministic(text: str, ambiguous: Optional[Dict[str, List[str]]] =
             ambiguous[key] = values
         elif values:
             found[key] = values[0]
+    for key, raw_values in extract_figure_rules(text).items():
+        if key in found:
+            continue
+        valid: List[str] = []
+        for v in raw_values:
+            try:
+                n = normalize_value(key, v)
+            except ValueError:
+                continue
+            if n not in valid:
+                valid.append(n)
+        if len(valid) > 1 and ambiguous is not None:
+            ambiguous[key] = valid                      # valori diversi nello stesso testo: decide una persona
+        elif valid:
+            found[key] = valid[0]
     for key, value in extract_more_rules(text).items():
         if key not in found:
             try:
