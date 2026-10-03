@@ -108,6 +108,15 @@ def _applicant_hints(detail: Dict[str, Any]) -> List[str]:
     return hints[:3]
 
 
+BENEFIT_EXPLANATION = {
+    "GARANZIA_PUBBLICA": "È una garanzia pubblica: non rimborsa spese, ma garantisce una parte di un finanziamento bancario. Quanto vale dipende dal prestito che chiedi alla banca, che non è nel bilancio.",
+    "FINANZIAMENTO_A_TASSO_ZERO": "È un finanziamento a tasso zero: un prestito senza interessi, non un contributo sulle spese. Il vantaggio è l'interesse risparmiato e dipende dall'importo e dalla durata.",
+    "CONTRIBUTO_IN_CONTO_INTERESSI": "Copre una parte degli interessi di un finanziamento: il valore dipende dal prestito che prendi, non dalle spese del bilancio.",
+    "IPERAMMORTAMENTO": "È un beneficio fiscale (maggiorazione dell'ammortamento): riduce le imposte, non rimborsa le spese. Dipende dalle tasse che paghi.",
+    "FINANZIAMENTO_AGEVOLATO_MISTO": "Combina un finanziamento agevolato e un contributo: la parte a fondo perduto dipende dalle condizioni di ogni sportello.",
+}
+
+
 def evaluate(bando_id: str, profile: Dict[str, Any], by_cat: Dict[str, float], year: int, today: Optional[date] = None) -> Optional[Dict[str, Any]]:
     today = today or date.today()
     detail = bandi.get_bando_detail(bando_id)
@@ -189,8 +198,9 @@ def evaluate(bando_id: str, profile: Dict[str, Any], by_cat: Dict[str, float], y
         if key in rules:
             notes.append(text if text else f"Vincolo di destinazione: almeno {rules[key]} mesi.")
     if estimate is None:
-        notes.append("Il bando non dichiara un'aliquota di contributo utilizzabile: il beneficio non si può quantificare in automatico."
-                     + (f" Tipo di aiuto: {benefit['type']}." if benefit and benefit.get("type") else ""))
+        btype = (benefit or {}).get("type") or ""
+        notes.append("Il bando non dichiara un'aliquota di contributo (la percentuale delle spese che viene rimborsata): il beneficio non si può quantificare in automatico. "
+                     + BENEFIT_EXPLANATION.get(btype, f"Tipo di aiuto: {btype}." if btype else ""))
 
     fails = [c for c in checks if c["result"] == "FAIL"]
     unknown_decisive = [c for c in checks if c["result"] == "UNKNOWN" and c["decisive"]]
@@ -219,7 +229,9 @@ def match_all(profile: Dict[str, Any], by_cat: Dict[str, float], year: int) -> D
     with connect() as conn:
         unstudied = conn.execute("SELECT COUNT(*) c FROM bandi b WHERE b.bando_id LIKE 'CAT-%' AND b.extraction_status = 'NOT_STARTED' "
                                  "AND (b.deadline IS NULL OR b.deadline = 'non indicata' OR b.deadline >= ?)", (date.today().isoformat(),)).fetchone()["c"]
-    return {"fiscal_year": year, "results": out, "summary": {k: sum(1 for r in out if r["fit"] == k) for k in order}, "unstudied_catalog": unstudied,
+    from app.core import catalog_meta
+    catalog = catalog_meta.rank_for_profile(profile, by_cat)
+    return {"fiscal_year": year, "results": out, "catalog": catalog, "summary": {k: sum(1 for r in out if r["fit"] == k) for k in order}, "unstudied_catalog": unstudied,
             "missing_profile": sorted({m for r in out for m in r["missing_profile"]})}
 
 

@@ -16,7 +16,7 @@ function Origin({ source }) {
   return <span className={`px-1.5 py-0.5 rounded border text-[11px] ${tone}`} title={source.from || (source.document_id ? `Documento n. ${source.document_id}` : '')}>{label}{source.from ? ` · ${source.from}` : ''}</span>
 }
 
-function FieldInput({ f, regions, value, onChange }) {
+export function FieldInput({ f, regions, value, onChange }) {
   const common = { 'aria-label': f.label, value: value ?? '', onChange: (e) => onChange(e.target.value) }
   if (f.kind === 'region') return <select className="field" {...common}><option value="">— scegli —</option>{regions.map((r) => <option key={r}>{r}</option>)}</select>
   if (f.kind === 'bool') {

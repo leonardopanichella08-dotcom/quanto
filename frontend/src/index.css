@@ -104,3 +104,8 @@
 @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
   .glass, .card, .glass-strong { background: rgba(255, 255, 255, 0.94); }
 }
+
+/* Procedura guidata del profilo: ogni passo entra come una "storia" */
+@keyframes story-in { from { opacity: 0; transform: translateX(18px); } to { opacity: 1; transform: none; } }
+.story-in { animation: story-in 0.32s ease both; }
+@media (prefers-reduced-motion: reduce) { .story-in { animation: none; } }

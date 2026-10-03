@@ -5,7 +5,7 @@ import os
 from fastapi import APIRouter, HTTPException, Query, Request, status
 
 from app.api.deps import user_of
-from app.core import catalog_job, lifecycle
+from app.core import catalog_job, catalog_meta, lifecycle
 
 router = APIRouter()
 
@@ -24,6 +24,14 @@ def catalog_refresh(request: Request, enrich: int = Query(default=15, ge=0, le=5
     if not _allowed(request):
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Accesso non consentito")
     return catalog_job.refresh(enrich=enrich, actor="cron")
+
+
+@router.api_route("/catalog-describe", methods=["GET", "POST"], summary="Legge la scheda ufficiale di un lotto di bandi del catalogo: descrizione breve e caratteristiche")
+def catalog_describe(request: Request, limit: int = Query(default=400, ge=1, le=800)) -> dict:
+    if not _allowed(request):
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Accesso non consentito")
+    out = catalog_meta.describe_batch(limit=limit, workers=24, budget_s=45.0)
+    return {**out, "deleted": catalog_job.cleanup_stale(actor="cron")["deleted"]}
 
 
 @router.api_route("/catalog-lifecycle", methods=["GET", "POST"], summary="Legge le date di apertura/chiusura di un lotto di voci del catalogo ed elimina quelle chiuse")

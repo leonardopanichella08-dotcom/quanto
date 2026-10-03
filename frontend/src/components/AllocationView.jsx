@@ -1,9 +1,10 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react'
 import { api } from '../lib/api'
 import { fmtEur, fmtNum, CATEGORY_LABEL } from '../lib/format'
-import { AlertTriangle, CheckCircle2, ChevronDown, ChevronRight, CircleHelp, Loader2, XCircle } from 'lucide-react'
+import { AlertTriangle, CheckCircle2, ChevronDown, ChevronRight, CircleHelp, ExternalLink, Loader2, XCircle } from 'lucide-react'
 import { ChromeCard, SectionTitle } from './ui'
 import Guide from './Guide'
+import PipelineButton from './PipelineButton'
 import { Hint } from './Help'
 
 const PALETTE = ['#38bdf8', '#a78bfa', '#f472b6', '#34d399', '#fbbf24', '#fb7185']
@@ -57,6 +58,35 @@ const FIT = {
 }
 const CHECK_ICON = { OK: [CheckCircle2, 'text-emerald-700'], FAIL: [XCircle, 'text-red-700'], UNKNOWN: [CircleHelp, 'text-amber-700'] }
 const MISSING_LABEL = { region: 'la regione della sede', ateco_code: 'il codice ATECO', is_innovative_startup: 'se sei una start-up innovativa' }
+
+const AFFINITY = { ALTA: ['Molto affine', 'bg-emerald-500/15 text-emerald-700 border-emerald-500/30'], MEDIA: ['Affine', 'bg-sky-500/15 text-sky-700 border-sky-500/30'], BASSA: ['Poco affine', 'bg-ink/10 text-ink-2 border-line-strong'] }
+
+/** Voce del catalogo non ancora studiata: descrizione ufficiale e motivi dell'affinità; se serve, la si studia con il processo standard. */
+function CatalogCard({ it, onStudied }) {
+  const [label, tone] = AFFINITY[it.affinity]
+  return (
+    <div className="rounded-2xl border border-line bg-field p-4 space-y-2.5">
+      <div className="flex flex-wrap items-start gap-2">
+        <div className="min-w-0 flex-1">
+          <p className="text-sm font-semibold text-ink break-words">{it.name}</p>
+          <p className="text-[11px] text-mute">{it.issuer || 'Ente non indicato'}{it.deadline && it.deadline !== 'non indicata' ? ` · scade il ${it.deadline.split('-').reverse().join('/')}` : ''}{it.state === 'IN_ARRIVO' && it.opens ? ` · apre il ${it.opens.split('-').reverse().join('/')}` : ''}</p>
+        </div>
+        <span className={`px-2 py-0.5 text-[11px] font-medium rounded border ${tone}`}>{label}</span>
+      </div>
+      {it.summary && <p className="text-xs text-ink-2 leading-relaxed">{it.summary}</p>}
+      <div className="flex flex-wrap gap-1.5 text-[11px]">
+        {(it.form || []).map((f) => <span key={f} className="px-1.5 py-0.5 rounded border border-line-strong text-ink-2">{f}</span>)}
+        {it.benefit_range && <span className="px-1.5 py-0.5 rounded border border-emerald-500/30 text-emerald-700">Agevolazione: {it.benefit_range}</span>}
+      </div>
+      {it.reasons.length > 0 && <ul className="text-xs text-ink-2 space-y-0.5">{it.reasons.map((r) => <li key={r} className="flex gap-1.5"><CheckCircle2 className="w-3.5 h-3.5 mt-0.5 text-emerald-600 shrink-0" />{r}</li>)}</ul>}
+      {it.to_check.length > 0 && <p className="text-[11px] text-amber-700">Da verificare: {it.to_check.join(', ')}.</p>}
+      <div className="flex flex-wrap items-start gap-3 pt-1">
+        <PipelineButton bandoId={it.bando_id} label="Studia questo bando" onDone={onStudied} />
+        {it.source_url && <a href={it.source_url} target="_blank" rel="noreferrer" className="text-xs text-sky-700 hover:underline inline-flex items-center gap-1 pt-2"><ExternalLink className="w-3 h-3" />Scheda ufficiale</a>}
+      </div>
+    </div>
+  )
+}
 
 function Step({ n, title, sub, children, done }) {
   return (
@@ -248,11 +278,25 @@ export default function AllocationView({ onGoProfile, onBudgetFrom }) {
             {Object.entries(FIT).map(([k, [label, tone]]) => (
               <button key={k} onClick={() => setTab(k)} aria-pressed={tab === k} className={`px-3 py-1.5 rounded-lg text-xs font-medium border transition ${tab === k ? tone : 'border-line text-ink-2 hover:border-line-strong'}`}>{label} · {match.matching.summary[k]}</button>
             ))}
+            <button onClick={() => setTab('CATALOG')} aria-pressed={tab === 'CATALOG'} className={`px-3 py-1.5 rounded-lg text-xs font-medium border transition ${tab === 'CATALOG' ? 'bg-brand/25 text-brand-ink border-brand/60' : 'border-line text-ink-2 hover:border-line-strong'}`}>Da studiare · {match.matching.catalog.total_candidates}</button>
           </div>
-          {match.matching.unstudied_catalog > 0 && <p className="text-[11px] text-mute">Nel catalogo ci sono altri {match.matching.unstudied_catalog} bandi aperti non ancora studiati: finché QUANTO non ne legge le regole non si possono valutare. Si studiano dalla pagina Bandi.</p>}
+          {tab === 'CATALOG' && (
+            <p className="text-[11px] text-mute leading-relaxed">Bandi del catalogo nazionale che QUANTO non ha ancora studiato, messi in ordine di affinità con la tua azienda usando la descrizione della scheda ufficiale (spese ammesse, regione, dimensione, ATECO). Non c’è ancora nessun importo: premi «Studia questo bando» e, a lettura finita, ricalcola la stima per vederne il contributo.
+              {match.matching.catalog.excluded > 0 && ` Esclusi perché non adatti a te: ${match.matching.catalog.excluded}.`}
+              {match.matching.catalog.without_description > 0 && ` Schede ancora da leggere: ${match.matching.catalog.without_description}.`}</p>
+          )}
           {match.matching.missing_profile.length > 0 && <p className="text-xs text-amber-700">Per valutare meglio alcuni bandi indica nel profilo: {match.matching.missing_profile.map((m) => MISSING_LABEL[m] || m).join(', ')}.</p>}
-          {shown.length === 0 && <p className="text-xs text-mute">Nessun bando in questa categoria.</p>}
-          <div className="grid lg:grid-cols-2 gap-4">{shown.map((r) => <BandoCard key={r.bando_id} r={r} picked={picked.includes(r.bando_id)} onToggle={() => toggle(r.bando_id)} onBudget={onBudgetFrom} />)}</div>
+          {tab === 'CATALOG' ? (
+            <div className="grid lg:grid-cols-2 gap-4">
+              {match.matching.catalog.items.length === 0 && <p className="text-xs text-mute">Nessuna scheda del catalogo letta ancora: il lavoro notturno le legge a gruppi.</p>}
+              {match.matching.catalog.items.map((it) => <CatalogCard key={it.bando_id} it={it} onStudied={estimate} />)}
+            </div>
+          ) : (
+            <>
+              {shown.length === 0 && <p className="text-xs text-mute">Nessun bando in questa categoria.</p>}
+              <div className="grid lg:grid-cols-2 gap-4">{shown.map((r) => <BandoCard key={r.bando_id} r={r} picked={picked.includes(r.bando_id)} onToggle={() => toggle(r.bando_id)} onBudget={onBudgetFrom} />)}</div>
+            </>
+          )}
         </Step>
       )}
 

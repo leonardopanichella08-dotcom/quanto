@@ -4,6 +4,7 @@ from __future__ import annotations
 import json
 import os
 import re
+from datetime import date
 from typing import Any, Dict, List, Optional
 
 from app.core.criteria_catalog import CRITERIA_TITLES
@@ -194,6 +195,7 @@ def get_bando_detail(bando_id: str) -> Optional[Dict[str, Any]]:
     return {
         "bando_id": bando_id, "name": b["name"], "issuer": b["issuer"], "status": meta.get("status"), "period": meta.get("period"),
         "curated": bool(meta.get("curated")), "extraction_status": b["extraction_status"], "legal_refs": legal_refs,
+        "catalog": {"summary": b["summary"], "meta": json.loads(b["catalog_meta"]) if b["catalog_meta"] else None, "read_at": b["meta_at"], "source_url": b["source_url"], "deadline": b["deadline"]},
         "benefit": meta.get("benefit"), "sources": meta.get("sources", []), "not_specified": meta.get("not_specified", []),
         "rules": rules,
         "requirements": [{"seq": r["seq"], "topic": r["topic"], "kind": r["kind"], "text": r["text"], "criteria": json.loads(r["criteria"]), "figures": json.loads(r["figures"] or "[]"),
@@ -257,7 +259,8 @@ def catalog_issuers() -> List[str]:
     return [r["issuer"] for r in rows]
 
 
-def browse_catalog(query: str = "", issuer: Optional[str] = None, only_new: bool = False, page: int = 1, page_size: int = 30) -> Dict[str, Any]:
+def browse_catalog(query: str = "", issuer: Optional[str] = None, only_new: bool = False, page: int = 1, page_size: int = 30,
+                   described: Optional[bool] = None, with_meta: bool = False) -> Dict[str, Any]:
     """Elenco paginato di TUTTI i bandi in memoria (i curati e le voci del catalogo nazionale), con ricerca libera ed
     eventuale filtro per ente. ``only_new`` mostra solo le voci non ancora analizzate (né curate né con regole/requisiti/
     fonti già estratti): quelle da cui partire per allargare la libreria. Il filtro sta nella query SQL, non in Python:
@@ -273,6 +276,8 @@ def browse_catalog(query: str = "", issuer: Optional[str] = None, only_new: bool
     if issuer:
         where.append("b.issuer = ?")
         params.append(issuer)
+    if described is not None:
+        where.append("b.meta_at IS NOT NULL" if described else "b.meta_at IS NULL")
     if only_new:
         where.append("b.catalog_status <> 'CURATED' AND NOT EXISTS (SELECT 1 FROM rules r WHERE r.bando_id=b.bando_id) "
                       "AND NOT EXISTS (SELECT 1 FROM bando_sources s WHERE s.bando_id=b.bando_id)")
@@ -280,7 +285,7 @@ def browse_catalog(query: str = "", issuer: Optional[str] = None, only_new: bool
     with connect() as conn:
         total = conn.execute(f"SELECT COUNT(*) c FROM bandi b {clause}", params).fetchone()["c"]
         rows = conn.execute(
-            f"SELECT b.bando_id, b.name, b.issuer, b.source_url, b.deadline, b.catalog_status, b.extraction_status, "
+            f"SELECT b.bando_id, b.name, b.issuer, b.source_url, b.deadline, b.catalog_status, b.extraction_status, b.summary, b.meta_at, b.catalog_meta, "
             "(SELECT COUNT(*) FROM rules r WHERE r.bando_id=b.bando_id AND r.status='PUBLISHED') AS rules, "
             "(SELECT COUNT(*) FROM bando_sources s WHERE s.bando_id=b.bando_id) AS sources, "
             "(SELECT COUNT(*) FROM requirements q2 WHERE q2.bando_id=b.bando_id) AS reqs "
@@ -289,7 +294,23 @@ def browse_catalog(query: str = "", issuer: Optional[str] = None, only_new: bool
     items = [{
         "bando_id": r["bando_id"], "name": r["name"], "issuer": r["issuer"], "source_url": r["source_url"], "deadline": r["deadline"],
         "curated": r["catalog_status"] == "CURATED", "extraction_status": r["extraction_status"],
+        "summary": r["summary"], "read_at": r["meta_at"], **({"meta": json.loads(r["catalog_meta"]) if r["catalog_meta"] else None} if with_meta else {}),
         "rules": r["rules"], "sources": r["sources"], "requirements": r["reqs"],
         "catalog_only": r["catalog_status"] != "CURATED" and not (r["rules"] or r["sources"]),
     } for r in rows]
     return {"total": total, "page": page, "page_size": page_size, "pages": max(1, -(-total // page_size)), "items": items}
+
+
+def catalog_stats() -> Dict[str, Any]:
+    """Numeri del catalogo nazionale per il Quartier Generale: quante voci, quante con la scheda già letta, quante aperte o chiuse."""
+    ensure_seeded()
+    today = date.today().isoformat()
+    with connect() as conn:
+        r = conn.execute(
+            "SELECT COUNT(*) total, COALESCE(SUM((meta_at IS NOT NULL)::int),0) described, "
+            "COALESCE(SUM((deadline IS NULL OR deadline='non indicata')::int),0) undated, "
+            "COALESCE(SUM((deadline IS NOT NULL AND deadline <> 'non indicata' AND deadline >= ?)::int),0) open_dated, "
+            "COALESCE(SUM((extraction_status <> 'NOT_STARTED')::int),0) studied, MAX(meta_at) last_read "
+            "FROM bandi WHERE bando_id LIKE 'CAT-%'", (today,)).fetchone()
+    return {"total": r["total"], "described": int(r["described"]), "to_describe": r["total"] - int(r["described"]), "undated": int(r["undated"]),
+            "open_dated": int(r["open_dated"]), "studied": int(r["studied"]), "last_read_at": r["last_read"]}

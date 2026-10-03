@@ -131,7 +131,7 @@ export const GUIDE = {
   allocation: {
     title: 'Allocazione',
     what: 'Parte dai bilanci della tua azienda, stima le spese dell’anno successivo, trova i bandi adatti (e come rientrare nei loro tetti) e decide quali spese far coprire da quali bandi, per pagare di tasca propria il meno possibile.',
-    steps: ['1 · Controlla i dati: bilanci e documenti si caricano nel Profilo; ciò che manca lo completi tu.', '2 · Stima dell’anno: parte dall’ultimo bilancio, la variazione per categoria la scegli tu.', '3 · Bandi adatti: per ognuno vedi se puoi partecipare, quanto potrebbe coprire e quali voci ridurre per rispettare i tetti.', '4 · Spunta i bandi da includere: il programma calcola il piano e il flusso di ogni spesa.'],
+    steps: ['1 · Controlla i dati: bilanci e documenti si caricano nel Profilo; ciò che manca lo completi tu.', '2 · Stima dell’anno: parte dall’ultimo bilancio, la variazione per categoria la scegli tu.', '3 · Bandi adatti: per ognuno vedi se puoi partecipare, quanto potrebbe coprire e quali voci ridurre per rispettare i tetti. In «Da studiare» trovi i bandi del catalogo non ancora letti, in ordine di affinità: se uno ti interessa, premi «Studia questo bando».', '4 · Spunta i bandi da includere: il programma calcola il piano e il flusso di ogni spesa.'],
     example: 'Le consulenze del bilancio sono 40.000 €, ma il bando le ammette solo fino al 10% delle spese: la scheda ti dice quanto è ammissibile e di quanto ridurre la voce.',
     terms: ['milp', 'whatif', 'deminimis', 'cumulo'],
   },
@@ -159,7 +159,7 @@ export const GUIDE = {
   profilo: {
     title: 'Profilo',
     what: 'Il profilo della tua azienda e i suoi documenti: da visura e bilanci QUANTO ricava i dati dell’impresa e i costi di ogni anno. Serve all’Allocazione e a creare la bozza di budget per i bandi futuri.',
-    steps: ['Carica visura camerale e bilanci (PDF) nei documenti: il profilo si compila da solo.', 'Controlla i dati: ogni valore dice se viene da un documento o l’hai scritto tu (il tuo non viene mai sovrascritto).', 'Completa i campi che mancano e i costi degli anni senza bilancio.', 'Nel Budget, «Bozza di budget dal profilo azienda» parte da questi dati.'],
+    steps: ['Segui la procedura guidata in alto: trascina insieme visura, bilanci e altri file, poi rispondi alle poche domande che restano.', 'Controlla i dati: ogni valore dice se viene da un documento o l’hai scritto tu (il tuo non viene mai sovrascritto).', 'Completa i campi che mancano e i costi degli anni senza bilancio.', 'Nel Budget, «Bozza di budget dal profilo azienda» parte da questi dati.'],
     example: 'Carichi il bilancio 2025: ricavi, personale e consulenze compaiono nel profilo. Resta da indicare se sei una start-up innovativa: lo scrivi tu.',
     terms: ['fontea'],
   },

@@ -26,7 +26,7 @@ from app.core.registry import Registry, current_public_key
 
 
 # tabelle consultabili (whitelist) e colonne pesanti da riassumere
-TABLES = ["anchors", "bandi", "bando_meta", "rules", "requirements", "bando_sources", "bando_files", "bando_tombstones", "events", "runs", "documents"]
+TABLES = ["anchors", "bandi", "company_profiles", "company_financials", "bando_meta", "rules", "requirements", "bando_sources", "bando_files", "bando_tombstones", "events", "runs", "documents"]
 HEAVY = {"runs": ("request_json", "response_json"), "bando_sources": ("text",), "bando_meta": ("meta",), "bando_files": ("data",)}
 
 

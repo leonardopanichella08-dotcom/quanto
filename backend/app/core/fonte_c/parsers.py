@@ -185,12 +185,17 @@ COST_KEYWORDS = {
     "OVERHEAD": ["AFFITT", "LOCAZION", "UTENZE", "ENERGIA ELETTRICA", "TELEFON", "ASSICURAZION", "SPESE GENERALI", "CANCELLERIA", "MANUTENZION", "PULIZI",
                  "SPESE DI RAPPRESENTANZA", "SPESE POSTALI", "SPESE BANCARIE", "PUBBLICITA"],
 }
-_ACCOUNT_CODE = re.compile(r"^\s*(?:[A-Z]\)|[A-Z]\.\d+|\d+[.\-]\d+(?:[.\-]\d+)*|\d{2,})\s+")
+_ACCOUNT_CODE = re.compile(r"^\s*(?:(?:[A-Za-z]|\d{1,2})\)|[A-Z]\.\d+|\d+[.\-]\d+(?:[.\-]\d+)*|\d{2,})\s+")
+_NUMBERED = re.compile(r"^\s*\d{1,2}\)\s")                    # voce numerata dello schema civilistico: «7) per servizi», «9) per il personale»
+_COSTS_START = re.compile(r"COSTI DELLA PRODUZIONE|B\)\s*COSTI")
+_YEAR = re.compile(r"\b(?:ESERCIZIO|BILANCIO)\b[^0-9]{0,30}(?:\d{1,2}\s*[/.\-]\s*\d{1,2}\s*[/.\-]\s*)?(20\d{2})\b")
 
 
 def classify_cost(description: str) -> (Optional[str], float):
     n = norm(description)
     hits = {cat for cat, kws in COST_KEYWORDS.items() if any(k in n for k in kws)}
+    if hits == {"TRAINING", "PERSONNEL"}:
+        hits = {"TRAINING"}                                # «formazione del personale»: la parola «personale» è solo il complemento
     if len(hits) == 1:
         return next(iter(hits)), 0.95
     if len(hits) > 1:
@@ -202,32 +207,57 @@ def _parse_balance_costs(lines: List[dict]) -> List[Field]:
     """Righe di costo del bilancio: descrizione + importo. Il fiscal year e i totali vengono letti a parte."""
     out: List[Field] = []
     year = None
-    in_costs: Optional[bool] = None
+    def starts_costs(n: str) -> bool:                       # intestazione «B) Costi della produzione», non i totali né la «Differenza tra valore e costi della produzione»
+        return bool(_COSTS_START.search(n)) and not re.search(r"\b(?:TOTALE|DIFFERENZA)\b", n)
+
+    has_section = any(starts_costs(norm(ln["text"])) for ln in lines)
+    in_costs: Optional[bool] = False if has_section else None       # con la sezione dei costi presente si leggono solo le sue righe (non l'attivo né i ricavi)
+    agg: Optional[dict] = None                                      # voce numerata in corso: se le sottovoci ne danno la somma, la voce è un sottototale e non va contata due volte
+
+    def close_agg() -> None:
+        nonlocal agg
+        if agg and agg["n"] and abs(agg["sum"] - agg["amount"]) <= Decimal("1.00"):
+            out.remove(agg["field"])
+        agg = None
+
     for ln in lines:
         n = norm(ln["text"])
         if year is None:
-            m = re.search(r"\b(?:ESERCIZIO|BILANCIO)\D{0,20}(20\d{2})\b", n)
+            m = _YEAR.search(n)
             if m:
                 year = Field("fiscal_year", m.group(1), round(0.98 * ln["conf_min"], 4), ln["page"], _scrub(ln["text"]))
                 out.append(year)
-        if re.search(r"COSTI DELLA PRODUZIONE|B\)\s*COSTI", n):
+        if starts_costs(n):
             in_costs = True
             continue
-        if re.search(r"^C\)|PROVENTI E ONERI FINANZIARI|VALORE DELLA PRODUZIONE", n) and in_costs:
+        if re.search(r"^C\)|PROVENTI E ONERI FINANZIARI|VALORE DELLA PRODUZIONE|DIFFERENZA TRA|TOTALE COSTI DELLA PRODUZIONE", n) and in_costs:
+            close_agg()
             in_costs = False
         amt = parse_amount(ln["text"])
         if amt is None or in_costs is False:
+            if in_costs is not False and _NUMBERED.match(ln["text"]):
+                close_agg()
             continue
         desc = _AMOUNT.sub("", ln["text"])
+        numbered = bool(_NUMBERED.match(ln["text"]))
         desc = _ACCOUNT_CODE.sub("", desc).strip(" .:-")
         if len(desc) < 4 or re.search(r"\bTOTALE\b", norm(desc)):
+            close_agg()
             continue
         cat, cat_conf = classify_cost(desc)
         if in_costs is None and cat is None:
-            continue                                        # prima della sezione dei costi (ricavi, attivo…): senza una categoria di costo riconoscibile non è una riga da verificare
+            continue                                        # senza sezione dei costi riconoscibile: una riga senza categoria di costo non è da verificare
         pattern = 0.98 if in_costs else 0.80               # fuori da una sezione «Costi della produzione» la riga potrebbe non essere un costo
         conf = round(pattern * (cat_conf if cat else 0.0) * ln["conf_min"], 4)
-        out.append(Field("expense_line", json.dumps({"description": desc, "amount_eur": str(abs(amt)), "category": cat}, ensure_ascii=False), conf, ln["page"], _scrub(ln["text"])))
+        f = Field("expense_line", json.dumps({"description": desc, "amount_eur": str(abs(amt)), "category": cat}, ensure_ascii=False), conf, ln["page"], _scrub(ln["text"]))
+        out.append(f)
+        if numbered:
+            close_agg()
+            agg = {"field": f, "amount": abs(amt), "sum": Decimal(0), "n": 0}
+        elif agg is not None:
+            agg["sum"] += abs(amt)
+            agg["n"] += 1
+    close_agg()
     return out
 
 
@@ -272,7 +302,8 @@ def parse_registry(lines: List[dict]) -> List[Field]:
 
 
 # ------------------------------------------------------------------------------------------------ F24
-_F24_ROW = re.compile(r"\b(\d{4})\b\s+(?:(?!\d{4}\s)[A-Z0-9/\-]{1,12}\s+)?(?:(\d{4})\s+)?(\d{1,3}(?:\.\d{3})*,\d{2})")
+# codice tributo, poi (facoltativo) rateazione / mese di riferimento, poi (facoltativo) anno di riferimento, poi l'importo a debito
+_F24_ROW = re.compile(r"\b(\d{4})\b\s+(?:(?!20\d{2}\s)(?:\d{4}|[A-Z0-9/\-]{1,12})\s+)?(?:(20\d{2})\s+)?(\d{1,3}(?:\.\d{3})*,\d{2})")
 
 
 def parse_f24(lines: List[dict]) -> List[Field]:

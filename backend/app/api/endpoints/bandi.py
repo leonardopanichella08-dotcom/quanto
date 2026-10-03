@@ -101,8 +101,15 @@ def search_internal(q: str = Query(..., min_length=2, max_length=120)) -> dict:
 @router.get("/catalog", summary="Sfoglia tutti i bandi in memoria: i curati e le voci del catalogo nazionale, con ricerca, filtro per ente e paginazione")
 def browse(q: str = Query(default="", max_length=120), issuer: Optional[str] = Query(default=None, max_length=200),
            only_new: bool = Query(default=False, description="Solo le voci non ancora analizzate (né curate né con regole/fonti)"),
-           page: int = Query(default=1, ge=1), page_size: int = Query(default=30, ge=1, le=100)) -> dict:
-    return bandi.browse_catalog(q, issuer, only_new, page, page_size)
+           page: int = Query(default=1, ge=1), page_size: int = Query(default=30, ge=1, le=100),
+           described: Optional[bool] = Query(default=None, description="Solo le voci con (true) o senza (false) la scheda ufficiale già letta"),
+           with_meta: bool = Query(default=False, description="Aggiunge le caratteristiche lette dalla scheda (forma di agevolazione, costi ammessi, regioni…)")) -> dict:
+    return bandi.browse_catalog(q, issuer, only_new, page, page_size, described, with_meta)
+
+
+@router.get("/catalog/stats", summary="Numeri del catalogo nazionale: voci, schede lette, aperte, studiate")
+def catalog_stats() -> dict:
+    return bandi.catalog_stats()
 
 
 @router.get("/catalog/issuers", summary="Elenco degli enti presenti nel catalogo, per il filtro della sfoglia")

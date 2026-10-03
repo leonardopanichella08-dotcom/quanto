@@ -14,7 +14,7 @@ import urllib.parse
 from datetime import date
 from typing import Any, Dict, List
 
-from app.core import discovery, events, lifecycle, llm, research
+from app.core import catalog_meta, discovery, events, lifecycle, llm, research
 from app.core.db import connect
 
 logger = logging.getLogger("quanto.catalog")
@@ -93,6 +93,7 @@ def refresh(enrich: int = 15, actor: str = "cron") -> Dict[str, Any]:
                              (meta.get("name"), meta.get("issuer"), meta.get("deadline") or "non indicata", r["bando_id"]))
             report["enriched"] += 1
     report["lifecycle"] = lifecycle.scan_catalog(limit=60, budget_s=25.0)            # prima si leggono le date, poi si eliminano le voci chiuse
+    report["described"] = catalog_meta.describe_batch(limit=200, workers=24, budget_s=25.0, actor=actor)
     report["deleted"] = cleanup_stale(actor)["deleted"]
     events.record("catalog.refresh", f"Catalogo aggiornato: {report['inserted']} voci nuove, {report['enriched']} arricchite, {report['deleted']} eliminate perché ormai chiuse"
                   + (f", {len(report['errors'])} errori" if report["errors"] else ""),

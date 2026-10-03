@@ -245,7 +245,7 @@ export default function App() {
         )}
         {tab === 'guida' && <Guida anchor={guideAnchor} />}
         {tab === 'profilo' && (
-          <Profile user={user} isOwner={isOwner} onChangePassword={() => setPwOpen(true)} onGoHQ={() => nav.go('hq')}
+          <Profile user={user} isOwner={isOwner} onChangePassword={() => setPwOpen(true)} onGoHQ={() => nav.go('hq')} onGoAllocation={() => nav.go('allocation')}
             onUsePayslip={addPayslipItem} onUseBalance={() => nav.go('allocation')} onUseDraft={addDraftItems} />
         )}
         {tab === 'hq' && isOwner && <HQ onReplay={openReplay} user={user} />}

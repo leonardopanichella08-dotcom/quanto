@@ -66,6 +66,10 @@
     {
       "path": "/api/v2/cron/catalog-refresh",
       "schedule": "0 3 * * *"
+    },
+    {
+      "path": "/api/v2/cron/catalog-describe",
+      "schedule": "30 3 * * *"
     }
   ]
 }

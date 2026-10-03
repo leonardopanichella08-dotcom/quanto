@@ -377,6 +377,13 @@ ALTER TABLE client_documents ADD CONSTRAINT client_documents_status_check CHECK 
 """
 
 # (versione, nome, SQL). Aggiungere in coda, mai modificare le esistenti.
+_CATALOG_META = """
+-- Scheda di ogni voce del catalogo: descrizione breve e caratteristiche lette dalla pagina ufficiale (mai scritte da un modello).
+ALTER TABLE bandi ADD COLUMN summary TEXT;
+ALTER TABLE bandi ADD COLUMN catalog_meta TEXT;                 -- JSON: forma di agevolazione, costi ammessi, dimensione, regioni, ATECO, date…
+ALTER TABLE bandi ADD COLUMN meta_at TEXT;
+"""
+
 MIGRATIONS: List[Tuple[int, str, str]] = [
     (1, "init", _INIT),
     (2, "fonte_b", _FONTE_B),
@@ -388,4 +395,5 @@ MIGRATIONS: List[Tuple[int, str, str]] = [
     (8, "enable_rls", _ENABLE_RLS),
     (9, "requirement_figures", _REQUIREMENT_FIGURES),
     (10, "company_profile", _COMPANY_PROFILE),
+    (11, "catalog_meta", _CATALOG_META),
 ]
