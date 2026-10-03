@@ -53,6 +53,8 @@ class AllocationOptimizationRequest(BaseModel):
     fiscal_year: int = Field(default=2027, ge=2020, le=2100)
     historical_balance_ref: Optional[int] = Field(default=None, description="Identificativo del bilancio caricato (Fonte C): le spese si leggono da lì")
     historical_expenses: List[ExpenseLine] = Field(default_factory=list, description="In alternativa al bilancio: spese fornite dal chiamante (es. gestionale)")
+    use_profile_forecast: bool = Field(default=False, description="Parti dai bilanci del profilo aziendale: spese per categoria dell'ultimo esercizio disponibile, proiettate all'anno da pianificare")
+    growth_pct: Dict[CostCategory, float] = Field(default_factory=dict, description="Variazione annua scelta dall'utente per categoria (0,05 = +5%); senza, nessuna variazione")
     available_funding_lines: List[FundingLine] = Field(default_factory=list, description="Se vuoto si usano le linee di finanziamento attive (ricavate dai bandi)")
     optimization_target: OptimizationTarget = OptimizationTarget.MINIMIZE_NET_COST
     excluded_funds: List[str] = Field(default_factory=list, description="What-if: fondi che l'utente esclude manualmente")
@@ -61,8 +63,8 @@ class AllocationOptimizationRequest(BaseModel):
 
     @model_validator(mode="after")
     def _unique(self) -> "AllocationOptimizationRequest":
-        if self.historical_balance_ref is not None and self.historical_expenses:
-            raise ValueError("Indica il bilancio (historical_balance_ref) oppure le spese (historical_expenses), non entrambi")
+        if sum(bool(x) for x in (self.historical_balance_ref is not None, self.historical_expenses, self.use_profile_forecast)) > 1:
+            raise ValueError("Indica una sola origine delle spese: il bilancio (historical_balance_ref), le spese (historical_expenses) oppure il profilo (use_profile_forecast)")
         for label, ids in (("item_id", [e.item_id for e in self.historical_expenses]), ("fund_id", [f.fund_id for f in self.available_funding_lines])):
             if len(ids) != len(set(ids)):
                 raise ValueError(f"{label} duplicati")

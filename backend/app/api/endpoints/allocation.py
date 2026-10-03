@@ -6,7 +6,7 @@ from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request,
 from pydantic import BaseModel, Field
 
 from app.api.deps import actor_of, require_hq
-from app.core import events, funds, llm, webhooks
+from app.core import company_profile, events, funds, llm, webhooks
 from app.core.renderer import render_with_grounding
 from app.core.fonte_c import service as fonte_c
 from app.core.allocation_engine import AllocationOptimizerEngine
@@ -32,8 +32,19 @@ def optimize_allocation_plan(request: AllocationOptimizationRequest, background:
         if pending:
             raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail={
                 "message": f"{len(pending)} righe del bilancio vanno verificate (lettura incerta o categoria mancante) prima di pianificare", "lines": pending})
-        request.historical_expenses = [ExpenseLine(item_id=f"EXP-{ln['field_id']}", category=ln["category"], amount_eur=float(ln["amount_eur"])) for ln in ex["lines"]]
-        source = f"bilancio {request.historical_balance_ref}"
+        years = max(1, request.fiscal_year - ex["fiscal_year"]) if ex["fiscal_year"] else 1       # anni da proiettare: la variazione si compone
+        growth = {k.value: v for k, v in request.growth_pct.items()}
+        request.historical_expenses = [ExpenseLine(item_id=f"EXP-{ln['field_id']}", category=ln["category"],
+                                                    amount_eur=round(float(ln["amount_eur"]) * (1 + growth.get(ln["category"], 0.0)) ** years, 2)) for ln in ex["lines"]]
+        request.historical_expenses = [e for e in request.historical_expenses if e.amount_eur > 0]
+        source = f"bilancio {request.historical_balance_ref}" + (" con variazioni" if growth else "")
+    elif request.use_profile_forecast:                      # spese dell'anno da pianificare = ultimo bilancio del profilo + le variazioni scelte dall'utente
+        try:
+            fc = company_profile.forecast(actor_of(http), request.fiscal_year, {k.value: v for k, v in request.growth_pct.items()})
+        except company_profile.ProfileError as exc:
+            raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(exc)) from exc
+        request.historical_expenses = [ExpenseLine(item_id=f"STIMA-{r['category']}", category=r["category"], amount_eur=r["forecast_eur"]) for r in fc["categories"] if r["forecast_eur"] > 0]
+        source = f"stima dal profilo aziendale (base {fc['base_year']})"
     if not request.historical_expenses:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Elenco spese storiche vuoto.")
     if not request.available_funding_lines:                # fondi dalle linee attive (ricavate dai bandi), mai dal codice

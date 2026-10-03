@@ -351,6 +351,31 @@ _REQUIREMENT_FIGURES = """
 ALTER TABLE requirements ADD COLUMN figures TEXT;
 """
 
+_COMPANY_PROFILE = """
+-- Profilo aziendale: i dati dell'impresa che si ricavano dai suoi documenti o si inseriscono a mano. Un profilo per utente.
+CREATE TABLE company_profiles (
+    owner TEXT PRIMARY KEY,
+    data TEXT NOT NULL,
+    sources TEXT NOT NULL,
+    updated_at TEXT NOT NULL
+);
+-- Dati di bilancio per esercizio (ricavi, costi per categoria, dipendenti), con l'origine di ogni valore (documento o inserito a mano).
+CREATE TABLE company_financials (
+    owner TEXT NOT NULL,
+    fiscal_year INTEGER NOT NULL,
+    data TEXT NOT NULL,
+    sources TEXT NOT NULL,
+    updated_at TEXT NOT NULL,
+    PRIMARY KEY (owner, fiscal_year)
+);
+ALTER TABLE company_profiles ENABLE ROW LEVEL SECURITY;
+ALTER TABLE company_financials ENABLE ROW LEVEL SECURITY;
+ALTER TABLE client_documents DROP CONSTRAINT client_documents_doc_type_check;
+ALTER TABLE client_documents ADD CONSTRAINT client_documents_doc_type_check CHECK (doc_type IN ('PAYSLIP', 'BALANCE_SHEET', 'F24', 'APPLICATION_DRAFT', 'COMPANY_REGISTRY', 'OTHER'));
+ALTER TABLE client_documents DROP CONSTRAINT client_documents_status_check;
+ALTER TABLE client_documents ADD CONSTRAINT client_documents_status_check CHECK (status IN ('PARSED', 'NEEDS_REVIEW', 'CONFIRMED', 'FAILED', 'STORED'));
+"""
+
 # (versione, nome, SQL). Aggiungere in coda, mai modificare le esistenti.
 MIGRATIONS: List[Tuple[int, str, str]] = [
     (1, "init", _INIT),
@@ -362,4 +387,5 @@ MIGRATIONS: List[Tuple[int, str, str]] = [
     (7, "draft_doc_type", _DRAFT_DOC_TYPE),
     (8, "enable_rls", _ENABLE_RLS),
     (9, "requirement_figures", _REQUIREMENT_FIGURES),
+    (10, "company_profile", _COMPANY_PROFILE),
 ]

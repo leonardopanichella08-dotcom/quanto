@@ -90,6 +90,12 @@ def _typed(key: str, value: str):
 def derive_from_bando(bando_id: str, fiscal_year: int, actor: str, max_total_eur: Optional[float] = None, de_minimis: bool = False,
                       fund_id: Optional[str] = None) -> Dict[str, Any]:
     """Crea la linea dalle regole PUBBLICATE del bando. Errore chiaro se mancano le regole necessarie."""
+    return upsert_fund(build_fund(bando_id, fiscal_year, max_total_eur, de_minimis, fund_id), actor)
+
+
+def build_fund(bando_id: str, fiscal_year: int, max_total_eur: Optional[float] = None, de_minimis: bool = False,
+               fund_id: Optional[str] = None) -> Dict[str, Any]:
+    """La linea di finanziamento ricavata dalle regole pubblicate, senza salvarla (la usa anche l'abbinamento ai bandi)."""
     bando = Ingestion.get_bando(bando_id)
     if bando is None:
         raise FundError("Bando non trovato")
@@ -117,7 +123,7 @@ def derive_from_bando(bando_id: str, fiscal_year: int, actor: str, max_total_eur
     fund = {"fund_id": fund_id or bando_id, "name": rule_set.bando_name, "bando_id": bando_id, "allowed_categories": cats, "coverage_pct": rule_set.contribution_rate_pct,
             "category_max_share": share, "excludes": list(rule_set.non_cumulable_funding_ids), "active_from_month": first, "active_to_month": last,
             "max_total_eur": max_total_eur, "de_minimis": de_minimis, "source_ref": f"regole pubblicate del bando {bando_id} (versione {rule_set.rule_version_hash[:12]})"}
-    return upsert_fund(fund, actor)
+    return fund
 
 
 def funding_lines_for_allocation() -> List[FundingLine]:

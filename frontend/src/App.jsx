@@ -38,7 +38,7 @@ const EMPTY_REQUEST = { project_id: 'PRJ-2026-001', grant_rules: null, cost_item
 export default function App() {
   const [user, setUser] = useState(session.user())
   const [pwOpen, setPwOpen] = useState(false)
-  const [balanceRef, setBalanceRef] = useState(null)   // bilancio scelto per l'allocazione
+  const [templateOpen, setTemplateOpen] = useState(false) // arrivo dall'Allocazione: la bozza dal profilo si apre già
   const [tab, setTab] = useState(TABS.some(([id]) => id === params.get('tab')) ? params.get('tab') : 'bandi')
   const [bandi, setBandi] = useState([])
   const [bando, setBando] = useState(null)
@@ -149,6 +149,13 @@ export default function App() {
     changeItems([...request.cost_items, ...res.cost_items.filter((it) => !existing.has(it.item_id))])
     setTab('canvas'); window.scrollTo({ top: 0 })
   }
+  // bozza di budget dal profilo azienda: le voci TPL-* della bozza precedente vengono sostituite, il resto del budget resta
+  const applyTemplate = (res) => {
+    changeItems([...request.cost_items.filter((x) => !String(x.item_id).startsWith('TPL-')), ...res.cost_items])
+  }
+  const budgetFrom = async (bandoId) => {
+    try { await selectBando(bandoId); setTemplateOpen(true); nav.go('canvas'); window.scrollTo({ top: 0 }) } catch { nav.go('canvas') }          // l'errore (es. bando senza regole pubblicate) lo mostra la pagina Budget
+  }
   const changeProject = (project_id) => { setRequest((r) => ({ ...r, project_id })); setAttestation(null) }
 
   const exportAs = async (kind) => {
@@ -218,7 +225,8 @@ export default function App() {
             onSelectBando={(id) => selectBando(id).catch(() => {})} onProjectId={changeProject} onItemsChange={changeItems} onDemo={loadDemo} onImport={importFile}
             onValidate={() => validate(request)} onRegister={() => setModalOpen(true)} onExport={exportAs}
             onOpenLab={() => { setReplay(null); setLabFrom('canvas'); setTab('lab') }} onDismissImport={() => setImportInfo(null)} onGoBandi={() => setTab('bandi')}
-            onUsePayslip={addPayslipItem} onUseBalance={(id) => { setBalanceRef(id); nav.go('allocation') }} onUseDraft={addDraftItems} />
+            onUsePayslip={addPayslipItem} onUseBalance={() => nav.go('allocation')} onUseDraft={addDraftItems}
+            onUseTemplate={applyTemplate} onGoProfile={() => nav.go('profilo')} templateOpen={templateOpen} />
         )}
         {tab === 'lab' && (
           <div className="space-y-4">
@@ -229,7 +237,7 @@ export default function App() {
             <AlgorithmLab validation={labData} title={labData?.project_id} criteriaTitles={criteriaTitles} />
           </div>
         )}
-        {tab === 'allocation' && <AllocationView balanceRef={balanceRef} onPickBalance={setBalanceRef} onGoDocuments={() => nav.go('canvas')} />}
+        {tab === 'allocation' && <AllocationView onGoProfile={() => nav.go('profilo')} onBudgetFrom={budgetFrom} />}
         {tab === 'pattern' && <PatternDemo bando={bando} validation={validation} />}
         {tab === 'auditor' && (
           <AuditorPortal request={request} defaultProject={params.get('project') || validation?.project_id || request.project_id}
@@ -238,7 +246,7 @@ export default function App() {
         {tab === 'guida' && <Guida anchor={guideAnchor} />}
         {tab === 'profilo' && (
           <Profile user={user} isOwner={isOwner} onChangePassword={() => setPwOpen(true)} onGoHQ={() => nav.go('hq')}
-            onUsePayslip={addPayslipItem} onUseBalance={(id) => { setBalanceRef(id); nav.go('allocation') }} onUseDraft={addDraftItems} />
+            onUsePayslip={addPayslipItem} onUseBalance={() => nav.go('allocation')} onUseDraft={addDraftItems} />
         )}
         {tab === 'hq' && isOwner && <HQ onReplay={openReplay} user={user} />}
       </main>

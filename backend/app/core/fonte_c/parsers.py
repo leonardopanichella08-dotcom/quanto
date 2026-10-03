@@ -50,8 +50,8 @@ _IBAN = re.compile(r"\b[A-Z]{2}\d{2}[A-Z0-9]{11,30}\b")
 
 
 def norm(text: str) -> str:
-    t = unicodedata.normalize("NFKD", text or "").encode("ascii", "ignore").decode()
-    return re.sub(r"\s+", " ", t).strip().upper()
+    t = unicodedata.normalize("NFKD", (text or "").replace("’", "'")).encode("ascii", "ignore").decode()
+    return re.sub(r"\s+", " ", t.replace("'", "")).strip().upper()          # senza apostrofi: «DELL'ESERCIZIO» e «DELL’ESERCIZIO» sono la stessa etichetta
 
 
 def parse_amount(text: str) -> Optional[Decimal]:
@@ -107,6 +107,21 @@ def _value(kind: str, after_norm: str, raw_line: str, label: str):
         return (str(a), 0.98) if a is not None else (None, 0)
     if kind == "int":
         m = re.search(r"\b(\d{1,2})\b", after_norm)
+        return (m.group(1), 0.98) if m else (None, 0)
+    if kind == "count":
+        m = re.search(r"\b(\d{1,5})(?:[,.]\d+)?\b", after_norm)
+        return (m.group(1), 0.98) if m else (None, 0)
+    if kind == "vat":
+        m = re.search(r"(?:\bIT\s*)?\b(\d{11})\b", after_norm.replace(" ", ""))
+        return (m.group(1), 0.98) if m else (None, 0)
+    if kind == "ateco":
+        m = re.search(r"\b(\d{2}\.\d{2}(?:\.\d{1,2})?)\b", after_norm)
+        return (m.group(1), 0.98) if m else (None, 0)
+    if kind == "year":
+        m = re.search(r"\b(1[89]\d{2}|20\d{2})\b", after_norm)
+        return (m.group(1), 0.98) if m else (None, 0)
+    if kind == "province":
+        m = re.search(r"\(([A-Z]{2})\)", raw_line.upper())
         return (m.group(1), 0.98) if m else (None, 0)
     if kind == "cf":
         m = _CF.search(raw_line.upper())
@@ -183,7 +198,7 @@ def classify_cost(description: str) -> (Optional[str], float):
     return None, 0.0
 
 
-def parse_balance(lines: List[dict]) -> List[Field]:
+def _parse_balance_costs(lines: List[dict]) -> List[Field]:
     """Righe di costo del bilancio: descrizione + importo. Il fiscal year e i totali vengono letti a parte."""
     out: List[Field] = []
     year = None
@@ -208,9 +223,51 @@ def parse_balance(lines: List[dict]) -> List[Field]:
         if len(desc) < 4 or re.search(r"\bTOTALE\b", norm(desc)):
             continue
         cat, cat_conf = classify_cost(desc)
+        if in_costs is None and cat is None:
+            continue                                        # prima della sezione dei costi (ricavi, attivo…): senza una categoria di costo riconoscibile non è una riga da verificare
         pattern = 0.98 if in_costs else 0.80               # fuori da una sezione «Costi della produzione» la riga potrebbe non essere un costo
         conf = round(pattern * (cat_conf if cat else 0.0) * ln["conf_min"], 4)
         out.append(Field("expense_line", json.dumps({"description": desc, "amount_eur": str(abs(amt)), "category": cat}, ensure_ascii=False), conf, ln["page"], _scrub(ln["text"])))
+    return out
+
+
+# I valori che descrivono l'impresa (non le singole righe di costo): servono a costruire il profilo aziendale.
+BALANCE_SPECS = [
+    ("revenue_eur", ["RICAVI DELLE VENDITE E DELLE PRESTAZIONI", "RICAVI DELLE VENDITE E PRESTAZIONI", "RICAVI DELLE VENDITE"], "amount"),
+    ("net_result_eur", ["UTILE (PERDITA) DELLESERCIZIO", "UTILE/PERDITA DELLESERCIZIO", "UTILE (PERDITA) DELL ESERCIZIO", "UTILE DELLESERCIZIO", "PERDITA DELLESERCIZIO", "RISULTATO DELLESERCIZIO"], "amount"),
+    ("total_costs_eur", ["TOTALE COSTI DELLA PRODUZIONE"], "amount"),
+    ("employees_avg", ["NUMERO MEDIO DEI DIPENDENTI", "NUMERO MEDIO DI DIPENDENTI", "NUMERO MEDIO DIPENDENTI", "ORGANICO MEDIO", "OCCUPATI MEDI"], "count"),
+]
+
+
+def parse_balance(lines: List[dict]) -> List[Field]:
+    out = _parse_balance_costs(lines)
+    for key, labels, kind in BALANCE_SPECS:
+        f = _find(lines, labels, kind, key)
+        if f is not None:
+            out.append(f)
+    return out
+
+
+# ------------------------------------------------------------------------------------------------ visura camerale
+REGISTRY_SPECS = [
+    ("company_name", ["DENOMINAZIONE", "RAGIONE SOCIALE"], "text"),
+    ("vat_number", ["PARTITA IVA", "P. IVA", "P.IVA", "PARTITA I.V.A."], "vat"),
+    ("legal_form", ["FORMA GIURIDICA", "NATURA GIURIDICA"], "text"),
+    ("ateco_code", ["CODICE ATECO", "ATTIVITA PREVALENTE", "CODICE ATTIVITA", "ATECO"], "ateco"),
+    ("province", ["SEDE LEGALE", "INDIRIZZO SEDE", "SEDE"], "province"),
+    ("founded_year", ["DATA DI COSTITUZIONE", "DATA ATTO DI COSTITUZIONE", "DATA COSTITUZIONE", "DATA DI ISCRIZIONE"], "year"),
+    ("employees", ["NUMERO ADDETTI", "ADDETTI", "NUMERO DIPENDENTI", "DIPENDENTI"], "count"),
+]
+
+
+def parse_registry(lines: List[dict]) -> List[Field]:
+    """Visura camerale: denominazione, partita IVA, forma giuridica, ATECO, provincia, anno di costituzione, addetti."""
+    out: List[Field] = []
+    for key, labels, kind in REGISTRY_SPECS:
+        f = _find(lines, labels, kind, key)
+        if f is not None:
+            out.append(f)
     return out
 
 
@@ -272,5 +329,5 @@ def parse_application_draft(lines: List[dict]) -> List[Field]:
 
 
 PARSERS: Dict[str, Callable[[List[dict]], List[Field]]] = {
-    "PAYSLIP": parse_payslip, "BALANCE_SHEET": parse_balance, "F24": parse_f24, "APPLICATION_DRAFT": parse_application_draft,
+    "PAYSLIP": parse_payslip, "BALANCE_SHEET": parse_balance, "F24": parse_f24, "APPLICATION_DRAFT": parse_application_draft, "COMPANY_REGISTRY": parse_registry,
 }

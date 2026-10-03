@@ -130,9 +130,9 @@ export const GUIDE = {
   },
   allocation: {
     title: 'Allocazione',
-    what: 'Pianifica l’anno: decide quali spese far coprire da quali fondi pubblici, per pagare di tasca propria il meno possibile.',
-    steps: ['Scegli l’obiettivo (es. spesa netta minima).', 'Leggi quanto è coperto e quanto resta a tuo carico.', 'Prova “Escludi una fonte” per vedere cosa succede senza quel fondo.', 'Guarda il flusso: da quale fondo va ogni spesa.'],
-    example: 'Escludi “Transizione 5.0”: le spese in macchinari non hanno più chi le copre e la spesa netta sale subito.',
+    what: 'Parte dai bilanci della tua azienda, stima le spese dell’anno successivo, trova i bandi adatti (e come rientrare nei loro tetti) e decide quali spese far coprire da quali bandi, per pagare di tasca propria il meno possibile.',
+    steps: ['1 · Controlla i dati: bilanci e documenti si caricano nel Profilo; ciò che manca lo completi tu.', '2 · Stima dell’anno: parte dall’ultimo bilancio, la variazione per categoria la scegli tu.', '3 · Bandi adatti: per ognuno vedi se puoi partecipare, quanto potrebbe coprire e quali voci ridurre per rispettare i tetti.', '4 · Spunta i bandi da includere: il programma calcola il piano e il flusso di ogni spesa.'],
+    example: 'Le consulenze del bilancio sono 40.000 €, ma il bando le ammette solo fino al 10% delle spese: la scheda ti dice quanto è ammissibile e di quanto ridurre la voce.',
     terms: ['milp', 'whatif', 'deminimis', 'cumulo'],
   },
   pattern: {
@@ -144,8 +144,8 @@ export const GUIDE = {
   },
   documents: {
     title: 'Documenti',
-    what: 'Carichi buste paga, bilanci e F24 in PDF: QUANTO legge i campi e ti dice quanto è sicuro di ognuno. Quello che non è sicuro lo controlli tu prima che entri nei calcoli.',
-    steps: ['Scegli il tipo di documento e il PDF.', 'Guarda i campi letti: verde = sicuro, giallo/rosso = da verificare.', 'Conferma o correggi i campi incerti.', 'Usa la busta paga nel Budget o il bilancio nell’Allocazione.'],
+    what: 'Carichi visura, bilanci, buste paga e F24 in PDF: QUANTO legge i campi e ti dice quanto è sicuro di ognuno. Quello che non è sicuro lo controlli tu prima che entri nei calcoli. Gli altri documenti aziendali si archiviano senza essere letti.',
+    steps: ['Scegli il tipo di documento e il file.', 'Guarda i campi letti: verde = sicuro, giallo/rosso = da verificare.', 'Conferma o correggi i campi incerti.', 'Usa la busta paga nel Budget; visura e bilanci aggiornano da soli il profilo azienda.'],
     example: 'Dalla busta paga la RAL non si legge: QUANTO la stima (competenze × mensilità) e ti chiede di confermarla.',
     terms: ['fontea', 'hash'],
   },
@@ -158,9 +158,9 @@ export const GUIDE = {
   },
   profilo: {
     title: 'Profilo',
-    what: 'I tuoi dati personali: chi sei, le tue ultime operazioni e i documenti privati che hai caricato (buste paga, bilanci, F24, bozze di candidatura).',
-    steps: ['In alto: nome, e-mail, ruolo e il pulsante per cambiare password.', 'Operazioni recenti: le tue ultime azioni, in ordine di tempo.', 'I tuoi documenti: carica, controlla e usa i tuoi file privati — li vedi solo tu.'],
-    example: 'Hai caricato una busta paga la settimana scorsa? La trovi qui, con l’esito della lettura.',
+    what: 'Il profilo della tua azienda e i suoi documenti: da visura e bilanci QUANTO ricava i dati dell’impresa e i costi di ogni anno. Serve all’Allocazione e a creare la bozza di budget per i bandi futuri.',
+    steps: ['Carica visura camerale e bilanci (PDF) nei documenti: il profilo si compila da solo.', 'Controlla i dati: ogni valore dice se viene da un documento o l’hai scritto tu (il tuo non viene mai sovrascritto).', 'Completa i campi che mancano e i costi degli anni senza bilancio.', 'Nel Budget, «Bozza di budget dal profilo azienda» parte da questi dati.'],
+    example: 'Carichi il bilancio 2025: ricavi, personale e consulenze compaiono nel profilo. Resta da indicare se sei una start-up innovativa: lo scrivi tu.',
     terms: ['fontea'],
   },
   hq: {

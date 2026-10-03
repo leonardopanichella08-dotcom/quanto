@@ -14,7 +14,7 @@ router = APIRouter()
 
 
 class UploadBody(BaseModel):
-    doc_type: str = Field(..., description="PAYSLIP | BALANCE_SHEET | F24 | APPLICATION_DRAFT")
+    doc_type: str = Field(..., description="PAYSLIP | BALANCE_SHEET | F24 | APPLICATION_DRAFT | COMPANY_REGISTRY | OTHER")
     filename: str = Field(..., max_length=200)
     content_base64: str
 
@@ -64,7 +64,7 @@ def file(document_id: int, request: Request) -> Response:
     f = _guard(service.original, document_id, _owner(request))
     if f is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Documento non trovato")
-    return Response(f["data"], media_type="application/pdf", headers={"Content-Disposition": f'attachment; filename="{f["name"]}"'})
+    return Response(f["data"], media_type=f.get("content_type") or "application/pdf", headers={"Content-Disposition": f'attachment; filename="{f["name"]}"'})
 
 
 @router.delete("/documents/{document_id}", summary="Elimina il documento e i suoi campi")

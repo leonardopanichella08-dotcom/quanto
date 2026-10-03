@@ -4,6 +4,7 @@ import LineEditor from './LineEditor'
 import ItemTemplatePicker from './ItemTemplatePicker'
 import CriteriaHeatmap, { heatmapData } from './CriteriaHeatmap'
 import Documents from './Documents'
+import TemplateFromProfile from './TemplateFromProfile'
 import Guide from './Guide'
 import { Hint } from './Help'
 import { ChromeCard } from './ui'
@@ -118,7 +119,7 @@ function Inspector({ item, steps }) {
 export default function BudgetCanvas({
   bandi, bando, request, fields, validation, loading, error, busy, importInfo, criteriaTitles,
   onSelectBando, onProjectId, onItemsChange, onDemo, onImport, onValidate, onRegister, onExport, onOpenLab, onDismissImport, onGoBandi,
-  onUsePayslip, onUseBalance, onUseDraft,
+  onUsePayslip, onUseBalance, onUseDraft, onUseTemplate, onGoProfile, templateOpen,
 }) {
   const [selectedId, setSelectedId] = useState(null)
   const [panel, setPanel] = useState('inspect')
@@ -187,6 +188,8 @@ export default function BudgetCanvas({
           <button onClick={onGoBandi} className="btn-primary">Vai ai bandi</button>
         </div>
       )}
+
+      {bando && <TemplateFromProfile key={`${bando.bando_id}-${templateOpen ? 'o' : 'c'}`} bando={bando} onApply={onUseTemplate} onGoProfile={onGoProfile} startOpen={!!templateOpen} />}
 
       {/* documenti a supporto: buste paga, bilanci, F24, bozze di candidatura — funzione secondaria, non serve un bando */}
       <div ref={docsRef} className="card">

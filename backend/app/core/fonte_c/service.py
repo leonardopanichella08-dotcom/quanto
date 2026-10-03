@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import mimetypes
 import re
 from decimal import Decimal, InvalidOperation
 from typing import Any, Dict, List, Optional
@@ -15,7 +16,8 @@ from app.core import crypto_store, events, fonte_b
 from app.core.db import connect
 from app.core.fonte_c import ocr, parsers
 
-DOC_TYPES = {"PAYSLIP": "Busta paga", "BALANCE_SHEET": "Bilancio", "F24": "Modello F24", "APPLICATION_DRAFT": "Bozza di candidatura"}
+DOC_TYPES = {"PAYSLIP": "Busta paga", "BALANCE_SHEET": "Bilancio", "F24": "Modello F24", "APPLICATION_DRAFT": "Bozza di candidatura",
+             "COMPANY_REGISTRY": "Visura camerale", "OTHER": "Altro documento aziendale"}
 MAX_BYTES = 15 * 1024 * 1024
 USABLE = ("AUTO", "CONFIRMED", "CORRECTED")
 COST_CATEGORIES = ("PERSONNEL", "CAPITAL_ASSETS", "CONSULTING", "OVERHEAD", "TRAINING")
@@ -45,29 +47,34 @@ def upload(doc_type: str, filename: str, data: bytes, owner: str) -> Dict[str, A
         raise DocumentError(f"Tipo di documento sconosciuto: {doc_type}")
     if len(data) > MAX_BYTES:
         raise DocumentError("File troppo grande (massimo 15 MB)")
-    if not data.startswith(b"%PDF"):
+    is_pdf = data.startswith(b"%PDF")
+    if doc_type != "OTHER" and not is_pdf:
         raise DocumentError("Per ora si leggono solo i PDF (anche scansionati)")
     enc = crypto_store.encrypt(data, aad=hashlib.sha256(data).digest())        # FileKeyError se manca la chiave: nulla viene salvato
+    content_type = "application/pdf" if is_pdf else (mimetypes.guess_type(filename)[0] or "application/octet-stream")
     error: Optional[str] = None
     read = None
     fields: List[parsers.Field] = []
-    try:
-        read = ocr.read_pdf(data)
-        fields = parsers.PARSERS[doc_type](ocr.group_lines(read.words))
-        if not fields:
-            error = "Non ho riconosciuto nessun campo: il documento non sembra del tipo indicato o il testo non è leggibile"
-    except ocr.OcrUnavailable as exc:
-        error = str(exc)
-    except ValueError as exc:
-        error = str(exc)
-    except Exception as exc:  # PDF corrotto o protetto
-        error = f"Il PDF non si legge ({type(exc).__name__})"
-    status = "FAILED" if error else ("NEEDS_REVIEW" if any(f.status == "NEEDS_REVIEW" for f in fields) else "PARSED")
+    if doc_type == "OTHER":                       # un documento di cui non si leggono i campi (contratto, DURC…): si conserva cifrato nel profilo
+        pass
+    else:
+        try:
+            read = ocr.read_pdf(data)
+            fields = parsers.PARSERS[doc_type](ocr.group_lines(read.words))
+            if not fields:
+                error = "Non ho riconosciuto nessun campo: il documento non sembra del tipo indicato o il testo non è leggibile"
+        except ocr.OcrUnavailable as exc:
+            error = str(exc)
+        except ValueError as exc:
+            error = str(exc)
+        except Exception as exc:  # PDF corrotto o protetto
+            error = f"Il PDF non si legge ({type(exc).__name__})"
+    status = "STORED" if doc_type == "OTHER" else "FAILED" if error else ("NEEDS_REVIEW" if any(f.status == "NEEDS_REVIEW" for f in fields) else "PARSED")
     with connect() as conn:
         did = conn.execute(
             "INSERT INTO client_documents (doc_type, filename, content_type, size_bytes, sha256, data_enc, status, method, pages, mean_confidence, error, owner, created_at) "
             "VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?) RETURNING id",
-            (doc_type, filename[:200], "application/pdf", len(data), hashlib.sha256(data).hexdigest(), enc, status, read.method if read else None,
+            (doc_type, filename[:200], content_type, len(data), hashlib.sha256(data).hexdigest(), enc, status, read.method if read else None,
              read.pages if read else None, round(read.mean_confidence, 4) if read else None, error, owner, events.now_iso())).fetchone()["id"]
         conn.executemany(
             "INSERT INTO client_document_fields (document_id, field_key, value, confidence, status, pii, page, snippet) VALUES (?,?,?,?,?,?,?,?)",
@@ -107,7 +114,7 @@ def original(document_id: int, owner: Optional[str] = None) -> Optional[Dict[str
         r = conn.execute("SELECT * FROM client_documents WHERE id=?", (document_id,)).fetchone()
     if r is None or (owner and r["owner"] != owner):
         return None
-    return {"name": r["filename"], "data": crypto_store.decrypt(r["data_enc"], aad=bytes.fromhex(r["sha256"]))}
+    return {"name": r["filename"], "content_type": r["content_type"], "data": crypto_store.decrypt(r["data_enc"], aad=bytes.fromhex(r["sha256"]))}
 
 
 def delete(document_id: int, owner: Optional[str] = None) -> bool:

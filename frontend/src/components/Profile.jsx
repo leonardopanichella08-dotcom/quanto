@@ -4,6 +4,7 @@ import { api } from '../lib/api'
 import { fmtTs } from '../lib/format'
 import { SectionTitle } from './ui'
 import Documents from './Documents'
+import CompanyProfile from './CompanyProfile'
 import Guide from './Guide'
 import { CreditsRing } from './CreditsBadge'
 
@@ -64,6 +65,8 @@ function Activity() {
 }
 
 export default function Profile({ user, isOwner, onChangePassword, onGoHQ, onUsePayslip, onUseBalance, onUseDraft }) {
+  const [version, setVersion] = useState(0)          // si alza quando un documento cambia: il profilo azienda si ricarica
+  const bump = useCallback(() => setVersion((v) => v + 1), [])
   return (
     <div className="space-y-6">
       <Guide page="profilo" />
@@ -75,6 +78,8 @@ export default function Profile({ user, isOwner, onChangePassword, onGoHQ, onUse
         </div>
         <button onClick={onChangePassword} className="btn ml-auto"><KeyRound className="w-3.5 h-3.5" />Cambia password</button>
       </div>
+
+      <CompanyProfile version={version} />
 
       <Credits />
 
@@ -92,9 +97,9 @@ export default function Profile({ user, isOwner, onChangePassword, onGoHQ, onUse
       <Activity />
 
       <div className="space-y-3">
-        <div className="flex items-center gap-2 px-1"><span className="text-sm font-medium text-ink">I tuoi documenti</span></div>
-        <p className="text-xs text-mute px-1 -mt-2">Buste paga, bilanci, F24 e bozze di candidatura che hai caricato: solo tu li vedi.</p>
-        <Documents onUsePayslip={onUsePayslip} onUseBalance={onUseBalance} onUseDraft={onUseDraft} />
+        <div className="flex items-center gap-2 px-1"><span className="text-sm font-medium text-ink">I documenti dell’azienda</span></div>
+        <p className="text-xs text-mute px-1 -mt-2">Visura, bilanci, buste paga, F24, bozze di candidatura e ogni altro documento aziendale: solo tu li vedi. Da visura e bilanci si compila il profilo qui sopra.</p>
+        <Documents onUsePayslip={onUsePayslip} onUseBalance={onUseBalance} onUseDraft={onUseDraft} onProfileChanged={bump} />
       </div>
     </div>
   )

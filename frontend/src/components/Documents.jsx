@@ -4,15 +4,18 @@ import { api, download, fileToBase64 } from '../lib/api'
 import { SectionTitle } from './ui'
 import Guide from './Guide'
 
-const TYPES = { PAYSLIP: 'Busta paga', BALANCE_SHEET: 'Bilancio', F24: 'Modello F24', APPLICATION_DRAFT: 'Bozza di candidatura' }
+const TYPES = { COMPANY_REGISTRY: 'Visura camerale', BALANCE_SHEET: 'Bilancio', PAYSLIP: 'Busta paga', F24: 'Modello F24', APPLICATION_DRAFT: 'Bozza di candidatura', OTHER: 'Altro documento aziendale' }
 const STATUS = {
   PARSED: ['letto', 'text-emerald-700 border-emerald-500/30'], CONFIRMED: ['confermato', 'text-emerald-700 border-emerald-500/30'],
   NEEDS_REVIEW: ['da verificare', 'text-amber-700 border-amber-500/30'], FAILED: ['non letto', 'text-red-700 border-red-500/30'],
+  STORED: ['archiviato', 'text-ink-2 border-line-strong'],
 }
 const FIELD_LABEL = {
   employee_name: 'Nome (token)', tax_code: 'Codice fiscale (token)', ccnl: 'Contratto (CCNL)', level: 'Livello', period: 'Periodo', gross_monthly_eur: 'Totale competenze del mese (€)',
   net_monthly_eur: 'Netto in busta (€)', tfr_accrual_eur: 'Quota TFR del mese (€)', mensilita: 'Mensilità', ral_annual_eur: 'RAL stimata (€)', fiscal_year: 'Anno del bilancio',
-  expense_line: 'Riga di costo', f24_row: 'Riga F24',
+  expense_line: 'Riga di costo', f24_row: 'Riga F24', revenue_eur: 'Ricavi (€)', net_result_eur: 'Utile / perdita dell’esercizio (€)', total_costs_eur: 'Totale costi della produzione (€)',
+  employees_avg: 'Dipendenti (media)', company_name: 'Ragione sociale', vat_number: 'Partita IVA', legal_form: 'Forma giuridica', ateco_code: 'Codice ATECO', province: 'Provincia della sede',
+  founded_year: 'Anno di costituzione', employees: 'Dipendenti',
 }
 const CATS = { PERSONNEL: 'Personale', CAPITAL_ASSETS: 'Beni strumentali', CONSULTING: 'Consulenze', OVERHEAD: 'Spese generali', TRAINING: 'Formazione' }
 const pct = (c) => `${Math.round(c * 100)}%`
@@ -83,7 +86,9 @@ function Detail({ id, onChanged, onUsePayslip, onUseBalance, onUseDraft }) {
       <div className="flex flex-wrap items-center gap-2">
         <SectionTitle>{TYPES[doc.doc_type]} · {doc.filename}</SectionTitle>
         <span className={`px-1.5 py-0.5 rounded border text-xs ${STATUS[doc.status][1]}`}>{STATUS[doc.status][0]}</span>
-        <span className="text-xs text-mute">{doc.method} · {doc.pages} pag. · lettura media {doc.mean_confidence != null ? pct(doc.mean_confidence) : '—'} · soglia {pct(doc.confidence_min)}</span>
+        {doc.status === 'STORED'
+          ? <span className="text-xs text-mute">Conservato cifrato; QUANTO non lo legge, resta nel tuo archivio aziendale.</span>
+          : <span className="text-xs text-mute">{doc.method} · {doc.pages} pag. · lettura media {doc.mean_confidence != null ? pct(doc.mean_confidence) : '—'} · soglia {pct(doc.confidence_min)}</span>}
         <button className="btn ml-auto !py-1" onClick={async () => download(await api.fcFile(id), doc.filename)}><Download className="w-3 h-3" />Originale</button>
       </div>
       {doc.error && <p className="text-xs text-red-700 flex gap-2"><AlertTriangle className="w-4 h-4 shrink-0" />{doc.error}</p>}
@@ -98,30 +103,35 @@ function Detail({ id, onChanged, onUsePayslip, onUseBalance, onUseDraft }) {
   )
 }
 
-export default function Documents({ onUsePayslip, onUseBalance, onUseDraft }) {
+export default function Documents({ onUsePayslip, onUseBalance, onUseDraft, onProfileChanged, defaultType = 'COMPANY_REGISTRY' }) {
   const [list, setList] = useState([])
-  const [type, setType] = useState('PAYSLIP')
+  const [type, setType] = useState(defaultType)
   const [open, setOpen] = useState(null)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState(null)
   const file = useRef(null)
   const load = useCallback(() => api.fcDocuments().then(setList).catch((e) => setError(e.message)), [])
   useEffect(() => { load() }, [load])
+  // ogni documento letto o confermato aggiorna il profilo aziendale (i valori inseriti a mano restano)
+  const refresh = useCallback(async () => {
+    await load()
+    try { await api.profileSync(); onProfileChanged?.() } catch { /* il profilo si aggiorna comunque alla prossima apertura */ }
+  }, [load, onProfileChanged])
   const upload = async (f) => {
     if (!f) return
     setBusy(true); setError(null)
-    try { const d = await api.fcUpload({ doc_type: type, filename: f.name, content_base64: await fileToBase64(f) }); await load(); setOpen(d.id) } catch (e) { setError(e.message) } finally { setBusy(false); if (file.current) file.current.value = '' }
+    try { const d = await api.fcUpload({ doc_type: type, filename: f.name, content_base64: await fileToBase64(f) }); await refresh(); setOpen(d.id) } catch (e) { setError(e.message) } finally { setBusy(false); if (file.current) file.current.value = '' }
   }
   return (
     <div className="space-y-6">
       <Guide page="documents" />
       <div className="card p-5 space-y-3">
         <SectionTitle icon={FileUp}>Carica un documento</SectionTitle>
-        <p className="text-xs text-ink-2 leading-relaxed">PDF di buste paga, bilanci, F24 o una bozza di candidatura già scritta (anche scansionati, se il server ha il lettore OCR). Ogni campo letto ha una percentuale di sicurezza: sotto la soglia lo controlli tu prima di usarlo. Nomi e codici fiscali diventano codici anonimi; il file è conservato cifrato.</p>
+        <p className="text-xs text-ink-2 leading-relaxed">Visura camerale, bilanci, buste paga, F24 o una bozza di candidatura già scritta in PDF (anche scansionati, se il server ha il lettore OCR); qualunque altro documento aziendale (DURC, contratti, fogli Excel…) si archivia senza essere letto. Ogni campo letto ha una percentuale di sicurezza: sotto la soglia lo controlli tu prima di usarlo. Nomi e codici fiscali diventano codici anonimi; il file è conservato cifrato.</p>
         <div className="flex flex-wrap items-center gap-3">
           <select className="field !w-auto" value={type} onChange={(e) => setType(e.target.value)}>{Object.entries(TYPES).map(([k, l]) => <option key={k} value={k}>{l}</option>)}</select>
-          <input ref={file} type="file" accept=".pdf" className="hidden" onChange={(e) => upload(e.target.files?.[0])} />
-          <button className="btn-primary" disabled={busy} onClick={() => file.current?.click()}>{busy ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <FileUp className="w-3.5 h-3.5" />}Scegli il PDF</button>
+          <input ref={file} type="file" accept={type === 'OTHER' ? undefined : '.pdf'} className="hidden" onChange={(e) => upload(e.target.files?.[0])} />
+          <button className="btn-primary" disabled={busy} onClick={() => file.current?.click()}>{busy ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <FileUp className="w-3.5 h-3.5" />}{type === 'OTHER' ? 'Scegli il file' : 'Scegli il PDF'}</button>
         </div>
         {error && <p className="text-xs text-red-700">{error}</p>}
       </div>
@@ -133,11 +143,11 @@ export default function Documents({ onUsePayslip, onUseBalance, onUseDraft }) {
             <button onClick={() => setOpen(d.id)} className="font-medium text-ink hover:underline">{TYPES[d.doc_type]} · {d.filename}</button>
             <span className={`px-1.5 py-0.5 rounded border ${STATUS[d.status][1]}`}>{STATUS[d.status][0]}</span>
             <span className="text-mute">{d.fields} campi{d.to_review ? ` · ${d.to_review} da verificare` : ''} · {d.created_at.slice(0, 10)}</span>
-            <button className="btn !py-1 ml-auto" onClick={async () => { await api.fcDelete(d.id); if (open === d.id) setOpen(null); load() }}><Trash2 className="w-3 h-3" />Elimina</button>
+            <button className="btn !py-1 ml-auto" onClick={async () => { await api.fcDelete(d.id); if (open === d.id) setOpen(null); refresh() }}><Trash2 className="w-3 h-3" />Elimina</button>
           </div>
         ))}
       </div>
-      {open && <Detail key={open} id={open} onChanged={load} onUsePayslip={onUsePayslip} onUseBalance={onUseBalance} onUseDraft={onUseDraft} />}
+      {open && <Detail key={open} id={open} onChanged={refresh} onUsePayslip={onUsePayslip} onUseBalance={onUseBalance} onUseDraft={onUseDraft} />}
     </div>
   )
 }
