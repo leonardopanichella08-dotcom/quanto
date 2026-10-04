@@ -299,7 +299,7 @@ export default function AllocationView({ onGoProfile, onBudgetFrom }) {
             <div className="p-3 rounded-xl border border-emerald-500/30 bg-emerald-500/5 text-xs text-ink-2 space-y-1">
               <p className="font-medium text-emerald-700 inline-flex items-center gap-1.5"><CheckCircle2 className="w-4 h-4" />Studiato: {studied.name}</p>
               {studied.report && <p>Lettura {studied.report.status === 'COMPLETA' ? 'completa' : studied.report.status === 'PARZIALE' ? 'parziale' : 'insufficiente'}: {studied.report.documents_official} documenti ufficiali, {studied.report.requirements} requisiti, {studied.report.figures} cifre, {studied.report.rules_published} regole numeriche.</p>}
-              <p>{studied.fit ? `Ora lo trovi in «${FIT[studied.fit][0]}»${studied.estimate ? `, con un contributo stimato di ${fmtEur(studied.estimate.covered_eur)}` : ': il bando non dichiara un’aliquota di contributo, quindi non c’è una stima in euro'}.` : 'Il bando non risulta ancora valutabile: apri la pagina Bandi per vedere cosa è stato letto.'}</p>
+              <p>{studied.fit ? `Ora lo trovi in «${FIT[studied.fit][0]}»${studied.estimate ? `, con un contributo stimato di ${fmtEur(studied.estimate.covered_eur)}` : ''}. ${studied.fit === 'NON_ADATTO' ? 'Apri «Dettagli» sulla scheda per vedere quale controllo non è superato.' : studied.estimate ? '' : 'Il bando non dichiara un’aliquota di contributo, quindi non c’è una stima in euro.'}` : 'Il bando non risulta ancora valutabile: apri la pagina Bandi per vedere cosa è stato letto.'}</p>
               <button className="underline" onClick={() => setStudied(null)}>chiudi</button>
             </div>
           )}

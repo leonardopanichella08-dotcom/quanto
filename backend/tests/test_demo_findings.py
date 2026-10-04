@@ -74,3 +74,11 @@ def test_template_leaves_personnel_out_and_warns_about_cup_milestones_and_amorti
     t = client.post("/api/v2/profile/template", json={"bando_id": "BANDO-TPL", "scale_pct": 50}).json()
     assert [i["category"] for i in t["cost_items"]] == ["CAPITAL_ASSETS"] and t["needs_personnel"]["amount_eur"] == 100000.0
     assert "persona per persona" in t["needs_personnel"]["message"]
+
+
+def test_measures_reserved_to_other_kinds_of_applicant_are_left_out():
+    seed("CAT-ETS", "Agevolazione per gli enti del terzo settore", {"costs": ["Costo del personale"], "applicant_type": ["Ente del Terzo settore"], "state": "APERTO"})
+    seed("CAT-DA-COSTITUIRE", "Per chi sta per aprire", {"costs": ["Costo del personale"], "applicant_type": ["Impresa da costituire"], "state": "APERTO"})
+    seed("CAT-IMPRESE", "Per le imprese", {"costs": ["Costo del personale"], "applicant_type": ["Impresa", "Giovanile"], "state": "APERTO"})
+    ids = [i["bando_id"] for i in catalog_meta.rank_for_profile({}, {"PERSONNEL": 100.0})["items"]]
+    assert "CAT-IMPRESE" in ids and "CAT-ETS" not in ids and "CAT-DA-COSTITUIRE" not in ids

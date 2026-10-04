@@ -293,6 +293,11 @@ def rank_for_profile(profile: Dict[str, Any], by_cat: Dict[str, float], limit: i
             reasons.append(f"Riservato alla tua regione ({region})" if len(regions) == 1 else f"Ammette la tua regione ({region})")
         elif regions and not region:
             flags.append("regione")
+        kinds = [str(x).lower() for x in (meta.get("applicant_type") or [])]           # «Impresa», «Ente del Terzo settore», «Persona fisica», «Pubblica amministrazione»…
+        company_kinds = [k for k in kinds if "impresa" in k and "da costituire" not in k]
+        if kinds and not company_kinds:
+            excluded += 1                                   # riservato a enti, persone o imprese ancora da costituire: l'azienda è un'impresa già costituita
+            continue
         if meta.get("municipalities"):
             flags.append("valido solo in certi comuni")
         ok = _size_ok(meta.get("sizes") or [], size_code)
