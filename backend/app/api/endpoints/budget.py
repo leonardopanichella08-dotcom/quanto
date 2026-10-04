@@ -10,7 +10,7 @@ from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 
 from app.api.deps import actor_of
-from app.core import bandi, events, webhooks
+from app.core import bandi, events, webhooks, wp_allocation
 from app.core.budget_io import parse_import, template_xlsx
 from app.core.budget_service import validate_budget
 from app.core.criteria_catalog import BUDGET_LEVEL, CRITERIA_TITLES
@@ -18,6 +18,7 @@ from app.core.demo import SANDBOX_ID, build_demo
 from app.core.export import build_pdf, build_xlsx
 from app.core.field_catalog import CATEGORY_OPTIONS, FIELDS
 from app.models.schemas import BudgetValidationRequest, BudgetValidationResponse, GrantRuleSet
+from app.models.wp import WPRequest
 
 router = APIRouter()
 logger = logging.getLogger("quanto.budget")
@@ -161,3 +162,17 @@ def list_criteria() -> dict:
         "note": "Un criterio si esegue solo se la riga (o le regole del bando) forniscono il dato necessario; altrimenti risulta non valutato.",
         "criteria": [{"number": n, "title": t, "level": "BUDGET" if n in BUDGET_LEVEL else "ITEM"} for n, t in sorted(CRITERIA_TITLES.items())],
     }
+
+
+@router.post("/wp-plan", summary="Ripartisce le voci ammesse tra i pacchetti di lavoro (WP) del bando, rispettando quote e tetti")
+def wp_plan(body: WPRequest, http: Request) -> dict:
+    try:
+        out = wp_allocation.allocate(body)
+    except Exception:  # noqa: BLE001 - un errore del risolutore non deve diventare un 500 senza spiegazione
+        logger.exception("Ripartizione WP fallita")
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Il calcolo della ripartizione non è riuscito")
+    events.record("budget.wp_plan", f"Ripartizione in {len(body.work_packages)} WP di {len(body.items)} voci: {out['status']}"
+                  + (f", {out['total_eur']:,.2f} € ripartiti" if out["status"] in ("OPTIMAL", "BEST_FOUND") else ""),
+                  status="OK" if out["status"] in ("OPTIMAL", "BEST_FOUND") else "WARN", actor=actor_of(http), project_id=body.project_id,
+                  details={"status": out["status"], "work_packages": [w.wp_id for w in body.work_packages], "allow_split": body.allow_split})
+    return out

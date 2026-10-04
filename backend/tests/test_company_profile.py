@@ -234,3 +234,12 @@ def test_values_read_from_a_deleted_document_leave_the_profile():
     ov = sync()
     assert field(ov, "vat_number")["value"] is None and ov["financials"] == []
     assert field(ov, "employees")["value"] == 20                                  # quello scritto a mano resta
+
+
+def test_original_files_download_with_accented_names_and_come_back_identical():
+    data = pdf(["DOCUMENTO", "riga 1.000,00"])
+    r = client.post("/api/v2/fonte-c/documents", json={"doc_type": "OTHER", "filename": "Dichiarazione è già firmata.pdf", "content_base64": base64.b64encode(data).decode()})
+    assert r.status_code == 201
+    f = client.get(f"/api/v2/fonte-c/documents/{r.json()['id']}/file")
+    assert f.status_code == 200 and f.content == data
+    assert "filename*=UTF-8''Dichiarazione%20%C3%A8%20gi%C3%A0%20firmata.pdf" in f.headers["content-disposition"]

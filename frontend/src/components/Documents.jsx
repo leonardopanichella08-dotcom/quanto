@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react'
-import { AlertTriangle, CheckCircle2, Download, FileUp, Loader2, Trash2 } from 'lucide-react'
+import { AlertTriangle, CheckCircle2, Download, Eye, FileUp, Loader2, PackageOpen, Trash2, X } from 'lucide-react'
 import { api, download, fileToBase64 } from '../lib/api'
+import { createZip, uniqueName } from '../lib/zip'
 import { SectionTitle } from './ui'
 import Guide from './Guide'
 
@@ -18,6 +19,11 @@ const FIELD_LABEL = {
   founded_year: 'Anno di costituzione', employees: 'Dipendenti',
 }
 const CATS = { PERSONNEL: 'Personale', CAPITAL_ASSETS: 'Beni strumentali', CONSULTING: 'Consulenze', OVERHEAD: 'Spese generali', TRAINING: 'Formazione' }
+// Si mostrano nella pagina solo PDF, immagini raster e testo semplice: mai HTML o SVG, che sul nostro dominio potrebbero eseguire codice.
+const VIEWABLE = /^(application\/pdf|text\/plain|image\/(png|jpeg|gif|webp))(;|$)/
+const BOM = String.fromCharCode(0xfeff)
+const CRLF = String.fromCharCode(13, 10)
+const csvCell = (v) => `"${String(v ?? '').replace(/"/g, '""')}"`
 const pct = (c) => `${Math.round(c * 100)}%`
 const tone = (c, min) => (c >= min ? 'bg-emerald-500' : c >= 0.6 ? 'bg-amber-500' : 'bg-red-500')
 
@@ -117,6 +123,44 @@ export default function Documents({ onUsePayslip, onUseBalance, onUseDraft, onPr
     await load()
     try { await api.profileSync(); onProfileChanged?.() } catch { /* il profilo si aggiorna comunque alla prossima apertura */ }
   }, [load, onProfileChanged])
+  // Aprire o scaricare i file che l'azienda ha allegato: il server li decifra solo per il proprietario.
+  const [working, setWorking] = useState(null)
+  const [viewer, setViewer] = useState(null)                              // { name, url, type, doc }
+  const closeViewer = () => { if (viewer) URL.revokeObjectURL(viewer.url); setViewer(null) }
+  useEffect(() => () => { if (viewer) URL.revokeObjectURL(viewer.url) }, [viewer])
+  const openFile = async (d) => {
+    setError(null); setWorking(`open-${d.id}`)
+    try {
+      const blob = await api.fcFile(d.id)
+      const type = d.content_type || blob.type
+      if (!VIEWABLE.test(type)) { download(blob, d.filename); return }       // fogli Excel e simili: nessuna anteprima, si scaricano
+      setViewer({ name: d.filename, type, doc: d, url: URL.createObjectURL(new Blob([blob], { type })) })
+    } catch (e) { setError(e.message) } finally { setWorking(null) }
+  }
+  const saveFile = async (d) => {
+    setError(null); setWorking(d.id)
+    try { download(await api.fcFile(d.id), d.filename) } catch (e) { setError(e.message) } finally { setWorking(null) }
+  }
+  const saveAll = async () => {
+    setError(null); setWorking('all')
+    try {
+      const used = new Set()
+      const files = []
+      const rows = [['cartella', 'file', 'tipo', 'stato', 'caricato il', 'dimensione (byte)', 'impronta SHA-256']]
+      for (const d of [...list].reverse()) {
+        const folder = (TYPES[d.doc_type] || 'Altro').replace(/[\/:*?"<>|]/g, '-')
+        const name = uniqueName(`${folder}/${d.filename.replace(/[\/:*?"<>|]/g, '-')}`, used)
+        files.push({ name, data: new Uint8Array(await (await api.fcFile(d.id)).arrayBuffer()) })
+        rows.push([folder, name.split('/').pop(), TYPES[d.doc_type], STATUS[d.status]?.[0] || d.status, d.created_at.slice(0, 10), d.size_bytes, d.sha256])
+      }
+      files.push({ name: 'elenco_documenti.csv', data: new TextEncoder().encode(BOM + rows.map((r) => r.map(csvCell).join(';')).join(CRLF) + CRLF) })
+      download(createZip(files), `documenti-azienda-${new Date().toISOString().slice(0, 10)}.zip`)
+    } catch (e) { setError(e.message) } finally { setWorking(null) }
+  }
+  const remove = async (d) => {
+    if (!window.confirm(`Eliminare «${d.filename}»? I dati che ne derivano escono dal profilo.`)) return
+    await api.fcDelete(d.id); if (open === d.id) setOpen(null); refresh()
+  }
   const upload = async (f) => {
     if (!f) return
     setBusy(true); setError(null)
@@ -136,17 +180,38 @@ export default function Documents({ onUsePayslip, onUseBalance, onUseDraft, onPr
         {error && <p className="text-xs text-red-700">{error}</p>}
       </div>
       <div className="card p-5 space-y-2">
-        <SectionTitle>I tuoi documenti ({list.length})</SectionTitle>
+        <div className="flex flex-wrap items-center gap-2">
+          <SectionTitle>I tuoi documenti ({list.length})</SectionTitle>
+          {list.length > 0 && <button className="btn !py-1 ml-auto" disabled={working === 'all'} onClick={saveAll} title="Un archivio ZIP con tutti i file allegati, divisi per tipo, e l'elenco in CSV">
+            {working === 'all' ? <Loader2 className="w-3 h-3 animate-spin" /> : <PackageOpen className="w-3 h-3" />}Scarica tutti i file (ZIP)</button>}
+        </div>
         {list.length === 0 && <p className="text-xs text-mute">Nessun documento ancora.</p>}
         {list.map((d) => (
           <div key={d.id} className="flex flex-wrap items-center gap-2 text-xs p-2 rounded-xl border border-line bg-field">
             <button onClick={() => setOpen(d.id)} className="font-medium text-ink hover:underline">{TYPES[d.doc_type]} · {d.filename}</button>
             <span className={`px-1.5 py-0.5 rounded border ${STATUS[d.status][1]}`}>{STATUS[d.status][0]}</span>
             <span className="text-mute">{d.fields} campi{d.to_review ? ` · ${d.to_review} da verificare` : ''} · {d.created_at.slice(0, 10)}</span>
-            <button className="btn !py-1 ml-auto" onClick={async () => { await api.fcDelete(d.id); if (open === d.id) setOpen(null); refresh() }}><Trash2 className="w-3 h-3" />Elimina</button>
+            <span className="ml-auto flex flex-wrap items-center gap-1.5">
+              <button className="btn !py-1" disabled={working === `open-${d.id}`} onClick={() => openFile(d)} title="Guarda il file qui, senza scaricarlo">{working === `open-${d.id}` ? <Loader2 className="w-3 h-3 animate-spin" /> : <Eye className="w-3 h-3" />}Apri</button>
+              <button className="btn !py-1" disabled={working === d.id} onClick={() => saveFile(d)} title="Scarica il file originale">{working === d.id ? <Loader2 className="w-3 h-3 animate-spin" /> : <Download className="w-3 h-3" />}Scarica</button>
+              <button className="btn !py-1" onClick={() => remove(d)}><Trash2 className="w-3 h-3" />Elimina</button>
+            </span>
           </div>
         ))}
       </div>
+      {viewer && (
+        <div className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-3 md:p-8" role="dialog" aria-modal="true" aria-label={`Anteprima di ${viewer.name}`} onClick={closeViewer}>
+          <div className="bg-white rounded-2xl w-full max-w-5xl h-full max-h-[92vh] flex flex-col overflow-hidden shadow-2xl" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center gap-2 px-4 py-2.5 border-b border-line">
+              <span className="text-sm font-medium truncate">{viewer.name}</span>
+              <button className="btn !py-1 ml-auto" onClick={() => saveFile(viewer.doc)}><Download className="w-3 h-3" />Scarica</button>
+              <button className="btn !py-1" onClick={closeViewer} aria-label="Chiudi l'anteprima"><X className="w-3 h-3" />Chiudi</button>
+            </div>
+            {viewer.type.startsWith('image/') ? <div className="flex-1 overflow-auto bg-tint p-4 flex items-start justify-center"><img src={viewer.url} alt={viewer.name} className="max-w-full" /></div>
+              : <iframe title={viewer.name} src={viewer.url} className="flex-1 w-full bg-tint" />}
+          </div>
+        </div>
+      )}
       {open && <Detail key={open} id={open} onChanged={refresh} onUsePayslip={onUsePayslip} onUseBalance={onUseBalance} onUseDraft={onUseDraft} />}
     </div>
   )

@@ -5,6 +5,7 @@ import ItemTemplatePicker from './ItemTemplatePicker'
 import CriteriaHeatmap, { heatmapData } from './CriteriaHeatmap'
 import Documents from './Documents'
 import TemplateFromProfile from './TemplateFromProfile'
+import WorkPackages from './WorkPackages'
 import Guide from './Guide'
 import { Hint } from './Help'
 import { ChromeCard } from './ui'
@@ -366,6 +367,7 @@ export default function BudgetCanvas({
               ) : <p className="text-xs text-mute p-6 text-center">Seleziona una voce da modificare.</p>}
             </div>
           </div>
+          {validation && <WorkPackages bando={bando} projectId={request.project_id} validation={validation} request={request} />}
         </>
       )}
     </div>

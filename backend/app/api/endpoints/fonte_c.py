@@ -3,6 +3,8 @@ import base64
 import binascii
 from typing import Optional
 
+from urllib.parse import quote
+
 from fastapi import APIRouter, HTTPException, Request, Response, status
 from pydantic import BaseModel, Field
 
@@ -64,7 +66,9 @@ def file(document_id: int, request: Request) -> Response:
     f = _guard(service.original, document_id, _owner(request))
     if f is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Documento non trovato")
-    return Response(f["data"], media_type=f.get("content_type") or "application/pdf", headers={"Content-Disposition": f'attachment; filename="{f["name"]}"'})
+    ascii_name = f["name"].encode("ascii", "ignore").decode().replace('"', "") or "documento"
+    return Response(f["data"], media_type=f.get("content_type") or "application/pdf",
+                    headers={"Content-Disposition": f"attachment; filename=\"{ascii_name}\"; filename*=UTF-8''{quote(f['name'])}"})      # nomi con accenti: forma ASCII + forma UTF-8 (RFC 5987)
 
 
 @router.delete("/documents/{document_id}", summary="Elimina il documento e i suoi campi")

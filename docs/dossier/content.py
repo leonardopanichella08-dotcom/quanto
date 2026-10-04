@@ -61,7 +61,7 @@ def build(m):  # noqa: C901 - un documento lungo è una sola funzione di testo
     H2("Numeri del sistema (verificati il 4 ottobre 2026)")
     T([["Dato", "Valore"],
        ["Test automatici backend", f"{FACTS['tests']} (tutti verdi; CI su ogni push: test su PostgreSQL 16, build, audit dipendenze)"],
-       ["Endpoint REST", "120 sotto /api/v2 (più la radice di salute)"],
+       ["Endpoint REST", "121 sotto /api/v2 (più la radice di salute)"],
        ["Migrazioni del database", "11 (init, fonte_b, fonte_c, funding_lines, users, pattern, draft_doc_type, enable_rls, requirement_figures, company_profile, catalog_meta)"],
        ["Tabelle", "24, tutte con Row Level Security attiva"],
        ["Criteri del motore", "60 su 60 implementati"],
@@ -119,7 +119,20 @@ def build(m):  # noqa: C901 - un documento lungo è una sola funzione di testo
     H3("2.1 Missione Uno — in fase di candidatura  [[FATTO]]")
     P("L'utente sceglie un bando, inserisce o importa le voci (a mano, da Excel/CSV, da una candidatura già scritta in PDF, da una busta paga, **dalla bozza costruita sul proprio bilancio**) e preme «Controlla il budget». "
       "Per ogni voce il motore dice se è ammissibile, a quale importo, con quali criteri e perché; il budget intero riceve un punteggio di conformità, una Merkle Root e un CEP-ID. Si esporta in Excel e PDF con QR verso la verifica.")
-    B(["**Non realizzato:** la ripartizione automatica delle voci tra i pacchetti di lavoro (WP) del bando prevista nella v2.1. Il motore verifica i tetti percentuali per categoria sul totale, ma non assegna le voci ai WP. [[DA FARE]]"])
+    P("**Ripartizione delle voci tra i pacchetti di lavoro (WP)  [[FATTO]]** (realizzata il 4 ottobre 2026). Dopo il controllo, la scheda «Pacchetti di lavoro (WP)» della pagina Budget divide il budget **ammesso** (importi approvati dal motore, non quelli richiesti) tra i WP del bando. "
+      "Nessun vincolo è inventato: li scrive chi conosce il bando, e per ogni WP sono tutti facoltativi.")
+    T([["Vincolo per WP", "Significato"],
+       ["Quota minima / massima", "Percentuale del totale ammesso che il WP deve almeno raggiungere o non superare."],
+       ["Quota desiderata", "Il piano si avvicina il più possibile (somma degli scostamenti assoluti minima)."],
+       ["Categorie ammesse", "Quali categorie di spesa il WP può contenere (di default tutte)."],
+       ["Tetto per categoria nel WP", "Es. consulenze al massimo il 30% del WP: Σ importi consulenze ≤ 30% · totale del WP."],
+       ["Voce assegnata a mano", "L'utente può fissare una voce a un WP (menu «Sposta in»): il calcolo riparte rispettandola."],
+       ["Dividere le voci", "Se consentito, una voce può stare in più WP; si divide solo quando serve (ogni divisione costa poco nell'obiettivo)."]], [48, 122])
+    P("**Come funziona.** Programma lineare misto-intero risolto con HiGHS, come l'allocazione annuale: variabile x_iw (voce i nel WP w; binaria se non si dividono le voci), Σ_w x_iw = 1, bound a zero per le categorie non ammesse, quote del WP tra minimo e massimo, tetti per categoria dentro il WP, "
+      "obiettivo = scostamento dalle quote desiderate; a parità i WP si riempiono nell'ordine indicato. Gli importi finali sono in centesimi (una voce non divisa resta intera; una divisa si distribuisce per resti maggiori, la somma è esatta) e tutto è **ri-verificato in aritmetica esatta**. "
+      "Se non esiste una ripartizione il sistema non forza nulla: spiega perché (nessun WP ammette una categoria, tetti che sommano a meno del 100%, quote minime oltre il 100%) e, quando i vincoli si scontrano, indica quali voci restano fuori e di quanto.")
+    P("**Esempio verificato da test.** Quattro voci ammesse da 60.000, 20.000, 15.000 e 5.000 € e tre WP con quote desiderate 50%, 30% e 20% (il primo con massimo 60%): senza dividere voci lo scostamento totale minimo è di 20 punti; consentendo di dividerne una (la voce da 60.000 € tra i primi due WP) le quote tornano esattamente 50/30/20. "
+      "L'operazione compare in timeline e nella mappa delle operazioni; il risultato si scarica in CSV. Non è un controllo dei 60 criteri: le regole del bando sui tetti per categoria restano affidate al motore, i vincoli per WP sono quelli dichiarati dall'utente.")
     H3("2.2 Missione Due — pianificazione ordinaria  [[FATTO]]")
     P("L'ente carica visura e bilanci (anche più anni) nel Profilo; l'Allocazione stima le spese dell'anno successivo partendo dall'ultimo bilancio con le variazioni scelte dall'utente, valuta i bandi studiati e il catalogo, "
       "mostra quanto ogni bando coprirebbe e quali voci vanno ridotte per rispettare i tetti, e calcola il piano ottimo con i bandi scelti: quale fonte copre quale spesa, quanto resta a carico, come si distribuisce mese per mese.")
@@ -178,12 +191,12 @@ def build(m):  # noqa: C901 - un documento lungo è una sola funzione di testo
     H3("8.2 Le pagine (oggi)")
     T([["Pagina", "Cosa fa", "Corrispondenza con la v2.1"],
        ["Bandi", "Libreria dei bandi studiati e curati; sfoglia tutto il catalogo con le descrizioni; cerca sul web; aggiungi un documento a mano; pulsante «Studia il bando».", "Vista «Bandi attivi»"],
-       ["Budget", "Voci per categoria, controllo dei 60 criteri, Ispettore, modifica voce, bozza dal profilo azienda, import Excel/PDF, export XLSX/PDF, registrazione dell'impronta.", "Vista 1 Budget Canvas + Vista 4 Report"],
+       ["Budget", "Voci per categoria, controllo dei 60 criteri, Ispettore, modifica voce, bozza dal profilo azienda, ripartizione tra i pacchetti di lavoro (WP), import Excel/PDF, export XLSX/PDF, registrazione dell'impronta.", "Vista 1 Budget Canvas + Vista 4 Report"],
        ["Allocazione", "Quattro passi: dati dell'azienda, stima dell'anno, bandi adatti (adatti / da verificare / non adatti / da studiare), piano con Sankey, uso dei fondi e mesi.", "Vista 2 Allocazione annuale"],
        ["Confronto", "Pattern matching con archetipi e budget storici più simili.", "Vista 3 Demo Pattern"],
        ["Verifica", "Auditor Portal: verifica impronta, ricalcolo dai dati, manomissione simulata.", "Modulo 17 (anticipato)"],
        ["Guida", "Percorso rapido, Merkle passo passo, ogni funzione con un esempio, glossario.", "—"],
-       ["Profilo", "Procedura guidata a passi, dati e bilanci dell'azienda, crediti, operazioni recenti, documenti.", "Nuova (Modulo 9.4)"],
+       ["Profilo", "Procedura guidata a passi, dati e bilanci dell'azienda, crediti, operazioni recenti, documenti con anteprima, download singolo e scarico di tutti i file in un archivio ZIP.", "Nuova (Modulo 9.4)"],
        ["Algoritmo", "Il «film» del calcolo: 7 fasi, mappa voci × 60 controlli, cascata degli importi, albero di Merkle. Si apre dal Budget.", "—"],
        ["Quartier Generale", "Solo titolare: 11 sezioni (Modulo 23).", "Pannello di Ingestion (Mod. 8.4), esteso"]], [28, 100, 42])
     H3("8.3 Stack di presentazione")
@@ -243,7 +256,9 @@ def build(m):  # noqa: C901 - un documento lungo è una sola funzione di testo
        "**Cifratura a riposo:** AES-256-GCM con chiave `QUANTO_FILE_KEY`; senza la chiave nessun file si carica. Nome del file e impronta SHA-256 restano in chiaro, il contenuto no.",
        "**Pseudonimizzazione:** nomi, codici fiscali e IBAN diventano token (HMAC-SHA256 con chiave segreta, non un hash semplice: gli spazi di ricerca di codici fiscali e IBAN sono enumerabili). Anche la riga d'origine mostrata come prova è ripulita.",
        "**OCR:** interfaccia unica `OcrEngine`; il motore open source Tesseract serve sul server e **non gira su Vercel**: in produzione le scansioni vengono rifiutate con un messaggio chiaro, non si inventa mai un testo. Un adattatore cloud è da fare. [[PARZIALE]]",
-       "**Proprietà:** ogni documento appartiene all'utente che lo ha caricato; nessun altro lo vede. Il nome del file viene ripulito da percorsi e caratteri di controllo; i file vuoti si rifiutano."])
+       "**Proprietà:** ogni documento appartiene all'utente che lo ha caricato; nessun altro lo vede. Il nome del file viene ripulito da percorsi e caratteri di controllo; i file vuoti si rifiutano.",
+       "**Aprire e scaricare tutto ciò che l'azienda ha allegato  [[FATTO]]:** nell'elenco «I tuoi documenti» ogni file ha «Apri» (anteprima nella pagina per PDF, immagini e testo semplice; i fogli Excel e simili si scaricano), «Scarica» (file originale, decifrato solo per il proprietario, con il nome originale anche se contiene accenti) ed «Elimina» (con conferma). "
+       "«Scarica tutti i file (ZIP)» crea nel browser un archivio con tutti i file divisi per tipo (Visura camerale, Bilancio, Busta paga…) e un `elenco_documenti.csv` con tipo, stato, data, dimensione e impronta SHA-256 di ciascuno. L'archivio si compone nel browser perché Vercel limita a 4,5 MB la risposta di una singola chiamata; i file tornano identici agli originali (verificato byte per byte)."])
 
     H3("9.4 Il profilo aziendale  [[FATTO]]  (nuovo)")
     P("Il profilo è il ponte tra le due missioni: i dati veri dell'impresa, raccolti una sola volta, usati ovunque. Due tabelle (`company_profiles`, una riga per utente; `company_financials`, una per utente ed esercizio), entrambe con la **provenienza di ogni valore**.")
@@ -352,7 +367,7 @@ def build(m):  # noqa: C901 - un documento lungo è una sola funzione di testo
        ["Password e accessi", "scrypt con sale casuale; 5 errori di fila bloccano l'account per 15 minuti (il blocco sta nel database, vale su tutte le istanze); un utente inesistente costa lo stesso tempo e dà lo stesso messaggio; token JWT HS256 di 8 ore con versione: cambiare password o disattivare l'utente lo invalida subito"],
        ["Ruoli", "USER e MANAGER; il Quartier Generale è riservato al titolare (`QUANTO_OWNER_EMAIL`), non a ogni manager"],
        ["Integrazione ERP", "OAuth 2.0 client-credentials (token di 1 ora) e firma HMAC-SHA256 della richiesta con timestamp (tolleranza 5 minuti) contro il replay"],
-       ["Rete", "Intestazioni nosniff, X-Frame-Options DENY, Referrer-Policy, Permissions-Policy e Content-Security-Policy restrittiva (solo risorse dello stesso sito, fonti Google solo per i caratteri); guardia SSRF nel recupero dei documenti; limite di frequenza; i webhook usano solo indirizzi dall'ambiente e corpo firmato"],
+       ["Rete", "Intestazioni nosniff, X-Frame-Options DENY, Referrer-Policy, Permissions-Policy e Content-Security-Policy restrittiva (solo risorse dello stesso sito, fonti Google solo per i caratteri; cornici e oggetti solo se creati dall'app stessa come blob, per l'anteprima dei documenti); guardia SSRF nel recupero dei documenti; limite di frequenza; i webhook usano solo indirizzi dall'ambiente e corpo firmato"],
        ["Dati nel database", "Row Level Security attiva su tutte le tabelle; il registro firmato è protetto da trigger e non è cancellabile dal Quartier Generale"],
        ["Rilascio", "Nessuna chiave nel repository; azioni fissate per impronta; audit delle dipendenze in CI"]], [32, 138])
     H3("16.2 Pseudonimizzazione lato server")
@@ -428,6 +443,8 @@ def build(m):  # noqa: C901 - un documento lungo è una sola funzione di testo
        ["Studiare un bando", "Processo standard (Modulo 9.1); al termine ricalcola l'abbinamento e porta alla scheda del bando con il rapporto di lettura."],
        ["Creare la bozza di budget", "Legge l'ultimo esercizio, filtra per categorie ammesse, scala per la quota, riduce ai tetti; il personale resta fuori con l'importo indicato; le voci TPL-* sostituiscono la bozza precedente."],
        ["Controllare il budget", "Le sole voci complete (il personale senza RAL è escluso e segnalato) vanno al motore: criteri per voce → criteri sul budget intero → hash → Merkle → riepilogo. Si salvano l'esecuzione, l'evento e un credito. Esito: punteggio, ammesso, escluso o ridotto, motivi."],
+       ["Ripartire in WP", "Le voci ammesse (importi approvati) e i WP con i loro vincoli vanno al risolutore; controlli di fattibilità → MILP → centesimi → verifica esatta → report per WP, controlli e CSV. Spostando una voce a mano il calcolo riparte."],
+       ["Aprire o scaricare un documento", "Il file viene decifrato dal server solo per il proprietario; PDF, immagini e testo si guardano in una finestra della pagina, gli altri si scaricano. «Scarica tutti» ripete l'operazione per ogni file e compone lo ZIP nel browser."],
        ["Esportare", "Excel o PDF con CEP-ID e QR verso la verifica."],
        ["Registrare l'impronta", "Aggiunge una voce firmata Ed25519 alla catena; il trigger impedisce di cambiarla."],
        ["Verificare", "Confronta l'impronta, controlla la firma e la catena; «ricalcola dai dati» rifà tutto da zero; la manomissione simulata deve dare «impronta diversa»."],
@@ -481,7 +498,7 @@ def build(m):  # noqa: C901 - un documento lungo è una sola funzione di testo
     B(["**Regole numeriche dai bandi:** oggi circa 24 chiavi note producono regole; gli altri tetti vivono come cifre nei requisiti di tipo LIMITE. Prossimo passo: mapparli su nuove chiavi del motore, con revisione.",
        "**Rilevanza dei documenti:** da lessicale a vettoriale o con controllo sull'ente, per evitare la contaminazione tra bandi dello stesso ente (Modulo 9.1).",
        "**Audit di calibrazione** e relativo evento `rule.audit_flagged`; **Report di Asseverazione** in PDF; pubblicazione periodica di `head_hash` del registro.",
-       "**Ripartizione delle voci tra i pacchetti di lavoro (WP)** del bando.",
+       "**WP: vincoli letti dal bando.** La ripartizione c'è (Modulo 2.1) ma i limiti dei WP li scrive l'utente; leggerli dal testo del bando è possibile solo dove il bando li dichiara.",
        "**Bozza di budget per persona:** estrarre dall'organico (Excel) le persone con livello e quota di tempo per costruire le voci di personale.",
        "**Connettori automatici** per la Fonte B; **registri IVA e piano dei conti** come tipi di documento.",
        "**Integrazioni ERP** (Zucchetti, TeamSystem): l'API è pronta (OAuth 2.0 + HMAC), le integrazioni non esistono.",
@@ -505,13 +522,13 @@ def build(m):  # noqa: C901 - un documento lungo è una sola funzione di testo
 
     # ================================================================================================ SCHEMA API
     H1("SCHEMA TECNICO API (reale)")
-    P("L'integrazione con ERP e gestionali avviene via REST protetta da OAuth 2.0 (client-credentials) o da firma HMAC; gli utenti dell'app usano un token a 8 ore. Non esiste alcun endpoint di generazione testuale progettuale. Tutto vive sotto `/api/v2`. Documentazione interattiva su `/docs`. Sono 120 endpoint; di seguito i gruppi con i principali.")
+    P("L'integrazione con ERP e gestionali avviene via REST protetta da OAuth 2.0 (client-credentials) o da firma HMAC; gli utenti dell'app usano un token a 8 ore. Non esiste alcun endpoint di generazione testuale progettuale. Tutto vive sotto `/api/v2`. Documentazione interattiva su `/docs`. Sono 121 endpoint; di seguito i gruppi con i principali.")
     T([["Gruppo", "Endpoint principali"],
        ["Salute", "GET /health, GET /health/ready"],
        ["Autenticazione", "POST /auth/register, /auth/login, /auth/token, /auth/change-password; GET /auth/me, /auth/me/activity, /auth/me/credits"],
        ["Bandi", "GET /bandi, /bandi/{id}, /bandi/catalog (q, issuer, only_new, described, with_meta, page), /bandi/catalog/issuers, /bandi/catalog/stats, /bandi/search, /bandi/references; POST /bandi/{id}/select, /bandi/upload; ricerca e studio: POST /bandi/research/search, /fetch, /analyze, /confirm, /run"],
        ["Ingestion", "GET /ingestion/catalog, /status/{id}, /review-queue, /grant-rules/{id}; POST /ingestion/catalog, /confirm/{id}, /extract, /review"],
-       ["Budget", "POST /budget/validate, /budget/import, /budget/export/pdf, /budget/export/xlsx; GET /budget/criteria, /budget/fields, /budget/demo, /budget/template.xlsx"],
+       ["Budget", "POST /budget/validate, /budget/wp-plan (nuovo), /budget/import, /budget/export/pdf, /budget/export/xlsx; GET /budget/criteria, /budget/fields, /budget/demo, /budget/template.xlsx"],
        ["Allocazione", "POST /allocation/optimize; GET e POST /allocation/funds, POST /allocation/funds/from-bando, DELETE /allocation/funds/{id}"],
        ["Profilo (nuovo)", "GET /profile; PUT /profile; PUT /profile/financials/{anno}; POST /profile/sync, /profile/forecast, /profile/match, /profile/template"],
        ["Documenti del cliente", "GET e POST /fonte-c/documents; GET e DELETE /fonte-c/documents/{id}; /file, /cost-line, /draft-items, /expenses; POST /fields/{id}/review"],
@@ -530,6 +547,7 @@ def build(m):  # noqa: C901 - un documento lungo è una sola funzione di testo
     P("Risposta: `status`, `total_gross_expense_eur`, `covered_by_public_funds_eur`, `net_cost_to_entity_eur`, `overall_coverage_percentage`, `allocation_plan[]` (voce, importo, copertura per fondo, a carico), `fund_usage[]` (usato, dotazione, margine di sicurezza), `monthly_plan[]`, `summary`, `solver`.")
     H3("3. Profilo, stima, abbinamento e bozza")
     CODE('POST /api/v2/profile/match      { "year": 2027, "growth": { "PERSONNEL": 0.04 } }\n  → { "forecast": { "base_year", "categories": [ { "category", "baseline_eur", "suggested_growth", "growth_applied", "forecast_eur" } ], "warnings", … },\n      "matching": { "results": [ { "bando_id", "fit": "ADATTO|DA_VERIFICARE|NON_ADATTO", "checks": [ { "id", "result": "OK|FAIL|UNKNOWN", "detail" } ],\n                      "estimate": { "rate_pct", "covered_eur", "by_category", "adjustments" } | null, "fund": { … }, "notes" } ],\n                    "catalog": { "items": [ { "bando_id", "summary", "score", "affinity", "reasons", "to_check" } ], "total_candidates", "excluded" },\n                    "summary", "missing_profile" } }\n\nPOST /api/v2/profile/template  { "bando_id": "…", "scale_pct": 25, "fit": true }\n  → { "cost_items": [ { "item_id": "TPL-01", … } ], "needs_personnel": { "amount_eur", "message" } | null, "adjustments", "excluded_categories", "notes", "total_eur" }')
+    CODE('POST /api/v2/budget/wp-plan\n{ "project_id": "PRJ-2026-001", "allow_split": true,\n  "items": [ { "item_id": "A-01", "category": "PERSONNEL", "amount_eur": 60000, "pinned_wp": null } ],     // importi AMMESSI\n  "work_packages": [ { "wp_id": "WP1", "name": "Gestione", "min_share_pct": 0.1, "target_share_pct": 0.5, "max_share_pct": 0.6,\n                       "allowed_categories": ["PERSONNEL", "OVERHEAD"], "category_max_share": { "OVERHEAD": 0.2 } } ] }\n→ { "status": "OPTIMAL | BEST_FOUND | INFEASIBLE", "message", "assignments": [ { "item_id", "parts": [ { "wp_id", "amount_eur", "share" } ] } ],\n    "work_packages": [ { "wp_id", "total_eur", "share_pct", "by_category", "deviation_pp" } ], "checks": [ { "wp_id", "rule", "ok", "detail" } ],\n    "reasons": [], "unplaced": [], "notes": [] }')
     H3("4. Stato dell'ingestion")
     CODE('GET /api/v2/ingestion/status/FONDO-GARANZIA-PMI\n→ { "catalog_status": "CURATED", "extraction_status": "COMPLETED", "cache_hit": true, "rules_extracted_total": 2,\n    "rules_from_structured_parsing": 1, "rules_from_multi_pass_ai": 0, "rules_with_pass_agreement": 0,\n    "rules_pending_human_review": 1, "rules_human_reviewed": 0, "rules_from_curated_source": 0, "requested_by_clients_count": 11 }')
     H3("5. Notifiche webhook")
@@ -569,5 +587,5 @@ def build(m):  # noqa: C901 - un documento lungo è una sola funzione di testo
        ["Dati veri", "21/09/2026", "PostgreSQL, Fonte B in database, Fonte C cifrata con confidenza e revisione, utenti e ruoli, banca dei pattern con k-means, modulo del modello linguistico, cron del catalogo."],
        ["Demo e pulizia", "26/09-01/10/2026", "Demo con bandi reali, banca dei pattern con bilanci di società quotate, rifacimento della homepage e delle pagine con lo stile «finestra», pulizia del catalogo, processo standard di studio, figure strutturate."],
        ["Sicurezza e profilo", "03/10/2026", "Sicurezza e CI (azioni fissate, audit, intestazioni, CSP), profilo aziendale, stima dell'anno, abbinamento ai bandi, bozza di budget, allocazione a passi."],
-       ["Catalogo, procedura guidata e test", "04/10/2026", "Schede del catalogo (descrizioni e caratteristiche), procedura guidata a passi, documenti dell'azienda di prova, test completo su dati reali con 18 correzioni, questo documento."]], [34, 28, 108])
+       ["Catalogo, procedura guidata e test", "04/10/2026", "Schede del catalogo (descrizioni e caratteristiche), procedura guidata a passi, documenti dell'azienda di prova, test completo su dati reali con 18 correzioni, ripartizione delle voci tra i WP, anteprima e scarico di tutti i file dell'azienda, questo documento."]], [34, 28, 108])
     NOTE("Fine del documento. Ogni numero riportato è stato letto dal sistema o dal codice alla data indicata; dove un dato non esiste (pratiche reali, metriche di successo, benchmark) il documento lo dichiara.")

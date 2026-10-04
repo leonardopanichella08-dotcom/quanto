@@ -100,6 +100,23 @@ OPERATIONS: List[Dict[str, Any]] = [
     {"id": "hq.login", "area": "Sicurezza", "title": "Accedere al Quartier Generale",
      "description": "Verifica del codice manager, con blocco temporaneo dopo tentativi errati.", "stages": ["Controllo del blocco", "Confronto del codice a tempo costante", "Emissione del token HQ"],
      "endpoint": "POST /hq/login", "criteria": []},
+    {"id": "budget.wp_plan", "area": "Missione Uno", "title": "Ripartire le voci tra i pacchetti di lavoro (WP)",
+     "description": "Assegna le voci ammesse ai WP del bando nel rispetto di quote minime e massime, categorie ammesse e tetti per categoria dentro ogni WP; si avvicina alle quote desiderate.",
+     "stages": ["Controlli di fattibilità (categorie, tetti, quote)", "Programma lineare misto-intero (HiGHS)", "Importi in centesimi e verifica esatta dei vincoli", "Report per WP"],
+     "endpoint": "POST /budget/wp-plan", "criteria": []},
+    {"id": "profile.sync", "area": "Profilo", "title": "Aggiornare il profilo dai documenti",
+     "description": "Rilegge i documenti del cliente e aggiorna dati d'impresa e bilanci; i valori scritti a mano restano; decadono quelli di documenti eliminati.",
+     "stages": ["Pulizia dei valori di documenti eliminati", "Dati dalla visura", "Bilanci per esercizio", "Somme per categoria e righe da verificare"], "endpoint": "POST /profile/sync", "criteria": []},
+    {"id": "profile.match", "area": "Profilo", "title": "Stimare l'anno e trovare i bandi adatti",
+     "description": "Proietta le spese dell'ultimo bilancio con le variazioni scelte dall'utente, valuta i bandi studiati e ordina il catalogo per affinità.",
+     "stages": ["Stima per categoria", "Controlli di ogni bando (apertura, categorie, ATECO, territorio, start-up)", "Contributo stimato e riduzioni ai tetti", "Ordinamento del catalogo per affinità"],
+     "endpoint": "POST /profile/match", "criteria": []},
+    {"id": "profile.template", "area": "Profilo", "title": "Creare la bozza di budget per un bando",
+     "description": "Parte dal bilancio, tiene le categorie ammesse, applica la quota di progetto e riduce le voci ai tetti; il personale resta da inserire persona per persona.",
+     "stages": ["Lettura dell'ultimo esercizio", "Filtro per categorie ammesse", "Quota di progetto e tetti", "Avvisi (CUP, milestone, ammortamenti)"], "endpoint": "POST /profile/template", "criteria": []},
+    {"id": "catalog.describe", "area": "Bandi", "title": "Leggere le schede del catalogo",
+     "description": "Legge la scheda ufficiale di ogni voce del catalogo: titolo, descrizione, forma di agevolazione, costi ammessi, dimensione, regioni, ATECO, date.",
+     "stages": ["Selezione delle voci da leggere", "Scarico delle pagine in parallelo", "Estrazione dei campi dalla pagina", "Salvataggio e pulizia delle voci chiuse"], "endpoint": "POST /cron/catalog-describe", "criteria": []},
 ]
 _BY_ID = {o["id"]: o for o in OPERATIONS}
 

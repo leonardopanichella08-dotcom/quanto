@@ -72,6 +72,7 @@ export const HINTS = {
   budget_editor: { title: 'Modifica voce', text: 'Cambia i campi di una voce. Ogni campo compilato attiva dei controlli (i numeri #). I campi vuoti non vengono valutati. Dopo la modifica il calcolo si rifà da solo.', example: 'Aggiungi “Data della spesa” → si attiva il controllo #46 sulla data.' },
   budget_sintesi: { title: 'Sintesi', text: 'Un riassunto scritto in italiano. Ogni cifra viene confrontata con i risultati veri prima di mostrarla: se un numero non torna, il testo non viene usato.', example: '“Ammessi 431.000 € su 500.000 €”.' },
   budget_controlli: { title: 'Controlli sull’intero budget', text: 'Controlli che guardano tutto il budget insieme, non la singola voce: cumulo con altri contributi, de minimis, liquidità, variazioni.', example: 'Aiuti già ricevuti nel triennio + questo contributo > tetto de minimis → FAIL.' },
+  budget_wp: { title: 'Pacchetti di lavoro (WP)', text: 'Dividi il budget ammesso tra i pacchetti di lavoro del bando. Tu indichi i limiti (quota minima, desiderata, massima; categorie ammesse; tetto di una categoria dentro il WP): il programma assegna le voci rispettandoli e ti mostra i controlli. Non inventa nessun limite.', example: 'Voci da 60.000, 20.000, 15.000 e 5.000 € e quote desiderate 50%, 30%, 20%: senza dividere voci lo scostamento minimo è di 20 punti; dividendone una tutto torna esatto.' },
   budget_registra: { title: 'Registra l’impronta', text: 'Scrive nel registro l’impronta del budget (non i dati). Poi chiunque può verificare, nella pagina Verifica, che il budget non sia cambiato.', example: 'Registri oggi; fra sei mesi il revisore ricalcola e l’impronta coincide.' },
   budget_export: { title: 'Esporta', text: 'Scarica il budget validato in Excel o PDF, con il codice CEP e un QR che porta alla pagina di verifica.', example: 'Allega il PDF alla domanda: chi lo riceve scansiona il QR e verifica.' },
 
@@ -205,6 +206,7 @@ export const FUNCTIONS = [
     { name: 'Modifica voce', what: 'Cambia i campi (organizzati per gruppo). Ogni campo mostra i controlli che attiva.', example: 'Metti “Pagamento: contanti” → la voce viene respinta (#52).' },
     { name: 'Controlli sul budget intero', what: 'Cumulo, de minimis, liquidità, variazioni tra capitoli.', example: '“#49 de minimis: residuo insufficiente”.' },
     { name: 'Registra l’impronta', what: 'Scrive nel registro l’impronta del budget con firma digitale.', example: 'Fatto: voce n. 12 del registro, con data e firma.' },
+    { name: 'Pacchetti di lavoro (WP)', what: 'Dopo il controllo, dividi il budget ammesso tra i WP del bando: indichi quote e categorie ammesse, QUANTO assegna le voci rispettandole e ti mostra ogni controllo.', example: '4 voci e 3 WP con quote desiderate 50/30/20: se una voce può essere divisa, lo scostamento è zero.' },
     { name: 'Esporta Excel / PDF', what: 'Scarica il budget validato con codice CEP e QR di verifica.', example: 'Il QR apre la pagina Verifica già compilata.' },
   ] },
   { page: 'Guarda come ha lavorato', items: [

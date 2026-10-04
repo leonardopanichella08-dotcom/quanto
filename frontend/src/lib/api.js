@@ -133,6 +133,7 @@ export const api = {
   patternImport: (body) => post('/pattern/import', body),
   catalogRefresh: () => call('/cron/catalog-refresh', { method: 'POST' }).then((r) => r.json()),
   optimizeAllocation: (body) => post('/allocation/optimize', body),
+  wpPlan: (body) => post('/budget/wp-plan', body),
   // profilo aziendale: dati e bilanci per esercizio, stima dell'anno dopo, bandi adatti, bozza di budget
   profile: () => call('/profile').then((r) => r.json()),
   saveProfile: (fields) => call('/profile', { method: 'PUT', headers: json, body: JSON.stringify({ fields }) }).then((r) => r.json()),
