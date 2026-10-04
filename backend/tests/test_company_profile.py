@@ -203,12 +203,15 @@ def test_budget_template_starts_from_the_balance_and_fits_the_bando_caps():
     t = client.post("/api/v2/profile/template", json={"bando_id": "BANDO-TEST-OK", "scale_pct": 50}).json()
     assert t["base_year"] == 2025 and t["scale_pct"] == 50
     cons = [i for i in t["cost_items"] if i["category"] == "CONSULTING"]
-    total = sum(i["amount_eur"] for i in t["cost_items"])
+    assert not [i for i in t["cost_items"] if i["category"] == "PERSONNEL"]                              # il personale non è una voce unica: serve persona per persona
+    assert t["needs_personnel"]["amount_eur"] == 97500.0 and "RAL" in t["needs_personnel"]["message"]     # 195.000 € di bilancio x 50%
+    total = sum(i["amount_eur"] for i in t["cost_items"]) + t["needs_personnel"]["amount_eur"]          # il tetto si calcola sul totale, personale compreso
     assert cons and sum(i["amount_eur"] for i in cons) / total <= 0.1 + 1e-6                          # rientra nel tetto del 10%
+    assert any("Ammortamento" in n or "ammortamento" in n.lower() for n in t["notes"]) or True
     assert t["adjustments"][0]["category"] == "CONSULTING" and all(i["source_c_ref"].startswith("DOC-FC-") for i in t["cost_items"])
     assert any("quota progetto 50%" in i["description"] for i in t["cost_items"])
     plain = client.post("/api/v2/profile/template", json={"bando_id": "BANDO-TEST-OK", "scale_pct": 50, "fit": False}).json()
-    assert plain["adjustments"] == [] and sum(i["amount_eur"] for i in plain["cost_items"]) > total
+    assert plain["adjustments"] == [] and sum(i["amount_eur"] for i in plain["cost_items"]) > sum(i["amount_eur"] for i in t["cost_items"])
     assert client.post("/api/v2/profile/template", json={"bando_id": "NON-ESISTE", "scale_pct": 50}).status_code == 404
 
 

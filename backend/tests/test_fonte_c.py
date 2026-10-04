@@ -130,11 +130,12 @@ def test_application_draft_with_a_recognized_section_header():
     assert by_desc["Spese varie non classificate"]["parsed"]["category"] is None and by_desc["Spese varie non classificate"]["status"] == "NEEDS_REVIEW"
 
     items = client.get(f"/api/v2/fonte-c/documents/{d['id']}/draft-items").json()
-    assert len(items["cost_items"]) == 3 and len(items["needs_review"]) == 1
+    assert len(items["cost_items"]) == 2 and len(items["needs_review"]) == 1                                 # il personale non diventa una voce: serve persona per persona
+    assert items["needs_personnel"] == [{"description": "Personale di progetto", "amount_eur": 40000.0}]
     ids = {i["item_id"] for i in items["cost_items"]}
-    assert all(i.startswith(f"DOC{d['id']}-") for i in ids) and len(ids) == 3
-    pm = next(i for i in items["cost_items"] if i["description"] == "Personale di progetto")
-    assert pm["category"] == "PERSONNEL" and pm["amount_eur"] == 40000.0 and pm["source_c_ref"] == f"DOC-FC-{d['id']}"
+    assert all(i.startswith(f"DOC{d['id']}-") for i in ids) and len(ids) == 2
+    legal = next(i for i in items["cost_items"] if i["description"] == "Consulenza legale")
+    assert legal["category"] == "CONSULTING" and legal["amount_eur"] == 8000.0 and legal["source_c_ref"] == f"DOC-FC-{d['id']}"
 
 
 def test_application_draft_without_any_header_falls_back_to_whole_document_with_lower_confidence():

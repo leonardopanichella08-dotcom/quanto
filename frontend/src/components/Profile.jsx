@@ -103,7 +103,7 @@ export default function Profile({ user, isOwner, onChangePassword, onGoHQ, onGoA
       <div id="documenti-azienda" className="space-y-3 scroll-mt-20">
         <div className="flex items-center gap-2 px-1"><span className="text-sm font-medium text-ink">I documenti dell’azienda</span></div>
         <p className="text-xs text-mute px-1 -mt-2">Visura, bilanci, buste paga, F24, bozze di candidatura e ogni altro documento aziendale: solo tu li vedi. Da visura e bilanci si compila il profilo qui sopra.</p>
-        <Documents onUsePayslip={onUsePayslip} onUseBalance={onUseBalance} onUseDraft={onUseDraft} onProfileChanged={bump} />
+        <Documents onUsePayslip={onUsePayslip} onUseBalance={onUseBalance} onUseDraft={onUseDraft} onProfileChanged={bump} refreshKey={version} />
       </div>
     </div>
   )

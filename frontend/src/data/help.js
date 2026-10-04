@@ -174,6 +174,7 @@ export const GUIDE = {
 
 // ---------------------------------------------------------------- percorso rapido
 export const QUICKSTART = [
+  { t: 'Configura la tua azienda', d: 'Pagina Profilo: la procedura guidata ti fa caricare visura e bilanci e rispondere a due domande. Serve per stimare l’anno dopo, trovare i bandi adatti e avere una bozza di budget.' },
   { t: 'Scegli il bando', d: 'Pagina Bandi: cerca o apri un bando, leggi regole e requisiti, premi “Usa questo bando”.' },
   { t: 'Carica il budget', d: 'Pagina Budget: prova completa, Excel o voci a mano.' },
   { t: 'Controlla il budget', d: 'Ogni voce viene controllata con i 60 controlli. Vedi ammesso, ridotto, respinto.' },
@@ -215,8 +216,12 @@ export const FUNCTIONS = [
     { name: 'Albero dell’impronta', what: 'Le foglie sono le righe, la cima è la Merkle Root.', example: 'Per la spiegazione passo passo vai alla sezione Merkle di questa Guida.' },
   ] },
   { page: 'Allocazione', items: [
-    { name: 'Obiettivo', what: 'Tre modi di scegliere il “migliore” piano.', example: 'Minimizzare la spesa netta.' },
-    { name: 'Escludi una fonte', what: 'Ricalcola il piano senza quel fondo.', example: 'Senza FSE+ i costi del personale tornano a tuo carico.' },
+    { name: '1 · I dati della tua azienda', what: 'Riepilogo del profilo: completezza, ultimo bilancio, dimensione e cosa manca.', example: 'Profilo al 92%: manca solo se sei una start-up innovativa.' },
+    { name: '2 · Stima dell’anno successivo', what: 'Parte dall’ultimo bilancio; la variazione per categoria la scegli tu (le tue due ultime annate ti danno solo un suggerimento).', example: 'Consulenze +10%: da 172.500 € a 189.750 €.' },
+    { name: '3 · Bandi adatti', what: 'Per ogni bando studiato: se puoi partecipare, quanto copre, quali voci ridurre per i tetti. «Da studiare» elenca i bandi del catalogo per affinità.', example: 'Consulenze al massimo il 10% del totale: con 40.000 € di consulenze e 224.200 € di altre spese, ne sono ammissibili 24.911 €.' },
+    { name: 'Studia questo bando', what: 'Cerca, scarica e legge i documenti ufficiali di un bando del catalogo; poi lo trovi tra quelli valutati, con il contributo stimato se dichiara un’aliquota.', example: 'Lettura completa: 8 documenti, 165 requisiti, 2 regole numeriche.' },
+    { name: 'Bozza di budget per questo bando', what: 'Apre il Budget con la bozza costruita sui tuoi bilanci e ridotta ai tetti del bando.', example: 'Beni strumentali al 25% del bilancio: 28.175 €.' },
+    { name: '4 · Obiettivo', what: 'Tre modi di scegliere il “migliore” piano.', example: 'Minimizzare la spesa netta.' },
     { name: 'Flusso e piano per voce', what: 'Da quale fondo è coperta ogni spesa e quanto resta a tuo carico.', example: 'EXP-ASSET: 62% Transizione 5.0, 38% ente.' },
     { name: 'Utilizzo fondi e de minimis', what: 'Quanto usi di ogni dotazione e del plafond de minimis.', example: 'Residuo de minimis 30.000 €.' },
     { name: 'Timeline 12 mesi', what: 'Spese per mese, coperte e a carico.', example: 'Aprile alto: acquisto del macchinario.' },
@@ -231,8 +236,10 @@ export const FUNCTIONS = [
     { name: 'Simula manomissione', what: 'Cambia di 1 € la prima riga per mostrare che la verifica se ne accorge.', example: 'Risultato rosso: “impronta diversa”.' },
   ] },
   { page: 'Profilo', items: [
+    { name: 'Procedura guidata', what: 'Otto passi come le storie dei social: carichi i documenti insieme (il tipo si riconosce dal nome), rispondi alle domande e controlli le letture incerte. In alto la percentuale di completezza.', example: 'Trascini 14 file: il profilo passa dallo 0% al 92%; resta da dire se sei una start-up innovativa.' },
+    { name: 'Dati e bilanci dell’azienda', what: 'Ogni valore dice se viene da un documento o l’hai scritto tu; il tuo non viene mai sovrascritto. Puoi aggiungere anni e correggere i costi per categoria.', example: 'Esercizio 2025: personale 890.700 €, consulenze 172.500 € (da documento).' },
     { name: 'Operazioni recenti', what: 'Le tue ultime azioni nell’app, in ordine di tempo.', example: '“Accesso di te@email.it”, “Bando confermato: Resto al Sud”.' },
-    { name: 'I tuoi documenti', what: 'Buste paga, bilanci, F24 e bozze di candidatura che hai caricato: li vedi solo tu.', example: 'Carichi una busta paga e la usi come voce di personale nel Budget.' },
+    { name: 'I tuoi documenti', what: 'Visura, bilanci, buste paga, F24, bozze di candidatura e ogni altro documento aziendale (archiviato cifrato, anche Excel): li vedi solo tu.', example: 'Carichi una busta paga e la usi come voce di personale nel Budget.' },
     { name: 'Cambia password', what: 'Aggiorna la password: tutti gli accessi già aperti altrove decadono subito.', example: 'Cambi password dal telefono: il computer in ufficio chiede di rientrare.' },
   ] },
   { page: 'Quartier Generale', items: [
@@ -240,6 +247,7 @@ export const FUNCTIONS = [
     { name: 'Panoramica', what: 'Numeri chiave, stato di memoria e sicurezza, attività recente.', example: 'Registro non integro: la voce compromessa è indicata.' },
     { name: 'Timeline', what: 'Ogni operazione in ordine di tempo, con filtri e dettagli.', example: 'Filtra per esito “FAIL”.' },
     { name: 'Mappa operazioni', what: 'Tutte le operazioni possibili con i passaggi interni e le statistiche.', example: '“Registrare l’impronta”: 4 passaggi, 3 esecuzioni.' },
+    { name: 'Catalogo', what: 'Tutte le voci del catalogo nazionale con la descrizione e le caratteristiche lette dalla scheda ufficiale (forma di agevolazione, costi ammessi, regioni, ATECO). Il pulsante legge le schede mancanti.', example: 'Cerca “voucher”: vedi per ogni misura descrizione, scadenza e a chi si rivolge.' },
     { name: 'Bandi', what: 'Ogni bando in memoria: documenti (testo estratto e file originale), regole, requisiti, la linea di finanziamento per l’allocazione e chi lo ha usato. Si corregge, rilegge, esporta in ZIP o elimina da qui.', example: 'Apri “Resto al Sud”, scarica il decreto originale e decidi la regola “75% o 70%”.' },
     { name: 'Scheda per il consulente', what: 'Per ogni bando: cosa dicono i documenti, cosa non dicono, quali parole cercare, dove compaiono di solito e come verificare.', example: 'Regola “tetto costo orario” non trovata: la scheda dice di cercare “costo orario” nell’articolo sulle spese di personale.' },
     { name: 'Fascicoli', what: 'Cartella di un progetto: le sue validazioni, i documenti, la cronologia.', example: 'Progetto X: 3 validazioni, 1 registrazione.' },

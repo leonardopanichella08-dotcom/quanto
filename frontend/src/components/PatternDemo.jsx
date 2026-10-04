@@ -49,6 +49,21 @@ export default function PatternDemo({ bando, validation }) {
     return () => clearTimeout(t)
   }, [category, draft, sum, bando])
 
+  // Quote dai costi dell'ultimo bilancio nel profilo: rapporti tra importi già letti dai documenti, non una stima.
+  const [profileNote, setProfileNote] = useState(null)
+  const useProfile = async () => {
+    setProfileNote(null)
+    try {
+      const ov = await api.profile()
+      const last = ov.financials[ov.financials.length - 1]
+      const keys = { personnel_pct: 'personnel_eur', assets_pct: 'capital_assets_eur', consulting_pct: 'consulting_eur', overhead_pct: 'overhead_eur', training_pct: 'training_eur' }
+      const tot = Object.values(keys).reduce((s, k) => s + (Number(last?.values[k]) || 0), 0)
+      if (!last || !tot) { setProfileNote('Nel profilo non ci sono ancora costi per categoria: carica un bilancio.'); return }
+      setDraft({ ...EMPTY, ...Object.fromEntries(Object.entries(keys).map(([f, k]) => [f, Math.round(((Number(last.values[k]) || 0) / tot) * 1000) / 1000])) })
+      setProfileNote(`Quote calcolate sul bilancio ${last.fiscal_year} del tuo profilo (la comunicazione non è una voce a sé nel bilancio: resta a 0).`)
+    } catch (e) { setProfileNote(e.message) }
+  }
+
   const empty = cats && cats.length === 0
   return (
     <div className="space-y-6">
@@ -73,7 +88,9 @@ export default function PatternDemo({ bando, validation }) {
                 <select className="field !w-auto" value={category} onChange={(e) => setCategory(e.target.value)}>
                   {cats.map((c) => <option key={c.bando_category} value={c.bando_category}>{c.bando_category} — {c.budgets} budget, {c.archetypes} archetipi</option>)}</select></label>
               {mine && <button className="btn" onClick={() => setDraft(mine)}>Usa il budget che ho controllato</button>}
+              <button className="btn" onClick={useProfile}>Usa i costi del mio profilo</button>
               {bando && <span className="text-xs text-mute">Tetti letti dal bando in uso: {bando.name}</span>}
+              {profileNote && <span className="text-xs text-ink-2 w-full">{profileNote}</span>}
             </div>
             <div className="space-y-2">
               <span className="label">La tua ripartizione (quote da 0 a 1: cambiale e il confronto si aggiorna da solo)</span>

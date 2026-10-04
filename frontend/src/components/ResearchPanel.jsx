@@ -226,6 +226,7 @@ export default function ResearchPanel({ onDone, pick, onUse }) {
                 {m.cache_hit && <span className="px-1.5 rounded border text-[10px] text-emerald-700 border-emerald-500/30">regole già in memoria</span>}
                 {m.catalog_only && <span className="px-1.5 rounded border text-[10px] text-sky-700 border-sky-500/30">nel catalogo nazionale: regole da leggere</span>}
                 {m.deadline && m.deadline !== 'non indicata' && <span className="text-mute">scadenza {m.deadline}</span>}
+                {m.summary && <p className="w-full text-ink-2 leading-relaxed">{m.summary}</p>}
                 <button onClick={() => { internalRef.current = m.bando_id; if (m.source_url) setUrls((u) => u || m.source_url); confirmBando({ name: m.name, bando_id: m.bando_id }, false) }} className="btn-primary !py-1 ml-auto">Sì, è questo</button>
               </li>
             ))}

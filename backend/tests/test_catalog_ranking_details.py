@@ -24,6 +24,6 @@ def test_a_measure_open_to_many_regions_is_not_called_reserved_and_young_company
     seed("CAT-SOLO-PIEMONTE", "Voucher piemontese", {"costs": ["Costo del personale"], "regions": ["Piemonte"], "state": "APERTO"})
     out = catalog_meta.rank_for_profile({"region": "Piemonte", "founded_year": 2016, "is_innovative_startup": False}, {"PERSONNEL": 100.0})
     by_id = {i["bando_id"]: i for i in out["items"]}
-    assert by_id["CAT-NAZIONALE"]["reasons"][0] == "Ammette la tua regione (Piemonte)" and by_id["CAT-NAZIONALE"]["score"] == 1.0          # nessun bonus: non distingue
-    assert by_id["CAT-SOLO-PIEMONTE"]["reasons"][0] == "Riservato alla tua regione (Piemonte)" and by_id["CAT-SOLO-PIEMONTE"]["score"] == 1.0   # 1,1 limitato a 1
-    assert by_id["CAT-GIOVANE"]["score"] == 0.6 and "2016" in by_id["CAT-GIOVANE"]["to_check"][0]
+    assert by_id["CAT-NAZIONALE"]["reasons"][0] == "Ammette la tua regione (Piemonte)" and by_id["CAT-NAZIONALE"]["score"] == 0.75          # nessun bonus: non distingue
+    assert by_id["CAT-SOLO-PIEMONTE"]["reasons"][0] == "Riservato alla tua regione (Piemonte)" and by_id["CAT-SOLO-PIEMONTE"]["score"] == 0.85
+    assert by_id["CAT-GIOVANE"]["score"] == 0.35 and "2016" in by_id["CAT-GIOVANE"]["to_check"][0]

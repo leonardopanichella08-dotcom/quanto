@@ -38,6 +38,7 @@ const EMPTY_REQUEST = { project_id: 'PRJ-2026-001', grant_rules: null, cost_item
 export default function App() {
   const [user, setUser] = useState(session.user())
   const [pwOpen, setPwOpen] = useState(false)
+  const [notice, setNotice] = useState(null)               // avvisi dopo aver aggiunto voci da documenti o dalla bozza
   const [templateOpen, setTemplateOpen] = useState(false) // arrivo dall'Allocazione: la bozza dal profilo si apre già
   const [tab, setTab] = useState(TABS.some(([id]) => id === params.get('tab')) ? params.get('tab') : 'bandi')
   const [bandi, setBandi] = useState([])
@@ -75,16 +76,24 @@ export default function App() {
     api.criteria().then((c) => setCriteriaTitles(Object.fromEntries(c.criteria.map((x) => [x.number, x.title])))).catch(() => {})
   }, [user, loadBandi, loadRegistry])
 
+  // Una voce di personale senza RAL non si può controllare (il motore la pretende persona per persona): resta nell'elenco, segnalata, e non blocca il resto.
+  const isIncomplete = (it) => it.category === 'PERSONNEL' && !(Number(it.ral_eur) > 0)
+  const readyOf = (req) => ({ ...req, cost_items: req.cost_items.filter((it) => !isIncomplete(it)) })
+  const friendly = (msg, items) => String(msg)
+    .replace(/cost_items\.(\d+): (Value error, )?/g, (_, n) => { const it = items[Number(n)]; return it ? `Voce «${it.description || it.item_id}»: ` : `Voce ${Number(n) + 1}: ` })
+    .replace('ral_eur obbligatoria per le voci PERSONNEL', 'serve la RAL (retribuzione annua lorda) della persona: aprila in «Modifica voce»')
+
   // Ogni validazione è una chiamata al server; le risposte fuori ordine vengono scartate.
   const validate = useCallback(async (req) => {
-    if (!req.grant_rules || !req.cost_items.length) return
+    const ready = readyOf(req)
+    if (!req.grant_rules || !ready.cost_items.length) { if (req.cost_items.length) setValidation(null); return }
     const mine = ++seq.current
     setLoading(true); setError(null)
     try {
-      const res = await api.validateBudget(req)
+      const res = await api.validateBudget(ready)
       if (mine === seq.current) setValidation(res)
     } catch (e) {
-      if (mine === seq.current) setError(e.message)
+      if (mine === seq.current) { setError(friendly(e.message, ready.cost_items)); setValidation(null) }       // un risultato vecchio accanto a voci cambiate sarebbe fuorviante
     } finally {
       if (mine === seq.current) setLoading(false)
     }
@@ -147,11 +156,14 @@ export default function App() {
   const addDraftItems = (res) => {
     const existing = new Set(request.cost_items.map((x) => x.item_id))
     changeItems([...request.cost_items, ...res.cost_items.filter((it) => !existing.has(it.item_id))])
+    const pers = res.needs_personnel || []
+    setNotice(pers.length ? [`Nella bozza ci sono ${pers.length} ${pers.length === 1 ? 'voce' : 'voci'} di personale (${pers.map((p) => `${p.description}: ${p.amount_eur.toLocaleString('it-IT')} €`).join('; ')}) non importata: il controllo vuole persona per persona livello, CCNL, RAL e quota di tempo. Aggiungila dalle buste paga nel Profilo o con «Aggiungi voce».`] : null)
     setTab('canvas'); window.scrollTo({ top: 0 })
   }
   // bozza di budget dal profilo azienda: le voci TPL-* della bozza precedente vengono sostituite, il resto del budget resta
   const applyTemplate = (res) => {
     changeItems([...request.cost_items.filter((x) => !String(x.item_id).startsWith('TPL-')), ...res.cost_items])
+    setNotice(res.needs_personnel ? [res.needs_personnel.message] : null)
   }
   const budgetFrom = async (bandoId) => {
     try { await selectBando(bandoId); setTemplateOpen(true); nav.go('canvas'); window.scrollTo({ top: 0 }) } catch { nav.go('canvas') }          // l'errore (es. bando senza regole pubblicate) lo mostra la pagina Budget
@@ -160,7 +172,7 @@ export default function App() {
 
   const exportAs = async (kind) => {
     try {
-      const blob = await (kind === 'pdf' ? api.exportPdf(request) : api.exportXlsx(request))
+      const blob = await (kind === 'pdf' ? api.exportPdf(readyOf(request)) : api.exportXlsx(readyOf(request)))
       download(blob, `${validation?.cep_id || 'budget'}.${kind}`)
     } catch (e) { setError(e.message) }
   }
@@ -226,7 +238,8 @@ export default function App() {
             onValidate={() => validate(request)} onRegister={() => setModalOpen(true)} onExport={exportAs}
             onOpenLab={() => { setReplay(null); setLabFrom('canvas'); setTab('lab') }} onDismissImport={() => setImportInfo(null)} onGoBandi={() => setTab('bandi')}
             onUsePayslip={addPayslipItem} onUseBalance={() => nav.go('allocation')} onUseDraft={addDraftItems}
-            onUseTemplate={applyTemplate} onGoProfile={() => nav.go('profilo')} templateOpen={templateOpen} />
+            onUseTemplate={applyTemplate} onGoProfile={() => nav.go('profilo')} templateOpen={templateOpen}
+            incompleteItems={request.cost_items.filter(isIncomplete)} notice={notice} onDismissNotice={() => setNotice(null)} />
         )}
         {tab === 'lab' && (
           <div className="space-y-4">

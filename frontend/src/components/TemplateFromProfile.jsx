@@ -44,6 +44,7 @@ export default function TemplateFromProfile({ bando, onApply, onGoProfile, start
               <p className="text-ink"><span className="font-semibold">{res.cost_items.length} voci</span> aggiunte al budget, per {fmtEur(res.total_eur)} (base: bilancio {res.base_year}). Quelle con codice <span className="font-mono">TPL-</span> sostituiscono la bozza precedente.</p>
               {res.adjustments.map((a) => <p key={a.category} className="text-amber-700">{a.reason}: {a.label.toLowerCase()} ridotte da {fmtEur(a.forecast_eur)} a {fmtEur(a.eligible_eur)}.</p>)}
               {res.excluded_categories.length > 0 && <p className="text-mute">Non incluse perché il bando non le ammette: {res.excluded_categories.map((c) => c.label.toLowerCase()).join(', ')}.</p>}
+              {res.needs_personnel && <p className="text-amber-700">Personale ({fmtEur(res.needs_personnel.amount_eur)} dal bilancio): {res.needs_personnel.message}</p>}
               {res.notes.map((n) => <p key={n} className="text-mute">• {n}</p>)}
             </div>
           )}

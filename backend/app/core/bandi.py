@@ -122,6 +122,15 @@ def _meta(conn, bando_id: str) -> Dict[str, Any]:
     return json.loads(row["meta"]) if row else {}
 
 
+def _catalog_status(b) -> str:
+    """Stato di una voce del catalogo studiata: la scadenza letta dalla scheda ufficiale vince sul generico «in lavorazione»."""
+    d = b["deadline"]
+    if d and re.fullmatch(r"\d{4}-\d{2}-\d{2}", d):
+        shown = f"{d[8:10]}/{d[5:7]}/{d[:4]}"
+        return f"CHIUSO (scaduto il {shown})" if d < date.today().isoformat() else f"APERTO (fino al {shown})"
+    return "IN LAVORAZIONE" if b["extraction_status"] != "COMPLETED" else "ESTRATTO"
+
+
 def list_bandi() -> List[Dict[str, Any]]:
     """Elenco pubblico: solo i bandi curati o con una ricerca che ha prodotto qualcosa (regole, requisiti, fonti, run).
 
@@ -151,7 +160,7 @@ def list_bandi() -> List[Dict[str, Any]]:
             src_ts = conn.execute("SELECT MAX(ts) t FROM bando_sources WHERE bando_id=?", (bid,)).fetchone()["t"]
             last_activity = max((t for t in (runs["t"], src_ts) if t), default=None)
             out.append({
-                "bando_id": bid, "name": b["name"], "issuer": b["issuer"], "status": meta.get("status") or ("IN LAVORAZIONE" if b["extraction_status"] != "COMPLETED" else "ESTRATTO"),
+                "bando_id": bid, "name": b["name"], "issuer": b["issuer"], "status": meta.get("status") or _catalog_status(b),
                 "period": meta.get("period"), "curated": bool(meta.get("curated")), "extraction_status": b["extraction_status"],
                 "benefit_type": (meta.get("benefit") or {}).get("type"), "rules_count": len(published),
                 "rules_pending": sum(1 for r in rules if r["status"] == "PENDING_REVIEW"),
@@ -226,7 +235,7 @@ def search_catalog(query: str, limit: int = 8) -> List[Dict[str, Any]]:
         return []
     q_tokens = q.split()
     with connect() as conn:
-        rows = conn.execute("SELECT b.bando_id, b.name, b.issuer, b.source_url, b.deadline, b.catalog_status, b.extraction_status, "
+        rows = conn.execute("SELECT b.bando_id, b.name, b.issuer, b.source_url, b.deadline, b.catalog_status, b.extraction_status, b.summary, "
                             "(SELECT COUNT(*) FROM rules r WHERE r.bando_id=b.bando_id AND r.status='PUBLISHED') AS rules, "
                             "(SELECT COUNT(*) FROM bando_sources s WHERE s.bando_id=b.bando_id) AS sources, "
                             "(SELECT COUNT(*) FROM requirements q2 WHERE q2.bando_id=b.bando_id) AS reqs FROM bandi b").fetchall()
@@ -245,7 +254,7 @@ def search_catalog(query: str, limit: int = 8) -> List[Dict[str, Any]]:
         if score >= 0.4:
             out.append({"bando_id": r["bando_id"], "name": r["name"], "issuer": r["issuer"], "extraction_status": r["extraction_status"], "curated": r["catalog_status"] == "CURATED",
                         "rules": r["rules"], "sources": r["sources"], "requirements": r["reqs"], "cache_hit": r["rules"] > 0, "score": score,
-                        "catalog_only": bool(catalogued and not (r["rules"] or r["sources"])), "source_url": r["source_url"], "deadline": r["deadline"]})
+                        "catalog_only": bool(catalogued and not (r["rules"] or r["sources"])), "source_url": r["source_url"], "deadline": r["deadline"], "summary": r["summary"]})
     out.sort(key=lambda x: (-x["score"], x["name"]))
     return out[:limit]
 
@@ -307,10 +316,10 @@ def catalog_stats() -> Dict[str, Any]:
     today = date.today().isoformat()
     with connect() as conn:
         r = conn.execute(
-            "SELECT COUNT(*) total, COALESCE(SUM((meta_at IS NOT NULL)::int),0) described, "
+            "SELECT COUNT(*) total, COALESCE(SUM((meta_at IS NOT NULL AND catalog_meta LIKE ?)::int),0) described, "
             "COALESCE(SUM((deadline IS NULL OR deadline='non indicata')::int),0) undated, "
             "COALESCE(SUM((deadline IS NOT NULL AND deadline <> 'non indicata' AND deadline >= ?)::int),0) open_dated, "
             "COALESCE(SUM((extraction_status <> 'NOT_STARTED')::int),0) studied, MAX(meta_at) last_read "
-            "FROM bandi WHERE bando_id LIKE 'CAT-%'", (today,)).fetchone()
+            "FROM bandi WHERE bando_id LIKE 'CAT-%'", ('%"read_v": 2%', today)).fetchone()
     return {"total": r["total"], "described": int(r["described"]), "to_describe": r["total"] - int(r["described"]), "undated": int(r["undated"]),
             "open_dated": int(r["open_dated"]), "studied": int(r["studied"]), "last_read_at": r["last_read"]}

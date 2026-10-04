@@ -81,7 +81,7 @@ function CatalogCard({ it, onStudied }) {
       {it.reasons.length > 0 && <ul className="text-xs text-ink-2 space-y-0.5">{it.reasons.map((r) => <li key={r} className="flex gap-1.5"><CheckCircle2 className="w-3.5 h-3.5 mt-0.5 text-emerald-600 shrink-0" />{r}</li>)}</ul>}
       {it.to_check.length > 0 && <p className="text-[11px] text-amber-700">Da verificare: {it.to_check.join(', ')}.</p>}
       <div className="flex flex-wrap items-start gap-3 pt-1">
-        <PipelineButton bandoId={it.bando_id} label="Studia questo bando" onDone={onStudied} />
+        <PipelineButton bandoId={it.bando_id} label="Studia questo bando" onDone={(r) => onStudied(it, r)} />
         {it.source_url && <a href={it.source_url} target="_blank" rel="noreferrer" className="text-xs text-sky-700 hover:underline inline-flex items-center gap-1 pt-2"><ExternalLink className="w-3 h-3" />Scheda ufficiale</a>}
       </div>
     </div>
@@ -165,6 +165,7 @@ export default function AllocationView({ onGoProfile, onBudgetFrom }) {
   const [matching, setMatching] = useState(false)
   const [tab, setTab] = useState('ADATTO')
   const [picked, setPicked] = useState([])
+  const [studied, setStudied] = useState(null)
   const [target, setTarget] = useState('MINIMIZE_NET_COST')
   const [deMinimis, setDeMinimis] = useState('')
   const [plan, setPlan] = useState(null)
@@ -177,14 +178,28 @@ export default function AllocationView({ onGoProfile, onBudgetFrom }) {
 
   const growthBody = useCallback(() => Object.fromEntries(Object.entries(growth).filter(([, v]) => v !== '' && !Number.isNaN(Number(v))).map(([k, v]) => [k, Number(v) / 100])), [growth])
 
+  const runMatch = async () => {
+    const sent = growthBody()
+    const res = await api.profileMatch(Number(year), sent)
+    const full = { ...res, growthSent: sent }
+    setMatch(full)
+    return full
+  }
   const estimate = async () => {
-    setMatching(true); setError(null); setPlan(null); setPicked([])
+    setMatching(true); setError(null); setPlan(null); setPicked([]); setStudied(null)
     try {
-      const sent = growthBody()
-      const res = await api.profileMatch(Number(year), sent)
-      setMatch({ ...res, growthSent: sent })
+      const res = await runMatch()
       setTab(res.matching.summary.ADATTO ? 'ADATTO' : res.matching.summary.DA_VERIFICARE ? 'DA_VERIFICARE' : 'NON_ADATTO')
     } catch (e) { setError(e.message); setMatch(null) } finally { setMatching(false) }
+  }
+  // Dopo lo studio di un bando del catalogo: si ricalcola, si porta l'utente alla scheda dove il bando è finito e si mostra com'è andata la lettura.
+  const afterStudy = async (it, r) => {
+    try {
+      const res = await runMatch()
+      const found = res.matching.results.find((x) => x.bando_id === it.bando_id)
+      setStudied({ name: found?.name || it.name, report: r?.report, fit: found?.fit, estimate: found?.estimate })
+      if (found) setTab(found.fit)
+    } catch (e) { setError(e.message) }
   }
 
   const pickedRows = (match?.matching.results || []).filter((r) => picked.includes(r.bando_id) && r.fund)
@@ -280,6 +295,14 @@ export default function AllocationView({ onGoProfile, onBudgetFrom }) {
             ))}
             <button onClick={() => setTab('CATALOG')} aria-pressed={tab === 'CATALOG'} className={`px-3 py-1.5 rounded-lg text-xs font-medium border transition ${tab === 'CATALOG' ? 'bg-brand/25 text-brand-ink border-brand/60' : 'border-line text-ink-2 hover:border-line-strong'}`}>Da studiare · {match.matching.catalog.total_candidates}</button>
           </div>
+          {studied && (
+            <div className="p-3 rounded-xl border border-emerald-500/30 bg-emerald-500/5 text-xs text-ink-2 space-y-1">
+              <p className="font-medium text-emerald-700 inline-flex items-center gap-1.5"><CheckCircle2 className="w-4 h-4" />Studiato: {studied.name}</p>
+              {studied.report && <p>Lettura {studied.report.status === 'COMPLETA' ? 'completa' : studied.report.status === 'PARZIALE' ? 'parziale' : 'insufficiente'}: {studied.report.documents_official} documenti ufficiali, {studied.report.requirements} requisiti, {studied.report.figures} cifre, {studied.report.rules_published} regole numeriche.</p>}
+              <p>{studied.fit ? `Ora lo trovi in «${FIT[studied.fit][0]}»${studied.estimate ? `, con un contributo stimato di ${fmtEur(studied.estimate.covered_eur)}` : ': il bando non dichiara un’aliquota di contributo, quindi non c’è una stima in euro'}.` : 'Il bando non risulta ancora valutabile: apri la pagina Bandi per vedere cosa è stato letto.'}</p>
+              <button className="underline" onClick={() => setStudied(null)}>chiudi</button>
+            </div>
+          )}
           {tab === 'CATALOG' && (
             <p className="text-[11px] text-mute leading-relaxed">Bandi del catalogo nazionale che QUANTO non ha ancora studiato, messi in ordine di affinità con la tua azienda usando la descrizione della scheda ufficiale (spese ammesse, regione, dimensione, ATECO). Non c’è ancora nessun importo: premi «Studia questo bando» e, a lettura finita, ricalcola la stima per vederne il contributo.
               {match.matching.catalog.excluded > 0 && ` Esclusi perché non adatti a te: ${match.matching.catalog.excluded}.`}
@@ -289,7 +312,7 @@ export default function AllocationView({ onGoProfile, onBudgetFrom }) {
           {tab === 'CATALOG' ? (
             <div className="grid lg:grid-cols-2 gap-4">
               {match.matching.catalog.items.length === 0 && <p className="text-xs text-mute">Nessuna scheda del catalogo letta ancora: il lavoro notturno le legge a gruppi.</p>}
-              {match.matching.catalog.items.map((it) => <CatalogCard key={it.bando_id} it={it} onStudied={estimate} />)}
+              {match.matching.catalog.items.map((it) => <CatalogCard key={it.bando_id} it={it} onStudied={afterStudy} />)}
             </div>
           ) : (
             <>

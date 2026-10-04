@@ -45,8 +45,11 @@ def _public_field(r) -> Dict[str, Any]:
 def upload(doc_type: str, filename: str, data: bytes, owner: str) -> Dict[str, Any]:
     if doc_type not in DOC_TYPES:
         raise DocumentError(f"Tipo di documento sconosciuto: {doc_type}")
+    if not data:
+        raise DocumentError("Il file è vuoto")
     if len(data) > MAX_BYTES:
         raise DocumentError("File troppo grande (massimo 15 MB)")
+    filename = "".join(ch for ch in filename.replace(chr(92), "/").rsplit("/", 1)[-1] if ch.isprintable()).strip() or "documento"      # niente percorsi né caratteri di controllo nel nome
     is_pdf = data.startswith(b"%PDF")
     if doc_type != "OTHER" and not is_pdf:
         raise DocumentError("Per ora si leggono solo i PDF (anche scansionati)")
@@ -231,7 +234,7 @@ def application_draft_items(document_id: int, owner: Optional[str] = None) -> Di
     doc = get(document_id, owner)
     if doc is None or doc["doc_type"] != "APPLICATION_DRAFT":
         raise KeyError(document_id)
-    items, unassigned, review = [], [], []
+    items, unassigned, review, personnel = [], [], [], []
     n = 0
     for f in doc["fields"]:
         if f["field_key"] != "expense_line":
@@ -241,11 +244,13 @@ def application_draft_items(document_id: int, owner: Optional[str] = None) -> Di
             review.append({"field_id": f["id"], **p})
         elif not p.get("category"):
             unassigned.append({"field_id": f["id"], **p})
+        elif p["category"] == "PERSONNEL":
+            personnel.append({"description": p["description"][:200], "amount_eur": float(p["amount_eur"])})      # il personale si inserisce persona per persona (RAL, quota di tempo)
         else:
             n += 1
             items.append({"item_id": f"DOC{document_id}-{n}", "description": p["description"][:200], "category": p["category"],
                           "amount_eur": float(p["amount_eur"]), "source_c_ref": f"DOC-FC-{document_id}"})
-    return {"document_id": document_id, "cost_items": items, "needs_category": unassigned, "needs_review": review}
+    return {"document_id": document_id, "cost_items": items, "needs_personnel": personnel, "needs_category": unassigned, "needs_review": review}
 
 
 def balance_expenses(document_id: int, owner: Optional[str] = None) -> Dict[str, Any]:

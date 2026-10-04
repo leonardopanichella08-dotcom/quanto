@@ -103,7 +103,7 @@ function Detail({ id, onChanged, onUsePayslip, onUseBalance, onUseDraft }) {
   )
 }
 
-export default function Documents({ onUsePayslip, onUseBalance, onUseDraft, onProfileChanged, defaultType = 'COMPANY_REGISTRY' }) {
+export default function Documents({ onUsePayslip, onUseBalance, onUseDraft, onProfileChanged, refreshKey = 0, defaultType = 'COMPANY_REGISTRY' }) {
   const [list, setList] = useState([])
   const [type, setType] = useState(defaultType)
   const [open, setOpen] = useState(null)
@@ -111,7 +111,7 @@ export default function Documents({ onUsePayslip, onUseBalance, onUseDraft, onPr
   const [error, setError] = useState(null)
   const file = useRef(null)
   const load = useCallback(() => api.fcDocuments().then(setList).catch((e) => setError(e.message)), [])
-  useEffect(() => { load() }, [load])
+  useEffect(() => { load() }, [load, refreshKey])          // refreshKey: un documento caricato altrove (procedura guidata) compare anche qui
   // ogni documento letto o confermato aggiorna il profilo aziendale (i valori inseriti a mano restano)
   const refresh = useCallback(async () => {
     await load()

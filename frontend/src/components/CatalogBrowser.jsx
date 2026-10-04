@@ -87,6 +87,7 @@ export default function CatalogBrowser({ onPick, picking }) {
             {it.curated ? <span className="px-1.5 py-0.5 rounded border border-emerald-500/30 text-emerald-700 text-[10px] shrink-0">già nella libreria</span>
               : (it.rules || it.sources) ? <span className="px-1.5 py-0.5 rounded border border-sky-500/30 text-sky-700 text-[10px] shrink-0">già cercato: {it.rules} regole</span>
                 : <span className="px-1.5 py-0.5 rounded border border-line-strong text-mute text-[10px] shrink-0">da analizzare</span>}
+            {it.summary && <p className="w-full text-ink-2 leading-relaxed">{it.summary}</p>}
             {!it.curated && !(it.rules || it.sources) && (
               <button onClick={() => onPick({ name: it.name, bando_id: it.bando_id, source_url: it.source_url })} disabled={picking === it.bando_id}
                 className="btn-primary !py-1 !px-2.5 ml-auto shrink-0 flex items-center gap-1.5">

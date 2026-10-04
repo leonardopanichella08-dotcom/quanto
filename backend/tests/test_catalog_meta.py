@@ -71,9 +71,9 @@ def test_ranking_excludes_what_cannot_apply_and_orders_by_spend_coverage():
     assert ids[0] == "CAT-TUTTO" and "CAT-CONSULENZE" in ids and ids[-1] == "CAT-SENZA-COSTI"
     assert not {"CAT-ALTRA-REGIONE", "CAT-GRANDI", "CAT-SCADUTO", "CAT-ATECO"} & set(ids)
     top = out["items"][0]
-    assert top["score"] == 1.0 and top["affinity"] == "ALTA" and any("personale" in r for r in top["reasons"])
+    assert top["score"] == 0.75 and top["affinity"] == "ALTA" and any("personale" in r for r in top["reasons"])
     cons = next(i for i in out["items"] if i["bando_id"] == "CAT-CONSULENZE")
-    assert cons["score"] == 0.2 and any("tua regione" in r for r in cons["reasons"])             # consulenze = 100 su 1000, +0,1 per la regione
+    assert cons["score"] == 0.175 and any("tua regione" in r for r in cons["reasons"])           # consulenze = 100 su 1000 x 0,75 = 0,075, +0,1 per la regione
     assert next(i for i in out["items"] if i["bando_id"] == "CAT-SENZA-COSTI")["to_check"] == ["spese ammesse non dichiarate"]
     assert out["excluded"] == 3                                                                      # il bando scaduto non arriva nemmeno alla selezione
 

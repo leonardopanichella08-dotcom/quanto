@@ -353,6 +353,9 @@ def forecast(owner: str, year: int, growth: Optional[Dict[str, float]] = None) -
     """Spese per categoria dell'esercizio ``year``: ultimo bilancio disponibile (≤ year-1) × (1 + variazione annua)^anni.
     La variazione la sceglie l'utente; dai suoi due ultimi bilanci si ricava solo un suggerimento, mai applicato da solo."""
     growth = growth or {}
+    unknown = [k for k in growth if k not in CATEGORIES]
+    if unknown:
+        raise ProfileError(f"Categoria sconosciuta: {', '.join(sorted(unknown))}")
     fin = _load_financials(owner)
     candidates = [y for y in sorted(fin) if y < year and any(fin[y][0].get(FIN_KEY[c]) is not None for c in CATEGORIES)]
     if not candidates:

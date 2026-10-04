@@ -287,10 +287,14 @@ def budget_template(owner: str, bando_id: str, scale_pct: float, fit: bool = Tru
     reduce = {a["category"]: a["eligible_eur"] / a["forecast_eur"] for a in adjustments}
 
     items = []
+    personnel_total = 0.0                                   # il personale conta nei tetti ma non diventa una voce: il motore vuole persona per persona (RAL, quota di tempo)
     for n, ln in enumerate(head, 1):
         ratio = reduce.get(ln["category"], 1.0)
         amount = round(ln["amount"] * factor * ratio, 2)
         if amount <= 0:
+            continue
+        if ln["category"] == "PERSONNEL":
+            personnel_total += amount
             continue
         note = f" · ridotta al {ratio * 100:.0f}% per il tetto del bando" if ratio < 1 else ""
         items.append({"item_id": f"TPL-{n:02d}", "description": f"{ln['description']} — da bilancio {year}, quota progetto {scale_pct:g}%{note}"[:200], "category": ln["category"],
@@ -300,8 +304,17 @@ def budget_template(owner: str, bando_id: str, scale_pct: float, fit: bool = Tru
         notes.append(f"{pending} righe del bilancio non sono ancora verificate e non sono incluse.")
     if any(i["source_c_ref"].startswith("PROFILO-") for i in items):
         notes.append("Alcune voci vengono da totali inseriti a mano nel profilo: allega il documento che le giustifica prima di controllare il budget.")
-    if any(i["category"] == "PERSONNEL" for i in items):
-        notes.append("Per il personale servono livello, CCNL, RAL e quota di tempo di ciascuna persona: completali nel Budget.")
-    return {"bando_id": bando_id, "base_year": year, "scale_pct": scale_pct, "fit": fit, "cost_items": items, "needs_category": [], "needs_review": [],
+    needs_personnel = None
+    if personnel_total > 0:
+        needs_personnel = {"amount_eur": round(personnel_total, 2),
+                           "message": "Il costo del personale non entra nella bozza come voce unica: il controllo vuole persona per persona livello, CCNL, RAL e quota di tempo. "
+                                      "Aggiungile dalle buste paga nel Profilo («Aggiungi al budget come voce di personale»)."}
+    if any("mmortament" in i["description"] for i in items):
+        notes.append("Le voci «Ammortamento» sono il costo di beni già acquistati: sostituiscile con gli acquisti che prevedi di fare per il progetto.")
+    if rules.get("requires_cup"):
+        notes.append("Il bando richiede il CUP su ogni spesa: finché manca il controllo #50 mette la voce «in attesa». Inseriscilo in «Modifica voce».")
+    if rules.get("requires_milestones"):
+        notes.append("Il bando chiede di assegnare ogni voce a una milestone/SAL di rendicontazione (controllo #57): indicala in «Modifica voce».")
+    return {"bando_id": bando_id, "base_year": year, "scale_pct": scale_pct, "fit": fit, "cost_items": items, "needs_personnel": needs_personnel, "needs_category": [], "needs_review": [],
             "adjustments": adjustments, "excluded_categories": [{"category": c, "label": CATEGORY_LABEL[c]} for c in excluded], "notes": notes,
             "total_eur": round(sum(i["amount_eur"] for i in items), 2)}

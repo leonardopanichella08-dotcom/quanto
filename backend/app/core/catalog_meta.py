@@ -37,6 +37,12 @@ COST_CATEGORY = [
     ("attrezzature", "CAPITAL_ASSETS"), ("progettazione", "CONSULTING"), ("studi", "CONSULTING"), ("consulenz", "CONSULTING"), ("servizi professionali", "CONSULTING"),
     ("spese generali", "OVERHEAD"), ("costi generali", "OVERHEAD"), ("formazione", "TRAINING"),
 ]
+# divisione ATECO (primi due numeri) -> parola con cui le schede nominano il settore; serve solo a confrontare l'attività dell'azienda con i settori elencati da un bando
+SECTOR_OF_DIVISION = {**{d: "agricoltura" for d in range(1, 4)}, **{d: "agroalimentare" for d in (10, 11, 12)}, 55: "alberghiero", 56: "ristorazione", 79: "turismo",
+                      **{d: "commercio" for d in (45, 46, 47)}, **{d: "edilizia" for d in (41, 42, 43)}, 26: "elettronica", 27: "elettronica",
+                      **{d: "ict" for d in (58, 59, 60, 61, 62, 63)}, 25: "meccanica", 28: "meccanica", 24: "metallurgia", 31: "mobili", 16: "legno", 17: "legno",
+                      **{d: "moda e tessile" for d in (13, 14, 15)}, **{d: "trasporto" for d in (49, 50, 51, 52, 53)}, **{d: "salute" for d in (86, 87, 88)},
+                      **{d: "cultura" for d in (90, 91, 92, 93)}, 29: "autoveicoli", 30: "autoveicoli", 20: "chimica", 21: "chimica"}
 SIZE_LABEL = {"MICRO": "microimpresa", "SMALL": "piccola impresa", "MEDIUM": "media impresa", "LARGE": "grande impresa"}
 
 
@@ -89,10 +95,28 @@ def _paragraph(block: str) -> str:
     return _clean(first)
 
 
+_OG_TITLE = re.compile(r"<meta[^>]+property=[\"']og:title[\"'][^>]+content=[\"']([^\"']+)[\"']", re.I)
+_OG_TITLE_REV = re.compile(r"<meta[^>]+content=[\"']([^\"']+)[\"'][^>]+property=[\"']og:title[\"']", re.I)
+
+
+def page_title(raw_html: str) -> Optional[str]:
+    """Titolo ufficiale della misura (og:title), senza il nome del sito. È il nome vero: quello nell'indirizzo è solo una versione accorciata."""
+    for rx in (_OG_TITLE, _OG_TITLE_REV):
+        m = rx.search(raw_html)
+        if m:
+            title = _clean(m.group(1)).split(" | ")[0].strip()
+            if len(title) >= 8:
+                return title[:240]
+    return None
+
+
 def parse_page(raw_html: str) -> Dict[str, Any]:
     """Descrizione e caratteristiche dalla pagina di una misura. Ciò che la pagina non dice resta assente (mai riempito)."""
     text, _, _ = research.html_to_text(raw_html)
-    out: Dict[str, Any] = {}
+    out: Dict[str, Any] = {"read_v": READ_VERSION}
+    title = page_title(raw_html)
+    if title:
+        out["title"] = title
 
     desc, origin = None, None
     for rx in (_META_DESC, _META_DESC_REV):
@@ -135,6 +159,8 @@ def parse_page(raw_html: str) -> Dict[str, Any]:
             if key == "_skip":
                 continue
             joined = "\n".join(lines)
+            if key == "sectors":
+                joined = joined.replace("Agricoltura,\nsilvicoltura e pesca", "Agricoltura silvicoltura e pesca")
             if key in _LIST_KEYS:
                 items = _split_list(joined.replace(" -\n", "\n").replace(" ,\n", "\n"))
                 items = list(dict.fromkeys(items))
@@ -172,6 +198,12 @@ def cost_categories(meta: Dict[str, Any]) -> Optional[List[str]]:
 
 
 # ------------------------------------------------------------------------------------------------ lavoro periodico
+# una voce si (ri)legge se non ha ancora la scheda o se l'ha letta una versione più vecchia (v2 aggiunge il titolo ufficiale: quello nell'indirizzo è accorciato)
+READ_VERSION = 2                                              # alzare quando la scheda salva qualcosa di nuovo: le voci già lette si rileggono
+TITLE_PATTERN = '%"read_v": ' + str(READ_VERSION) + '%'
+NEEDS_READING = "(meta_at IS NULL OR catalog_meta IS NULL OR catalog_meta NOT LIKE ?)"
+
+
 def _fetch(url: str):
     try:
         raw, _, ctype = research.http_get(url, limited=False)
@@ -183,11 +215,11 @@ def _fetch(url: str):
 def describe_batch(limit: int = 120, workers: int = 16, budget_s: float = 40.0, actor: str = "cron") -> Dict[str, Any]:
     """Legge la scheda di un lotto di voci del catalogo senza descrizione (prima le aperte o senza data) e salva descrizione e caratteristiche."""
     with connect() as conn:
-        rows = conn.execute(
-            "SELECT bando_id, source_url, deadline FROM bandi WHERE bando_id LIKE 'CAT-%' AND meta_at IS NULL AND source_url IS NOT NULL "
-            "AND (deadline IS NULL OR deadline = 'non indicata' OR deadline >= ?) ORDER BY bando_id LIMIT ?", (date.today().isoformat(), limit)).fetchall()
-        remaining = conn.execute("SELECT COUNT(*) c FROM bandi WHERE bando_id LIKE 'CAT-%' AND meta_at IS NULL AND source_url IS NOT NULL "
-                                 "AND (deadline IS NULL OR deadline = 'non indicata' OR deadline >= ?)", (date.today().isoformat(),)).fetchone()["c"]
+        rows = conn.execute(f"SELECT bando_id, source_url, deadline FROM bandi WHERE bando_id LIKE 'CAT-%' AND {NEEDS_READING} AND source_url IS NOT NULL "
+                            "AND (deadline IS NULL OR deadline = 'non indicata' OR deadline >= ?) ORDER BY bando_id LIMIT ?",
+                            (TITLE_PATTERN, date.today().isoformat(), limit)).fetchall()
+        remaining = conn.execute(f"SELECT COUNT(*) c FROM bandi WHERE bando_id LIKE 'CAT-%' AND {NEEDS_READING} AND source_url IS NOT NULL "
+                                 "AND (deadline IS NULL OR deadline = 'non indicata' OR deadline >= ?)", (TITLE_PATTERN, date.today().isoformat())).fetchone()["c"]
     report: Dict[str, Any] = {"read": 0, "errors": 0, "closed": 0, "remaining": remaining}
     if not rows:
         return report
@@ -207,9 +239,9 @@ def describe_batch(limit: int = 120, workers: int = 16, budget_s: float = 40.0, 
             summary = meta.pop("summary", None)
             if meta.get("state") == "CHIUSO":
                 report["closed"] += 1
-            conn.execute("UPDATE bandi SET summary=?, catalog_meta=?, meta_at=?, "
+            conn.execute("UPDATE bandi SET summary=?, catalog_meta=?, meta_at=?, name=COALESCE(?, name), "
                          "deadline=CASE WHEN deadline IS NULL OR deadline='non indicata' THEN ? ELSE deadline END WHERE bando_id=?",
-                         (summary, json.dumps(meta, ensure_ascii=False), now, meta.get("closes") or "non indicata", r["bando_id"]))
+                         (summary, json.dumps(meta, ensure_ascii=False), now, meta.get("title"), meta.get("closes") or "non indicata", r["bando_id"]))
             report["read"] += 1
     report["remaining"] = max(0, remaining - report["read"])
     report["seconds"] = round(time.monotonic() - t0, 1)
@@ -231,9 +263,9 @@ def _size_ok(sizes: List[str], code: Optional[str]) -> Optional[bool]:
 def rank_for_profile(profile: Dict[str, Any], by_cat: Dict[str, float], limit: int = 40) -> Dict[str, Any]:
     """Voci del catalogo non ancora studiate, ordinate per affinità con l'azienda. Nessun importo: solo i motivi, uno per uno.
 
-    Esclusi: scadute, riservate a un'altra regione o a un'altra dimensione d'impresa, o a ATECO diversi dal suo. Punteggio = quota delle
-    spese previste dell'azienda che le «spese ammesse» dichiarate dalla scheda coprono (0–1); +0,1 se il bando nomina esplicitamente la sua regione,
-    +0,05 se tratta il suo tipo di impresa (start-up innovativa)."""
+    Esclusi: scadute, riservate a un'altra regione o a un'altra dimensione d'impresa, o a ATECO diversi dal suo. Punteggio = 0,75 × la quota delle
+    spese previste dell'azienda che le «spese ammesse» dichiarate dalla scheda coprono, +0,1 se il bando è locale e include la sua regione, +0,15 se tra i settori
+    indicati c'è il suo, +0,05 se è per il suo tipo di impresa (start-up innovativa); −0,3 se i settori indicati non includono il suo."""
     today = date.today().isoformat()
     total = sum(by_cat.values()) or 0.0
     region, size_code, ateco, startup = profile.get("region"), (profile.get("size") or {}).get("code"), profile.get("ateco_code"), profile.get("is_innovative_startup")
@@ -291,19 +323,30 @@ def rank_for_profile(profile: Dict[str, Any], by_cat: Dict[str, float], limit: i
         if young_only and profile.get("founded_year") and date.today().year - int(profile["founded_year"]) >= 5:
             penalty = 0.4
             flags.append(f"rivolto alle start-up: la tua impresa è del {profile['founded_year']}")
+        sector_bonus = 0.0
+        division = int(str(ateco)[:2]) if ateco and str(ateco)[:2].isdigit() else None
+        listed = [s.lower() for s in (meta.get("sectors") or [])]
+        if division in SECTOR_OF_DIVISION and 0 < len(listed) <= 10:        # elenco di settori specifico (non «tutti»): il confronto dice qualcosa
+            word = SECTOR_OF_DIVISION[division]
+            if any(word in s for s in listed):
+                sector_bonus = 0.15
+                reasons.append(f"Tra i settori indicati c'è il tuo ({word.upper() if word == 'ict' else word})")
+            else:
+                penalty += 0.3
+                flags.append("settore: il bando indica " + ", ".join(meta["sectors"][:4]))
         cats = cost_categories(meta)
         if cats is None:
             score, covered = 0.0, None
             flags.append("spese ammesse non dichiarate")
         else:
             covered = sum(by_cat.get(c, 0.0) for c in cats)
-            score = (covered / total) if total else 0.0
+            score = 0.75 * ((covered / total) if total else 0.0)         # le spese ammesse pesano 0,75; regione, settore e tipo d'impresa aggiungono il resto
             if cats:
                 reasons.append("Spese ammesse che ti riguardano: " + ", ".join(sorted({{"PERSONNEL": "personale", "CAPITAL_ASSETS": "beni strumentali", "CONSULTING": "consulenze",
                                                                                         "OVERHEAD": "spese generali", "TRAINING": "formazione"}[c] for c in cats if by_cat.get(c, 0) > 0})))
         if local and region:
             score += 0.1
-        score = max(0.0, score - penalty)
+        score = max(0.0, score + sector_bonus - penalty)
         if startup_only and startup:
             score += 0.05
             reasons.append("Rivolto alle start-up innovative, come te")
@@ -311,5 +354,5 @@ def rank_for_profile(profile: Dict[str, Any], by_cat: Dict[str, float], limit: i
                        "summary": r["summary"], "form": meta.get("form"), "benefit_range": meta.get("benefit_range"), "costs": meta.get("costs"), "regions": regions,
                        "sizes": meta.get("sizes"), "state": meta.get("state"), "opens": meta.get("opens"), "score": round(min(score, 1.0), 3),
                        "affinity": "ALTA" if score >= 0.6 else "MEDIA" if score >= 0.25 else "BASSA", "reasons": reasons, "to_check": flags})
-    scored.sort(key=lambda x: (-x["score"], x["name"]))
+    scored.sort(key=lambda x: (-x["score"], x["deadline"] if x["deadline"] and x["deadline"] != "non indicata" else "9999", x["name"]))      # a pari affinità, prima chi scade prima
     return {"items": scored[:limit], "total_candidates": len(scored), "excluded": excluded, "without_description": without}

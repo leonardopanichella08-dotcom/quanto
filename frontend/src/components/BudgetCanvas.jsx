@@ -119,7 +119,7 @@ function Inspector({ item, steps }) {
 export default function BudgetCanvas({
   bandi, bando, request, fields, validation, loading, error, busy, importInfo, criteriaTitles,
   onSelectBando, onProjectId, onItemsChange, onDemo, onImport, onValidate, onRegister, onExport, onOpenLab, onDismissImport, onGoBandi,
-  onUsePayslip, onUseBalance, onUseDraft, onUseTemplate, onGoProfile, templateOpen,
+  onUsePayslip, onUseBalance, onUseDraft, onUseTemplate, onGoProfile, templateOpen, incompleteItems = [], notice, onDismissNotice,
 }) {
   const [selectedId, setSelectedId] = useState(null)
   const [panel, setPanel] = useState('inspect')
@@ -162,7 +162,7 @@ export default function BudgetCanvas({
           <span className="label shrink-0">Bando</span>
           <select value={bando?.bando_id || ''} onChange={(e) => onSelectBando(e.target.value)} disabled={busy} className="field !w-auto max-w-[260px] md:max-w-sm">
             <option value="" disabled>Scegli un bando…</option>
-            {bandi.map((b) => <option key={b.bando_id} value={b.bando_id}>{b.name}</option>)}
+            {bandi.map((b) => <option key={b.bando_id} value={b.bando_id} disabled={!b.rules_count}>{b.name}{b.rules_count ? '' : ' — regole non ancora lette'}</option>)}
           </select>
         </div>
         {bando && (
@@ -230,6 +230,17 @@ export default function BudgetCanvas({
             </button>
           </div>
 
+          {notice && notice.length > 0 && (
+            <div className="p-3 rounded-xl border border-amber-500/30 bg-amber-500/5 text-xs text-amber-800 space-y-1">
+              <div className="flex justify-between gap-3"><span className="font-semibold">Da sapere</span><button onClick={onDismissNotice} className="underline">chiudi</button></div>
+              {notice.map((n) => <p key={n} className="leading-relaxed">{n}</p>)}
+            </div>
+          )}
+          {incompleteItems.length > 0 && (
+            <div className="p-3 rounded-xl border border-amber-500/30 bg-amber-500/5 text-xs text-amber-800 leading-relaxed">
+              <span className="font-semibold">{incompleteItems.length} {incompleteItems.length === 1 ? 'voce di personale non è' : 'voci di personale non sono'} nel controllo</span>: mancano RAL, quota di tempo e durata ({incompleteItems.map((i) => i.description || i.item_id).join('; ')}). Aprile in «Modifica voce» e completale: il resto del budget si controlla intanto.
+            </div>
+          )}
           {importInfo && (
             <div className={`p-3 rounded-xl border text-xs space-y-1 ${importInfo.errors.length ? 'border-amber-500/30 text-amber-800' : 'border-emerald-500/30 text-emerald-800'}`}>
               <div className="flex justify-between"><span className="font-semibold">Import: {importInfo.items.length} voci valide su {importInfo.rows_read} righe{importInfo.errors.length ? `, ${importInfo.errors.length} con errori` : ''}</span>
