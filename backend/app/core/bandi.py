@@ -10,8 +10,7 @@ from typing import Any, Dict, List, Optional
 from app.core.criteria_catalog import CRITERIA_TITLES
 from app.core import db
 from app.core.db import connect
-from app.core.demo import SANDBOX_RULES
-from app.core.ingestion import IDENTITY_FIELDS, Ingestion, normalize_value
+from app.core.ingestion import Ingestion, normalize_value
 from app.core import research
 from app.core.requirements_extractor import extract_legal_refs
 from app.data.bandi_catalog import BANDI, REFERENCES
@@ -59,8 +58,6 @@ def seed() -> None:
             if b["bando_id"] in tomb:
                 continue  # eliminato dal manager
             rules = dict(b["rules"])
-            if b["bando_id"] == "QUANTO-SANDBOX-60":
-                rules = {k: v for k, v in SANDBOX_RULES.items() if k not in IDENTITY_FIELDS}
             period = b.get("period") or {}
             conn.execute(
                 "INSERT INTO bandi (bando_id, name, issuer, deadline, source_url, catalog_status, extraction_status) VALUES (?,?,?,?,?,?,?) "

@@ -5,8 +5,9 @@ Tre regole, uguali per ogni dato:
   sovrascritto da una nuova lettura dei documenti;
 - **solo ciò che è sicuro**: dai documenti entrano nel profilo i campi letti con sicurezza o confermati da una persona; le righe ancora in verifica
   non entrano, e il totale dell'anno viene segnalato come parziale finché non si verificano;
-- **niente valori inventati**: un dato mancante resta mancante e finisce nell'elenco «da completare». La stima dell'anno dopo parte dai dati veri e le
-  variazioni le sceglie l'utente (o le accetta dai suoi due ultimi bilanci): non ne esiste una predefinita.
+- **niente valori inventati**: un dato mancante resta mancante e finisce nell'elenco «da completare». La stima dell'anno dopo parte dai dati veri; la
+  variazione di ogni voce è quella del modello dell'utente (commercialista, CFO), altrimenti quella che risulta dai suoi due ultimi bilanci, e per ognuna
+  si dice da dove viene e perché, con i numeri dei documenti.
 """
 from __future__ import annotations
 
@@ -349,38 +350,170 @@ def profile_values(owner: str) -> Dict[str, Any]:
 
 
 # ------------------------------------------------------------------------------------------------ stima dell'anno successivo
-def forecast(owner: str, year: int, growth: Optional[Dict[str, float]] = None) -> Dict[str, Any]:
-    """Spese per categoria dell'esercizio ``year``: ultimo bilancio disponibile (≤ year-1) × (1 + variazione annua)^anni.
-    La variazione la sceglie l'utente; dai suoi due ultimi bilanci si ricava solo un suggerimento, mai applicato da solo."""
-    growth = growth or {}
-    unknown = [k for k in growth if k not in CATEGORIES]
+REVENUE = "REVENUE"
+GROWTH_KEYS = (*CATEGORIES, REVENUE)
+GROWTH_LABEL = {**CATEGORY_LABEL, REVENUE: "Ricavi"}
+ORIGIN_LABEL = {"USER_INPUT": "Inserita da te", "TEMPLATE": "Dal tuo modello", "DERIVED": "Ricavata dai tuoi bilanci", "NONE": "Nessun dato"}
+HIGH_GROWTH = 0.25
+
+
+def _check_growth(growth: Dict[str, float]) -> None:
+    unknown = [k for k in growth if k not in GROWTH_KEYS]
     if unknown:
         raise ProfileError(f"Categoria sconosciuta: {', '.join(sorted(unknown))}")
+    for k, g in growth.items():
+        if not -0.95 <= g <= 5:
+            raise ProfileError(f"Variazione non plausibile per {GROWTH_LABEL[k]}")
+
+
+def get_forecast_template(owner: str) -> Optional[Dict[str, Any]]:
+    with connect() as conn:
+        r = conn.execute("SELECT growth, label, note, updated_at FROM forecast_templates WHERE owner=?", (owner,)).fetchone()
+    if r is None:
+        return None
+    return {"growth": json.loads(r["growth"]), "label": r["label"], "note": r["note"], "updated_at": r["updated_at"]}
+
+
+def save_forecast_template(owner: str, growth: Dict[str, float], label: str = "", note: str = "", actor: Optional[str] = None) -> Dict[str, Any]:
+    """Il modello di previsione dell'utente: le percentuali annue indicate da lui o dal suo commercialista/CFO. Sostituisce quello precedente."""
+    growth = {k: float(v) for k, v in growth.items() if v is not None}
+    _check_growth(growth)
+    if not growth:
+        raise ProfileError("Indica almeno una percentuale")
+    label = (label or "").strip()[:80]
+    with connect() as conn:
+        conn.execute("INSERT INTO forecast_templates (owner, growth, label, note, updated_at) VALUES (?,?,?,?,?) ON CONFLICT (owner) DO UPDATE SET growth=excluded.growth, "
+                     "label=excluded.label, note=excluded.note, updated_at=excluded.updated_at",
+                     (owner, json.dumps(growth), label, (note or "").strip()[:500], events.now_iso()))
+    events.record("profile.forecast_template", f"Modello di previsione salvato ({len(growth)} voci" + (f", «{label[:40]}»" if label else "") + ")", actor=actor or owner)
+    return get_forecast_template(owner)  # type: ignore[return-value]
+
+
+def delete_forecast_template(owner: str, actor: Optional[str] = None) -> None:
+    with connect() as conn:
+        conn.execute("DELETE FROM forecast_templates WHERE owner=?", (owner,))
+    events.record("profile.forecast_template", "Modello di previsione eliminato", actor=actor or owner)
+
+
+def _eur(x: float) -> str:
+    s = f"{x:,.0f}" if abs(x - round(x)) < 0.005 else f"{x:,.2f}"
+    return s.replace(",", "§").replace(".", ",").replace("§", ".") + " €"
+
+
+def _pct(x: float) -> str:
+    return f"{x * 100:+.1f}".replace(".", ",") + "%"
+
+
+def _share(x: float) -> str:
+    return f"{x * 100:.1f}".replace(".", ",") + "%"
+
+
+def _years_word(n: int) -> str:
+    return "1 anno" if n == 1 else f"{n} anni"
+
+
+def _explain(key: str, base_year: int, b: float, prev_year: Optional[int], p: Optional[float], suggested: Optional[float], origin: str, applied: float, year: int, amount: float,
+             tpl: Optional[Dict[str, Any]], rev: Optional[Tuple[float, float]], emp: Optional[Tuple[float, float]]) -> List[str]:
+    """Perché questa percentuale, con i numeri dei bilanci. Ogni frase usa solo valori letti dai documenti o inseriti dall'utente."""
+    label = GROWTH_LABEL[key].lower()
+    out: List[str] = []
+    if p is not None and suggested is not None and prev_year is not None:
+        gap = base_year - prev_year
+        out.append(f"Nel bilancio {prev_year} {label} erano {_eur(p)}, nel {base_year} {_eur(b)}: {_pct(suggested)}" + (f" all'anno (media sui {_years_word(gap)} tra i due esercizi)" if gap > 1 else "") + ".")
+    if rev and key != REVENUE and p and rev[0] > 0 and rev[1] > 0:
+        rg = rev[1] / rev[0] - 1
+        w0, w1 = p / rev[0], b / rev[1]
+        g = suggested if suggested is not None else b / p - 1
+        verdict = "in linea con i ricavi" if abs(g - rg) <= 0.03 else ("cresce meno dei ricavi: pesa meno sul fatturato" if g < rg else "cresce più dei ricavi: pesa di più sul fatturato")
+        out.append(f"Nello stesso periodo i ricavi sono passati da {_eur(rev[0])} a {_eur(rev[1])} ({_pct(rg)}); questa voce valeva il {_share(w0)} dei ricavi nel {prev_year} e il {_share(w1)} nel {base_year}: {verdict}.")
+    if emp and key in ("PERSONNEL", REVENUE) and p and emp[0] > 0 and emp[1] > 0:
+        label_pp = "costo medio per addetto" if key == "PERSONNEL" else "ricavi per addetto"
+        out.append(f"Gli addetti medi sono passati da {emp[0]:g} a {emp[1]:g} ({_pct(emp[1] / emp[0] - 1)}); {label_pp} da {_eur(p / emp[0])} a {_eur(b / emp[1])}.")
+    if origin == "USER_INPUT":
+        out.append(f"Applico {_pct(applied)} all'anno: la percentuale che hai inserito tu in questo calcolo" + (f" (dai bilanci risulterebbe {_pct(suggested)})." if suggested is not None else "."))
+    elif origin == "TEMPLATE" and tpl is not None:
+        who = f"«{tpl['label']}»" if tpl.get("label") else "salvato"
+        out.append(f"Applico {_pct(applied)} all'anno, come nel tuo modello {who}" + (f" (dai bilanci risulterebbe {_pct(suggested)})." if suggested is not None else "."))
+        if tpl.get("note"):
+            out.append(f"Nota del modello: {tpl['note']}")
+    elif origin == "DERIVED":
+        out.append(f"Non c'è una tua percentuale per questa voce: applico la stessa variazione annua che risulta dai due ultimi bilanci ({_pct(applied)}). Puoi cambiarla qui sotto o salvarla in un tuo modello.")
+    else:
+        out.append(f"Manca il bilancio di un esercizio precedente al {base_year} con questa voce, quindi non posso ricavare una variazione: resta uguale al {base_year} (0%). Inserisci una percentuale tua o i dati dell'anno prima.")
+    n = year - base_year
+    out.append(f"Dal {base_year} al {year} ({_years_word(n)}): da {_eur(b)} a {_eur(amount)}.")
+    if abs(applied) > HIGH_GROWTH:
+        out.append(f"Attenzione: {_pct(applied)} ogni anno è una variazione molto alta e, ripetuta su più anni, diventa difficile da sostenere. Verificala con il tuo commercialista.")
+    return out
+
+
+def forecast(owner: str, year: int, growth: Optional[Dict[str, float]] = None) -> Dict[str, Any]:
+    """Spese per categoria (e ricavi) dell'esercizio ``year``: ultimo bilancio disponibile (≤ year-1) × (1 + variazione annua)^anni.
+    La variazione di ogni voce viene, in quest'ordine: dal valore passato a questa chiamata, dal modello salvato dall'utente, dai suoi due ultimi bilanci.
+    Ogni riga dice da dove viene la percentuale e perché, con i numeri dei documenti."""
+    overrides = {k: v for k, v in (growth or {}).items() if v is not None}
+    _check_growth(overrides)
+    tpl = get_forecast_template(owner)
     fin = _load_financials(owner)
     candidates = [y for y in sorted(fin) if y < year and any(fin[y][0].get(FIN_KEY[c]) is not None for c in CATEGORIES)]
     if not candidates:
         raise ProfileError("Mancano i dati di bilancio: carica un bilancio nel profilo o inserisci i costi dell'ultimo esercizio")
     base_year = candidates[-1]
-    base, prev = fin[base_year][0], fin.get(base_year - 1, ({}, {}))[0]
+    base, base_src = fin[base_year]
+    docs = {d["id"]: d["filename"] for d in fonte_c.list_documents(owner)}
+
+    def source(y: int, k: str) -> Dict[str, Any]:
+        s = fin[y][1].get(k) or {}
+        return {"year": y, "origin": s.get("origin"), "document_id": s.get("document_id"), "filename": docs.get(s.get("document_id"))}
+
+    def row_for(key: str, field: str) -> Optional[Dict[str, Any]]:
+        b = base.get(field)
+        if b is None:
+            return None
+        earlier = sorted((y for y in fin if y < base_year and (fin[y][0].get(field) or 0) > 0), reverse=True)
+        prev_year = earlier[0] if earlier else None
+        p = fin[prev_year][0][field] if prev_year is not None else None
+        suggested = round((b / p) ** (1 / (base_year - prev_year)) - 1, 3) if p and b >= 0 and prev_year is not None else None
+        if key in overrides:
+            origin, applied = "USER_INPUT", overrides[key]
+        elif tpl and key in tpl["growth"]:
+            origin, applied = "TEMPLATE", tpl["growth"][key]
+        elif suggested is not None:
+            origin, applied = "DERIVED", suggested
+        else:
+            origin, applied = "NONE", 0.0
+        amount = round(b * (1 + applied) ** (year - base_year), 2)
+        rev = emp = None
+        if prev_year is not None:
+            r0, r1 = fin[prev_year][0].get("revenue_eur"), base.get("revenue_eur")
+            rev = (r0, r1) if r0 and r1 else None
+            e0, e1 = fin[prev_year][0].get("employees_avg"), base.get("employees_avg")
+            emp = (e0, e1) if e0 and e1 else None
+        origin_label = ORIGIN_LABEL[origin]
+        if origin == "TEMPLATE" and tpl and tpl["label"]:
+            origin_label = f"Dal tuo modello · {tpl['label']}"
+        return {"category": key, "label": GROWTH_LABEL[key], "baseline_eur": b, "previous_eur": p, "previous_year": prev_year, "suggested_growth": suggested,
+                "growth_applied": applied, "growth_origin": origin, "growth_origin_label": origin_label, "growth_is_assumption": origin in ("DERIVED", "NONE"),
+                "forecast_eur": amount, "explanation": _explain(key, base_year, b, prev_year, p, suggested, origin, applied, year, amount, tpl, rev, emp),
+                "base_source": source(base_year, field), "previous_source": source(prev_year, field) if prev_year is not None else None}
+
     rows, missing, warnings = [], [], []
     for cat in CATEGORIES:
-        b = base.get(FIN_KEY[cat])
-        if b is None:
+        r = row_for(cat, FIN_KEY[cat])
+        if r is None:
             missing.append({"category": cat, "label": CATEGORY_LABEL[cat], "year": base_year})
-            continue
-        p = prev.get(FIN_KEY[cat])
-        suggested = round(b / p - 1, 4) if p and p > 0 and b >= 0 else None
-        g = growth.get(cat)
-        if g is not None and not -0.95 <= g <= 5:
-            raise ProfileError(f"Variazione non plausibile per {CATEGORY_LABEL[cat]}")
-        applied = g if g is not None else 0.0
-        amount = round(b * (1 + applied) ** (year - base_year), 2)
-        rows.append({"category": cat, "label": CATEGORY_LABEL[cat], "baseline_eur": b, "previous_eur": p, "suggested_growth": suggested, "growth_applied": applied,
-                     "growth_is_assumption": g is None, "forecast_eur": amount})
-    partial = fin[base_year][1].get("_partial")
+        else:
+            rows.append(r)
+    revenue = row_for(REVENUE, "revenue_eur")
+    partial = base_src.get("_partial")
     if partial:
         warnings.append(f"Nel bilancio {base_year} ci sono {partial['pending_lines']} righe ancora da verificare: i totali per categoria sono parziali.")
     if year - base_year > 1:
         warnings.append(f"L'ultimo bilancio disponibile è del {base_year}: la stima del {year} proietta {year - base_year} anni.")
-    return {"fiscal_year": year, "base_year": base_year, "categories": rows, "missing": missing, "warnings": warnings,
-            "total_baseline_eur": round(sum(r["baseline_eur"] for r in rows), 2), "total_forecast_eur": round(sum(r["forecast_eur"] for r in rows), 2)}
+    total_base, total_fc = round(sum(r["baseline_eur"] for r in rows), 2), round(sum(r["forecast_eur"] for r in rows), 2)
+    summary = None
+    if revenue and revenue["baseline_eur"] > 0 and revenue["forecast_eur"] > 0:
+        summary = {"revenue_base_eur": revenue["baseline_eur"], "revenue_forecast_eur": revenue["forecast_eur"], "cost_ratio_base": round(total_base / revenue["baseline_eur"], 4),
+                   "cost_ratio_forecast": round(total_fc / revenue["forecast_eur"], 4)}
+    return {"fiscal_year": year, "base_year": base_year, "categories": rows, "revenue": revenue, "missing": missing, "warnings": warnings, "summary": summary,
+            "template": tpl, "total_baseline_eur": total_base, "total_forecast_eur": total_fc}

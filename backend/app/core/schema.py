@@ -384,6 +384,32 @@ ALTER TABLE bandi ADD COLUMN catalog_meta TEXT;                 -- JSON: forma d
 ALTER TABLE bandi ADD COLUMN meta_at TEXT;
 """
 
+_FORECAST_TEMPLATE = """
+-- Modello di previsione dell'utente (commercialista, CFO...): variazione annua in percentuale per ogni categoria di spesa e per i ricavi.
+CREATE TABLE forecast_templates (
+    owner TEXT PRIMARY KEY,
+    growth TEXT NOT NULL,
+    label TEXT NOT NULL DEFAULT '',
+    note TEXT NOT NULL DEFAULT '',
+    updated_at TEXT NOT NULL
+);
+ALTER TABLE forecast_templates ENABLE ROW LEVEL SECURITY;
+"""
+
+_RETIRE_DEMO = """
+-- Tolti dall'applicazione lo scenario demo e il bando di prova: si eliminano anche le tracce che avevano lasciato (bando, regole, eventi, esecuzioni).
+DELETE FROM events WHERE op = 'budget.demo' OR bando_id = 'QUANTO-SANDBOX-60' OR project_id IN ('DEMO-SHAPE', 'PRJ-DEMO-COMPLETO', 'PRJ-DEMO-REALISTICO');
+DELETE FROM runs WHERE bando_id = 'QUANTO-SANDBOX-60' OR project_id IN ('DEMO-SHAPE', 'PRJ-DEMO-COMPLETO', 'PRJ-DEMO-REALISTICO');
+DELETE FROM documents WHERE bando_id = 'QUANTO-SANDBOX-60' OR project_id IN ('DEMO-SHAPE', 'PRJ-DEMO-COMPLETO', 'PRJ-DEMO-REALISTICO');
+DELETE FROM funding_lines WHERE bando_id = 'QUANTO-SANDBOX-60';
+DELETE FROM bando_files WHERE bando_id = 'QUANTO-SANDBOX-60';
+DELETE FROM bando_sources WHERE bando_id = 'QUANTO-SANDBOX-60';
+DELETE FROM requirements WHERE bando_id = 'QUANTO-SANDBOX-60';
+DELETE FROM rules WHERE bando_id = 'QUANTO-SANDBOX-60';
+DELETE FROM bando_meta WHERE bando_id = 'QUANTO-SANDBOX-60';
+DELETE FROM bandi WHERE bando_id = 'QUANTO-SANDBOX-60';
+"""
+
 MIGRATIONS: List[Tuple[int, str, str]] = [
     (1, "init", _INIT),
     (2, "fonte_b", _FONTE_B),
@@ -396,4 +422,6 @@ MIGRATIONS: List[Tuple[int, str, str]] = [
     (9, "requirement_figures", _REQUIREMENT_FIGURES),
     (10, "company_profile", _COMPANY_PROFILE),
     (11, "catalog_meta", _CATALOG_META),
+    (12, "forecast_template", _FORECAST_TEMPLATE),
+    (13, "retire_demo", _RETIRE_DEMO),
 ]

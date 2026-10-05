@@ -39,7 +39,7 @@ function Quickstart() {
 function Functions() {
   return (
     <div className="space-y-3">
-      <p className="text-xs text-ink-2">Per ogni pagina, ogni funzione: cosa fa e un esempio. Gli importi sono inventati per spiegare.</p>
+      <p className="text-xs text-ink-2">Per ogni pagina, ogni funzione: cosa fa e un esempio. Gli importi degli esempi servono solo a spiegare come funziona.</p>
       {FUNCTIONS.map((g, gi) => (
         <details key={g.page} open={gi === 0} className="card group">
           <summary className="cursor-pointer list-none px-4 py-3 flex items-center justify-between">

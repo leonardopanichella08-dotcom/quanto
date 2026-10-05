@@ -112,19 +112,56 @@ def test_size_class_follows_eu_thresholds():
 
 
 # ------------------------------------------------------------------ stima dell'anno successivo
-def test_forecast_starts_from_real_data_and_growth_is_chosen_by_the_user():
+def test_forecast_uses_the_growth_of_the_last_two_balances_when_the_user_gave_none():
     for lines in (BALANCE_PREV, BALANCE):
         confirm_all(upload("BALANCE_SHEET", lines))
     sync()
     base = client.post("/api/v2/profile/forecast", json={"year": 2026}).json()
     cons = next(r for r in base["categories"] if r["category"] == "CONSULTING")
-    assert base["base_year"] == 2025 and cons["baseline_eur"] == 40000.0 and cons["forecast_eur"] == 40000.0
-    assert cons["growth_is_assumption"] is True and cons["suggested_growth"] == 1.0         # dal 2024 (20.000) al 2025 (40.000): +100%, solo un suggerimento
+    assert base["base_year"] == 2025 and cons["baseline_eur"] == 40000.0 and cons["suggested_growth"] == 1.0         # dal 2024 (20.000) al 2025 (40.000): +100%
+    assert cons["growth_origin"] == "DERIVED" and cons["growth_applied"] == 1.0 and cons["forecast_eur"] == 80000.0   # applicata da sola, senza che l'utente la riscriva
+    assert cons["growth_is_assumption"] is True and cons["previous_year"] == 2024
+    text = " ".join(cons["explanation"])
+    assert "20.000 €" in text and "40.000 €" in text and "+100,0%" in text and "80.000 €" in text                          # i numeri dei bilanci, nella spiegazione
+    assert cons["base_source"]["filename"] == "doc.pdf" and cons["previous_source"]["year"] == 2024
+    assert any("Attenzione" in line for line in cons["explanation"])                                                       # +100% annuo: l'avviso di variazione molto alta
     grown = client.post("/api/v2/profile/forecast", json={"year": 2027, "growth": {"PERSONNEL": 0.10}}).json()
     pers = next(r for r in grown["categories"] if r["category"] == "PERSONNEL")
-    assert pers["forecast_eur"] == round(195000 * 1.1 ** 2, 2) and pers["growth_is_assumption"] is False                      # compone su 2 anni
+    assert pers["forecast_eur"] == round(195000 * 1.1 ** 2, 2) and pers["growth_origin"] == "USER_INPUT" and pers["growth_is_assumption"] is False      # compone su 2 anni
     assert any("proietta 2 anni" in w for w in grown["warnings"])
     assert client.post("/api/v2/profile/forecast", json={"year": 2026, "growth": {"PERSONNEL": -2}}).status_code == 422
+
+
+def test_a_saved_template_wins_over_the_balances_and_a_typed_value_wins_over_the_template():
+    for year, values in ((2024, {"revenue_eur": 800000, "employees_avg": 10, "personnel_eur": 300000, "consulting_eur": 50000}),
+                         (2025, {"revenue_eur": 1000000, "employees_avg": 12, "personnel_eur": 360000, "consulting_eur": 70000})):
+        assert client.put(f"/api/v2/profile/financials/{year}", json={"values": values}).status_code == 200
+    plain = client.post("/api/v2/profile/forecast", json={"year": 2026}).json()
+    assert next(r for r in plain["categories"] if r["category"] == "PERSONNEL")["growth_origin"] == "DERIVED" and plain["revenue"]["growth_origin"] == "DERIVED"
+    saved = client.put("/api/v2/profile/forecast-template", json={"growth": {"PERSONNEL": 0.05, "REVENUE": -0.02}, "label": "Commercialista Rossi", "note": "Prudente sul 2026"})
+    assert saved.status_code == 200 and saved.json()["template"]["label"] == "Commercialista Rossi"
+    fc = client.post("/api/v2/profile/forecast", json={"year": 2026}).json()
+    pers = next(r for r in fc["categories"] if r["category"] == "PERSONNEL")
+    cons = next(r for r in fc["categories"] if r["category"] == "CONSULTING")
+    assert pers["growth_origin"] == "TEMPLATE" and pers["forecast_eur"] == 378000.0 and "Commercialista Rossi" in pers["growth_origin_label"]
+    assert "Prudente sul 2026" in " ".join(pers["explanation"]) and "+20,0%" in " ".join(pers["explanation"])                  # dai bilanci risulterebbe +20%: si dice
+    assert cons["growth_origin"] == "DERIVED" and cons["growth_applied"] == 0.4                                               # la voce fuori dal modello resta ricavata dai bilanci
+    assert fc["revenue"]["growth_origin"] == "TEMPLATE" and fc["revenue"]["forecast_eur"] == 980000.0
+    assert fc["summary"]["cost_ratio_base"] == round((360000 + 70000) / 1000000, 4)
+    typed = client.post("/api/v2/profile/forecast", json={"year": 2026, "growth": {"PERSONNEL": 0.0}}).json()
+    assert next(r for r in typed["categories"] if r["category"] == "PERSONNEL")["growth_origin"] == "USER_INPUT"             # anche 0 è una scelta dell'utente
+    why = " ".join(pers["explanation"])
+    assert "10 a 12" in why and "300.000 €" in why and "1.000.000 €" in why                                                  # addetti, costo di ieri, ricavi: numeri dei file
+    deleted = client.delete("/api/v2/profile/forecast-template")
+    assert deleted.status_code == 200 and client.get("/api/v2/profile/forecast-template").json()["template"] is None
+    assert next(r for r in client.post("/api/v2/profile/forecast", json={"year": 2026}).json()["categories"] if r["category"] == "PERSONNEL")["growth_origin"] == "DERIVED"
+
+
+def test_template_rejects_unknown_keys_and_implausible_values():
+    assert client.put("/api/v2/profile/forecast-template", json={"growth": {"BANANE": 0.1}}).status_code == 422
+    assert client.put("/api/v2/profile/forecast-template", json={"growth": {"PERSONNEL": -3}}).status_code == 422
+    assert client.put("/api/v2/profile/forecast-template", json={"growth": {}}).status_code == 422
+    assert client.get("/api/v2/profile/forecast-template").json()["template"] is None
 
 
 def test_forecast_without_any_balance_asks_for_data_instead_of_inventing_it():
@@ -191,7 +228,6 @@ def test_match_endpoint_returns_forecast_and_ordered_results():
     fits = [r["fit"] for r in out["matching"]["results"]]
     assert fits == sorted(fits, key={"ADATTO": 0, "DA_VERIFICARE": 1, "NON_ADATTO": 2}.get)           # prima gli adatti
     assert any(r["bando_id"] == "BANDO-TEST-OK" for r in out["matching"]["results"])
-    assert "QUANTO-SANDBOX-60" not in {r["bando_id"] for r in out["matching"]["results"]}
 
 
 # ------------------------------------------------------------------ bozza di budget

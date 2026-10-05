@@ -33,12 +33,12 @@ sviluppo e la UI lo segnala: le attestazioni non hanno valore probatorio.
 | Pagina | A cosa serve |
 |---|---|
 | **Bandi** | Libreria dei bandi con regole, fonti e lacune per ciascuno, e **ricerca sul web**: scrivi il nome di un bando (es. "Resto al Sud") e QUANTO lo cerca, scarica le pagine e i PDF ufficiali, li salva in memoria (testo integrale, ricercabile) e li legge tutti. Da qui si "usa" un bando nel Budget. |
-| **Budget** | Elenco voci di costo (tutte le categorie: personale, beni, consulenze, spese generali, formazione). Demo *realistica* (15 voci) o *stress* (46 voci che attivano tutti i 60 criteri), import/template Excel, editor di riga guidato dal catalogo campi; ogni modifica ri-valida. Registrazione della Merkle Root. |
+| **Budget** | Elenco voci di costo (tutte le categorie: personale, beni, consulenze, spese generali, formazione). Bozza dal profilo aziendale, import/template Excel (vuoto, con la guida ai campi), editor di riga guidato dal catalogo campi; ogni modifica ri-valida. Registrazione della Merkle Root. |
 | **Algoritmo** (non è nella barra) | Si apre solo dal pulsante **«Guarda come ha lavorato»** della pagina Budget ("Torna al Budget" per uscire). Vista grafica di ogni passo del motore: fasi, mappa criteri×voci, cascata degli importi, limiti, albero di Merkle. |
-| **Allocazione** | MILP (HiGHS) che distribuisce il budget sui fondi rispettando tetti, quote, non cumulabilità, de minimis e finestre mensili; what-if e tre obiettivi. |
+| **Allocazione** | Stima dell'anno dopo (costi e ricavi) con le percentuali del modello dell'utente — commercialista, CFO — o, in mancanza, ricavate dai suoi due ultimi bilanci e già inserite, ognuna con la spiegazione e i numeri dei file; bandi adatti; **potenziale massimo** con tutti i bandi adatti applicati insieme. MILP (HiGHS) che distribuisce il budget sui fondi rispettando tetti, quote, non cumulabilità, de minimis e finestre mensili; what-if e tre obiettivi. |
 | **Confronto** (ex Pattern) | Confronto della ripartizione tra macro-categorie con archetipi di budget premiati (coseno + scostamento in pp). Non stima la probabilità di vincita. |
 | **Verifica** (ex Auditor) | Verifica che un budget non sia stato alterato: confronto radice presentata/ricalcolata con il registro firmato; simula manomissione. |
-| **Guida** | Spiegazioni in parole semplici: percorso rapido, **Merkle Root passo passo** (demo interattiva con l'algoritmo vero, `POST /registry/merkle-lab`), ogni funzione con un esempio, glossario. In ogni pagina: striscia "come si usa" e icone `?` / parole sottolineate con spiegazione ed esempio (testi in `frontend/src/data/help.js`). |
+| **Guida** | Spiegazioni in parole semplici: percorso rapido, **Merkle Root passo passo** (esercizio interattivo con l'algoritmo vero, `POST /registry/merkle-lab`), ogni funzione con un esempio, glossario. In ogni pagina: striscia "come si usa" e icone `?` / parole sottolineate con spiegazione ed esempio (testi in `frontend/src/data/help.js`). |
 | **Quartier Generale** | Area manager con codice (`QUANTO_HQ_CODE`, default `QUANTO_1`): panoramica KPI, timeline di ogni operazione, mappa delle operazioni, **Archivio bandi** (ogni documento scaricato con testo e file originale, regole e requisiti modificabili, scheda di controllo per il consulente, rilettura, esportazione ZIP, eliminazione con ripristino dei predefiniti), fascicoli per progetto, documenti, database (lettura, CSV, eliminazione di righe; il registro firmato `anchors` è protetto), ripresa di una run nell'Algoritmo. Lacune, regole in disaccordo e requisiti "da rivedere" sono visibili **solo qui**, non agli utenti. |
 
 ### Quartier Generale e memoria
@@ -109,7 +109,7 @@ che `head_hash` (`/registry/status`) sia pubblicato periodicamente (PEC, reposit
 | Autenticazione ERP: OAuth 2.0 client-credentials (JWT HS256) o firma HMAC delle richieste | ✅ — attiva con `QUANTO_AUTH_REQUIRED=1` |
 | Validatore Numerico + LLM Renderer | ✅ — nessun client LLM di default (`LLMClient` è il punto di estensione) |
 | **Dati illustrativi**: tabelle CCNL/oneri/TFR (Fonte B), maggiorazione tempo determinato, limite occasionali, archetipi del pattern matching | ⚠️ da sostituire con fonti ufficiali |
-| Quartier Generale, timeline, memoria (eventi/run/documenti/bandi), Algoritmo grafico, libreria Bandi, demo a 46 voci su tutte le categorie, import/template Excel | ✅ |
+| Quartier Generale, timeline, memoria (eventi/run/documenti/bandi), Algoritmo grafico, libreria Bandi, import/template Excel | ✅ |
 | Persistenza | ⚠️ SQLite (`QUANTO_DB_PATH`). PostgreSQL/pgvector non implementati; su Vercel il filesystem è volatile: **la memoria dell'HQ si azzera ai cold start** finché non si collega un DB esterno |
 | Ingestione Fonte B da portali istituzionali, parser OCR di buste paga/F24 (Fonte C), Reparto consulenza, assicurazione | ❌ non implementati |
 

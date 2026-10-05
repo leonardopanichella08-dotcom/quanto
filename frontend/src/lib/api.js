@@ -119,7 +119,6 @@ export const api = {
   // --- missione uno
   fields: () => call('/budget/fields').then((r) => r.json()),
   criteria: () => call('/budget/criteria').then((r) => r.json()),
-  demo: (bandoId, mode) => call(`/budget/demo?bando_id=${encodeURIComponent(bandoId)}&mode=${mode}`).then((r) => r.json()),
   importItems: (body) => post('/budget/import', body),
   templateUrl: `${BASE}/budget/template.xlsx`,
   validateBudget: (req) => post('/budget/validate', req),
@@ -141,6 +140,9 @@ export const api = {
   profileSync: () => post('/profile/sync', {}),
   profileForecast: (year, growth) => post('/profile/forecast', { year, growth }),
   profileMatch: (year, growth) => post('/profile/match', { year, growth }),
+  forecastTemplate: () => call('/profile/forecast-template').then((r) => r.json()),
+  saveForecastTemplate: (growth, label, note) => call('/profile/forecast-template', { method: 'PUT', headers: json, body: JSON.stringify({ growth, label, note }) }).then((r) => r.json()),
+  deleteForecastTemplate: () => call('/profile/forecast-template', { method: 'DELETE' }).then((r) => r.json()),
   profileTemplate: (bando_id, scale_pct, fit) => post('/profile/template', { bando_id, scale_pct, fit }),
   register: (body) => post('/registry/register', body),
   registryStatus: () => call('/registry/status').then((r) => r.json()),

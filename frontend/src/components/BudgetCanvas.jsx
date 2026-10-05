@@ -119,7 +119,7 @@ function Inspector({ item, steps }) {
 
 export default function BudgetCanvas({
   bandi, bando, request, fields, validation, loading, error, busy, importInfo, criteriaTitles,
-  onSelectBando, onProjectId, onItemsChange, onDemo, onImport, onValidate, onRegister, onExport, onOpenLab, onDismissImport, onGoBandi,
+  onSelectBando, onProjectId, onItemsChange, onImport, onValidate, onRegister, onExport, onOpenLab, onDismissImport, onGoBandi,
   onUsePayslip, onUseBalance, onUseDraft, onUseTemplate, onGoProfile, templateOpen, incompleteItems = [], notice, onDismissNotice,
 }) {
   const [selectedId, setSelectedId] = useState(null)
@@ -209,8 +209,6 @@ export default function BudgetCanvas({
         <>
           {/* barra strumenti */}
           <div className="flex flex-wrap items-center gap-2">
-            <button onClick={() => onDemo('stress')} disabled={busy} className="btn !text-brand-ink">Prova completa (46 voci)</button>
-            <button onClick={() => onDemo('realistic')} disabled={busy} className="btn">Progetto realistico (15 voci)</button>
             <button onClick={() => fileRef.current?.click()} disabled={busy} className="btn"><Upload className="w-3.5 h-3.5" />Importa Excel/CSV</button>
             <input ref={fileRef} type="file" accept=".xlsx,.csv" className="hidden" onChange={(e) => { if (e.target.files?.[0]) onImport(e.target.files[0]); e.target.value = '' }} />
             <button onClick={() => { setDocsOpen(true); docsRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }) }} disabled={busy} className="btn" title="Carica il PDF di una candidatura già scritta: le voci di spesa che contiene si aggiungono qui">
@@ -292,7 +290,7 @@ export default function BudgetCanvas({
           <div className="grid grid-cols-1 lg:grid-cols-5 gap-6 items-start">
             <div className="lg:col-span-3 card p-4 space-y-4">
               <div className="flex items-center gap-2 text-xs text-ink-2"><span className="font-medium">Le voci del budget</span><Hint id="budget_lista" /></div>
-              {items.length === 0 && <p className="text-sm text-mute text-center p-8">Nessuna voce. Prova un esempio, importa un Excel o aggiungi una voce.</p>}
+              {items.length === 0 && <p className="text-sm text-mute text-center p-8">Nessuna voce. Parti dalla bozza del tuo profilo, importa un Excel o aggiungi una voce.</p>}
               {groups.map(([cat, list]) => (
                 <div key={cat} className="space-y-1.5">
                   <div className="flex items-center justify-between text-xs text-mute font-medium px-1">

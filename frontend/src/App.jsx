@@ -3,7 +3,7 @@ import BandiLibrary from './components/BandiLibrary'
 import BudgetCanvas from './components/BudgetCanvas'
 import AlgorithmLab from './components/AlgorithmLab'
 import AllocationView from './components/AllocationView'
-import PatternDemo from './components/PatternDemo'
+import PatternCompare from './components/PatternCompare'
 import AuditorPortal from './components/AuditorPortal'
 import RegistrationModal from './components/RegistrationModal'
 import HQ from './components/hq/HQ'
@@ -110,17 +110,6 @@ export default function App() {
       setValidation(null); setAttestation(null); setImportInfo(null)
       setTab('canvas')
     } catch (e) { setError(e.message); throw e } finally { setBusy(false) }
-  }
-
-  const loadDemo = async (mode) => {
-    if (!bando) return
-    setBusy(true); setError(null)
-    try {
-      const scenario = await api.demo(bando.bando_id, mode)
-      const next = { ...scenario, project_id: `${scenario.project_id}-${bando.bando_id.split('-')[0]}` }
-      setRequest(next); setAttestation(null); setImportInfo(null)
-      await validate(next)
-    } catch (e) { setError(e.message) } finally { setBusy(false) }
   }
 
   const importFile = async (file) => {
@@ -234,7 +223,7 @@ export default function App() {
         {tab === 'bandi' && <BandiLibrary bandi={bandi} selectedId={bando?.bando_id} onSelect={selectBando} onReload={loadBandi} />}
         {tab === 'canvas' && (
           <BudgetCanvas bandi={bandi} bando={bando} request={request} fields={fields} validation={validation} loading={loading} error={error} busy={busy} importInfo={importInfo} criteriaTitles={criteriaTitles}
-            onSelectBando={(id) => selectBando(id).catch(() => {})} onProjectId={changeProject} onItemsChange={changeItems} onDemo={loadDemo} onImport={importFile}
+            onSelectBando={(id) => selectBando(id).catch(() => {})} onProjectId={changeProject} onItemsChange={changeItems} onImport={importFile}
             onValidate={() => validate(request)} onRegister={() => setModalOpen(true)} onExport={exportAs}
             onOpenLab={() => { setReplay(null); setLabFrom('canvas'); setTab('lab') }} onDismissImport={() => setImportInfo(null)} onGoBandi={() => setTab('bandi')}
             onUsePayslip={addPayslipItem} onUseBalance={() => nav.go('allocation')} onUseDraft={addDraftItems}
@@ -251,7 +240,7 @@ export default function App() {
           </div>
         )}
         {tab === 'allocation' && <AllocationView onGoProfile={() => nav.go('profilo')} onBudgetFrom={budgetFrom} />}
-        {tab === 'pattern' && <PatternDemo bando={bando} validation={validation} />}
+        {tab === 'pattern' && <PatternCompare bando={bando} validation={validation} />}
         {tab === 'auditor' && (
           <AuditorPortal request={request} defaultProject={params.get('project') || validation?.project_id || request.project_id}
             defaultRoot={params.get('root') || validation?.merkle_root} />

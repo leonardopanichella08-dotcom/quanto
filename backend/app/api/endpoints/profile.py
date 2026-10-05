@@ -28,7 +28,13 @@ class FinancialsBody(BaseModel):
 
 class ForecastBody(BaseModel):
     year: int = Field(..., ge=2020, le=2100)
-    growth: Dict[str, float] = Field(default_factory=dict, description="Variazione annua per categoria (0,05 = +5%)")
+    growth: Dict[str, float] = Field(default_factory=dict, description="Variazione annua per categoria o per i ricavi (REVENUE) (0,05 = +5%); ha la precedenza sul modello salvato")
+
+
+class ForecastTemplateBody(BaseModel):
+    growth: Dict[str, float] = Field(..., description="Variazione annua per categoria di spesa e per i ricavi (REVENUE): 0,05 = +5%, -0,03 = -3%")
+    label: str = Field(default="", max_length=80, description="Chi l'ha indicata, per esempio «Commercialista Rossi» o «CFO»")
+    note: str = Field(default="", max_length=500)
 
 
 class TemplateBody(BaseModel):
@@ -61,6 +67,24 @@ def sync(request: Request) -> dict:
     owner = actor_of(request)
     changed = cp.sync_from_documents(owner, owner)
     return {"changed": changed, "profile": cp.overview(owner)}
+
+
+@router.get("/forecast-template", summary="Il modello di previsione salvato dall'utente (percentuali annue di crescita o calo di costi e ricavi)")
+def get_forecast_template(request: Request) -> dict:
+    return {"template": cp.get_forecast_template(actor_of(request)), "keys": [{"key": k, "label": cp.GROWTH_LABEL[k]} for k in cp.GROWTH_KEYS]}
+
+
+@router.put("/forecast-template", summary="Salva il modello di previsione: sostituisce il precedente")
+def put_forecast_template(body: ForecastTemplateBody, request: Request) -> dict:
+    owner = actor_of(request)
+    return {"template": _guard(cp.save_forecast_template, owner, body.growth, body.label, body.note, owner)}
+
+
+@router.delete("/forecast-template", summary="Elimina il modello di previsione: le percentuali tornano a essere ricavate dai bilanci")
+def delete_forecast_template(request: Request) -> dict:
+    owner = actor_of(request)
+    cp.delete_forecast_template(owner, owner)
+    return {"template": None}
 
 
 @router.post("/forecast", summary="Stima delle spese dell'anno indicato a partire dall'ultimo bilancio")

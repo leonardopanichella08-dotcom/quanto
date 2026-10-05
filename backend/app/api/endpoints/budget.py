@@ -5,7 +5,7 @@ import json
 import logging
 from typing import Optional
 
-from fastapi import APIRouter, BackgroundTasks, HTTPException, Query, Request, status
+from fastapi import APIRouter, BackgroundTasks, HTTPException, Request, status
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 
@@ -14,7 +14,6 @@ from app.core import bandi, events, webhooks, wp_allocation
 from app.core.budget_io import parse_import, template_xlsx
 from app.core.budget_service import validate_budget
 from app.core.criteria_catalog import BUDGET_LEVEL, CRITERIA_TITLES
-from app.core.demo import SANDBOX_ID, build_demo
 from app.core.export import build_pdf, build_xlsx
 from app.core.field_catalog import CATEGORY_OPTIONS, FIELDS
 from app.models.schemas import BudgetValidationRequest, BudgetValidationResponse, GrantRuleSet
@@ -142,17 +141,6 @@ def import_items(body: ImportRequest, http: Request) -> dict:
                   status="OK" if not parsed["errors"] else "WARN", actor=actor_of(http), duration_ms=timer.ms,
                   details={"rows_read": parsed["rows_read"], "imported": len(parsed["items"]), "errors": parsed["errors"][:20], "ignored_columns": parsed["ignored_columns"]})
     return parsed
-
-
-@router.get("/demo", summary="Scenario demo adattato alle regole del bando (stress-test 46 voci o progetto realistico)")
-def demo(http: Request, bando_id: str = Query(default=SANDBOX_ID), mode: str = Query(default="stress", pattern="^(stress|realistic)$")) -> dict:
-    timer = events.Timer()
-    detail = bandi.get_bando_detail(bando_id)
-    if detail is None or detail["grant_rules"] is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Bando non trovato o senza regole pubblicate")
-    scenario = build_demo(GrantRuleSet.model_validate(detail["grant_rules"]), mode=mode)
-    events.record("budget.demo", f"Scenario {mode} per {detail['name']}: {len(scenario['cost_items'])} voci", bando_id=bando_id, actor=actor_of(http), duration_ms=timer.ms)
-    return scenario
 
 
 @router.get("/criteria", summary="I 60 criteri del Deterministic Engine")

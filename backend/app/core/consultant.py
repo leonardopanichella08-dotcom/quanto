@@ -208,7 +208,7 @@ def consultant_sheet(bando_id: str) -> Optional[Dict[str, Any]]:
         f"Leggi i {len(review)} requisiti «da rivedere»: sono obblighi o divieti che non ho saputo collegare a un controllo." if review else "Nessun requisito da rivedere.",
         f"Risolvi i {problems} documenti con problemi (PDF scansionato, troncato, non leggibile): aggiungili a mano o scaricali altrove." if problems else "Tutti i documenti sono stati letti senza problemi evidenti.",
         "Controlla lo stato del bando (aperto/chiuso, scadenze, proroghe) sulla pagina ufficiale.",
-        "Al termine premi «Rileggi tutto» e prova il bando nel Budget con una prova completa.",
+        "Al termine premi «Rileggi tutto» e prova il bando nel Budget con un tuo progetto.",
     ]
     return {
         "bando_id": bando_id, "name": d["name"], "coverage": d["coverage_summary"], "extraction_status": d["extraction_status"],

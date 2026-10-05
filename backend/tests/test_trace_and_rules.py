@@ -3,7 +3,7 @@ import pytest
 from pydantic import ValidationError
 
 from app.core.budget_service import validate_budget
-from app.core.demo import SANDBOX_ID, SANDBOX_RULES, build_demo
+from tests.demo_scenario import SANDBOX_ID, SANDBOX_RULES, build_demo
 from app.core.deterministic_engine import DeterministicEngine as E
 from app.core.field_catalog import FIELDS, assert_complete, coerce_value
 from app.core.merkle_tree import MerkleTreeEngine as M

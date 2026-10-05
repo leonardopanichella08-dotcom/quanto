@@ -14,7 +14,7 @@ api_router.include_router(profile.router, prefix="/profile", tags=["Profilo azie
 api_router.include_router(cron.router, prefix="/cron", tags=["Lavori periodici"])
 api_router.include_router(hq.router, prefix="/hq", tags=["Quartier Generale (codice manager)"])
 api_router.include_router(budget.router, prefix="/budget", tags=["Missione Uno - Budget Validation"], dependencies=protected)
-api_router.include_router(pattern.router, prefix="/pattern", tags=["Demo - Pattern Matching"], dependencies=protected)
+api_router.include_router(pattern.router, prefix="/pattern", tags=["Confronto con i budget vincenti"], dependencies=protected)
 api_router.include_router(allocation.router, prefix="/allocation", tags=["Missione Due - Annual Allocation"], dependencies=protected)
 api_router.include_router(ingestion.router, prefix="/ingestion", tags=["Ingestion Fonte A"], dependencies=protected)
 # registro: register protetto per singolo endpoint; le verifiche dell'Auditor Portal restano pubbliche

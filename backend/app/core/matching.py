@@ -219,7 +219,7 @@ def match_all(profile: Dict[str, Any], by_cat: Dict[str, float], year: int) -> D
     """Tutti i bandi studiati (curati o con regole/requisiti letti), dal più utile al meno utile."""
     out = []
     for b in bandi.list_bandi():
-        if b["bando_id"] == "QUANTO-SANDBOX-60" or not (b["curated"] or b["rules_count"] or b["requirements_count"]):
+        if not (b["curated"] or b["rules_count"] or b["requirements_count"]):
             continue
         r = evaluate(b["bando_id"], profile, by_cat, year)
         if r:

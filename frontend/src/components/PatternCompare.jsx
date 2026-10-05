@@ -22,7 +22,7 @@ function sharesOf(validation) {
   return Object.fromEntries(FIELDS.map(([k]) => [k, Math.round(((tot[k] || 0) / sum) * 1000) / 1000]))
 }
 
-export default function PatternDemo({ bando, validation }) {
+export default function PatternCompare({ bando, validation }) {
   const [cats, setCats] = useState(null)
   const [category, setCategory] = useState('')
   const [draft, setDraft] = useState(EMPTY)

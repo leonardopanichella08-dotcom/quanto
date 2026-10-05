@@ -5,13 +5,6 @@ import { Mark, Wordmark } from './ui'
 import './Landing.css'
 
 const CELL_COLOR = { OK: '#10b981', ADJUSTED: '#f59e0b', REJECTED: '#ef4444', WAIT: '#38bdf8', NONE: '#F6F2E21f' }
-// esempio fisso (non è un bando reale): illustra la distribuzione tipica di un controllo a 60 criteri
-const DEMO_OUTCOMES = [
-  'OK', 'OK', 'OK', 'ADJUSTED', 'OK', 'OK', 'OK', 'REJECTED', 'OK', 'OK', 'OK', 'OK', 'WAIT', 'OK', 'OK',
-  'OK', 'OK', 'NONE', 'OK', 'OK', 'OK', 'ADJUSTED', 'OK', 'OK', 'NONE', 'OK', 'OK', 'OK', 'OK', 'OK',
-  'OK', 'ADJUSTED', 'OK', 'OK', 'OK', 'NONE', 'OK', 'REJECTED', 'OK', 'OK', 'OK', 'OK', 'OK', 'NONE', 'OK',
-  'OK', 'OK', 'OK', 'WAIT', 'OK', 'OK', 'OK', 'NONE', 'OK', 'OK', 'ADJUSTED', 'OK', 'OK', 'OK', 'OK',
-]
 const BLOCKS = [
   { from: 1, to: 15, label: 'Personale' }, { from: 16, to: 30, label: 'Beni strumentali' },
   { from: 31, to: 45, label: 'Consulenze e spese generali' }, { from: 46, to: 60, label: 'Date, cumulo, tracciabilità' },
@@ -102,61 +95,6 @@ function AuthModal({ mode, onClose, onSwitch, onDone }) {
           {isRegister ? <>Hai già un account? <button type="button" onClick={() => onSwitch('login')}>Accedi</button></> : <>Non hai un account? <button type="button" onClick={() => onSwitch('register')}>Iscriviti gratis</button></>}
         </p>
       </form>
-    </div>
-  )
-}
-
-function Gauge({ sharePct, limitPct, size = 128 }) {
-  const r = 52, c = 2 * Math.PI * r
-  const ok = sharePct <= limitPct
-  const color = ok ? '#10b981' : '#ef4444'
-  const ceiling = limitPct * 1.4 // il cerchio si riempie del tutto a 1,4 volte il tetto: dà margine visivo per mostrare quanto si è andati oltre
-  const fraction = ceiling > 0 ? Math.min(1, sharePct / ceiling) : 0
-  return (
-    <svg width={size} height={size} viewBox="0 0 120 120">
-      <circle cx="60" cy="60" r={r} fill="none" stroke="var(--l-line)" strokeWidth="10" />
-      <circle cx="60" cy="60" r={r} fill="none" stroke={color} strokeWidth="10" strokeLinecap="round"
-        strokeDasharray={c} strokeDashoffset={c * (1 - fraction)} transform="rotate(-90 60 60)" style={{ transition: 'stroke-dashoffset .3s ease, stroke .3s ease' }} />
-      <text x="60" y="56" textAnchor="middle" fontSize="22" fontWeight="700" fill="var(--l-ink)" fontFamily="JetBrains Mono, monospace">{Math.round(sharePct)}%</text>
-      <text x="60" y="74" textAnchor="middle" fontSize="9" fill="var(--l-mute)" fontFamily="Archivo, sans-serif">del totale</text>
-    </svg>
-  )
-}
-
-function MicroTool() {
-  const [total, setTotal] = useState(150000)
-  const [consulenze, setConsulenze] = useState(40000)
-  const limitPct = 0.20
-  const limit = total * limitPct
-  const pct = total > 0 ? (consulenze / total) * 100 : 0
-  const over = Math.max(0, consulenze - limit)
-  const ok = consulenze <= limit
-  return (
-    <div className="tool-window">
-      <div className="chrome"><i /><i /><i /><span className="url mono">quanto.app — controllo in tempo reale</span></div>
-      <div className="tool-body">
-        <div>
-          <div className="tool-field">
-            <label htmlFor="mt-total">Totale del progetto</label>
-            <div className="row"><span>€</span><input id="mt-total" type="number" min={1000} step={1000} value={total} onChange={(e) => setTotal(Math.max(1000, Number(e.target.value) || 0))} /></div>
-          </div>
-          <div className="tool-field">
-            <label htmlFor="mt-cons">Di cui consulenze</label>
-            <div className="row"><span>€</span><input id="mt-cons" type="number" min={0} step={1000} value={consulenze} onChange={(e) => setConsulenze(Math.max(0, Number(e.target.value) || 0))} /></div>
-            <input type="range" min={0} max={total} step={1000} value={Math.min(consulenze, total)} onChange={(e) => setConsulenze(Number(e.target.value))} />
-          </div>
-          <p className="tool-rule">Regola d'esempio, come tante nei bandi reali: <b>le consulenze non possono superare il 20% del totale ammissibile</b>.</p>
-        </div>
-        <div className="gauge-wrap">
-          <Gauge sharePct={pct} limitPct={limitPct * 100} />
-          <div className={`gauge-verdict ${ok ? 'ok' : 'fail'}`}>{ok ? 'Ammesso' : 'Ridotto'}</div>
-          <p className="gauge-detail">
-            {ok ? `${consulenze.toLocaleString('it-IT')} € rientrano nel tetto di ${limit.toLocaleString('it-IT')} €.`
-              : `Superano il tetto di ${over.toLocaleString('it-IT')} €: ne verrebbero ammessi solo ${limit.toLocaleString('it-IT')} €.`}
-          </p>
-        </div>
-      </div>
-      <p className="tool-note">Esempio illustrativo, non collegato a un bando reale. Nel prodotto ogni regola come questa ha una fonte ufficiale dichiarata, e i controlli sono fino a 60.</p>
     </div>
   )
 }
@@ -257,7 +195,7 @@ function ApprovalMockup() {
 
 const STEPS = [
   { n: '01', title: 'Scegli il bando', body: "Cercalo per nome: QUANTO naviga le pagine ufficiali e scarica i documenti da solo.", Visual: SearchMockup },
-  { n: '02', title: 'Costruisci il budget', body: 'Voci di spesa a mano, da un esempio o importate da Excel.', Visual: BudgetMockup },
+  { n: '02', title: 'Costruisci il budget', body: 'Voci di spesa a mano, dalla bozza del tuo profilo o importate da Excel.', Visual: BudgetMockup },
   { n: '03', title: 'QUANTO controlla', body: 'Fino a 60 criteri, ognuno con la fonte da cui viene la regola.', Visual: HeatMockup },
   { n: '04', title: "Registra l'impronta", body: "Un'impronta digitale firmata, a prova di manomissione.", Visual: HashMockup },
   { n: '05', title: 'Alloca ai fondi', body: 'Decide chi paga cosa nell\'anno, riducendo quanto resta a tuo carico.', Visual: AllocationMockup },
@@ -292,43 +230,20 @@ export default function Landing({ onLogin, onAuditor, onVision }) {
           <p className="sub">QUANTO controlla ogni voce di spesa contro le regole ufficiali del bando scelto — fino a 60 criteri, ciascuno con la sua fonte dichiarata. Non un'intelligenza artificiale che indovina: un motore che calcola, sempre allo stesso modo.</p>
           <div className="ctas">
             <button className="btn-solid" onClick={() => setModal('register')}>Inizia gratis<ArrowRight className="w-3.5 h-3.5" /></button>
-            <a href="#prova" className="btn-line">Prova un controllo</a>
           </div>
           <p className="fineprint">Gratuito oggi. Nessuna carta di credito richiesta.</p>
 
-          <div className="window-wrap"><div className="window">
-            <div className="chrome"><i /><i /><i /><span className="url">quanto.app/budget</span></div>
-            <div className="body">
-              <div className="top"><span className="name">Beni strumentali — Nuova Sabatini</span><span className="score mono">46/60 superati</span></div>
-              <div className="heat-grid">{DEMO_OUTCOMES.map((o, i) => <div key={i} className="heat-cell" style={{ background: CELL_COLOR[o] }} title={`#${i + 1}`} />)}</div>
-              <div className="heat-legend">
-                <span><i style={{ background: CELL_COLOR.OK }} />superato</span>
-                <span><i style={{ background: CELL_COLOR.ADJUSTED }} />ridotto</span>
-                <span><i style={{ background: CELL_COLOR.REJECTED }} />respinto</span>
-                <span><i style={{ background: CELL_COLOR.WAIT }} />da documentare</span>
-                <span><i style={{ background: CELL_COLOR.NONE }} />non valutato</span>
-              </div>
-            </div>
-          </div></div>
         </div></header>
 
         <svg className="curve-divider" viewBox="0 0 1200 64" preserveAspectRatio="none"><path d="M0,64 C300,0 900,0 1200,64 L1200,64 L0,64 Z" fill="var(--l-bg)" /></svg>
       </div>
-
-      <section className="sect tight" id="prova"><div className="wrap">
-        <div className="sect-head center">
-          <span className="kicker">Provalo subito</span>
-          <h2>Un assaggio di una delle 60 regole</h2>
-          <p>Cambia i numeri e guarda il risultato aggiornarsi. Nel prodotto vero, questo succede per ogni voce del tuo budget, con la fonte della regola sempre visibile.</p>
-        </div>
-        <MicroTool />
-      </div></section>
 
       <section className="sect" id="come-funziona"><div className="wrap">
         <div className="sect-head">
           <span className="kicker">Come funziona</span>
           <h2>Dal bando al budget certificato</h2>
         </div>
+        <p className="tool-note" style={{ marginBottom: 20 }}>Le immagini sono illustrazioni dell’interfaccia: i valori che vi compaiono non sono dati reali.</p>
         <div className="funziona-rows">
           {STEPS.map((s, i) => (
             <div key={s.n} className={`funziona-row ${i % 2 ? 'rev' : ''}`}>

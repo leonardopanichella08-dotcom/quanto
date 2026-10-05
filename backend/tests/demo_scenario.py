@@ -1,4 +1,6 @@
-"""Scenario demo COMPLETO: 46 voci in tutte le categorie, costruite per esercitare tutti i 60 criteri.
+"""Solo per i test: scenario COMPLETO di 46 voci in tutte le categorie, costruite per esercitare tutti i 60 criteri, e il bando di prova che ne definisce le regole.
+
+Non fa parte dell'applicazione: nessuna schermata, endpoint o dato di produzione li usa.
 
 Ogni voce è pensata per un esito preciso (approvata, decurtata, respinta, sospesa) e il nome dice quale criterio
 mette alla prova. Lo scenario si applica alle regole del bando selezionato: le voci in categorie non ammesse da
@@ -154,3 +156,19 @@ def build_demo(rules: Optional[GrantRuleSet] = None, project_id: Optional[str] =
         "entity_liquidity_eur": 1_500_000.0,
         "baseline_totals": {"PERSONNEL": 150000.0, "CAPITAL_ASSETS": 900000.0, "CONSULTING": 150000.0, "OVERHEAD": 80000.0, "TRAINING": 60000.0},
     }
+
+
+def install() -> None:
+    """Aggiunge il bando di prova al catalogo curato SOLO durante i test (l'applicazione non lo contiene)."""
+    from app.core.ingestion import IDENTITY_FIELDS
+    from app.data import bandi_catalog
+
+    if any(b["bando_id"] == SANDBOX_ID for b in bandi_catalog.BANDI):
+        return
+    bandi_catalog.BANDI.append({
+        "bando_id": SANDBOX_ID, "name": "Bando di prova a 60 criteri", "issuer": "Test", "status": "TEST",
+        "period": {"from": "2026-01-01", "to": "2027-12-31"}, "legal_refs": ["Definisce tutte le regole per esercitare ogni criterio."],
+        "benefit": {"type": "TEST", "summary": "Solo per i test del motore.", "tiers": []}, "sources": [],
+        "rules": {k: v for k, v in SANDBOX_RULES.items() if k not in IDENTITY_FIELDS}, "rule_notes": {},
+        "requirements": [bandi_catalog.R("Scopo", "INFO", "Attiva tutte le regole del motore.", [], "TEST")], "not_specified": [],
+    })

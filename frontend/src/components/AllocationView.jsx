@@ -6,6 +6,8 @@ import { ChromeCard, SectionTitle } from './ui'
 import Guide from './Guide'
 import PipelineButton from './PipelineButton'
 import { Hint } from './Help'
+import ForecastStep from './ForecastStep'
+import PotentialStep from './PotentialStep'
 
 const PALETTE = ['#38bdf8', '#a78bfa', '#f472b6', '#34d399', '#fbbf24', '#fb7185']
 
@@ -160,12 +162,15 @@ function BandoCard({ r, picked, onToggle, onBudget }) {
 export default function AllocationView({ onGoProfile, onBudgetFrom }) {
   const [ov, setOv] = useState(null)
   const [year, setYear] = useState(new Date().getFullYear() + 1)
-  const [growth, setGrowth] = useState({})                 // % per categoria, scelta dall'utente
+  const [growth, setGrowth] = useState({})                 // percentuali che l'utente ha scritto a mano in questa schermata (le altre arrivano dal modello o dai bilanci)
   const [match, setMatch] = useState(null)                 // {forecast, matching}
   const [matching, setMatching] = useState(false)
   const [tab, setTab] = useState('ADATTO')
   const [picked, setPicked] = useState([])
   const [studied, setStudied] = useState(null)
+  const [studyingMore, setStudyingMore] = useState(false)
+  const [studyNote, setStudyNote] = useState(null)
+  const auto = useRef(false)
   const [target, setTarget] = useState('MINIMIZE_NET_COST')
   const [deMinimis, setDeMinimis] = useState('')
   const [plan, setPlan] = useState(null)
@@ -176,7 +181,8 @@ export default function AllocationView({ onGoProfile, onBudgetFrom }) {
 
   useEffect(() => { api.profile().then(setOv).catch((e) => setError(e.message)) }, [])
 
-  const growthBody = useCallback(() => Object.fromEntries(Object.entries(growth).filter(([, v]) => v !== '' && !Number.isNaN(Number(v))).map(([k, v]) => [k, Number(v) / 100])), [growth])
+  const growthBody = useCallback(() => Object.fromEntries(Object.entries(growth).filter(([, v]) => v !== undefined && v !== '' && !Number.isNaN(Number(v))).map(([k, v]) => [k, Number(v) / 100])), [growth])
+  const setOverride = (key, v) => setGrowth((g) => { const n = { ...g }; if (v === undefined) delete n[key]; else n[key] = v; return n })
 
   const runMatch = async () => {
     const sent = growthBody()
@@ -192,6 +198,13 @@ export default function AllocationView({ onGoProfile, onBudgetFrom }) {
       setTab(res.matching.summary.ADATTO ? 'ADATTO' : res.matching.summary.DA_VERIFICARE ? 'DA_VERIFICARE' : 'NON_ADATTO')
     } catch (e) { setError(e.message); setMatch(null) } finally { setMatching(false) }
   }
+  // Il modello è cambiato (salvato o eliminato): le percentuali scritte a mano prima non valgono più, si riparte dal modello.
+  const templateChanged = async () => { setGrowth({}); setMatching(true); setError(null); setPlan(null); setPicked([]); try { const res = await api.profileMatch(Number(year), {}); setMatch({ ...res, growthSent: {} }) } catch (e) { setError(e.message) } finally { setMatching(false) } }
+  // La stima parte da sola appena c'è un bilancio: le percentuali arrivano già compilate, l'utente non deve rifarle.
+  useEffect(() => {
+    if (ov && ov.last_year != null && !auto.current) { auto.current = true; estimate() }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ov])
   // Dopo lo studio di un bando del catalogo: si ricalcola, si porta l'utente alla scheda dove il bando è finito e si mostra com'è andata la lettura.
   const afterStudy = async (it, r) => {
     try {
@@ -200,6 +213,21 @@ export default function AllocationView({ onGoProfile, onBudgetFrom }) {
       setStudied({ name: found?.name || it.name, report: r?.report, fit: found?.fit, estimate: found?.estimate })
       if (found) setTab(found.fit)
     } catch (e) { setError(e.message) }
+  }
+
+  const studyMore = async () => {
+    const todo = (match?.matching.catalog.items || []).slice(0, 5)
+    if (!todo.length) { setStudyNote('Nessuna scheda del catalogo da studiare ora.'); return }
+    setStudyingMore(true); setStudyNote(null)
+    const done = []
+    try {
+      for (let i = 0; i < todo.length; i += 1) {
+        setStudyNote(`Studio ${i + 1} di ${todo.length}: ${todo[i].name}`)
+        try { const r = await api.researchRun({ bando_id: todo[i].bando_id }); done.push(`${todo[i].name} (${r.report?.status === 'COMPLETA' ? 'lettura completa' : r.report?.status === 'PARZIALE' ? 'lettura parziale' : 'lettura insufficiente'})`) } catch (e) { done.push(`${todo[i].name} (non riuscito: ${e.message})`) }
+      }
+      await runMatch()
+      setStudyNote(`Ho studiato ${done.length} bandi: ${done.join('; ')}. Stima e bandi aggiornati.`)
+    } catch (e) { setError(e.message) } finally { setStudyingMore(false) }
   }
 
   const pickedRows = (match?.matching.results || []).filter((r) => picked.includes(r.bando_id) && r.fund)
@@ -212,7 +240,8 @@ export default function AllocationView({ onGoProfile, onBudgetFrom }) {
     const mine = ++seq.current
     setLoading(true); setPlanError(null)
     try {
-      const res = await api.optimizeAllocation({ fiscal_year: match.forecast.fiscal_year, use_profile_forecast: true, growth_pct: match.growthSent, optimization_target: target,
+      const applied = Object.fromEntries(match.forecast.categories.map((c) => [c.category, c.growth_applied]))                // le stesse percentuali della tabella: il piano parte dalla stessa stima
+      const res = await api.optimizeAllocation({ fiscal_year: match.forecast.fiscal_year, use_profile_forecast: true, growth_pct: applied, optimization_target: target,
         available_funding_lines: pickedRows.map((r) => r.fund), ...(needsDeMinimis ? { de_minimis_residual_eur: Number(deMinimis) } : {}) })
       if (mine === seq.current) setPlan(res)
     } catch (e) { if (mine === seq.current) { setPlanError(e.message); setPlan(null) } } finally { if (mine === seq.current) setLoading(false) }
@@ -253,35 +282,8 @@ export default function AllocationView({ onGoProfile, onBudgetFrom }) {
 
       {hasData && (
         <Step n={2} title="Stima dell’anno successivo" done={!!match}
-          sub="Parte dall’ultimo bilancio: le spese di ogni categoria, aumentate o diminuite della variazione che scegli tu. Se non scrivi niente, la stima è uguale all’ultimo bilancio.">
-          <div className="flex flex-wrap items-end gap-3">
-            <label className="space-y-1 text-xs text-ink-2"><span className="label">Anno da pianificare</span><input type="number" className="field !w-24" value={year} onChange={(e) => setYear(e.target.value)} /></label>
-            <button className="btn-primary" disabled={matching || !Number(year)} onClick={estimate}>{matching && <Loader2 className="w-3.5 h-3.5 animate-spin" />}{match ? 'Ricalcola stima e bandi' : 'Calcola la stima e cerca i bandi'}</button>
-          </div>
-          {match && (
-            <div className="overflow-x-auto">
-              <table className="w-full text-xs">
-                <thead><tr className="text-left text-mute"><th className="py-1.5 font-medium">Categoria</th><th className="font-medium text-right">Esercizio {match.forecast.base_year}</th><th className="font-medium text-right">Variazione suggerita</th>
-                  <th className="font-medium text-right pl-3">Tua variazione annua %</th><th className="font-medium text-right">Stima {match.forecast.fiscal_year}</th></tr></thead>
-                <tbody>
-                  {match.forecast.categories.map((c) => (
-                    <tr key={c.category} className="border-t border-line">
-                      <td className="py-2 text-ink-2">{c.label}</td>
-                      <td className="text-right tabular-nums">{fmtEur(c.baseline_eur)}</td>
-                      <td className="text-right text-mute tabular-nums">{c.suggested_growth != null
-                        ? <button className="underline decoration-dotted" title="Dai tuoi due ultimi bilanci: è solo un suggerimento, lo applichi tu" onClick={() => setGrowth((g) => ({ ...g, [c.category]: String(Math.round(c.suggested_growth * 1000) / 10) }))}>{c.suggested_growth > 0 ? '+' : ''}{fmtNum(c.suggested_growth * 100, 1)}%</button> : '—'}</td>
-                      <td className="text-right pl-3"><input type="number" step="0.5" className="field !w-24 !py-1 text-right" placeholder="0" aria-label={`Variazione ${c.label}`} value={growth[c.category] ?? ''} onChange={(e) => setGrowth((g) => ({ ...g, [c.category]: e.target.value }))} /></td>
-                      <td className="text-right font-semibold tabular-nums">{fmtEur(c.forecast_eur)}</td>
-                    </tr>
-                  ))}
-                  <tr className="border-t border-line-strong font-semibold"><td className="py-2">Totale</td><td className="text-right tabular-nums">{fmtEur(match.forecast.total_baseline_eur)}</td><td /><td /><td className="text-right tabular-nums">{fmtEur(match.forecast.total_forecast_eur)}</td></tr>
-                </tbody>
-              </table>
-              {match.forecast.missing.length > 0 && <p className="text-xs text-amber-700 mt-2">Senza dato nel bilancio {match.forecast.base_year}: {match.forecast.missing.map((m) => m.label.toLowerCase()).join(', ')} (non entrano nella stima).</p>}
-              {match.forecast.warnings.map((w) => <p key={w} className="text-xs text-amber-700 mt-1">{w}</p>)}
-              <p className="text-[11px] text-mute mt-2">La variazione suggerita è quella tra i tuoi due ultimi bilanci: non viene applicata da sola. Cambia i numeri e premi «Ricalcola».</p>
-            </div>
-          )}
+          sub="Parte dall’ultimo bilancio: costi e ricavi aumentati o diminuiti di una percentuale annua. Se hai un tuo modello (per esempio del commercialista o del CFO) uso quello; per le voci senza modello calcolo io la variazione dai tuoi due ultimi bilanci e la inserisco già, con la spiegazione.">
+          <ForecastStep forecast={match?.forecast} overrides={growth} setOverride={setOverride} year={year} setYear={setYear} matching={matching} onEstimate={estimate} onTemplateChanged={templateChanged} />
         </Step>
       )}
       {error && <div className="p-3 rounded-xl border border-red-500/30 text-red-700 text-xs">{error}</div>}
@@ -323,8 +325,16 @@ export default function AllocationView({ onGoProfile, onBudgetFrom }) {
         </Step>
       )}
 
+      {match && (
+        <Step n={4} title="Tutti i bandi insieme: il potenziale massimo" done={picked.length > 0 && !!plan}
+          sub="Se l’azienda partecipasse e vincesse tutti i bandi a cui può accedere, quanto riuscirebbe a coprire in un anno? Li applico insieme rispettando cumulo, tetti e de minimis, senza pagare due volte la stessa spesa.">
+          <PotentialStep results={results} picked={picked} setPicked={setPicked} plan={plan} loading={loading} planError={planError} onStudyMore={studyMore} studyingMore={studyingMore} />
+          {studyNote && <p className="text-[11px] text-ink-2 leading-relaxed">{studyNote}</p>}
+        </Step>
+      )}
+
       {match && picked.length > 0 && (
-        <Step n={4} title="Il piano dell’anno" done={!!plan}
+        <Step n={5} title="Il piano dell’anno, voce per voce" done={!!plan}
           sub="Con i bandi che hai incluso, il programma prova le combinazioni possibili e sceglie la migliore, rispettando i tetti dei fondi, i limiti per categoria, i fondi non cumulabili e il de minimis.">
           <div className="flex flex-wrap items-end gap-3">
             <label className="flex items-center gap-2 text-xs text-ink-2">Obiettivo <Hint id="alloc_obiettivo" />
@@ -391,7 +401,6 @@ export default function AllocationView({ onGoProfile, onBudgetFrom }) {
               </div>
             </div>
           </div>
-          <p className="text-[11px] text-mute font-mono break-words">Dettagli tecnici: {plan.summary} · {plan.solver} · {plan.status}</p>
         </>
       )}
     </div>

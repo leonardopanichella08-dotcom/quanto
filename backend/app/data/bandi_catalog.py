@@ -409,24 +409,7 @@ FVG_VALIDAZIONE: Dict[str, Any] = {
     ],
 }
 
-SANDBOX: Dict[str, Any] = {
-    "bando_id": "QUANTO-SANDBOX-60",
-    "name": "QUANTO Sandbox — bando di prova a 60 criteri",
-    "issuer": "QUANTO (fittizio)",
-    "status": "SANDBOX",
-    "period": {"from": "2026-01-01", "to": "2027-12-31"},
-    "legal_refs": ["Bando fittizio: definisce tutte le regole per esercitare ogni criterio. Non è un bando reale."],
-    "benefit": {"type": "SANDBOX", "summary": "Nessun beneficio reale. Serve a provare il motore su tutti i 60 criteri.", "tiers": []},
-    "sources": [],
-    "rules": {},  # riempito da demo.SANDBOX_RULES in bandi.py
-    "rule_notes": {},
-    "requirements": [
-        R("Scopo", "INFO", "Il bando di prova attiva tutte le regole: usalo con lo scenario «Stress-test 46 voci» per vedere ogni criterio all'opera.", [], "QUANTO"),
-    ],
-    "not_specified": [],
-}
-
-BANDI: List[Dict[str, Any]] = [IPERAMMORTAMENTO, SABATINI, HORIZON, SMART_START, INVESTIMENTI_SOSTENIBILI_40, FONDO_GARANZIA, SIMEST_394, FVG_VALIDAZIONE, SANDBOX]
+BANDI: List[Dict[str, Any]] = [IPERAMMORTAMENTO, SABATINI, HORIZON, SMART_START, INVESTIMENTI_SOSTENIBILI_40, FONDO_GARANZIA, SIMEST_394, FVG_VALIDAZIONE]
 
 REFERENCES: List[Dict[str, Any]] = [
     {

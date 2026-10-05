@@ -8,6 +8,9 @@ import pytest
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[1]))
 
 from app.models.schemas import CostItemInput, GrantRuleSet  # noqa: E402
+from tests import demo_scenario  # noqa: E402
+
+demo_scenario.install()                       # il bando di prova esiste solo nei test
 
 
 @pytest.fixture(scope="session")

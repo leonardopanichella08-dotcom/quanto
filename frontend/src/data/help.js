@@ -1,5 +1,5 @@
 // Tutte le spiegazioni dell'app in un posto solo: parole semplici, un esempio per ogni funzione.
-// Gli importi negli esempi sono inventati per spiegare: non sono dati del sistema.
+// Gli importi negli esempi servono solo a spiegare come funziona una funzione: non sono dati del sistema.
 
 // ---------------------------------------------------------------- glossario
 export const GLOSSARY = {
@@ -39,7 +39,7 @@ export const GLOSSARY = {
   iva: { term: 'IVA recuperabile', text: 'Se l’IVA la puoi recuperare non è un vero costo, quindi non è finanziabile. Lo è solo l’IVA che non recuperi.', example: 'Impresa che detrae l’IVA: l’IVA non entra nel budget.' },
   milp: { term: 'Solutore (MILP)', text: 'Un programma matematico che prova le combinazioni possibili e trova la migliore rispettando tutti i limiti.', example: 'Decide quale fondo paga quale spesa per minimizzare quanto paghi tu.' },
   whatif: { term: 'What-if (“e se…?”)', text: 'Provi a togliere qualcosa e vedi subito come cambia il risultato.', example: 'Escludi un fondo e guardi quanto sale la spesa a tuo carico.' },
-  archetipo: { term: 'Archetipo', text: 'Un budget “tipo”, ottenuto dalla media di progetti premiati. In questa versione gli archetipi sono esempi illustrativi.', example: 'Archetipo: 55% personale, 15% beni, 25% consulenze, 5% generali.' },
+  archetipo: { term: 'Archetipo', text: 'Un budget “tipo”, ottenuto dalla media di progetti premiati. Gli archetipi si calcolano dai budget storici importati, con la loro fonte.', example: 'Archetipo: 55% personale, 15% beni, 25% consulenze, 5% generali.' },
   coseno: { term: 'Somiglianza (coseno)', text: 'Un numero da 0 a 1: quanto due ripartizioni si assomigliano. 1 = uguali.', example: '0,98 = quasi identiche; 0,60 = molto diverse.' },
   pp: { term: 'Punti percentuali (pp)', text: 'La differenza tra due percentuali.', example: 'Da 30% a 35% = +5 pp.' },
   traccia: { term: 'Traccia dell’algoritmo', text: 'Il diario di tutto ciò che il motore ha fatto: ogni controllo, su ogni voce, con l’esito e il motivo.', example: '“#31 — consulenze: ridotta di 12.500 €”.' },
@@ -65,7 +65,7 @@ export const HINTS = {
   bando_fonti_scaricate: { title: 'Documenti di origine', text: 'I documenti scaricati o caricati, con l’indirizzo da cui vengono e il tipo di fonte (ufficiale o secondaria).', example: 'Un PDF di Invitalia è “ufficiale”; un articolo di un blog è “secondaria”.' },
   bando_regole_verifica: { title: 'Regole da verificare', text: 'Quando due documenti danno numeri diversi per la stessa regola, QUANTO non sceglie a caso: la mette da parte e la fa decidere a una persona (Quartier Generale → Caricamento bandi). Finché non è decisa, non diventa un controllo.', example: 'Tetto orario 40 €/h in una pagina e 35 €/h nel PDF dell’avviso → “da controllare a mano”.' },
 
-  budget_toolbar: { title: 'I pulsanti del budget', text: 'Prova completa: 46 voci di esempio che attivano tutti i 60 controlli. Progetto realistico: 15 voci più verosimili. Importa: carica un Excel/CSV. Aggiungi voce: una riga a mano.', example: 'Per capire l’app: “Prova completa”, poi “Controlla il budget”.' },
+  budget_toolbar: { title: 'I pulsanti del budget', text: 'Importa: carica un Excel/CSV. Importa da una candidatura: prende le voci da un PDF già scritto. Aggiungi voce: una riga a mano. La bozza dal tuo profilo parte dai bilanci veri dell’azienda.', example: 'Importa il tuo Excel, poi premi “Controlla il budget”.' },
   budget_riepilogo: { title: 'Le quattro caselle', text: 'Punteggio: quanti controlli sono passati. Richiesto: il totale che hai inserito. Ammesso: quanto è finanziabile. Escluso o ridotto: la differenza.', example: 'Richiesto 500.000 €, ammesso 431.000 € → escluso 69.000 €.' },
   budget_lista: { title: 'Elenco delle voci', text: 'Le voci sono raggruppate per categoria. Il colore dice l’esito; se una voce è stata ridotta vedi l’importo originale barrato.', example: '“Consulenza audit 17.500 €” con sopra “30.000 €” barrato.' },
   budget_ispettore: { title: 'Ispettore', text: 'Seleziona una voce: vedi da dove vengono i dati, la formula e ogni controllo, passo per passo, con il motivo.', example: 'Per un dipendente: RAL + oneri + TFR = costo annuo; ÷ ore = costo orario.' },
@@ -118,7 +118,7 @@ export const GUIDE = {
   budget: {
     title: 'Budget',
     what: 'Qui inserisci le spese del progetto e QUANTO le controlla una per una con i 60 controlli del bando scelto.',
-    steps: ['Scegli il bando (in alto).', 'Riempi il budget: prova completa, progetto realistico, importa un Excel o aggiungi voci a mano.', 'Premi “Controlla il budget”.', 'Clicca una voce: capisci perché è stata accettata, ridotta o respinta. Se la modifichi, il controllo si rifà da solo.', 'Se va bene: registra l’impronta o esporta in Excel/PDF.'],
+    steps: ['Scegli il bando (in alto).', 'Riempi il budget: parti dalla bozza del tuo profilo, importa un Excel o aggiungi voci a mano.', 'Premi “Controlla il budget”.', 'Clicca una voce: capisci perché è stata accettata, ridotta o respinta. Se la modifichi, il controllo si rifà da solo.', 'Se va bene: registra l’impronta o esporta in Excel/PDF.'],
     example: 'Inserisci “Consulenza audit 30.000 €” con le altre spese a 70.000 € e il limite consulenze al 20% del totale: QUANTO ammette 17.500 €, perché 17.500 è il 20% di 87.500 (70.000 + 17.500). L’Ispettore ti mostra il passo esatto.',
     terms: ['voce', 'categoria', 'ammesso', 'punteggio', 'nonvalutato'],
   },
@@ -177,7 +177,7 @@ export const GUIDE = {
 export const QUICKSTART = [
   { t: 'Configura la tua azienda', d: 'Pagina Profilo: la procedura guidata ti fa caricare visura e bilanci e rispondere a due domande. Serve per stimare l’anno dopo, trovare i bandi adatti e avere una bozza di budget.' },
   { t: 'Scegli il bando', d: 'Pagina Bandi: cerca o apri un bando, leggi regole e requisiti, premi “Usa questo bando”.' },
-  { t: 'Carica il budget', d: 'Pagina Budget: prova completa, Excel o voci a mano.' },
+  { t: 'Carica il budget', d: 'Pagina Budget: bozza dal profilo, Excel o voci a mano.' },
   { t: 'Controlla il budget', d: 'Ogni voce viene controllata con i 60 controlli. Vedi ammesso, ridotto, respinto.' },
   { t: 'Capisci perché', d: 'Ispettore per una voce; il pulsante «Guarda come ha lavorato» per il film di tutti i passaggi.' },
   { t: 'Certifica e verifica', d: 'Registra l’impronta del budget. Chiunque può poi verificare che non sia cambiato.' },
@@ -197,8 +197,6 @@ export const FUNCTIONS = [
     { name: 'Usa questo bando', what: 'Passa le regole al Budget e registra la scelta nella timeline.', example: 'Premi il pulsante e sei già nel Budget con il bando attivo.' },
   ] },
   { page: 'Budget', items: [
-    { name: 'Prova completa (46 voci)', what: 'Genera un budget che tocca tutte e cinque le categorie e attiva tutti i 60 controlli, adattato alle regole del bando.', example: 'Ideale per vedere ogni controllo in azione.' },
-    { name: 'Progetto realistico (15 voci)', what: 'Un budget più verosimile, con solo le categorie ammesse dal bando.', example: 'Bando che ammette solo beni strumentali → solo macchinari.' },
     { name: 'Importa Excel/CSV', what: 'Legge le voci da un file e ti dice gli errori riga per riga.', example: 'Riga 7: “importo non valido” — correggi e reimporta.' },
     { name: 'Aggiungi voce', what: 'Crea una riga nella categoria scelta con valori di partenza da modificare.', example: 'Aggiungi “Formazione” e apri “Modifica voce”.' },
     { name: 'Controlla il budget', what: 'Fa girare i 60 controlli sul server e mostra il risultato.', example: 'Punteggio 85/100, ammesso 431.000 € su 500.000 €.' },

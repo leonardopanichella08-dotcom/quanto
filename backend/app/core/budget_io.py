@@ -13,7 +13,6 @@ from openpyxl import Workbook, load_workbook
 from openpyxl.styles import Alignment, Font, PatternFill
 from pydantic import ValidationError
 
-from app.core.demo import build_demo
 from app.core.field_catalog import FIELDS, coerce_value
 from app.models.schemas import CostItemInput
 
@@ -39,11 +38,6 @@ def template_xlsx() -> bytes:
         ws.column_dimensions[c.column_letter].width = 22
     ws.cell(row=2, column=1, value="(etichetta — riga ignorata all'import)")
     ws.row_dimensions[2].height = 48
-    examples = [i for i in build_demo(mode="realistic")["cost_items"] if i["item_id"] in ("P-01", "A-01", "C-01", "O-01")]
-    for r, item in enumerate(examples, 3):
-        for col, f in enumerate(FIELDS, 1):
-            v = item.get(f["name"])
-            ws.cell(row=r, column=col, value=", ".join(v) if isinstance(v, list) else v)
     ws.freeze_panes = "B3"
 
     guide = wb.create_sheet("Guida ai campi")

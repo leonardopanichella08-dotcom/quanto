@@ -68,9 +68,12 @@ def test_failed_logins_are_recorded_without_the_attempted_password():
 
 # ------------------------------------------------------------------ memoria e timeline
 def _demo(bando="QUANTO-SANDBOX-60", mode="realistic"):
-    r = client.get("/api/v2/budget/demo", params={"bando_id": bando, "mode": mode})
+    """Scenario di test adattato alle regole del bando (vive solo nei test)."""
+    from app.models.schemas import GrantRuleSet
+    from tests.demo_scenario import build_demo
+    r = client.get(f"/api/v2/bandi/{bando}")
     assert r.status_code == 200, r.text
-    return r.json()
+    return build_demo(GrantRuleSet.model_validate(r.json()["grant_rules"]), mode=mode)
 
 
 def test_validation_is_remembered_with_trace_and_replayable():
@@ -146,7 +149,7 @@ def test_every_user_operation_leaves_a_timeline_event():
     client.post("/api/v2/bandi/QUANTO-SANDBOX-60/select")
     client.get("/api/v2/budget/template.xlsx")
     seen = {e["op"] for e in client.get("/api/v2/hq/timeline", params={"limit": 200}, headers=hq_headers()).json()}
-    assert {"budget.demo", "budget.validate", "registry.register", "pattern.match", "allocation.optimize", "bandi.select", "budget.template"} <= seen
+    assert {"budget.validate", "registry.register", "pattern.match", "allocation.optimize", "bandi.select", "budget.template"} <= seen
 
 
 def test_timeline_filters_and_pagination():
@@ -332,21 +335,30 @@ def test_field_catalog_endpoint_lists_every_field_with_criteria():
     assert d["categories"] and len(d["fields"]) >= 60 and all("group" in f and "criteria" in f for f in d["fields"])
 
 
-def test_template_has_all_columns_examples_and_guide():
+def test_template_has_all_columns_and_guide_without_example_rows():
     r = client.get("/api/v2/budget/template.xlsx")
     assert r.status_code == 200 and "spreadsheetml" in r.headers["content-type"]
     wb = load_workbook(io.BytesIO(r.content))
     assert wb.sheetnames == ["Voci", "Guida ai campi"]
     header = [c.value for c in wb["Voci"][1]]
     assert "item_id" in header and "dnsh_compliant" in header and "milestone_id" in header and len(header) >= 60
-    assert wb["Voci"].max_row >= 6 and wb["Guida ai campi"].max_row >= 60
+    assert wb["Voci"].max_row == 2 and wb["Guida ai campi"].max_row >= 60                 # intestazione e riga delle etichette: nessuna voce di esempio
 
 
-def test_template_roundtrips_through_import_and_validation():
+def test_empty_template_is_importable_and_a_filled_one_roundtrips_through_validation():
     tpl = client.get("/api/v2/budget/template.xlsx").content
     imp = client.post("/api/v2/budget/import", json={"filename": "template.xlsx", "content_base64": b64(tpl)})
     assert imp.status_code == 200, imp.text
-    body = imp.json()
+    assert imp.json()["items"] == [] and imp.json()["errors"] == [] and imp.json()["ignored_columns"] == []
+    wb = load_workbook(io.BytesIO(tpl))
+    ws = wb["Voci"]
+    header = [c.value for c in ws[1]]
+    for r, item in enumerate([i for i in _demo()["cost_items"] if i["item_id"] in ("P-01", "A-01", "C-01", "O-01")], 3):
+        for col, name in enumerate(header, 1):
+            v = item.get(name)
+            ws.cell(row=r, column=col, value=", ".join(v) if isinstance(v, list) else v)
+    out = io.BytesIO(); wb.save(out)
+    body = client.post("/api/v2/budget/import", json={"filename": "template.xlsx", "content_base64": b64(out.getvalue())}).json()
     assert len(body["items"]) == 4 and body["errors"] == [] and body["ignored_columns"] == []
     assert {i["category"] for i in body["items"]} == {"PERSONNEL", "CAPITAL_ASSETS", "CONSULTING", "OVERHEAD"}
     scenario = _demo()
@@ -382,8 +394,7 @@ def test_import_csv_with_semicolons_and_bad_files():
     assert ev and ev[-1]["details"]["imported"] == 1
 
 
-def test_demo_endpoint_modes_and_errors():
+def test_demo_endpoint_is_gone_and_the_test_scenario_adapts_to_the_bando():
+    assert client.get("/api/v2/budget/demo").status_code in (404, 405)
     assert len(_demo(mode="stress")["cost_items"]) == 46 and len(_demo(mode="realistic")["cost_items"]) == 15
-    assert client.get("/api/v2/budget/demo", params={"mode": "boh"}).status_code == 422
-    assert client.get("/api/v2/budget/demo", params={"bando_id": "NOPE"}).status_code == 404
     assert _demo("HORIZON-EUROPE-MGA")["grant_rules"]["overhead_flat_rate_pct"] == 0.25
