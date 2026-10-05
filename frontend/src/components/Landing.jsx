@@ -5,6 +5,13 @@ import { Mark, Wordmark } from './ui'
 import './Landing.css'
 
 const CELL_COLOR = { OK: '#10b981', ADJUSTED: '#f59e0b', REJECTED: '#ef4444', WAIT: '#38bdf8', NONE: '#F6F2E21f' }
+// esempio fisso (non è un bando reale): illustra la distribuzione tipica di un controllo a 60 criteri
+const DEMO_OUTCOMES = [
+  'OK', 'OK', 'OK', 'ADJUSTED', 'OK', 'OK', 'OK', 'REJECTED', 'OK', 'OK', 'OK', 'OK', 'WAIT', 'OK', 'OK',
+  'OK', 'OK', 'NONE', 'OK', 'OK', 'OK', 'ADJUSTED', 'OK', 'OK', 'NONE', 'OK', 'OK', 'OK', 'OK', 'OK',
+  'OK', 'ADJUSTED', 'OK', 'OK', 'OK', 'NONE', 'OK', 'REJECTED', 'OK', 'OK', 'OK', 'OK', 'OK', 'NONE', 'OK',
+  'OK', 'OK', 'OK', 'WAIT', 'OK', 'OK', 'OK', 'NONE', 'OK', 'OK', 'ADJUSTED', 'OK', 'OK', 'OK', 'OK',
+]
 const BLOCKS = [
   { from: 1, to: 15, label: 'Personale' }, { from: 16, to: 30, label: 'Beni strumentali' },
   { from: 31, to: 45, label: 'Consulenze e spese generali' }, { from: 46, to: 60, label: 'Date, cumulo, tracciabilità' },
@@ -21,7 +28,7 @@ function hexStr(rnd, n) { let s = ''; for (let i = 0; i < n; i++) s += HEX[Math.
 
 /** Non punti a caso: una catena di blocchi firmati, come il registro vero di QUANTO — ogni blocco porta un'impronta
  * e si lega al precedente. Disposta in righe larghe così resta leggibile come "catena" anche a distanza. */
-function ChainField({ rows = 3, perRow = 7, seed = 7 }) {
+function ChainField({ rows = 3, perRow = 7, seed = 7, variant = '' }) {
   const { blocks, links, active } = useMemo(() => {
     const rnd = mulberry32(seed)
     const w = 1200, h = 460
@@ -39,7 +46,7 @@ function ChainField({ rows = 3, perRow = 7, seed = 7 }) {
     return { blocks: flat, links: lk, active: act }
   }, [rows, perRow, seed])
   return (
-    <svg className="chain-field" viewBox="0 0 1200 460" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
+    <svg className={`chain-field ${variant}`} viewBox="0 0 1200 460" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
       {links.map(([a, b], i) => <line key={i} x1={a.x + 18} y1={a.y} x2={b.x - 18} y2={b.y} stroke="#F6F2E2" strokeOpacity="0.08" strokeWidth="1" strokeDasharray="2 3" />)}
       {blocks.map((p) => (
         <g key={p.id} transform={`translate(${p.x}, ${p.y})`} opacity="0.5">
@@ -207,7 +214,7 @@ export default function Landing({ onLogin, onAuditor, onVision }) {
     <div className="qt-land">
       <div className="dark-zone">
         <div className="glow-yellow" style={{ width: 520, height: 520, top: -160, left: '50%', transform: 'translateX(-50%)' }} />
-        <ChainField />
+        <ChainField variant="clear-center" />
         <svg className="grain" width="100%" height="100%"><filter id="n"><feTurbulence type="fractalNoise" baseFrequency="0.85" numOctaves="2" stitchTiles="stitch" /></filter><rect width="100%" height="100%" filter="url(#n)" /></svg>
 
         <nav className="qt-nav"><div className="wrap row">
@@ -233,6 +240,21 @@ export default function Landing({ onLogin, onAuditor, onVision }) {
           </div>
           <p className="fineprint">Gratuito oggi. Nessuna carta di credito richiesta.</p>
 
+          <div className="window-wrap"><div className="window">
+            <div className="chrome"><i /><i /><i /><span className="url">quanto.app/budget</span></div>
+            <div className="body">
+              <div className="top"><span className="name">Beni strumentali — Nuova Sabatini</span><span className="score mono">46/60 superati</span></div>
+              <div className="heat-grid">{DEMO_OUTCOMES.map((o, i) => <div key={i} className="heat-cell" style={{ background: CELL_COLOR[o] }} title={`#${i + 1}`} />)}</div>
+              <div className="heat-legend">
+                <span><i style={{ background: CELL_COLOR.OK }} />superato</span>
+                <span><i style={{ background: CELL_COLOR.ADJUSTED }} />ridotto</span>
+                <span><i style={{ background: CELL_COLOR.REJECTED }} />respinto</span>
+                <span><i style={{ background: CELL_COLOR.WAIT }} />da documentare</span>
+                <span><i style={{ background: CELL_COLOR.NONE }} />non valutato</span>
+              </div>
+            </div>
+          </div></div>
+          <p className="fineprint" style={{ marginTop: 14 }}>Illustrazione dell’interfaccia: i valori sono d’esempio.</p>
         </div></header>
 
         <svg className="curve-divider" viewBox="0 0 1200 64" preserveAspectRatio="none"><path d="M0,64 C300,0 900,0 1200,64 L1200,64 L0,64 Z" fill="var(--l-bg)" /></svg>
@@ -275,7 +297,7 @@ export default function Landing({ onLogin, onAuditor, onVision }) {
       </section>
 
       <section className="sect dark-sect">
-        <ChainField rows={2} perRow={9} seed={23} />
+        <ChainField rows={2} perRow={9} seed={23} variant="faint" />
         <div className="wrap">
           <div className="sect-head center">
             <span className="kicker">Perché fidarsi</span>
@@ -305,7 +327,7 @@ export default function Landing({ onLogin, onAuditor, onVision }) {
       </section>
 
       <section className="sect dark-sect" id="prezzi">
-        <ChainField rows={2} perRow={8} seed={41} />
+        <ChainField rows={2} perRow={8} seed={41} variant="low" />
         <div className="wrap">
           <div className="sect-head">
             <span className="kicker">Prezzi</span>

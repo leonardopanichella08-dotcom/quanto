@@ -35,7 +35,7 @@
 /* ============================================================== zona scura (hero + cta finale) ============================================================== */
 .qt-land .dark-zone { position: relative; background: var(--d-bg); color: var(--d-ink); overflow: hidden; }
 .qt-land .grain { position: absolute; inset: 0; opacity: 0.05; mix-blend-mode: overlay; pointer-events: none; z-index: 1; }
-.qt-land .glow-yellow { position: absolute; border-radius: 50%; filter: blur(90px); background: radial-gradient(circle, rgba(241,226,27,0.28), transparent 70%); pointer-events: none; z-index: 0; }
+.qt-land .glow-yellow { position: absolute; border-radius: 50%; background: radial-gradient(closest-side, rgba(241,226,27,0.26), rgba(241,226,27,0.10) 55%, transparent); pointer-events: none; z-index: 0; }
 
 /* ---------------------------------------------------------------- nav */
 .qt-land nav.qt-nav { position: sticky; top: 0; z-index: 40; border-bottom: 1px solid var(--d-line); backdrop-filter: blur(10px); background: color-mix(in srgb, var(--d-bg) 78%, transparent); }
@@ -190,8 +190,8 @@
 .qt-land .pattern-grid { position: absolute; inset: 0; z-index: 0; opacity: 0.6;
   background-image: linear-gradient(var(--l-line) 1px, transparent 1px), linear-gradient(90deg, var(--l-line) 1px, transparent 1px);
   background-size: 46px 46px; mask-image: radial-gradient(ellipse 70% 60% at 50% 40%, #000 40%, transparent 85%); }
-.qt-land .glow-warm { position: absolute; border-radius: 50%; filter: blur(100px); pointer-events: none; z-index: 0;
-  background: radial-gradient(circle, rgba(241,226,27,0.35), transparent 70%); }
+.qt-land .glow-warm { position: absolute; border-radius: 50%; pointer-events: none; z-index: 0;
+  background: radial-gradient(closest-side, rgba(241,226,27,0.24), rgba(241,226,27,0.09) 55%, transparent); }
 .qt-land .tilt-card { position: absolute; border: 1.5px solid var(--l-line-strong); border-radius: 12px; background: #fff;
   box-shadow: 0 30px 60px -30px rgba(21,19,10,0.25); z-index: 0; pointer-events: none; opacity: 0.9; }
 
@@ -245,6 +245,9 @@
 .qt-land .sect.dark-sect .btn-line { border-color: var(--d-line); color: var(--d-ink); }
 .qt-land .sect.dark-sect .btn-line:hover { border-color: var(--yellow); color: var(--yellow); }
 .qt-land .chain-field { position: absolute; inset: 0; z-index: 0; opacity: 0.5; }
+.qt-land .chain-field.faint { opacity: 0.2; -webkit-mask-image: linear-gradient(to bottom, transparent, #000 28%, #000 72%, transparent); mask-image: linear-gradient(to bottom, transparent, #000 28%, #000 72%, transparent); }
+.qt-land .chain-field.clear-center { -webkit-mask-image: radial-gradient(ellipse 36% 62% at 50% 44%, transparent 60%, #000 100%); mask-image: radial-gradient(ellipse 36% 62% at 50% 44%, transparent 60%, #000 100%); }
+.qt-land .chain-field.low { opacity: 0.2; -webkit-mask-image: linear-gradient(to bottom, transparent 45%, #000 70%, transparent); mask-image: linear-gradient(to bottom, transparent 45%, #000 70%, transparent); }
 .qt-land .trio { position: relative; z-index: 2; display: grid; grid-template-columns: repeat(3, 1fr); gap: 28px; }
 @media (max-width: 760px) { .qt-land .trio { grid-template-columns: 1fr; } }
 .qt-land .trio-item { display: flex; flex-direction: column; gap: 16px; }
