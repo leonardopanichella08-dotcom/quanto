@@ -13,13 +13,16 @@ import time
 from concurrent.futures import ThreadPoolExecutor
 from typing import Any, Dict, List, Optional
 
-from app.core import analysis, bandi, events, research
+from app.core import analysis, bandi, events, research, valuation
 from app.core.analysis import distinctive_tokens, is_about  # noqa: F401 - la stessa regola vale al download e all'analisi
 from app.core.ingestion import Ingestion
 
 MAX_DOCS = 8                 # documenti scaricati per esecuzione
 SECOND_ROUND_DOCS = 4        # PDF ufficiali collegati dalle pagine già scaricate
+MAX_ROUNDS = 3               # al massimo tre giri di link da seguire
 SECOND_ROUND_FROM_S = 26.0   # il secondo giro parte solo se il primo è stato abbastanza veloce (limite di 60 s della funzione)
+INTENSITY_ROUND_DOCS = 4     # documenti in più cercati apposta per la percentuale di agevolazione
+INTENSITY_ROUND_BEFORE_S = 30.0
 WORKERS = 6
 
 # soglie del rapporto di completezza
@@ -141,21 +144,36 @@ def run(bando_id: str, urls: Optional[List[str]] = None, max_docs: int = MAX_DOC
                 htmls.append(r["doc"])
 
     fetch_and_store(chosen)
-    if time.monotonic() - t0 < SECOND_ROUND_FROM_S and htmls:
+    rounds = 0                                         # giri successivi: dalla scheda del catalogo alla pagina dell'ente, e da questa agli allegati (bando, decreto)
+    while htmls and rounds < MAX_ROUNDS and time.monotonic() - t0 < SECOND_ROUND_FROM_S:
+        rounds += 1
+        current, htmls = htmls, []
         links: List[Dict[str, Any]] = []
-        for d in htmls:
+        for d in current:
             links += research.find_links(d["url"], d["links"], known, focus=name)
-        second = []
+        second: List[str] = []
         for link in sorted(links, key=lambda x: (not x["is_pdf"], -x["score"])):
             if link["url"] not in second and research.normalize_url(link["url"]) not in known:
                 second.append(link["url"])
             if len(second) >= SECOND_ROUND_DOCS:
                 break
-        if second:
-            fetch_and_store(second)
+        if not second:
+            break
+        fetch_and_store(second)
 
     analysed = analysis.run_analysis(bando_id) if events.list_bando_sources(bando_id) else None
+    if analysed is not None and not valuation.has_intensity(bando_id) and time.monotonic() - t0 < INTENSITY_ROUND_BEFORE_S:
+        try:                                                   # terzo giro: nei documenti non c'è ancora la percentuale di agevolazione, la si cerca apposta
+            more = research.search_web(name, "intensità contributo percentuale spese ammissibili beneficiari", supplied)
+        except research.ResearchError:
+            more = {"candidates": []}
+        extra = _pick(more["candidates"], known, INTENSITY_ROUND_DOCS)
+        if extra:
+            fetch_and_store(extra)
+            analysed = analysis.run_analysis(bando_id)
     report = assess(bando_id, fetched_ok, failed)
+    if not valuation.has_intensity(bando_id):
+        report["gaps"].append("Nei documenti ufficiali letti non compare una percentuale di agevolazione (contributo, intensità di aiuto): il valore in euro non si può ancora calcolare.")
     report["engine_errors"] = found.get("engine_errors", [])
     report["seconds"] = round(time.monotonic() - t0, 1)
     report["rules_new"] = sorted(analysed["outcome"].published) if analysed else []

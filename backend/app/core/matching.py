@@ -11,7 +11,7 @@ from __future__ import annotations
 from datetime import date
 from typing import Any, Dict, List, Optional
 
-from app.core import bandi, funds
+from app.core import bandi, funds, valuation
 from app.core.company_profile import CATEGORIES, CATEGORY_LABEL, REGIONS
 from app.core.db import connect
 from app.core.ingestion import Ingestion
@@ -81,8 +81,8 @@ def _adjustments(rules: Dict[str, Any], by_cat: Dict[str, float], allowed: List[
     return out
 
 
-def _estimate(rules: Dict[str, Any], by_cat: Dict[str, float], rate: float) -> Dict[str, Any]:
-    allowed = [c for c in (rules.get("eligible_categories") or list(CATEGORIES)) if c in CATEGORIES]
+def _estimate(rules: Dict[str, Any], by_cat: Dict[str, float], rate: float, allowed_override: Optional[List[str]] = None, cap_eur: Optional[float] = None) -> Dict[str, Any]:
+    allowed = [c for c in (allowed_override or rules.get("eligible_categories") or list(CATEGORIES)) if c in CATEGORIES]
     adj = {a["category"]: a for a in _adjustments(rules, by_cat, allowed)}
     rows, eligible_total, covered_total = [], 0.0, 0.0
     for c in CATEGORIES:
@@ -99,7 +99,14 @@ def _estimate(rules: Dict[str, Any], by_cat: Dict[str, float], rate: float) -> D
         rows.append({"category": c, "label": CATEGORY_LABEL[c], "forecast_eur": round(amount, 2), "eligible_eur": round(eligible, 2), "covered_eur": covered,
                      "coverage_pct": round(100 * covered / amount, 1), "note": adj[c]["reason"] if c in adj else None})
     total = sum(by_cat.values())
-    return {"rate_pct": round(rate * 100, 2), "eligible_base_eur": round(eligible_total, 2), "covered_eur": round(covered_total, 2),
+    capped = False
+    if cap_eur is not None and covered_total > cap_eur > 0:                  # tetto in euro del contributo per progetto: si riducono tutte le righe in proporzione
+        factor = cap_eur / covered_total
+        for r in rows:
+            r["covered_eur"] = round(r["covered_eur"] * factor, 2)
+            r["coverage_pct"] = round(100 * r["covered_eur"] / r["forecast_eur"], 1) if r["forecast_eur"] else 0.0
+        covered_total, capped = cap_eur, True
+    return {"rate_pct": round(rate * 100, 2), "capped": capped, "eligible_base_eur": round(eligible_total, 2), "covered_eur": round(covered_total, 2),
             "covered_pct_of_total": round(100 * covered_total / total, 1) if total else 0.0, "by_category": rows, "adjustments": list(adj.values())}
 
 
@@ -182,22 +189,34 @@ def evaluate(bando_id: str, profile: Dict[str, Any], by_cat: Dict[str, float], y
     benefit = detail.get("benefit")
     fund = None
     estimate = None
-    try:
-        fund = funds.build_fund(bando_id, year)
-    except funds.FundError as exc:
-        if "finestra di ammissibilità" in str(exc):
-            checks.append({"id": "window", "label": f"Finestra {year}", "decisive": True, "result": "FAIL", "detail": str(exc)})
-    if fund is not None:
-        estimate = _estimate(rules, by_cat, float(fund["coverage_pct"]))
-        fund = {**fund, "allowed_categories": [getattr(c, "value", c) for c in fund["allowed_categories"]],
-                "category_max_share": {getattr(k, "value", k): v for k, v in fund["category_max_share"].items()}}
+    guarantee = None
+    val = valuation.value_bando(bando_id, detail, rules, profile, by_cat)
+    if val and val["kind"] == "GARANZIA":                    # non è un guadagno: si calcola l'importo garantibile, ma non entra nel piano né nelle somme
+        guarantee = {"financed_eur": val["financed_eur"], "guaranteed_low_eur": val["guaranteed_low_eur"], "guaranteed_high_eur": val["guaranteed_high_eur"]}
+    elif val:
+        from_rule = val["origin"] == "REGOLA"
+        try:
+            fund = funds.build_fund(bando_id, year, max_total_eur=val.get("cap_low"), de_minimis=bool(val.get("de_minimis")),
+                                    coverage_pct=None if from_rule else val["rate_low"], categories=None if from_rule else val.get("categories"))
+        except funds.FundError as exc:
+            if "finestra di ammissibilità" in str(exc):
+                checks.append({"id": "window", "label": f"Finestra {year}", "decisive": True, "result": "FAIL", "detail": str(exc)})
+        if fund is not None:
+            cats = None if from_rule else val.get("categories")
+            estimate = _estimate(rules, by_cat, float(fund["coverage_pct"]), cats, val.get("cap_low"))
+            hi = _estimate(rules, by_cat, float(val["rate_high"]), cats, val.get("cap_high"))
+            estimate.update({"rate_high_pct": hi["rate_pct"], "covered_high_eur": max(hi["covered_eur"], estimate["covered_eur"]), "kind": val["kind"],
+                             "kind_label": valuation.KIND_LABEL[val["kind"]], "summable": val["kind"] in valuation.SUMMABLE, "origin": val["origin"],
+                             "assumptions": val.get("assumptions", []), "evidence": val.get("evidence", []), "cap_eur": val.get("cap_low"), "cap_high_eur": val.get("cap_high")})
+            fund = {**fund, "allowed_categories": [getattr(c, "value", c) for c in fund["allowed_categories"]],
+                    "category_max_share": {getattr(k, "value", k): v for k, v in fund["category_max_share"].items()}}
 
     notes = []
     for key, text in (("requires_cup", "Richiede il CUP su ogni spesa."), ("requires_dnsh", "Richiede il rispetto del principio DNSH (non arrecare danno significativo)."),
                       ("requires_new_asset", "I beni devono essere nuovi di fabbrica."), ("min_durability_months", None)):
         if key in rules:
             notes.append(text if text else f"Vincolo di destinazione: almeno {rules[key]} mesi.")
-    if estimate is None:
+    if estimate is None and guarantee is None:
         btype = (benefit or {}).get("type") or ""
         notes.append("Il bando non dichiara un'aliquota di contributo (la percentuale delle spese che viene rimborsata): il beneficio non si può quantificare in automatico. "
                      + BENEFIT_EXPLANATION.get(btype, f"Tipo di aiuto: {btype}." if btype else ""))
@@ -206,12 +225,13 @@ def evaluate(bando_id: str, profile: Dict[str, Any], by_cat: Dict[str, float], y
     unknown_decisive = [c for c in checks if c["result"] == "UNKNOWN" and c["decisive"]]
     if fails:
         fit = "NON_ADATTO"
-    elif unknown_decisive or estimate is None:
+    elif unknown_decisive or (estimate is None and guarantee is None):
         fit = "DA_VERIFICARE"
     else:
         fit = "ADATTO"
     return {"bando_id": bando_id, "name": detail["name"], "issuer": detail.get("issuer"), "status": detail.get("status"), "fit": fit, "checks": checks, "estimate": estimate,
-            "fund": fund, "benefit": benefit, "notes": notes, "missing_profile": sorted(set(missing)), "requirements_count": len(detail.get("requirements", [])),
+            "fund": fund, "guarantee": guarantee, "guarantee_info": ({"kind_label": valuation.KIND_LABEL["GARANZIA"], "assumptions": val.get("assumptions", []), "evidence": val.get("evidence", [])} if guarantee else None),
+            "benefit": benefit, "notes": notes, "missing_profile": sorted(set(missing)), "requirements_count": len(detail.get("requirements", [])),
             "rules_count": len(rules)}
 
 

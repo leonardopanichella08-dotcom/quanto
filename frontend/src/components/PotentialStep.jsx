@@ -46,11 +46,12 @@ function RebuiltBudget({ plan, nameOf }) {
 
 /** Tutti i bandi a cui l'azienda può partecipare, applicati insieme: quanto potrebbe coprire se li vincesse tutti. Il calcolo è quello del piano (stesse regole di
  *  cumulo, tetti e de minimis): qui si scelgono i bandi e si legge il confronto con la somma dei bandi presi uno per uno. */
-export default function PotentialStep({ results, picked, setPicked, plan, loading, planError, onStudyMore, studyingMore }) {
+export default function PotentialStep({ results, picked, setPicked, plan, planHigh, loading, planError, onStudyMore, studyingMore }) {
   const [withMaybe, setWithMaybe] = useState(false)
   const sure = results.filter((r) => r.fit === 'ADATTO' && r.fund)
   const maybe = results.filter((r) => r.fit === 'DA_VERIFICARE' && r.fund)
-  const noAmount = results.filter((r) => r.fit !== 'NON_ADATTO' && !r.fund)
+  const noAmount = results.filter((r) => r.fit !== 'NON_ADATTO' && !r.fund && !r.guarantee)
+  const guarantees = results.filter((r) => r.fit !== 'NON_ADATTO' && r.guarantee)
   const wanted = [...sure, ...(withMaybe ? maybe : [])]
   const wantedIds = wanted.map((r) => r.bando_id)
   const isAll = wantedIds.length > 0 && wantedIds.length === picked.length && wantedIds.every((id) => picked.includes(id))
@@ -88,7 +89,8 @@ export default function PotentialStep({ results, picked, setPicked, plan, loadin
               <div>
                 <p className="text-xs text-ink-2">{isAll ? 'Potenziale massimo' : 'Con i bandi che hai scelto'}: se l’azienda ottenesse {pickedRows.length === 1 ? 'il bando scelto' : `tutti i ${pickedRows.length} bandi insieme`}, nell’anno {plan.fiscal_year}</p>
                 <div className="flex flex-wrap items-end gap-x-8 gap-y-2 mt-1">
-                  <div><span className="label">Coperto dai bandi</span><div className="text-2xl font-display font-semibold text-emerald-700 tabular-nums">{fmtEur(plan.covered_by_public_funds_eur)}</div></div>
+                  <div><span className="label">Coperto dai bandi</span><div className="text-2xl font-display font-semibold text-emerald-700 tabular-nums">{fmtEur(plan.covered_by_public_funds_eur)}{planHigh && planHigh.covered_by_public_funds_eur > plan.covered_by_public_funds_eur + 0.5 && <span className="text-base text-emerald-700/80"> – {fmtEur(planHigh.covered_by_public_funds_eur)}</span>}</div>
+                    {planHigh && planHigh.covered_by_public_funds_eur > plan.covered_by_public_funds_eur + 0.5 && <span className="text-[11px] text-mute">dalla stima prudente a quella con tutte le maggiorazioni</span>}</div>
                   <div><span className="label">Su una spesa di</span><div className="text-sm font-semibold tabular-nums">{fmtEur(plan.total_gross_expense_eur)}</div></div>
                   <div><span className="label">Quota coperta</span><div className="text-sm font-semibold tabular-nums">{fmtNum(plan.overall_coverage_percentage, 1)}%</div></div>
                   <div><span className="label">Resta a tuo carico</span><div className="text-sm font-semibold tabular-nums text-amber-700">{fmtEur(plan.net_cost_to_entity_eur)}</div></div>
@@ -100,8 +102,8 @@ export default function PotentialStep({ results, picked, setPicked, plan, loadin
                     <thead><tr className="text-left text-mute"><th className="py-1 font-medium">Bando</th><th className="font-medium text-right">Da solo</th><th className="font-medium text-right">Nel piano insieme</th></tr></thead>
                     <tbody>
                       {pickedRows.map((r) => (
-                        <tr key={r.bando_id} className="border-t border-line"><td className="py-1.5 text-ink-2 pr-3">{r.name}{r.fit === 'DA_VERIFICARE' && <span className="ml-1.5 text-[10px] text-amber-700">(da verificare)</span>}</td>
-                          <td className="text-right tabular-nums">{fmtEur(r.estimate?.covered_eur)}</td><td className="text-right tabular-nums text-emerald-700">{fmtEur(used[r.fund.fund_id] ?? 0)}</td></tr>
+                        <tr key={r.bando_id} className="border-t border-line"><td className="py-1.5 text-ink-2 pr-3">{r.name}{r.estimate?.kind_label && <span className="block text-[10px] text-mute">{r.estimate.kind_label}</span>}{r.fit === 'DA_VERIFICARE' && <span className="ml-1.5 text-[10px] text-amber-700">(da verificare)</span>}</td>
+                          <td className="text-right tabular-nums">{fmtEur(r.estimate?.covered_eur)}{r.estimate?.covered_high_eur > r.estimate?.covered_eur + 0.5 && <span className="text-mute"> – {fmtEur(r.estimate.covered_high_eur)}</span>}</td><td className="text-right tabular-nums text-emerald-700">{fmtEur(used[r.fund.fund_id] ?? 0)}</td></tr>
                       ))}
                       <tr className="border-t border-line-strong font-semibold"><td className="py-1.5">Totale</td><td className="text-right tabular-nums">{fmtEur(alone)}</td><td className="text-right tabular-nums">{fmtEur(plan.covered_by_public_funds_eur)}</td></tr>
                     </tbody>
@@ -116,14 +118,22 @@ export default function PotentialStep({ results, picked, setPicked, plan, loadin
               <RebuiltBudget plan={plan} nameOf={(id) => (results.find((r) => r.fund?.fund_id === id)?.name || id)} />
             </>
           ) : !planError && <p className="text-xs text-mute flex items-center gap-2"><Loader2 className="w-3.5 h-3.5 animate-spin" />Calcolo il piano con tutti i bandi insieme…</p>}
-          <p className="text-[11px] text-mute leading-relaxed">Nota professionale da includere nel report per il cliente: è un massimo teorico, presuppone di presentare domanda a tutti i bandi e di vincerli tutti. Usa solo ciò che ogni bando dichiara (aliquote, categorie, tetti, cumulo); l’esito reale dipende dall’istruttoria e dalle risorse disponibili.</p>
+          <p className="text-[11px] text-mute leading-relaxed">Nota professionale da includere nel report per il cliente: è un massimo teorico, presuppone di presentare domanda a tutti i bandi e di vincerli tutti. Usa solo ciò che ogni bando dichiara (aliquote, categorie, tetti) e, per prudenza, ogni spesa riceve un solo contributo a fondo perduto (il migliore): i contributi a fondo perduto non si sommano sulla stessa spesa, mentre garanzie, interessi e risparmi fiscali sì; l’esito reale dipende dall’istruttoria e dalle risorse disponibili.</p>
+        </div>
+      )}
+
+      {guarantees.length > 0 && (
+        <div className="rounded-2xl border border-line bg-field p-4 space-y-2 text-xs">
+          <p className="font-medium text-ink">Garanzie pubbliche ({guarantees.length}): valgono, ma non si sommano</p>
+          <p className="text-ink-2 leading-relaxed">Non sono un contributo: coprono una parte di un finanziamento bancario e spesso permettono di ottenerlo. Per questo l’importo garantibile sta fuori dal potenziale.</p>
+          <ul className="space-y-1">{guarantees.map((r) => <li key={r.bando_id} className="text-ink-2"><span className="font-medium text-ink">{r.name}</span> — fino a {fmtEur(r.guarantee.guaranteed_low_eur)} – {fmtEur(r.guarantee.guaranteed_high_eur)} garantiti su un finanziamento di {fmtEur(r.guarantee.financed_eur)} (ipotesi: finanzi i beni strumentali previsti).</li>)}</ul>
         </div>
       )}
 
       {noAmount.length > 0 && (
         <div className="rounded-2xl border border-line bg-field p-4 space-y-2 text-xs">
-          <p className="font-medium text-ink inline-flex items-center gap-1.5"><CircleHelp className="w-3.5 h-3.5 text-amber-700" />Altri bandi a cui puoi partecipare, senza un importo sulle spese ({noAmount.length})</p>
-          <p className="text-ink-2 leading-relaxed">Il loro beneficio non è una percentuale delle spese (garanzie, finanziamenti agevolati, benefici fiscali…): vale ma dipende da dati che non sono nel bilancio, quindi non lo sommo al potenziale.</p>
+          <p className="font-medium text-ink inline-flex items-center gap-1.5"><CircleHelp className="w-3.5 h-3.5 text-amber-700" />Bandi senza una percentuale nei documenti letti ({noAmount.length})</p>
+          <p className="text-ink-2 leading-relaxed">Nei documenti ufficiali letti non compare una percentuale di agevolazione. Studiali di nuovo: la ricerca ora cerca apposta la percentuale. Finché manca, non li sommo.</p>
           <ul className="space-y-1">
             {noAmount.map((r) => (
               <li key={r.bando_id} className="flex gap-1.5 text-ink-2"><CheckCircle2 className="w-3.5 h-3.5 mt-0.5 shrink-0 text-emerald-600" /><span><span className="font-medium text-ink">{r.name}</span>{r.benefit?.summary ? ` — ${r.benefit.summary}` : ''}</span></li>

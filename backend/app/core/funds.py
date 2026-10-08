@@ -94,7 +94,7 @@ def derive_from_bando(bando_id: str, fiscal_year: int, actor: str, max_total_eur
 
 
 def build_fund(bando_id: str, fiscal_year: int, max_total_eur: Optional[float] = None, de_minimis: bool = False,
-               fund_id: Optional[str] = None) -> Dict[str, Any]:
+               fund_id: Optional[str] = None, coverage_pct: Optional[float] = None, categories: Optional[List[str]] = None) -> Dict[str, Any]:
     """La linea di finanziamento ricavata dalle regole pubblicate, senza salvarla (la usa anche l'abbinamento ai bandi)."""
     bando = Ingestion.get_bando(bando_id)
     if bando is None:
@@ -102,8 +102,12 @@ def build_fund(bando_id: str, fiscal_year: int, max_total_eur: Optional[float] =
     with connect() as conn:
         rows = conn.execute("SELECT rule_key, value FROM rules WHERE bando_id=? AND status='PUBLISHED'", (bando_id,)).fetchall()
     vals = {r["rule_key"]: _typed(r["rule_key"], r["value"]) for r in rows if r["value"] is not None}
-    if not vals:
+    if not vals and coverage_pct is None:
         raise FundError("Il bando non ha regole pubblicate")
+    if coverage_pct is not None:                           # percentuale da modello del bando o da tabella del testo ufficiale (vedi valuation)
+        vals["contribution_rate_pct"] = coverage_pct
+    if categories:
+        vals["eligible_categories"] = categories
     if vals.get("contribution_rate_pct") is None:
         raise FundError("Il bando non indica la percentuale di contributo (contribution_rate_pct): non si può ricavare un'intensità di copertura. Aggiungila nell'archivio del bando.")
     rule_set = type("Rules", (), {"bando_name": bando["name"], "contribution_rate_pct": float(vals["contribution_rate_pct"]),

@@ -67,6 +67,8 @@ def seed() -> None:
                  "CURATED", b.get("extraction_status", "COMPLETED")))
             meta = {k: b[k] for k in ("status", "period", "legal_refs", "benefit", "sources", "not_specified", "rule_notes")}
             meta["curated"] = True
+            if b.get("valuation"):
+                meta["valuation"] = b["valuation"]
             conn.execute("INSERT INTO bando_meta (bando_id, meta) VALUES (?,?) ON CONFLICT(bando_id) DO UPDATE SET meta=excluded.meta",
                          (b["bando_id"], json.dumps(meta, ensure_ascii=False)))
             conn.execute("DELETE FROM rules WHERE bando_id=? AND origin='CURATED_SOURCE'", (b["bando_id"],))
@@ -117,6 +119,12 @@ def _summary(cov: List[Dict[str, Any]]) -> Dict[str, int]:
 def _meta(conn, bando_id: str) -> Dict[str, Any]:
     row = conn.execute("SELECT meta FROM bando_meta WHERE bando_id=?", (bando_id,)).fetchone()
     return json.loads(row["meta"]) if row else {}
+
+
+def valuation_model(bando_id: str) -> Optional[Dict[str, Any]]:
+    """Come si misura il valore del bando (solo bandi curati): tipo, parametri, ipotesi e fonte."""
+    with connect() as conn:
+        return _meta(conn, bando_id).get("valuation")
 
 
 def _catalog_status(b) -> str:

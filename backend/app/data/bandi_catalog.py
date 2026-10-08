@@ -409,6 +409,53 @@ FVG_VALIDAZIONE: Dict[str, Any] = {
     ],
 }
 
+def _ev(entry: Dict[str, Any], text: str) -> List[Dict[str, Any]]:
+    return [{"text": text, "url": entry["sources"][0]["url"]}]
+
+
+SABATINI["valuation"] = {
+    "kind": "CONTO_INTERESSI", "categories": ["CAPITAL_ASSETS"], "annual_rate_low": 0.0275, "annual_rate_high": 0.03575, "years": 5, "financed_share": 1.0,
+    "assumptions": [
+        "Il contributo è il valore equivalente degli interessi di un finanziamento: spetta solo se l'investimento è finanziato con un prestito bancario o un leasing (da 20.000 € a 4.000.000 €, massimo 5 anni).",
+        "Ipotesi: si finanzia l'intero investimento, a 5 anni, con rate semestrali costanti e interessi convenzionali al 2,75% (investimenti ordinari) o al 3,575% (4.0 e green), come dichiarato dal bando. "
+        "Il metodo ufficiale di calcolo è nella circolare MIMIT: verificalo prima di indicare l'importo al cliente.",
+    ],
+    "evidence": _ev(SABATINI, "Contributo pari agli interessi calcolati in via convenzionale su un finanziamento di 5 anni al 2,75% (3,575% per investimenti 4.0 e green)."),
+}
+IPERAMMORTAMENTO["valuation"] = {
+    "kind": "RISPARMIO_FISCALE", "categories": ["CAPITAL_ASSETS"],
+    "tiers": [{"up_to_eur": 2_500_000, "rate": 1.80}, {"up_to_eur": 10_000_000, "rate": 1.00}, {"up_to_eur": 20_000_000, "rate": 0.50}],
+    "assumptions": [
+        "Non è un contributo: è una maggiorazione del costo deducibile. Risparmio = maggiorazione (180% fino a 2,5 milioni, 100% fino a 10, 50% fino a 20) × aliquota IRES del 24% (art. 77 TUIR), spalmato sulla vita utile del bene.",
+        "Vale solo se l'impresa ha reddito imponibile capiente per assorbire la deduzione e se i beni sono 4.0 (Allegati IV e V) di origine UE.",
+    ],
+    "evidence": _ev(IPERAMMORTAMENTO, "Maggiorazione del 180% del costo fino a 2,5 milioni di euro di investimenti (100% fino a 10, 50% fino a 20)."),
+}
+SIMEST_394["valuation"] = {
+    "kind": "FONDO_PERDUTO", "categories": ["CAPITAL_ASSETS", "CONSULTING"], "rate_low": 0.10, "rate_high": 0.20, "de_minimis": True,
+    "assumptions": [
+        "È la quota a fondo perduto abbinata al finanziamento agevolato: 10% con almeno uno dei requisiti (Sud Italia, certificazioni, imprenditoria giovanile o femminile, export oltre il 20%, impresa innovativa), 20% per imprese energivore o per efficientamento energetico.",
+        "Ipotesi: il finanziamento richiesto copre le spese ammissibili. Il finanziamento stesso (tasso agevolato) non è sommato. Il fondo perduto rientra nel de minimis e ha tetti in euro per impresa: controllali nella circolare.",
+    ],
+    "evidence": _ev(SIMEST_394, "Cofinanziamento a fondo perduto del 10% o 20% dell'importo, secondo i requisiti dell'impresa (Circolare SIMEST 4/394/2023)."),
+}
+HORIZON["valuation"] = {
+    "kind": "FONDO_PERDUTO", "categories": ["PERSONNEL", "CAPITAL_ASSETS", "CONSULTING"], "rate_low": 0.70, "rate_high": 1.00,
+    "assumptions": [
+        "Il tasso lo fissa la call: 100% dei costi ammissibili nelle azioni di ricerca (RIA), 70% nelle azioni di innovazione (IA) per le imprese a scopo di lucro; i costi indiretti sono un forfait del 25% dei diretti.",
+        "Il calcolo parte dalla spesa prevista nelle categorie ammesse: è un massimo teorico, perché solo la parte che entra davvero in un progetto Horizon è finanziata.",
+    ],
+    "evidence": _ev(HORIZON, "Tasso di finanziamento fissato dalla call (Data Sheet punto 3 del Model Grant Agreement); costi indiretti: forfait del 25%."),
+}
+FONDO_GARANZIA["valuation"] = {
+    "kind": "GARANZIA", "categories": ["CAPITAL_ASSETS"], "rate_low": 0.50, "rate_high": 0.80, "financed_share": 1.0,
+    "assumptions": [
+        "La garanzia non è un guadagno: copre una parte di un finanziamento bancario (50% per la liquidità, 80% per gli investimenti) e spesso è ciò che permette di ottenerlo. Per questo non entra nella somma dei bandi.",
+        "Ipotesi: l'investimento in beni strumentali è finanziato per intero con un prestito bancario.",
+    ],
+    "evidence": _ev(FONDO_GARANZIA, "Garanzia del 50% (liquidità) o dell'80% (investimenti) sul finanziamento bancario."),
+}
+
 BANDI: List[Dict[str, Any]] = [IPERAMMORTAMENTO, SABATINI, HORIZON, SMART_START, INVESTIMENTI_SOSTENIBILI_40, FONDO_GARANZIA, SIMEST_394, FVG_VALIDAZIONE]
 
 REFERENCES: List[Dict[str, Any]] = [

@@ -408,6 +408,8 @@ def xlsx_to_text(data: bytes, max_rows_per_sheet: int = 2000) -> str:
 
 # ------------------------------------------------------------------ collegamenti da seguire
 _DOC_WORDS = re.compile(r"normativ|decret|avvis|bando|circolar|regolament|allegat|faq|dpcm|legge|linee guida|modulistic|domanda|istruzion|vademecum|gazzetta|eur-lex|normattiva|disposizion|direttiv", re.I)
+_MAIN_DOC = re.compile(r"\bbando\b|avviso|disciplinare|regolamento|allegato[\s_%20-]*1\b|\bdecreto\b", re.I)
+_SIDE_DOC = re.compile(r"privacy|trattamento[\s_%20-]*(dei[\s_%20-]*)?dati|dati[\s_%20-]*personali|report|graduatori|griglia|istruttoria|\bCUP\b|chiusura|riapertura|sospensione|elenco[\s_%20-]*delle[\s_%20-]*attivit", re.I)
 _BAD_LINK = re.compile(r"^(mailto|tel|javascript):|\.(jpe?g|png|gif|svg|webp|zip|rar|mp4|mp3|xlsx?|pptx?|css|js|ico)(\?|$)|/(login|accedi|area-riservata|newsletter|cookie|privacy|sitemap|accessibilit|rss|contatti|search|ricerca)(/|\?|$)|[?&](lang|language)=", re.I)
 
 
@@ -432,7 +434,8 @@ def find_links(base_url: str, links: List[Tuple[str, str]], known: Optional[set]
         is_pdf = bool(re.search(r"\.pdf(\?|$)", full, re.I))
         about = focus and match_score(focus, f"{text} {url_text(full)}") is not None
         score = (50 if is_pdf else 0) + (40 if any(h.endswith(x) for x in ("gazzettaufficiale.it", "normattiva.it", "eur-lex.europa.eu")) else 0) \
-            + (30 if _DOC_WORDS.search(text + " " + full) else 0) + (15 if h == base_host else 0) + (45 if about else 0)
+            + (30 if _DOC_WORDS.search(text + " " + full) else 0) + (15 if h == base_host else 0) + (45 if about else 0) \
+            + (25 if _MAIN_DOC.search(text + " " + full) else 0) - (60 if _SIDE_DOC.search(text + " " + full) else 0)
         if score < 45:
             continue
         seen[norm] = {"url": full, "title": (text or full)[:140], "score": score, "is_pdf": is_pdf, "host": h}

@@ -118,11 +118,30 @@ function BandoCard({ r, picked, onToggle, onBudget }) {
 
       {e ? (
         <div className="flex flex-wrap items-end gap-x-6 gap-y-2">
-          <div><span className="label">Contributo stimato</span><div className="text-lg font-display font-semibold text-emerald-700 tabular-nums">{fmtEur(e.covered_eur)}</div></div>
-          <div><span className="label">Aliquota del bando</span><div className="text-sm font-semibold tabular-nums">{fmtNum(e.rate_pct, 1)}%</div></div>
+          <div><span className="label">{e.kind_label || 'Contributo stimato'}</span><div className="text-lg font-display font-semibold text-emerald-700 tabular-nums">{fmtEur(e.covered_eur)}{e.covered_high_eur > e.covered_eur + 0.5 && <span className="text-sm text-emerald-700/80"> – {fmtEur(e.covered_high_eur)}</span>}</div></div>
+          <div><span className="label">Percentuale</span><div className="text-sm font-semibold tabular-nums">{fmtNum(e.rate_pct, 1)}%{e.rate_high_pct > e.rate_pct + 0.05 && ` – ${fmtNum(e.rate_high_pct, 1)}%`}</div></div>
           <div><span className="label">Sul totale delle tue spese</span><div className="text-sm font-semibold tabular-nums">{fmtNum(e.covered_pct_of_total, 1)}%</div></div>
         </div>
-      ) : <p className="text-xs text-amber-700">{r.notes.find((n) => n.startsWith('Il bando non dichiara')) || 'Il beneficio non si può quantificare in automatico.'}</p>}
+      ) : r.guarantee ? (
+        <div className="space-y-1">
+          <div className="flex flex-wrap items-end gap-x-6 gap-y-2">
+            <div><span className="label">Importo garantibile</span><div className="text-lg font-display font-semibold text-sky-700 tabular-nums">{fmtEur(r.guarantee.guaranteed_low_eur)} – {fmtEur(r.guarantee.guaranteed_high_eur)}</div></div>
+            <div><span className="label">Su un finanziamento di</span><div className="text-sm font-semibold tabular-nums">{fmtEur(r.guarantee.financed_eur)}</div></div>
+          </div>
+          <p className="text-[11px] text-mute">{r.guarantee_info?.kind_label}</p>
+        </div>
+      ) : <p className="text-xs text-amber-700">{r.notes.find((n) => n.startsWith('Il bando non dichiara')) || 'Nei documenti ufficiali letti non compare una percentuale: puoi farlo studiare di nuovo per cercarla.'}</p>}
+      {e && (e.assumptions?.length > 0 || e.evidence?.length > 0) && (
+        <div className="text-[11px] text-ink-2 space-y-1 leading-relaxed">
+          {e.assumptions.map((a, i) => <p key={i}>• {a}</p>)}
+          {e.evidence.slice(0, 2).map((x, i) => <p key={`ev${i}`} className="text-mute">Dal testo ufficiale: «{x.text}»{x.url && <> · <a href={x.url} target="_blank" rel="noreferrer" className="underline">fonte</a></>}</p>)}
+        </div>
+      )}
+      {!e && r.guarantee && r.guarantee_info && (
+        <div className="text-[11px] text-ink-2 space-y-1 leading-relaxed">
+          {r.guarantee_info.assumptions.map((a, i) => <p key={i}>• {a}</p>)}
+        </div>
+      )}
 
       {e && e.adjustments.length > 0 && (
         <div className="p-3 rounded-xl border border-amber-500/30 bg-amber-500/5 text-xs space-y-1">
@@ -174,6 +193,7 @@ export default function AllocationView({ onGoProfile, onBudgetFrom }) {
   const [target, setTarget] = useState('MINIMIZE_NET_COST')
   const [deMinimis, setDeMinimis] = useState('')
   const [plan, setPlan] = useState(null)
+  const [planHigh, setPlanHigh] = useState(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(null)
   const [planError, setPlanError] = useState(null)
@@ -235,16 +255,26 @@ export default function AllocationView({ onGoProfile, onBudgetFrom }) {
 
   // Il piano si ricalcola da solo a ogni scelta (bandi inclusi, obiettivo, de minimis): il calcolo è sul server.
   const run = useCallback(async () => {
-    if (!match || pickedRows.length === 0) { setPlan(null); setPlanError(null); return }
+    if (!match || pickedRows.length === 0) { setPlan(null); setPlanHigh(null); setPlanError(null); return }
     if (needsDeMinimis && deMinimis === '') { setPlan(null); setPlanError('Uno dei bandi scelti è in de minimis: indica quanto plafond ti resta nel triennio.'); return }
     const mine = ++seq.current
     setLoading(true); setPlanError(null)
     try {
       const applied = Object.fromEntries(match.forecast.categories.map((c) => [c.category, c.growth_applied]))                // le stesse percentuali della tabella: il piano parte dalla stessa stima
-      const res = await api.optimizeAllocation({ fiscal_year: match.forecast.fiscal_year, use_profile_forecast: true, growth_pct: applied, optimization_target: target,
-        available_funding_lines: pickedRows.map((r) => r.fund), ...(needsDeMinimis ? { de_minimis_residual_eur: Number(deMinimis) } : {}) })
-      if (mine === seq.current) setPlan(res)
-    } catch (e) { if (mine === seq.current) { setPlanError(e.message); setPlan(null) } } finally { if (mine === seq.current) setLoading(false) }
+      // Due contributi a fondo perduto non si sommano sulla stessa spesa (doppio finanziamento, criterio 47): per prudenza ogni voce ne riceve uno solo, il migliore.
+      const grants = pickedRows.filter((r) => r.estimate?.kind === 'FONDO_PERDUTO').map((r) => r.fund.fund_id)
+      const line = (r, high) => {
+        const f = high && r.estimate?.rate_high_pct > r.estimate?.rate_pct
+          ? { ...r.fund, coverage_pct: r.estimate.rate_high_pct / 100, max_total_eur: r.estimate.cap_high_eur ?? r.fund.max_total_eur } : r.fund
+        return grants.includes(f.fund_id) ? { ...f, excludes: [...new Set([...(f.excludes || []), ...grants.filter((id) => id !== f.fund_id)])] } : f
+      }
+      const body = (high) => ({ fiscal_year: match.forecast.fiscal_year, use_profile_forecast: true, growth_pct: applied, optimization_target: target,
+        available_funding_lines: pickedRows.map((r) => line(r, high)), ...(needsDeMinimis ? { de_minimis_residual_eur: Number(deMinimis) } : {}) })
+      const res = await api.optimizeAllocation(body(false))
+      const hasRange = pickedRows.some((r) => r.estimate?.rate_high_pct > r.estimate?.rate_pct)
+      const resHigh = hasRange ? await api.optimizeAllocation(body(true)) : null
+      if (mine === seq.current) { setPlan(res); setPlanHigh(resHigh) }
+    } catch (e) { if (mine === seq.current) { setPlanError(e.message); setPlan(null); setPlanHigh(null) } } finally { if (mine === seq.current) setLoading(false) }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [match, picked, target, deMinimis])
   useEffect(() => { run() }, [run])
@@ -328,7 +358,7 @@ export default function AllocationView({ onGoProfile, onBudgetFrom }) {
       {match && (
         <Step n={4} title="Tutti i bandi insieme: il potenziale massimo" done={picked.length > 0 && !!plan}
           sub="Se l’azienda partecipasse e vincesse tutti i bandi a cui può accedere, quanto riuscirebbe a coprire in un anno? Li applico insieme rispettando cumulo, tetti e de minimis, senza pagare due volte la stessa spesa.">
-          <PotentialStep results={results} picked={picked} setPicked={setPicked} plan={plan} loading={loading} planError={planError} onStudyMore={studyMore} studyingMore={studyingMore} />
+          <PotentialStep results={results} picked={picked} setPicked={setPicked} plan={plan} planHigh={planHigh} loading={loading} planError={planError} onStudyMore={studyMore} studyingMore={studyingMore} />
           {studyNote && <p className="text-[11px] text-ink-2 leading-relaxed">{studyNote}</p>}
         </Step>
       )}
