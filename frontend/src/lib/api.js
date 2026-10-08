@@ -126,6 +126,14 @@ export const api = {
   merkleLab: (rows, prove_index) => post('/registry/merkle-lab', { rows, ...(prove_index != null ? { prove_index } : {}) }),
   // --- altre missioni
   matchPattern: (body) => post('/pattern/match', body),
+  templateMeta: () => call('/templates/meta').then((r) => r.json()),
+  templatesMine: () => call('/templates').then((r) => r.json()),
+  templateNiches: () => call('/templates/niches').then((r) => r.json()),
+  templateLearning: () => call('/templates/learning').then((r) => r.json()),
+  templateRecommend: (body) => post('/templates/recommend', body),
+  createTemplate: (body) => post('/templates', body),
+  patchTemplate: (id, body) => call(`/templates/${id}`, { method: 'PATCH', headers: json, body: JSON.stringify(body) }).then((r) => r.json()),
+  deleteTemplate: (id) => call(`/templates/${id}`, { method: 'DELETE' }).then((r) => r.json()),
   patternCategories: () => call('/pattern/categories').then((r) => r.json()),
   patternBudgets: () => call('/pattern/budgets').then((r) => r.json()),
   patternImport: (body) => post('/pattern/import', body),
@@ -158,6 +166,8 @@ export const api = {
   // --- quartier generale
   hqLogin: (code) => post('/hq/login', { code }),
   hqOverview: () => hqGet('/overview'),
+  hqManual: () => hqGet('/manual'),
+  hqManualPdf: () => hqBlob('/manual.pdf'),
   hqOperations: () => hqGet('/operations'),
   hqTimeline: (params = {}) => hqGet(`/timeline?${new URLSearchParams(Object.entries(params).filter(([, v]) => v)).toString()}`),
   hqRun: (id) => hqGet(`/runs/${id}`),

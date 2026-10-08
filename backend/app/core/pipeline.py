@@ -17,6 +17,7 @@ from app.core import analysis, bandi, events, research, valuation
 from app.core.analysis import distinctive_tokens, is_about  # noqa: F401 - la stessa regola vale al download e all'analisi
 from app.core.ingestion import Ingestion
 
+STANDARD_VERSION = "RICERCA-v2"   # lo standard di ricerca e raccolta dati descritto nel manuale (Quartier Generale)
 MAX_DOCS = 8                 # documenti scaricati per esecuzione
 SECOND_ROUND_DOCS = 4        # PDF ufficiali collegati dalle pagine già scaricate
 MAX_ROUNDS = 3               # al massimo tre giri di link da seguire
@@ -174,6 +175,7 @@ def run(bando_id: str, urls: Optional[List[str]] = None, max_docs: int = MAX_DOC
     report = assess(bando_id, fetched_ok, failed)
     if not valuation.has_intensity(bando_id):
         report["gaps"].append("Nei documenti ufficiali letti non compare una percentuale di agevolazione (contributo, intensità di aiuto): il valore in euro non si può ancora calcolare.")
+    report["standard"] = STANDARD_VERSION
     report["engine_errors"] = found.get("engine_errors", [])
     report["seconds"] = round(time.monotonic() - t0, 1)
     report["rules_new"] = sorted(analysed["outcome"].published) if analysed else []

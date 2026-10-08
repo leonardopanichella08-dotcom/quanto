@@ -6,7 +6,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response,
 from pydantic import BaseModel, ConfigDict, Field
 
 from app.api.deps import actor_of, require_hq
-from app.core import analysis, archive, consultant, events, hq, users
+from app.core import analysis, archive, consultant, events, hq, manual, users
 from app.core.ingestion import Ingestion
 
 router = APIRouter()
@@ -18,6 +18,16 @@ deps = [Depends(require_hq)]
 @router.get("/overview", dependencies=deps, summary="Panoramica: contatori, storage, registro, operazioni, ultimi eventi")
 def hq_overview() -> dict:
     return hq.overview()
+
+
+@router.get("/manual", dependencies=deps, summary="Il manuale dei processi di QUANTO (testo)")
+def hq_manual() -> dict:
+    return manual.load()
+
+
+@router.get("/manual.pdf", dependencies=deps, summary="Il manuale dei processi di QUANTO in PDF (costruito dallo stesso testo)")
+def hq_manual_pdf() -> Response:
+    return Response(content=manual.to_pdf(), media_type="application/pdf", headers={"Content-Disposition": 'attachment; filename="QUANTO_manuale_dei_processi.pdf"'})
 
 
 @router.get("/operations", dependencies=deps, summary="Mappa di tutte le operazioni fattibili con le loro fasi e le statistiche")

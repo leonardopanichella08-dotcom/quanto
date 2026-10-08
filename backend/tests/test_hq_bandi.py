@@ -404,3 +404,13 @@ def test_text_upload_of_a_bando_is_reserved_to_the_operator():
     body = {"name": "Bando da testo", "text": BANDO_TEXT}
     assert client.post("/api/v2/bandi/upload", json=body).status_code == 401
     assert client.post("/api/v2/bandi/upload", json=body, headers=hq_headers()).status_code == 200
+
+
+def test_the_process_manual_is_in_the_headquarters_as_text_and_pdf():
+    assert client.get("/api/v2/hq/manual").status_code == 401                                   # solo il Quartier Generale
+    m = client.get("/api/v2/hq/manual", headers=hq_headers()).json()
+    assert m["title"] == "Manuale dei processi di QUANTO" and m["version"] and len(m["sections"]) >= 15
+    for needed in ("RICERCA-v2", "come l'algoritmo impara", "Come nasce il consiglio", "60 criteri"):
+        assert needed.lower() in m["markdown"].lower(), needed
+    pdf = client.get("/api/v2/hq/manual.pdf", headers=hq_headers())
+    assert pdf.status_code == 200 and pdf.content[:4] == b"%PDF" and len(pdf.content) > 30_000 and "attachment" in pdf.headers["content-disposition"]

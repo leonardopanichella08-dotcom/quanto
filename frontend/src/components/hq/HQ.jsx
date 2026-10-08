@@ -11,10 +11,11 @@ import FonteB from './FonteB'
 import Users from './Users'
 import { PatternAdmin } from './DataAdmin'
 import CatalogHQ from './CatalogHQ'
+import Manual from './Manual'
 
 const SECTIONS = [
   ['overview', 'Panoramica', Gauge], ['timeline', 'Timeline', History], ['operations', 'Mappa operazioni', Network],
-  ['archive', 'Bandi', Archive2], ['catalog', 'Catalogo', ListTree], ['fonteb', 'Tabelle ufficiali', Scale], ['patterns', 'Banca pattern', GitCompare], ['users', 'Utenti', KeyRound], ['dossiers', 'Fascicoli', FolderOpen], ['documents', 'Documenti', FileText], ['database', 'Database', Database],
+  ['archive', 'Bandi', Archive2], ['catalog', 'Catalogo', ListTree], ['manual', 'Manuale', FileText], ['fonteb', 'Tabelle ufficiali', Scale], ['patterns', 'Banca pattern', GitCompare], ['users', 'Utenti', KeyRound], ['dossiers', 'Fascicoli', FolderOpen], ['documents', 'Documenti', FileText], ['database', 'Database', Database],
 ]
 const STATUS_LABEL = { OK: 'OK', WARN: 'Attenzione', FAIL: 'Non superato', DENIED: 'Negato', LOCKED: 'Bloccato', CONFLICT: 'Conflitto', NOT_FOUND: 'Non trovato' }
 const SECTION_HINT = { overview: 'hq_panoramica', timeline: 'hq_timeline', operations: 'hq_operazioni', archive: 'hq_archivio', catalog: 'hq_archivio', fonteb: 'hq_archivio', users: 'hq_archivio', patterns: 'hq_archivio', dossiers: 'hq_fascicoli', documents: 'hq_documenti', database: 'hq_database' }
@@ -214,6 +215,7 @@ export default function HQ({ onReplay, user }) {
       {overview && section === 'operations' && <Operations ops={ops} onShow={(id) => goto('timeline', id)} />}
       {overview && section === 'archive' && <Archive />}
       {overview && section === 'catalog' && <CatalogHQ />}
+      {overview && section === 'manual' && <Manual />}
       {overview && section === 'fonteb' && <FonteB />}
       {overview && section === 'patterns' && <PatternAdmin />}
       {overview && section === 'users' && <Users me={user} />}

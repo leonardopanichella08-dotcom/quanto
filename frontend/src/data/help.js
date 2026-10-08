@@ -137,10 +137,10 @@ export const GUIDE = {
   },
   pattern: {
     title: 'Confronto',
-    what: 'Confronta come hai diviso il budget tra le grandi categorie con i budget di progetti premiati (banca dati con la fonte di ognuno). Ti dice se sei fuori linea, non se vincerai.',
-    steps: ['Scegli la categoria di bandi con cui confrontarti.', 'Scrivi le sei quote (0 – 1) oppure usa il budget che hai già controllato: il confronto si aggiorna da solo.', 'Leggi l’archetipo più vicino, lo scostamento maggiore e i budget storici più simili.'],
-    example: 'Se metti il 25% in consulenze e i progetti premiati il 15%, leggi “consulenze +10 pp”: è il punto da guardare per primo.',
-    terms: ['archetipo', 'coseno', 'pp'],
+    what: 'Qui salvi come i tuoi clienti hanno ripartito il budget per vincere un bando, nicchia per nicchia. Ogni template allena un consiglio: «per un’azienda di questa nicchia che sceglie questo bando, il budget di solito è fatto così».',
+    steps: ['Scegli il codice ATECO del cliente (la nicchia) e il bando.', 'Leggi il budget consigliato: quote, intervalli, quanti template lo sostengono e quanta fiducia ha.', 'Salva il budget del tuo cliente come template, con l’esito (bozza, presentato, ammesso, non ammesso).', 'Quando arriva l’esito, aggiornalo: i budget ammessi pesano di più e il consiglio si ricalcola da solo.'],
+    example: 'Un’azienda agricola sceglie un bando e mette 13% in consulenze, 16,1% in ricerca e sviluppo, 45% in beni strumentali. Se il bando la ammette, quel budget pesa 3 volte una bozza nel consiglio per le prossime aziende agricole.',
+    terms: ['pp'],
   },
   documents: {
     title: 'Documenti',
@@ -225,8 +225,11 @@ export const FUNCTIONS = [
     { name: 'Timeline 12 mesi', what: 'Spese per mese, coperte e a carico.', example: 'Aprile alto: acquisto del macchinario.' },
   ] },
   { page: 'Confronto', items: [
-    { name: 'Confronto con archetipi', what: 'Somiglianza (0–1) tra la tua ripartizione e quella dei budget tipo.', example: '0,98 con “Tecnologico”.' },
-    { name: 'Scostamento principale', what: 'La categoria dove ti allontani di più, in punti percentuali.', example: 'Consulenze +10 pp.' },
+    { name: 'Budget consigliato', what: 'Per una nicchia (ATECO) e un bando, la ripartizione media del budget dei template simili, con un peso maggiore per quelli ammessi, l’intervallo tipico e il livello di fiducia.', example: 'Agricoltura + bando X: 45% beni strumentali, 16,1% ricerca e sviluppo, 13% consulenze (fiducia media, 5 template).' },
+    { name: 'Salva come template', what: 'Registra come hai ripartito il budget per un cliente di quella nicchia, con l’esito. Ogni template nuovo riallena il consiglio.', example: 'Salvi «ammesso» e quel budget pesa 3 volte una bozza.' },
+    { name: 'Mappa nicchie e bandi', what: 'Quali nicchie hanno scelto quali bandi, con budget medio e numero di ammessi.', example: 'Agricoltura: 3 bandi, il primo con 4 ammessi su 6.' },
+    { name: 'Stili di budget', what: 'Con almeno sei template, i gruppi di budget simili e quanti di ciascuno hanno vinto.', example: 'Stile «beni strumentali»: 5 template, 4 ammessi.' },
+    { name: 'Condividi in forma anonima', what: 'Il template entra nel campione di tutti (senza ragione sociale né partita IVA) e allena l’algoritmo di tutti.', example: 'Disattivato di default: i tuoi template restano tuoi.' },
   ] },
   { page: 'Verifica', items: [
     { name: 'Verifica impronta', what: 'Confronta un’impronta con quella registrata; controlla anche firma e integrità della catena.', example: 'Tre segni verdi: impronta, firma, catena.' },

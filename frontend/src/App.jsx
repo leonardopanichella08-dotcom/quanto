@@ -3,7 +3,7 @@ import BandiLibrary from './components/BandiLibrary'
 import BudgetCanvas from './components/BudgetCanvas'
 import AlgorithmLab from './components/AlgorithmLab'
 import AllocationView from './components/AllocationView'
-import PatternCompare from './components/PatternCompare'
+import Confronto from './components/Confronto'
 import AuditorPortal from './components/AuditorPortal'
 import RegistrationModal from './components/RegistrationModal'
 import HQ from './components/hq/HQ'
@@ -27,7 +27,7 @@ const HEADS = {
   bandi: ['Bandi', 'Cerca un bando, leggi le sue regole e scegli quello per il tuo budget.'],
   canvas: ['Budget', 'Inserisci le spese e controlla ogni regola del bando.'],
   allocation: ['Allocazione', 'Scopri quale fondo paga ogni spesa e quanto resta a carico tuo.'],
-  pattern: ['Confronto', 'Guarda quanto il tuo budget somiglia a quelli dei progetti premiati.'],
+  pattern: ['Confronto', 'Quali aziende, di quale nicchia, partecipano a quali bandi e con quale budget: i tuoi template allenano il consiglio.'],
   auditor: ['Verifica', 'Controlla che un budget certificato non sia stato modificato.'],
   profilo: ['Profilo', 'I tuoi dati, le operazioni recenti e i documenti che hai caricato.'],
 }
@@ -240,7 +240,7 @@ export default function App() {
           </div>
         )}
         {tab === 'allocation' && <AllocationView onGoProfile={() => nav.go('profilo')} onBudgetFrom={budgetFrom} />}
-        {tab === 'pattern' && <PatternCompare bando={bando} validation={validation} />}
+        {tab === 'pattern' && <Confronto validation={validation} />}
         {tab === 'auditor' && (
           <AuditorPortal request={request} defaultProject={params.get('project') || validation?.project_id || request.project_id}
             defaultRoot={params.get('root') || validation?.merkle_root} />
