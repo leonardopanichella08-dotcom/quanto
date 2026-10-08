@@ -295,7 +295,7 @@ def test_manual_upload_adds_to_web_sources_without_losing_requirements(web):
     client.post("/api/v2/bandi/research/fetch", json={"bando_id": bid, "url": "https://www.ente.gov.it/fondo"})
     n1 = client.post("/api/v2/bandi/research/analyze", json={"bando_id": bid}).json()["requirements_total"]
     text = "Le spese di formazione non possono superare il 7% del totale del progetto. " * 3 + "Il beneficiario deve conservare la documentazione per cinque anni."
-    r = client.post("/api/v2/bandi/upload", json={"name": NAME, "bando_id": bid, "text": text * 2, "filename": "integrazione.txt"}).json()
+    r = client.post("/api/v2/bandi/upload", headers={"X-HQ-Token": manager_token()}, json={"name": NAME, "bando_id": bid, "text": text * 2, "filename": "integrazione.txt"}).json()
     assert r["requirements_total"] >= n1                      # prima l'upload cancellava i requisiti letti dalle altre fonti
     assert len(r["detail"]["usage"]["uploaded_sources"]) == 2
 

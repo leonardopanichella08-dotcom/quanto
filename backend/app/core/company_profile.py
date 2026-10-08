@@ -6,7 +6,7 @@ Tre regole, uguali per ogni dato:
 - **solo ciò che è sicuro**: dai documenti entrano nel profilo i campi letti con sicurezza o confermati da una persona; le righe ancora in verifica
   non entrano, e il totale dell'anno viene segnalato come parziale finché non si verificano;
 - **niente valori inventati**: un dato mancante resta mancante e finisce nell'elenco «da completare». La stima dell'anno dopo parte dai dati veri; la
-  variazione di ogni voce è quella del modello dell'utente (commercialista, CFO), altrimenti quella che risulta dai suoi due ultimi bilanci, e per ognuna
+  variazione di ogni voce è quella del modello dell'utente (cliente, CFO, studio), altrimenti quella che risulta dai suoi due ultimi bilanci, e per ognuna
   si dice da dove viene e perché, con i numeri dei documenti.
 """
 from __future__ import annotations
@@ -299,7 +299,7 @@ def size_class(employees: Optional[int], revenue_eur: Optional[float]) -> Option
     for code, label, max_emp, max_rev in tiers:
         if employees < max_emp and (revenue_eur is None or revenue_eur <= max_rev):
             return {"code": code, "label": label, "is_sme": True, "provisional": revenue_eur is None,
-                    "note": "Indicativa: soglie UE su dipendenti e fatturato, senza il totale di bilancio e senza le imprese collegate." + ("" if revenue_eur is not None else " Manca il fatturato.")}
+                    "note": "Indicativa: soglie UE su dipendenti e fatturato, senza il totale di bilancio e senza le imprese collegate. Verifica i requisiti formali con visura e cassetto fiscale del cliente." + ("" if revenue_eur is not None else " Manca il fatturato.")}
     return {"code": "LARGE", "label": "Grande impresa", "is_sme": False, "provisional": False, "note": "Oltre le soglie UE delle PMI."}
 
 
@@ -375,7 +375,7 @@ def get_forecast_template(owner: str) -> Optional[Dict[str, Any]]:
 
 
 def save_forecast_template(owner: str, growth: Dict[str, float], label: str = "", note: str = "", actor: Optional[str] = None) -> Dict[str, Any]:
-    """Il modello di previsione dell'utente: le percentuali annue indicate da lui o dal suo commercialista/CFO. Sostituisce quello precedente."""
+    """Il modello di previsione dell'utente: le percentuali annue indicate dal cliente, dal suo CFO o stimate dallo studio. Sostituisce quello precedente."""
     growth = {k: float(v) for k, v in growth.items() if v is not None}
     _check_growth(growth)
     if not growth:
@@ -443,7 +443,7 @@ def _explain(key: str, base_year: int, b: float, prev_year: Optional[int], p: Op
     n = year - base_year
     out.append(f"Dal {base_year} al {year} ({_years_word(n)}): da {_eur(b)} a {_eur(amount)}.")
     if abs(applied) > HIGH_GROWTH:
-        out.append(f"Attenzione: {_pct(applied)} ogni anno è una variazione molto alta e, ripetuta su più anni, diventa difficile da sostenere. Verificala con il tuo commercialista.")
+        out.append(f"Attenzione: {_pct(applied)} ogni anno è una variazione molto alta e, ripetuta su più anni, diventa difficile da sostenere. Punto di attenzione per la tua diagnosi consulenziale: verificala con i dati del cliente.")
     return out
 
 

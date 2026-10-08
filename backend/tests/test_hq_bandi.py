@@ -250,7 +250,7 @@ def test_references_include_de_minimis():
 
 # ------------------------------------------------------------------ upload di un bando
 def test_upload_text_extracts_rules_scope_and_requirements():
-    r = client.post("/api/v2/bandi/upload", json={"name": "Bando di prova beni", "filename": "bando.txt", "text": BANDO_TEXT})
+    r = client.post("/api/v2/bandi/upload", headers=hq_headers(), json={"name": "Bando di prova beni", "filename": "bando.txt", "text": BANDO_TEXT})
     assert r.status_code == 200, r.text
     body = r.json()
     rules = {x["key"]: x for x in body["detail"]["rules"]}
@@ -265,14 +265,14 @@ def test_upload_text_extracts_rules_scope_and_requirements():
 
 
 def test_upload_flags_unclassified_obligations_instead_of_ignoring_them():
-    body = client.post("/api/v2/bandi/upload", json={"name": "Bando con clausola strana", "text": BANDO_TEXT}).json()
+    body = client.post("/api/v2/bandi/upload", headers=hq_headers(), json={"name": "Bando con clausola strana", "text": BANDO_TEXT}).json()
     review = [r for r in body["detail"]["requirements"] if r["kind"] == "DA_REVISIONARE"]
     assert body["requirements_to_review"] == len(review) >= 1
     assert any("atto notorio" in r["text"] for r in review)
 
 
 def test_upload_is_remembered_as_document_and_event_and_source():
-    body = client.post("/api/v2/bandi/upload", json={"name": "Bando memoria", "text": BANDO_TEXT, "filename": "avviso.txt"}).json()
+    body = client.post("/api/v2/bandi/upload", headers=hq_headers(), json={"name": "Bando memoria", "text": BANDO_TEXT, "filename": "avviso.txt"}).json()
     h = hq_headers()
     docs = client.get("/api/v2/hq/documents", params={"kind": "BANDO_TEXT"}, headers=h).json()
     assert docs[0]["name"] == "avviso.txt" and docs[0]["bando_id"] == body["bando_id"] and len(docs[0]["sha256"]) == 64
@@ -283,7 +283,7 @@ def test_upload_is_remembered_as_document_and_event_and_source():
 
 def test_upload_pdf_is_parsed():
     pdf = make_pdf(BANDO_TEXT.splitlines())
-    r = client.post("/api/v2/bandi/upload", json={"name": "Bando in PDF", "filename": "bando.pdf", "content_base64": b64(pdf)})
+    r = client.post("/api/v2/bandi/upload", headers=hq_headers(), json={"name": "Bando in PDF", "filename": "bando.pdf", "content_base64": b64(pdf)})
     assert r.status_code == 200, r.text
     rules = {x["key"]: x["value"] for x in r.json()["detail"]["rules"]}
     assert rules["requires_dnsh"] is True and rules["max_hourly_rate_personnel"] == 40
@@ -291,15 +291,15 @@ def test_upload_pdf_is_parsed():
 
 
 def test_upload_rejects_bad_inputs():
-    assert client.post("/api/v2/bandi/upload", json={"name": "abc", "text": "troppo corto"}).status_code == 422
-    assert client.post("/api/v2/bandi/upload", json={"name": "Bando", "filename": "x.pdf", "content_base64": b64(b"%PDF-1.4 non e un pdf vero" * 10)}).status_code == 422
-    assert client.post("/api/v2/bandi/upload", json={"name": "Bando", "content_base64": "@@non-base64@@"}).status_code == 400
-    assert client.post("/api/v2/bandi/upload", json={"name": "Bando"}).status_code == 422
-    assert client.post("/api/v2/bandi/upload", json={"name": "Bando", "text": BANDO_TEXT, "bando_id": "id con spazi"}).status_code == 422
+    assert client.post("/api/v2/bandi/upload", headers=hq_headers(), json={"name": "abc", "text": "troppo corto"}).status_code == 422
+    assert client.post("/api/v2/bandi/upload", headers=hq_headers(), json={"name": "Bando", "filename": "x.pdf", "content_base64": b64(b"%PDF-1.4 non e un pdf vero" * 10)}).status_code == 422
+    assert client.post("/api/v2/bandi/upload", headers=hq_headers(), json={"name": "Bando", "content_base64": "@@non-base64@@"}).status_code == 400
+    assert client.post("/api/v2/bandi/upload", headers=hq_headers(), json={"name": "Bando"}).status_code == 422
+    assert client.post("/api/v2/bandi/upload", headers=hq_headers(), json={"name": "Bando", "text": BANDO_TEXT, "bando_id": "id con spazi"}).status_code == 422
 
 
 def test_uploaded_bando_rules_feed_a_validation():
-    body = client.post("/api/v2/bandi/upload", json={"name": "Bando validabile", "text": BANDO_TEXT}).json()
+    body = client.post("/api/v2/bandi/upload", headers=hq_headers(), json={"name": "Bando validabile", "text": BANDO_TEXT}).json()
     scenario = _demo(body["bando_id"], "stress")
     v = client.post("/api/v2/budget/validate", json=scenario).json()
     assert v["bando_id"] == body["bando_id"] and len(v["items"]) == 46
@@ -398,3 +398,9 @@ def test_demo_endpoint_is_gone_and_the_test_scenario_adapts_to_the_bando():
     assert client.get("/api/v2/budget/demo").status_code in (404, 405)
     assert len(_demo(mode="stress")["cost_items"]) == 46 and len(_demo(mode="realistic")["cost_items"]) == 15
     assert _demo("HORIZON-EUROPE-MGA")["grant_rules"]["overhead_flat_rate_pct"] == 0.25
+
+
+def test_text_upload_of_a_bando_is_reserved_to_the_operator():
+    body = {"name": "Bando da testo", "text": BANDO_TEXT}
+    assert client.post("/api/v2/bandi/upload", json=body).status_code == 401
+    assert client.post("/api/v2/bandi/upload", json=body, headers=hq_headers()).status_code == 200

@@ -216,7 +216,7 @@ ENGLISH = ("Youth Exchanges allow groups of young people from different countrie
 
 
 def _upload(name, text, bid="CUSTOM-PROVA-LETTURA"):
-    return client.post("/api/v2/bandi/upload", json={"name": name, "bando_id": bid, "text": text, "filename": "doc.txt"}).json()
+    return client.post("/api/v2/bandi/upload", headers={"X-HQ-Token": manager_token()}, json={"name": name, "bando_id": bid, "text": text, "filename": "doc.txt"}).json()
 
 
 def test_english_document_is_understood():

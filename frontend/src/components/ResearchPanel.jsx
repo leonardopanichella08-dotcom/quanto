@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react'
-import { AlertTriangle, CheckCircle2, ExternalLink, FileUp, Loader2, Play, Plus, Search, XCircle } from 'lucide-react'
-import { api, fileToBase64 } from '../lib/api'
+import { AlertTriangle, CheckCircle2, ExternalLink, Loader2, Play, Plus, Search, XCircle } from 'lucide-react'
+import { api } from '../lib/api'
 import { Hint } from './Help'
 
 const KIND_LABEL = { OBBLIGO: 'obbligo', DIVIETO: 'divieto', LIMITE: 'limite', INFO: 'info' }
@@ -59,7 +59,6 @@ export default function ResearchPanel({ onDone, pick, onUse }) {
   const [docs, setDocs] = useState([])                // {key,url,title,status,tier,kind,chars,pages,message,warnings}
   const [result, setResult] = useState(null)
   const [busyExtra, setBusyExtra] = useState(null)
-  const [manual, setManual] = useState({ text: '', file: null, open: false })
   const bandoRef = useRef(null)
   const internalRef = useRef(null)                  // bando scelto dall'elenco interno (anche solo del catalogo nazionale)
   const [using, setUsing] = useState(false)
@@ -175,19 +174,6 @@ export default function ResearchPanel({ onDone, pick, onUse }) {
         patchDoc(key, { status: 'ok', title: r.source.name, tier: r.source.tier, kind: r.source.kind, chars: r.source.chars, pages: r.source.pages, warnings: r.source.warnings })
       } catch (e) { patchDoc(key, { status: 'error', message: e.message }); return }
       await analyze(bandoRef.current)
-    } catch (e) { setError(e.message) } finally { setBusyExtra(null) }
-  }
-
-  const addManual = async () => {
-    setBusyExtra('manual'); setError(null)
-    try {
-      const body = { name: name.trim(), bando_id: bandoRef.current || undefined, filename: manual.file?.name || 'testo-incollato.txt' }
-      if (manual.file) body.content_base64 = await fileToBase64(manual.file)
-      else body.text = manual.text
-      const res = await api.bandoUpload(body)
-      bandoRef.current = res.bando_id
-      setManual({ text: '', file: null, open: false })
-      setResult(await analyze(res.bando_id))
     } catch (e) { setError(e.message) } finally { setBusyExtra(null) }
   }
 
@@ -317,22 +303,6 @@ export default function ResearchPanel({ onDone, pick, onUse }) {
         </div>
       )}
 
-      <div className="pt-2 border-t border-line space-y-3">
-        <div className="flex items-center gap-2">
-        <button type="button" onClick={() => setManual({ ...manual, open: !manual.open })} className="text-xs text-ink-2 hover:text-ink inline-flex items-center gap-1.5"><FileUp className="w-3.5 h-3.5" />Aggiungi un documento a mano (PDF o testo)</button>
-          <Hint id="bando_upload" />
-        </div>
-        {manual.open && (
-          <div className="space-y-3">
-            <input type="file" accept=".pdf,.txt,.md" onChange={(e) => setManual({ ...manual, file: e.target.files?.[0] || null })} className="text-xs text-ink-2 file:mr-3 file:rounded-lg file:border-0 file:bg-tint-2 file:px-3 file:py-2 file:text-xs file:text-ink" />
-            {!manual.file && <textarea value={manual.text} onChange={(e) => setManual({ ...manual, text: e.target.value })} rows={4} placeholder="…oppure incolla qui un testo (almeno 100 caratteri)" className="field font-mono" />}
-            <button onClick={addManual} disabled={busyExtra !== null || name.trim().length < 3 || (!manual.file && manual.text.trim().length < 100)} className="btn-primary flex items-center gap-2">
-              {busyExtra === 'manual' && <Loader2 className="w-3.5 h-3.5 animate-spin" />}Aggiungi e rileggi tutto
-            </button>
-            {name.trim().length < 3 && <p className="text-xs text-mute">Scrivi prima il nome del bando in alto.</p>}
-          </div>
-        )}
-      </div>
     </div>
   )
 }

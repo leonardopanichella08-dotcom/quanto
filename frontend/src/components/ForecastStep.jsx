@@ -55,7 +55,7 @@ function ForecastRow({ r, overrides, setOverride, showWhy, base }) {
   )
 }
 
-/** Il modello di previsione dell'utente (per esempio del commercialista o del CFO): percentuali annue per ogni voce, salvate e usate al posto di quelle ricavate dai bilanci. */
+/** Il modello di previsione dell'utente (indicato dal cliente, dal suo CFO o stimato dallo studio): percentuali annue per ogni voce, salvate e usate al posto di quelle ricavate dai bilanci. */
 function TemplateEditor({ forecast, onSaved }) {
   const tpl = forecast.template
   const rows = [forecast.revenue, ...forecast.categories].filter(Boolean)
@@ -91,7 +91,7 @@ function TemplateEditor({ forecast, onSaved }) {
           {tpl ? (
             <p className="text-ink-2 leading-relaxed">Sto usando il modello{tpl.label ? <> «<strong>{tpl.label}</strong>»</> : ''} per {Object.keys(tpl.growth).length} {Object.keys(tpl.growth).length === 1 ? 'voce' : 'voci'}; le altre hanno la percentuale ricavata dai tuoi bilanci. Salvato il {String(tpl.updated_at).slice(0, 10).split('-').reverse().join('/')}.</p>
           ) : (
-            <p className="text-ink-2 leading-relaxed">Non hai un modello: per ogni voce uso la variazione che risulta dai tuoi due ultimi bilanci, già inserita qui sotto e spiegata. Se il commercialista o il CFO ti ha dato delle percentuali di crescita o di calo di costi e ricavi, salvale come modello: sostituiranno quelle automatiche.</p>
+            <p className="text-ink-2 leading-relaxed">Non hai un modello: per ogni voce uso la variazione che risulta dai tuoi due ultimi bilanci, già inserita qui sotto e spiegata. Se il cliente o il suo CFO ha indicato percentuali di crescita o di calo di costi e ricavi (o le hai stimate tu), salvale come modello: sostituiranno quelle automatiche.</p>
           )}
         </div>
         {!open && <button className="btn !py-1" onClick={start}>{tpl ? 'Modifica il modello' : 'Inserisci il mio modello'}</button>}
@@ -105,7 +105,7 @@ function TemplateEditor({ forecast, onSaved }) {
             ))}
           </div>
           <div className="grid sm:grid-cols-2 gap-3">
-            <label className="space-y-1"><span className="label">Chi l’ha indicato (facoltativo)</span><input className="field" maxLength={80} placeholder="Per esempio: commercialista, CFO" value={label} onChange={(e) => setLabel(e.target.value)} /></label>
+            <label className="space-y-1"><span className="label">Chi l’ha indicato (facoltativo)</span><input className="field" maxLength={80} placeholder="Per esempio: cliente, CFO, il tuo studio" value={label} onChange={(e) => setLabel(e.target.value)} /></label>
             <label className="space-y-1"><span className="label">Nota (facoltativa)</span><input className="field" maxLength={500} placeholder="Il motivo, in una riga" value={note} onChange={(e) => setNote(e.target.value)} /></label>
           </div>
           <p className="text-mute">Numeri positivi = crescita, negativi = calo (per esempio −3 per un calo del 3% l’anno). Le caselle vuote restano ricavate dai bilanci.</p>

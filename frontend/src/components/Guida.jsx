@@ -29,7 +29,7 @@ function Quickstart() {
         <ul className="list-disc pl-5 space-y-1.5 text-xs text-ink-2 leading-relaxed">
           <li><strong className="text-ink">I numeri non sono “stimati”.</strong> Il motore fa solo calcoli esatti e ripetibili: stessi dati, stesso risultato.</li>
           <li><strong className="text-ink">Se manca un dato, il controllo non parte</strong> e lo vedi come “non valutato”. Non viene mai contato come superato.</li>
-          <li><strong className="text-ink">Le regole dei bandi vanno verificate sul testo ufficiale</strong> prima di presentare una domanda: ogni regola mostra la sua fonte e quanto è affidabile.</li>
+          <li><strong className="text-ink">Nota professionale: verifica le regole sul testo ufficiale</strong> prima di presentare la domanda per il cliente. Ogni regola mostra la sua fonte e quanto è affidabile.</li>
         </ul>
       </div>
     </div>

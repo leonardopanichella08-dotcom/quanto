@@ -202,10 +202,10 @@ function ApprovalMockup() {
 
 const STEPS = [
   { n: '01', title: 'Scegli il bando', body: "Cercalo per nome: QUANTO naviga le pagine ufficiali e scarica i documenti da solo.", Visual: SearchMockup },
-  { n: '02', title: 'Costruisci il budget', body: 'Voci di spesa a mano, dalla bozza del tuo profilo o importate da Excel.', Visual: BudgetMockup },
+  { n: '02', title: 'Costruisci il budget', body: 'Il budget del progetto del cliente: voci a mano, dalla bozza dei suoi bilanci o importate da Excel.', Visual: BudgetMockup },
   { n: '03', title: 'QUANTO controlla', body: 'Fino a 60 criteri, ognuno con la fonte da cui viene la regola.', Visual: HeatMockup },
   { n: '04', title: "Registra l'impronta", body: "Un'impronta digitale firmata, a prova di manomissione.", Visual: HashMockup },
-  { n: '05', title: 'Alloca ai fondi', body: 'Decide chi paga cosa nell\'anno, riducendo quanto resta a tuo carico.', Visual: AllocationMockup },
+  { n: '05', title: 'Alloca ai fondi', body: 'Decide quale fondo paga quale spesa nell\'anno, così mostri al cliente quanto resta a suo carico.', Visual: AllocationMockup },
 ]
 
 export default function Landing({ onLogin, onAuditor, onVision }) {
@@ -232,9 +232,9 @@ export default function Landing({ onLogin, onAuditor, onVision }) {
         </div></nav>
 
         <header className="hero"><div className="wrap hero-inner">
-          <span className="eyebrow"><span className="dot" />Controllo budget per bandi pubblici</span>
-          <h1>Sai se il budget verrà <mark>respinto</mark>. Prima di inviarlo.</h1>
-          <p className="sub">QUANTO controlla ogni voce di spesa contro le regole ufficiali del bando scelto — fino a 60 criteri, ciascuno con la sua fonte dichiarata. Non un'intelligenza artificiale che indovina: un motore che calcola, sempre allo stesso modo.</p>
+          <span className="eyebrow"><span className="dot" />Per studi commercialistici e consulenti</span>
+          <h1 style={{ fontSize: 'clamp(28px, 4.3vw, 52px)', maxWidth: '24ch', lineHeight: 1.08 }}>La piattaforma di Finanza Agevolata ed Allocazione di Bilancio per <mark>Studi Commercialistici e Consulenti d’Impresa</mark></h1>
+          <p className="sub">Potenzia il tuo studio con il motore deterministico che trasforma i dati di bilancio dei tuoi clienti in piani d’allocazione finanziaria e contributi pubblici. Elimina le ore di ricerca manuale e genera nuovi ricavi ad alto margine.</p>
           <div className="ctas">
             <button className="btn-solid" onClick={() => setModal('register')}>Inizia gratis<ArrowRight className="w-3.5 h-3.5" /></button>
           </div>
@@ -259,6 +259,18 @@ export default function Landing({ onLogin, onAuditor, onVision }) {
 
         <svg className="curve-divider" viewBox="0 0 1200 64" preserveAspectRatio="none"><path d="M0,64 C300,0 900,0 1200,64 L1200,64 L0,64 Z" fill="var(--l-bg)" /></svg>
       </div>
+
+      <section className="sect tight" id="vantaggi"><div className="wrap">
+        <div className="sect-head">
+          <span className="kicker">Vantaggi per lo studio</span>
+          <h2>Più clienti seguiti, senza un analista in più</h2>
+        </div>
+        <div className="blocks" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))' }}>
+          <div className="block-card"><div className="range mono">01</div><h4>Zero ore analista</h4><p style={{ fontSize: 13.5, lineHeight: 1.6, color: 'var(--l-ink-2)' }}>Analisi immediata dei bilanci civilistici del cliente e abbinamento deterministico ai bandi del catalogo nazionale: giorni di ricerca manuale ridotti a pochi minuti.</p></div>
+          <div className="block-card"><div className="range mono">02</div><h4>Modello a consumo</h4><p style={{ fontSize: 13.5, lineHeight: 1.6, color: 'var(--l-ink-2)' }}>Ogni diagnosi di allocazione è un report che puoi riaddebitare direttamente al cliente o re-impacchettare come servizio di consulenza continuativa.</p></div>
+          <div className="block-card"><div className="range mono">03</div><h4>Precisione deterministica a 60 criteri</h4><p style={{ fontSize: 13.5, lineHeight: 1.6, color: 'var(--l-ink-2)' }}>Nessuna IA generica e nessun testo inventato: calcoli esatti al centesimo, ogni regola con la sua fonte ufficiale dichiarata.</p></div>
+        </div>
+      </div></section>
 
       <section className="sect" id="come-funziona"><div className="wrap">
         <div className="sect-head">
@@ -316,12 +328,12 @@ export default function Landing({ onLogin, onAuditor, onVision }) {
         <div className="wrap">
           <div className="sect-head">
             <span className="kicker">Per chi è</span>
-            <h2>Chi lo usa già così</h2>
+            <h2>Pensato per chi segue molti clienti</h2>
           </div>
           <div className="trio">
-            <div className="trio-item"><ApprovalMockup /><h3>Consulenti e commercialisti</h3><p>Controllano il budget di un cliente prima di firmarlo, con la fonte di ogni regola pronta da mostrare.</p></div>
-            <div className="trio-item"><HeatMockup /><h3>PMI e startup</h3><p>Costruiscono il budget del progetto e sanno subito cosa verrebbe respinto, prima di candidarsi.</p></div>
-            <div className="trio-item"><AllocationMockup /><h3>Enti ed associazioni</h3><p>Pianificano più fondi insieme e sanno chi paga cosa lungo tutto l'anno.</p></div>
+            <div className="trio-item"><ApprovalMockup /><h3>Studi commercialistici strutturati</h3><p>Con reparto consulenza o finanza straordinaria: uno studio segue decine di imprese clienti, con la fonte di ogni regola pronta da mostrare.</p></div>
+            <div className="trio-item"><HeatMockup /><h3>Boutique di finanza agevolata</h3><p>Costruiscono il budget del progetto e sanno subito cosa verrebbe respinto, prima di presentare la candidatura per il cliente.</p></div>
+            <div className="trio-item"><AllocationMockup /><h3>Fractional CFO e consulenti di direzione</h3><p>Pianificano più fondi insieme per l'impresa che seguono e sanno chi paga cosa lungo tutto l'anno.</p></div>
           </div>
         </div>
       </section>
@@ -350,7 +362,7 @@ export default function Landing({ onLogin, onAuditor, onVision }) {
               <div className="tier">Presto</div>
               <div className="amount">In arrivo</div>
               <ul>
-                <li>Piani annuali a consumo per team ed enti</li>
+                <li>Piani a consumo per studi e team di consulenza</li>
                 <li>Prezzi non ancora definiti</li>
               </ul>
             </div>
@@ -361,8 +373,8 @@ export default function Landing({ onLogin, onAuditor, onVision }) {
       <div className="dark-zone">
         <div className="glow-yellow" style={{ width: 460, height: 460, bottom: -200, left: '50%', transform: 'translateX(-50%)' }} />
         <div className="cta-final"><div className="wrap">
-          <h2>Prima di inviare il prossimo budget, controllalo.</h2>
-          <p>Gratis, senza carta di credito, pronto in un minuto.</p>
+          <h2>Prima di inviare il prossimo budget del tuo cliente, controllalo.</h2>
+          <p>Gratis in questa fase, senza carta di credito, pronto in un minuto.</p>
           <button className="btn-solid" onClick={() => setModal('register')}>Inizia gratis<ArrowRight className="w-3.5 h-3.5" /></button>
         </div></div>
 

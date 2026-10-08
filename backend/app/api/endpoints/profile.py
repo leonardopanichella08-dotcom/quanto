@@ -33,7 +33,7 @@ class ForecastBody(BaseModel):
 
 class ForecastTemplateBody(BaseModel):
     growth: Dict[str, float] = Field(..., description="Variazione annua per categoria di spesa e per i ricavi (REVENUE): 0,05 = +5%, -0,03 = -3%")
-    label: str = Field(default="", max_length=80, description="Chi l'ha indicata, per esempio «Commercialista Rossi» o «CFO»")
+    label: str = Field(default="", max_length=80, description="Chi l'ha indicata, per esempio «Cliente», «CFO» o «Studio»")
     note: str = Field(default="", max_length=500)
 
 

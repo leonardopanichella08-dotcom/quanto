@@ -1,6 +1,48 @@
 import React, { useState } from 'react'
 import { CheckCircle2, CircleHelp, Loader2, Sparkles } from 'lucide-react'
-import { fmtEur, fmtNum } from '../lib/format'
+import { fmtEur, fmtNum, CATEGORY_LABEL } from '../lib/format'
+
+
+const PALETTE = ['#38bdf8', '#a78bfa', '#f472b6', '#34d399', '#fbbf24', '#fb7185']
+const NET = '#f59e0b'
+
+/** Il bilancio dell'anno ricostruito con tutti i bandi insieme: per ogni categoria di spesa, quanto copre ciascun bando e quanto resta a carico. Solo somme dei dati del piano. */
+function RebuiltBudget({ plan, nameOf }) {
+  const funds = plan.fund_usage.filter((f) => f.used_eur > 0).map((f) => f.fund_id)
+  const by = {}
+  plan.allocation_plan.forEach((i) => {
+    const c = (by[i.category] ||= { gross: 0, net: 0, funds: {} })
+    c.gross += i.gross_amount_eur; c.net += i.net_cost_to_entity_eur
+    i.coverage.forEach((x) => { c.funds[x.fund_id] = (c.funds[x.fund_id] || 0) + x.covered_amount_eur })
+  })
+  const rows = Object.entries(by).sort((a, b) => b[1].gross - a[1].gross)
+  const total = { gross: plan.total_gross_expense_eur, net: plan.net_cost_to_entity_eur, funds: Object.fromEntries(plan.fund_usage.map((f) => [f.fund_id, f.used_eur])) }
+  const max = Math.max(...rows.map(([, c]) => c.gross), 1)
+  const color = (id) => PALETTE[funds.indexOf(id) % PALETTE.length]
+  const Bar = ({ c, width, label, strong }) => (
+    <div className="flex items-center gap-3 text-xs">
+      <span className={`w-36 shrink-0 text-ink-2 ${strong ? 'font-semibold text-ink' : ''}`}>{label}</span>
+      <div className="flex h-5 rounded overflow-hidden bg-tint-2" style={{ width: `${width}%` }} role="img" aria-label={`${label}: spesa ${fmtEur(c.gross)}, coperta ${fmtEur(c.gross - c.net)}, a carico ${fmtEur(c.net)}`}>
+        {funds.map((id) => c.funds[id] > 0 && <div key={id} title={`${nameOf(id)}: ${fmtEur(c.funds[id])}`} style={{ width: `${(c.funds[id] / c.gross) * 100}%`, background: color(id) }} />)}
+        {c.net > 0 && <div title={`A carico: ${fmtEur(c.net)}`} style={{ width: `${(c.net / c.gross) * 100}%`, background: NET }} />}
+      </div>
+      <span className="tabular-nums text-mute whitespace-nowrap">{fmtEur(c.gross)} · {fmtNum(((c.gross - c.net) / c.gross) * 100, 0)}% coperto</span>
+    </div>
+  )
+  return (
+    <div className="space-y-3">
+      <span className="label">Il bilancio ricostruito: spese dell’anno, coperte dai bandi e a carico</span>
+      <Bar c={total} width={100} label="Totale spese" strong />
+      <div className="space-y-1.5 pt-1 border-t border-line">
+        {rows.map(([cat, c]) => <Bar key={cat} c={c} width={Math.max(8, (c.gross / max) * 100)} label={CATEGORY_LABEL[cat] || cat} />)}
+      </div>
+      <div className="flex flex-wrap gap-x-4 gap-y-1 text-[11px] text-ink-2">
+        {funds.map((id) => <span key={id} className="inline-flex items-center gap-1.5"><i className="w-2.5 h-2.5 rounded-sm" style={{ background: color(id) }} />{nameOf(id)} · {fmtEur(total.funds[id])}</span>)}
+        <span className="inline-flex items-center gap-1.5"><i className="w-2.5 h-2.5 rounded-sm" style={{ background: NET }} />A carico · {fmtEur(total.net)}</span>
+      </div>
+    </div>
+  )
+}
 
 /** Tutti i bandi a cui l'azienda può partecipare, applicati insieme: quanto potrebbe coprire se li vincesse tutti. Il calcolo è quello del piano (stesse regole di
  *  cumulo, tetti e de minimis): qui si scelgono i bandi e si legge il confronto con la somma dei bandi presi uno per uno. */
@@ -24,7 +66,7 @@ export default function PotentialStep({ results, picked, setPicked, plan, loadin
         </button>
         {maybe.length > 0 && (
           <label className="inline-flex items-center gap-2 text-xs text-ink-2 cursor-pointer">
-            <input type="checkbox" checked={withMaybe} onChange={(e) => setWithMaybe(e.target.checked)} />Includi anche i {maybe.length} da verificare con un importo stimabile (scenario ottimistico)
+            <input type="checkbox" checked={withMaybe} onChange={(e) => setWithMaybe(e.target.checked)} />Includi anche {maybe.length === 1 ? 'il bando da verificare' : `i ${maybe.length} bandi da verificare`} con un importo stimabile (scenario ottimistico)
           </label>
         )}
         {picked.length > 0 && <button className="btn" onClick={() => setPicked([])}>Deseleziona tutti</button>}
@@ -71,9 +113,10 @@ export default function PotentialStep({ results, picked, setPicked, plan, loadin
                   </p>
                 </div>
               )}
+              <RebuiltBudget plan={plan} nameOf={(id) => (results.find((r) => r.fund?.fund_id === id)?.name || id)} />
             </>
           ) : !planError && <p className="text-xs text-mute flex items-center gap-2"><Loader2 className="w-3.5 h-3.5 animate-spin" />Calcolo il piano con tutti i bandi insieme…</p>}
-          <p className="text-[11px] text-mute leading-relaxed">È un massimo teorico: presuppone di presentare domanda a tutti e di vincerli tutti. Usa solo ciò che ogni bando dichiara (aliquote, categorie, tetti, cumulo); l’esito reale dipende dall’istruttoria e dalle risorse disponibili.</p>
+          <p className="text-[11px] text-mute leading-relaxed">Nota professionale da includere nel report per il cliente: è un massimo teorico, presuppone di presentare domanda a tutti i bandi e di vincerli tutti. Usa solo ciò che ogni bando dichiara (aliquote, categorie, tetti, cumulo); l’esito reale dipende dall’istruttoria e dalle risorse disponibili.</p>
         </div>
       )}
 

@@ -152,7 +152,7 @@ function BandoCard({ r, picked, onToggle, onBudget }) {
           )}
           {r.notes.filter((n) => !n.startsWith('Il bando non dichiara')).map((n) => <p key={n} className="text-mute">• {n}</p>)}
           {r.missing_profile.length > 0 && <p className="text-amber-700">Per decidere servono ancora: {r.missing_profile.map((m) => MISSING_LABEL[m] || m).join(', ')}.</p>}
-          <p className="text-[11px] text-mute">{r.rules_count} regole e {r.requirements_count} requisiti letti dal bando. Stima basata solo su ciò che il bando dichiara: l’esito dipende dall’istruttoria.</p>
+          <p className="text-[11px] text-mute">{r.rules_count} regole e {r.requirements_count} requisiti letti dal bando. Punto di attenzione per la tua diagnosi consulenziale: stima basata solo su ciò che il bando dichiara; l’esito dipende dall’istruttoria.</p>
         </div>
       )}
     </div>
@@ -282,7 +282,7 @@ export default function AllocationView({ onGoProfile, onBudgetFrom }) {
 
       {hasData && (
         <Step n={2} title="Stima dell’anno successivo" done={!!match}
-          sub="Parte dall’ultimo bilancio: costi e ricavi aumentati o diminuiti di una percentuale annua. Se hai un tuo modello (per esempio del commercialista o del CFO) uso quello; per le voci senza modello calcolo io la variazione dai tuoi due ultimi bilanci e la inserisco già, con la spiegazione.">
+          sub="Parte dall’ultimo bilancio: costi e ricavi aumentati o diminuiti di una percentuale annua. Se hai un modello di previsione (indicato dal cliente, dal suo CFO o stimato dal tuo studio) uso quello; per le voci senza modello calcolo io la variazione dai tuoi due ultimi bilanci e la inserisco già, con la spiegazione.">
           <ForecastStep forecast={match?.forecast} overrides={growth} setOverride={setOverride} year={year} setYear={setYear} matching={matching} onEstimate={estimate} onTemplateChanged={templateChanged} />
         </Step>
       )}

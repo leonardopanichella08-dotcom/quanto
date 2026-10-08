@@ -236,7 +236,7 @@ def select(bando_id: str, request: Request) -> dict:
             "not_specified": d["not_specified"]}
 
 
-@router.post("/upload", summary="Carica il testo o il PDF di un bando: estrae regole, ambito e requisiti")
+@router.post("/upload", dependencies=[Depends(require_hq)], summary="Solo Quartier Generale: analizza il testo o il PDF di un bando caricato dall'operatore")
 def upload(body: UploadRequest, request: Request, background: BackgroundTasks) -> dict:
     timer = events.Timer()
     bandi.ensure_seeded()
