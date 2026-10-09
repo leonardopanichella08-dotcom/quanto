@@ -111,7 +111,10 @@ class AllocationOptimizerEngine:
     @classmethod
     def optimize_annual_allocation(cls, req: AllocationOptimizationRequest) -> AllocationResponse:
         excluded = set(req.excluded_funds)
-        funds = [f for f in req.available_funding_lines if f.fund_id not in excluded]
+        # Ordine canonico dei fondi: lo stesso piano esce qualunque sia l'ordine in cui arrivano. A parità di risparmio si preferisce, nell'ordine, il fondo senza de minimis
+        # (che lascia plafond libero), poi quello con la dotazione più grande, poi il codice: la scelta tra fondi equivalenti non dipende più dal caso.
+        funds = sorted((f for f in req.available_funding_lines if f.fund_id not in excluded),
+                       key=lambda f: (f.de_minimis, -(f.max_total_eur if f.max_total_eur is not None else 1e18), f.fund_id))
 
         # ---- sotto-voci (interi in centesimi). Le spese senza mese si espandono in 12 mensilità solo se
         # qualche fondo ha una finestra di attività ridotta; altrimenti restano annuali (month=0, nessun
@@ -205,13 +208,15 @@ class AllocationOptimizerEngine:
         target = req.optimization_target
         sol = run({**neg_covered, **tie})                                     # stadio 1: massimo risparmio
         best_cov = sum(covered_expr[k] * sol[k] for k in covered_expr)
+        keep_extra: List[Tuple[Dict[int, float], float, float]] = []          # vincoli dello stadio finale (dipendono dall'obiettivo scelto)
         if target == OptimizationTarget.MAXIMIZE_COVERED_ITEMS:
             w = {s: m.var(0.0, 1.0, integer=True) for s in by_sub}
             for s, idxs in by_sub.items():
                 m.con({**{x[i]: -1.0 for i in idxs}, w[s]: 0.01}, hi=0.0)     # w=1 => >= 1% coperto
             sol = run({w[s]: -1.0 for s in by_sub})
             n_items = round(sum(sol[w[s]] for s in by_sub))
-            sol = run({**neg_covered, **tie}, [({w[s]: 1.0 for s in by_sub}, n_items - 0.5, np.inf)])
+            keep_extra = [({w[s]: 1.0 for s in by_sub}, n_items - 0.5, np.inf)]
+            sol = run({**neg_covered, **tie}, keep_extra)
         elif target == OptimizationTarget.MINIMIZE_FUNDS_INVOLVED:
             y = {j: m.var(0.0, 1.0, integer=True) for j in by_fund}
             for i, p in enumerate(pairs):
@@ -220,14 +225,23 @@ class AllocationOptimizerEngine:
             keep = ({**covered_expr}, floor_cov, np.inf)
             sol = run({y[j]: 1.0 for j in by_fund}, [keep])
             n_funds = round(sum(sol[y[j]] for j in by_fund))
-            sol = run({**neg_covered, **tie}, [keep, ({y[j]: 1.0 for j in by_fund}, -np.inf, n_funds + 0.5)])
+            keep_extra = [keep, ({y[j]: 1.0 for j in by_fund}, -np.inf, n_funds + 0.5)]
+            sol = run({**neg_covered, **tie}, keep_extra)
+
+        # Stadio finale (scelta canonica): con lo stesso risparmio e le stesse regole, tra le soluzioni equivalenti si prende sempre la stessa, quella che usa
+        # i fondi nell'ordine di preferenza. Così gli stessi dati danno sempre lo stesso piano, non solo lo stesso totale.
+        final_cov = sum(covered_expr[k] * sol[k] for k in covered_expr)
+        total = sum(amt) or 1.0
+        pref = {x[i]: (pairs[i].j + 1) * amt[i] / total * 1e-3 for i in range(len(pairs))}
+        floor = ({**covered_expr}, final_cov - 1e-9 * max(1.0, final_cov), np.inf)
+        sol = run({**{z[i]: 0.1 for i in range(len(pairs))}, **pref}, [*keep_extra, floor])
 
         result: Dict[int, int] = {}
         for i, p in enumerate(pairs):
             v = float(min(max(sol[x[i]], 0.0), p.intensity))
             if v < 1e-9:
                 continue
-            c = min(int(math.floor(subs[p.s].cents * v + 1e-3)), p.cap_cents)
+            c = min(int(math.floor(subs[p.s].cents * v + 0.05)), p.cap_cents)
             if c > 0:
                 result[i] = c
         return result, optimal, stages

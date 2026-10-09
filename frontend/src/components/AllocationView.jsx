@@ -9,7 +9,7 @@ import { Hint } from './Help'
 import ForecastStep from './ForecastStep'
 import PotentialStep from './PotentialStep'
 
-const PALETTE = ['#38bdf8', '#a78bfa', '#f472b6', '#34d399', '#fbbf24', '#fb7185']
+const PALETTE = ['#38bdf8', '#a78bfa', '#f472b6', '#34d399', '#fbbf24', '#fb7185', '#2dd4bf', '#818cf8', '#f97316', '#84cc16', '#e879f9', '#94a3b8']
 
 /** Flusso delle spese verso i fondi: lo spessore è proporzionale all'importo coperto (dati del solver, nessun calcolo qui). */
 function Sankey({ plan }) {
@@ -191,9 +191,10 @@ export default function AllocationView({ onGoProfile, onBudgetFrom }) {
   const [studyNote, setStudyNote] = useState(null)
   const auto = useRef(false)
   const pending = useRef(null)                           // bandi inclusi nel piano al momento dell'ultimo salvataggio
+  const allMode = useRef(true)                           // vero finché il piano include TUTTI i bandi adatti: quelli nuovi entrano da soli
   const [restored, setRestored] = useState(false)
   const [target, setTarget] = useState('MINIMIZE_NET_COST')
-  const [deMinimis, setDeMinimis] = useState('')
+  const [deMinimis, setDeMinimis] = useState('300000')                 // ipotesi di partenza: nessun aiuto de minimis ricevuto nel triennio
   const [plan, setPlan] = useState(null)
   const [planHigh, setPlanHigh] = useState(null)
   const [loading, setLoading] = useState(false)
@@ -206,12 +207,12 @@ export default function AllocationView({ onGoProfile, onBudgetFrom }) {
   useEffect(() => {
     api.clientState('allocation').then((st) => {
       const v = st.value
-      if (v) { if (v.year) setYear(v.year); setGrowth(v.growth || {}); if (v.target) setTarget(v.target); setDeMinimis(v.deMinimis ?? ''); pending.current = v.picked || [] }
+      if (v) { if (v.year) setYear(v.year); setGrowth(v.growth || {}); if (v.target) setTarget(v.target); setDeMinimis(v.deMinimis || '300000'); allMode.current = v.allMode ?? false; pending.current = v.allMode ? null : (v.picked || []) }
     }).catch(() => {}).finally(() => setRestored(true))
   }, [])
   useEffect(() => {
     if (!restored) return undefined
-    const t = setTimeout(() => { api.saveClientState('allocation', { year, growth, picked, target, deMinimis }).catch(() => {}) }, 800)
+    const t = setTimeout(() => { api.saveClientState('allocation', { year, growth, picked, target, deMinimis, allMode: allMode.current }).catch(() => {}) }, 800)
     return () => clearTimeout(t)
   }, [restored, year, growth, picked, target, deMinimis])
 
@@ -230,7 +231,8 @@ export default function AllocationView({ onGoProfile, onBudgetFrom }) {
     try {
       const res = await runMatch()
       const valid = new Set(res.matching.results.filter((r) => r.fund).map((r) => r.bando_id))
-      const keep = pending.current ?? picked                         // i bandi già inclusi restano inclusi (se ancora validi): ricalcolare non deve cancellare le scelte
+      const sure = res.matching.results.filter((r) => r.fit === 'ADATTO' && r.fund).map((r) => r.bando_id)
+      const keep = allMode.current ? sure : (pending.current ?? picked)   // piano «tutti i bandi adatti»: segue i bandi nuovi; altrimenti le scelte restano (se ancora valide)
       pending.current = null
       setPicked(keep.filter((id) => valid.has(id)))
       setTab(res.matching.summary.ADATTO ? 'ADATTO' : res.matching.summary.DA_VERIFICARE ? 'DA_VERIFICARE' : 'NON_ADATTO')
@@ -297,7 +299,8 @@ export default function AllocationView({ onGoProfile, onBudgetFrom }) {
   }, [match, picked, target, deMinimis])
   useEffect(() => { run() }, [run])
 
-  const toggle = (id) => setPicked((p) => (p.includes(id) ? p.filter((x) => x !== id) : [...p, id]))
+  const toggle = (id) => { allMode.current = false; setPicked((p) => (p.includes(id) ? p.filter((x) => x !== id) : [...p, id])) }
+  const pick = (ids, all) => { allMode.current = !!all; setPicked(ids) }
   const maxMonth = plan ? Math.max(...plan.monthly_plan.map((m) => m.gross_eur), 1) : 1
   const hasData = ov && ov.last_year != null
   const results = match?.matching.results || []
@@ -376,7 +379,7 @@ export default function AllocationView({ onGoProfile, onBudgetFrom }) {
       {match && (
         <Step n={4} title="Tutti i bandi insieme: il potenziale massimo" done={picked.length > 0 && !!plan}
           sub="Se l’azienda partecipasse e vincesse tutti i bandi a cui può accedere, quanto riuscirebbe a coprire in un anno? Li applico insieme rispettando cumulo, tetti e de minimis, senza pagare due volte la stessa spesa.">
-          <PotentialStep results={results} picked={picked} setPicked={setPicked} plan={plan} planHigh={planHigh} loading={loading} planError={planError} onStudyMore={studyMore} studyingMore={studyingMore} />
+          <PotentialStep results={results} picked={picked} onPick={pick} plan={plan} planHigh={planHigh} loading={loading} planError={planError} onStudyMore={studyMore} studyingMore={studyingMore} />
           {studyNote && <p className="text-[11px] text-ink-2 leading-relaxed">{studyNote}</p>}
         </Step>
       )}
@@ -387,9 +390,10 @@ export default function AllocationView({ onGoProfile, onBudgetFrom }) {
           <div className="flex flex-wrap items-end gap-3">
             <label className="flex items-center gap-2 text-xs text-ink-2">Obiettivo <Hint id="alloc_obiettivo" />
               <select value={target} onChange={(e) => setTarget(e.target.value)} className="field !w-full md:!w-auto min-w-0">{TARGETS.map(([v, l]) => <option key={v} value={v}>{l}</option>)}</select></label>
-            {needsDeMinimis && <label className="space-y-1 text-xs text-ink-2"><span className="label">De minimis residuo (€)</span><input type="number" className="field !w-32" value={deMinimis} onChange={(e) => setDeMinimis(e.target.value)} /></label>}
+            {needsDeMinimis && <label className="space-y-1 text-xs text-ink-2"><span className="label">De minimis ancora disponibile (€)</span><input type="number" className="field !w-36" value={deMinimis} onChange={(e) => setDeMinimis(e.target.value)} /></label>}
             <span className="text-xs text-mute">{pickedRows.length} {pickedRows.length === 1 ? 'bando incluso' : 'bandi inclusi'}</span>
           </div>
+          {needsDeMinimis && <p className="text-[11px] text-ink-2 leading-relaxed max-w-3xl"><strong className="text-ink">Cos’è il de minimis.</strong> È il tetto agli aiuti «piccoli»: 300.000 € in tre anni per impresa. Alcuni dei bandi scelti (per esempio il fondo perduto SIMEST) contano contro quel tetto. Il valore è 300.000 € <em>nell’ipotesi che l’azienda non abbia ricevuto altri aiuti de minimis negli ultimi tre anni</em>: se ne ha ricevuti, scrivi qui quanto resta (lo trovi nel registro nazionale degli aiuti o nelle dichiarazioni del cliente).</p>}
           {planError && <div className="p-3 rounded-xl border border-red-500/30 text-red-700 text-xs">{planError}</div>}
         </Step>
       )}

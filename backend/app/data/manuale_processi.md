@@ -193,6 +193,12 @@ Il solver lavora in euro per trovare la struttura migliore; gli importi finali s
 
 Tre obiettivi: pagare il meno possibile di tasca propria (quello di default), coprire più spese possibile, usare meno fondi possibile.
 
+**Il de minimis, in parole semplici.** È il tetto europeo agli aiuti «piccoli» (Reg. UE 2023/2831): un'impresa unica può ricevere al massimo 300.000 euro in tre anni mobili. Conta solo per i bandi che lo dichiarano (per esempio il fondo perduto SIMEST); gli altri non lo toccano. Quanto ne resta dipende da cosa l'azienda ha già ricevuto, dato che QUANTO non può sapere: per questo parte dall'**ipotesi dichiarata di 300.000 euro disponibili** (nessun aiuto de minimis ricevuto nel triennio) e il campo si corregge con il dato del cliente (registro nazionale aiuti, dichiarazioni). Il piano non si blocca mai in attesa di questo dato.
+
+**Il piano è sempre lo stesso e sempre il massimo.** Stessi dati, stessi bandi nel catalogo, stesso risultato, in euro e in centesimi. Quando due fondi valgono uguale su una spesa, la scelta non dipende dall'ordine in cui arrivano ma da una regola fissa: prima il valore più alto, poi (a parità) il fondo senza de minimis, poi il fondo con il tetto più alto, poi il nome. Il piano considera di default **tutti i bandi adatti** e include da solo quelli che entrano nel catalogo; cambia solo se cambiano i dati dell'azienda o il catalogo (per esempio Invitalia pubblica un bando nuovo). Se togli dei bandi a mano, il piano è un sottoinsieme e lo dice.
+
+**Cosa mostrano i grafici.** Tutti i bandi del piano compaiono in legenda e in tabella, ognuno con il suo colore (12 colori). Un bando che non porta euro in più è indicato «non serve»: la sua spesa è già coperta da un bando più conveniente (una spesa riceve un solo fondo perduto) o ha raggiunto il suo tetto. Non è scartato e rientra da solo se i dati cambiano.
+
 **Il potenziale massimo** combina tutti i bandi adatti. Regola di prudenza: due contributi a fondo perduto non si sommano sulla stessa spesa, quindi ogni voce riceve un solo contributo, il migliore. Garanzie, interessi e risparmi fiscali invece possono convivere. Il piano si calcola due volte: con le percentuali prudenti e con le percentuali massime, e si mostra l'intervallo.
 
 Esempio (azienda di prova, spesa 1.965.919 euro): da 1.307.746 a 1.863.062 euro coperti (66,5% e oltre), con 8 bandi. Sommando i bandi uno per uno si arriverebbe a 2.394.221 euro: la differenza è la stessa spesa che non si può pagare due volte.

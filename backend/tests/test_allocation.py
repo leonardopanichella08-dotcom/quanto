@@ -140,3 +140,31 @@ def test_exact_cent_accounting_and_invariants_on_realistic_case():
         assert dec(line.covered_amount_eur) <= dec(line.gross_amount_eur)
         assert not ({"F1", "F3"} <= {c.fund_id for c in line.coverage})
     assert sum(dec(m.covered_eur) for m in r.monthly_plan) == dec(r.covered_by_public_funds_eur)
+
+
+def test_equivalent_funds_always_give_the_same_plan_whatever_the_order_they_arrive_in():
+    """Con fondi di pari valore il totale è lo stesso ma la ripartizione tra fondi poteva cambiare a ogni ricalcolo: ora la scelta è canonica."""
+    import itertools
+    from app.core.allocation_engine import AllocationOptimizerEngine
+    from app.models.allocation import AllocationOptimizationRequest
+    cats = ["PERSONNEL", "CONSULTING", "OVERHEAD"]
+    exp = [{"item_id": "A", "category": "PERSONNEL", "amount_eur": 120000.0}, {"item_id": "B", "category": "CONSULTING", "amount_eur": 40000.0}, {"item_id": "C", "category": "OVERHEAD", "amount_eur": 20000.0}]
+    funds = [{"fund_id": f"F{i}", "name": f"F{i}", "allowed_categories": cats, "coverage_pct": 0.5} for i in range(5)]
+    for f in funds:
+        f["excludes"] = [g["fund_id"] for g in funds if g is not f]
+    seen = set()
+    for perm in itertools.islice(itertools.permutations(range(5)), 0, 120, 9):
+        r = AllocationOptimizerEngine.optimize_annual_allocation(AllocationOptimizationRequest(fiscal_year=2027, historical_expenses=exp, available_funding_lines=[funds[i] for i in perm]))
+        seen.add((tuple((u.fund_id, u.used_eur) for u in r.fund_usage), r.covered_by_public_funds_eur))
+    assert len(seen) == 1                                                     # un solo piano possibile
+    assert next(iter(seen))[1] == 90000.0                                     # ed è il massimo: metà di 180.000
+
+
+def test_the_plan_uses_the_fund_with_the_higher_intensity_and_prefers_no_de_minimis_on_a_tie():
+    from app.core.allocation_engine import AllocationOptimizerEngine
+    from app.models.allocation import AllocationOptimizationRequest
+    exp = [{"item_id": "A", "category": "PERSONNEL", "amount_eur": 100000.0}]
+    a = {"fund_id": "A-DM", "name": "con de minimis", "allowed_categories": ["PERSONNEL"], "coverage_pct": 0.5, "de_minimis": True, "excludes": ["B-LIBERO"]}
+    b = {"fund_id": "B-LIBERO", "name": "senza", "allowed_categories": ["PERSONNEL"], "coverage_pct": 0.5}
+    r = AllocationOptimizerEngine.optimize_annual_allocation(AllocationOptimizationRequest(fiscal_year=2027, historical_expenses=exp, available_funding_lines=[a, b], de_minimis_residual_eur=300000.0))
+    assert {u.fund_id: u.used_eur for u in r.fund_usage} == {"B-LIBERO": 50000.0, "A-DM": 0.0}    # a parità sceglie quello che lascia libero il plafond de minimis

@@ -3,12 +3,12 @@ import { CheckCircle2, CircleHelp, Loader2, Sparkles } from 'lucide-react'
 import { fmtEur, fmtNum, CATEGORY_LABEL } from '../lib/format'
 
 
-const PALETTE = ['#38bdf8', '#a78bfa', '#f472b6', '#34d399', '#fbbf24', '#fb7185']
+const PALETTE = ['#38bdf8', '#a78bfa', '#f472b6', '#34d399', '#fbbf24', '#fb7185', '#2dd4bf', '#818cf8', '#f97316', '#84cc16', '#e879f9', '#94a3b8']
 const NET = '#f59e0b'
 
 /** Il bilancio dell'anno ricostruito con tutti i bandi insieme: per ogni categoria di spesa, quanto copre ciascun bando e quanto resta a carico. Solo somme dei dati del piano. */
 function RebuiltBudget({ plan, nameOf }) {
-  const funds = plan.fund_usage.filter((f) => f.used_eur > 0).map((f) => f.fund_id)
+  const funds = plan.fund_usage.map((f) => f.fund_id)                        // tutti i bandi del piano, anche quelli che alla fine non servono
   const by = {}
   plan.allocation_plan.forEach((i) => {
     const c = (by[i.category] ||= { gross: 0, net: 0, funds: {} })
@@ -37,7 +37,7 @@ function RebuiltBudget({ plan, nameOf }) {
         {rows.map(([cat, c]) => <Bar key={cat} c={c} width={Math.max(8, (c.gross / max) * 100)} label={CATEGORY_LABEL[cat] || cat} />)}
       </div>
       <div className="flex flex-wrap gap-x-4 gap-y-1 text-[11px] text-ink-2">
-        {funds.map((id) => <span key={id} className="inline-flex items-center gap-1.5"><i className="w-2.5 h-2.5 rounded-sm" style={{ background: color(id) }} />{nameOf(id)} · {fmtEur(total.funds[id])}</span>)}
+        {funds.map((id) => <span key={id} className={`inline-flex items-center gap-1.5 ${total.funds[id] > 0 ? '' : 'text-mute'}`}><i className="w-2.5 h-2.5 rounded-sm" style={{ background: color(id), opacity: total.funds[id] > 0 ? 1 : 0.35 }} />{nameOf(id)} · {total.funds[id] > 0 ? fmtEur(total.funds[id]) : 'non usato'}</span>)}
         <span className="inline-flex items-center gap-1.5"><i className="w-2.5 h-2.5 rounded-sm" style={{ background: NET }} />A carico · {fmtEur(total.net)}</span>
       </div>
     </div>
@@ -46,7 +46,7 @@ function RebuiltBudget({ plan, nameOf }) {
 
 /** Tutti i bandi a cui l'azienda può partecipare, applicati insieme: quanto potrebbe coprire se li vincesse tutti. Il calcolo è quello del piano (stesse regole di
  *  cumulo, tetti e de minimis): qui si scelgono i bandi e si legge il confronto con la somma dei bandi presi uno per uno. */
-export default function PotentialStep({ results, picked, setPicked, plan, planHigh, loading, planError, onStudyMore, studyingMore }) {
+export default function PotentialStep({ results, picked, onPick, plan, planHigh, loading, planError, onStudyMore, studyingMore }) {
   const [withMaybe, setWithMaybe] = useState(false)
   const sure = results.filter((r) => r.fit === 'ADATTO' && r.fund)
   const maybe = results.filter((r) => r.fit === 'DA_VERIFICARE' && r.fund)
@@ -62,7 +62,7 @@ export default function PotentialStep({ results, picked, setPicked, plan, planHi
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center gap-3">
-        <button className="btn-primary" disabled={wanted.length === 0} onClick={() => setPicked(wantedIds)}>
+        <button className="btn-primary" disabled={wanted.length === 0} onClick={() => onPick(wantedIds, !withMaybe)}>
           <Sparkles className="w-3.5 h-3.5" />{isAll ? 'Bandi già combinati' : `Combina tutti i bandi adatti (${sure.length}${withMaybe ? ` + ${maybe.length} da verificare` : ''})`}
         </button>
         {maybe.length > 0 && (
@@ -70,7 +70,7 @@ export default function PotentialStep({ results, picked, setPicked, plan, planHi
             <input type="checkbox" checked={withMaybe} onChange={(e) => setWithMaybe(e.target.checked)} />Includi anche {maybe.length === 1 ? 'il bando da verificare' : `i ${maybe.length} bandi da verificare`} con un importo stimabile (scenario ottimistico)
           </label>
         )}
-        {picked.length > 0 && <button className="btn" onClick={() => setPicked([])}>Deseleziona tutti</button>}
+        {picked.length > 0 && <button className="btn" onClick={() => onPick([], false)}>Deseleziona tutti</button>}
       </div>
       {sure.length === 0 && <p className="text-xs text-amber-700">Nessun bando risulta già adatto con un importo stimabile. Studia altri bandi del catalogo{maybe.length ? ' oppure includi quelli da verificare' : ''}.</p>}
       {sure.length === 1 && maybe.length === 0 && <p className="text-xs text-ink-2">Per ora un solo bando adatto ha un contributo calcolabile sulle tue spese. Per trovarne altri puoi farne studiare di nuovi al programma dal catalogo.</p>}
@@ -103,11 +103,15 @@ export default function PotentialStep({ results, picked, setPicked, plan, planHi
                     <tbody>
                       {pickedRows.map((r) => (
                         <tr key={r.bando_id} className="border-t border-line"><td className="py-1.5 text-ink-2 pr-3">{r.name}{r.estimate?.kind_label && <span className="block text-[10px] text-mute">{r.estimate.kind_label}</span>}{r.fit === 'DA_VERIFICARE' && <span className="ml-1.5 text-[10px] text-amber-700">(da verificare)</span>}</td>
-                          <td className="text-right tabular-nums">{fmtEur(r.estimate?.covered_eur)}{r.estimate?.covered_high_eur > r.estimate?.covered_eur + 0.5 && <span className="text-mute"> – {fmtEur(r.estimate.covered_high_eur)}</span>}</td><td className="text-right tabular-nums text-emerald-700">{fmtEur(used[r.fund.fund_id] ?? 0)}</td></tr>
+                          <td className="text-right tabular-nums">{fmtEur(r.estimate?.covered_eur)}{r.estimate?.covered_high_eur > r.estimate?.covered_eur + 0.5 && <span className="text-mute"> – {fmtEur(r.estimate.covered_high_eur)}</span>}</td><td className={`text-right tabular-nums ${(used[r.fund.fund_id] ?? 0) > 0 ? 'text-emerald-700' : 'text-mute'}`}>{(used[r.fund.fund_id] ?? 0) > 0 ? fmtEur(used[r.fund.fund_id]) : 'non serve'}</td></tr>
                       ))}
                       <tr className="border-t border-line-strong font-semibold"><td className="py-1.5">Totale</td><td className="text-right tabular-nums">{fmtEur(alone)}</td><td className="text-right tabular-nums">{fmtEur(plan.covered_by_public_funds_eur)}</td></tr>
                     </tbody>
                   </table>
+                  {pickedRows.some((r) => (used[r.fund.fund_id] ?? 0) === 0) && (
+                    <p className="text-[11px] text-ink-2 mt-2 leading-relaxed"><strong className="text-ink">Perché alcuni bandi risultano «non serve»?</strong> Non sono scartati: in questo piano le loro spese sono già coperte da un bando più conveniente (ogni spesa riceve un solo contributo a fondo perduto, il migliore) oppure il bando ha raggiunto il suo tetto. Restano nel calcolo e rientrano da soli se cambiano i dati.</p>
+                  )}
+                  {wanted.length > 0 && picked.length < sure.length && <p className="text-[11px] text-amber-700 mt-1">Hai incluso {picked.length} bandi adatti su {sure.length}: il potenziale massimo li comprende tutti.</p>}
                   <p className="text-[11px] text-mute mt-2 leading-relaxed">
                     {alone - plan.covered_by_public_funds_eur > 0.5
                       ? `Sommando i bandi uno per uno si arriverebbe a ${fmtEur(alone)}, ma la stessa spesa non può essere pagata due volte: insieme il massimo è ${fmtEur(plan.covered_by_public_funds_eur)} (${fmtEur(alone - plan.covered_by_public_funds_eur)} in meno per spese contese, tetti dei fondi o fondi non cumulabili).`
