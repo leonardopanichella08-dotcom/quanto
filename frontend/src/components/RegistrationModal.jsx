@@ -39,7 +39,7 @@ export default function RegistrationModal({ isOpen, onClose, merkleRoot, project
       <div className="glass-strong rounded-3xl max-w-lg w-full p-6 space-y-5 relative max-h-[90vh] overflow-y-auto">
         <button onClick={onClose} aria-label="Chiudi" className="absolute top-4 right-4 text-ink-2 hover:text-ink"><X className="w-5 h-5" /></button>
         <div className="flex items-center gap-3">
-          <span className="icon-tile w-10 h-10 rounded-xl"><ShieldCheck className="w-5 h-5" /></span>
+          <ShieldCheck className="w-5 h-5 text-ink-2" />
           <div>
             <h3 className="font-semibold text-base">Registra l’impronta del budget</h3>
             <p className="text-xs text-ink-2">Un registro in cui si può solo aggiungere, con firma digitale</p>
@@ -72,7 +72,7 @@ export default function RegistrationModal({ isOpen, onClose, merkleRoot, project
             </div>
           </div>
         ) : (
-          <button onClick={handleRegister} disabled={loading} className="w-full py-3 bg-liquid hover:brightness-105 text-ink font-bold text-sm rounded-xl transition disabled:opacity-50">
+          <button onClick={handleRegister} disabled={loading} className="btn-primary w-full !py-3">
             {loading ? 'Registrazione…' : 'Conferma e registra'}
           </button>
         )}

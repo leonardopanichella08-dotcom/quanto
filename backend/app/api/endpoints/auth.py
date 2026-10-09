@@ -1,6 +1,7 @@
 """Endpoint OAuth 2.0 (client credentials) per l'integrazione con ERP/gestionali."""
 import json
 from datetime import datetime, timedelta, timezone
+from typing import Optional
 from urllib.parse import parse_qs
 
 from fastapi import APIRouter, Depends, HTTPException, Request, status
@@ -118,6 +119,66 @@ def my_credits(request: Request) -> dict:
         "remaining": remaining, "pct_remaining": round(remaining / CREDITS_PER_CYCLE * 100),
         "renews_at": cycle_end.date().isoformat(), "days_until_renewal": max(0, (cycle_end - now).days),
     }
+
+
+class ProfileBody(BaseModel):
+    name: Optional[str] = Field(default=None, max_length=120)
+    studio_name: Optional[str] = Field(default=None, max_length=160)
+    studio_vat: Optional[str] = Field(default=None, max_length=20)
+    phone: Optional[str] = Field(default=None, max_length=25)
+    job_title: Optional[str] = Field(default=None, max_length=80)
+
+
+class DeleteBody(BaseModel):
+    password: str = Field(..., max_length=200)
+    confirm_email: str = Field(..., max_length=200)
+
+
+def _me_row(request: Request) -> dict:
+    u = user_of(request)
+    if u is None:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Accesso richiesto")
+    row = users.get(u["id"])
+    if row is None:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Accesso richiesto")
+    return row
+
+
+@router.get("/me/profile", dependencies=[Depends(require_auth)], summary="Il mio profilo completo: dati dello studio, sicurezza e ultimi accessi")
+def my_profile(request: Request) -> dict:
+    row = _me_row(request)
+    return {"profile": users._public(row), "logins": users.login_history(row["email"], 10), "password_policy": "Almeno 12 caratteri, con lettere e numeri, diversa dall'e-mail."}
+
+
+@router.patch("/me", dependencies=[Depends(require_auth)], summary="Aggiorna i dati del mio profilo (nome, studio, partita IVA, telefono, ruolo)")
+def update_me(body: ProfileBody, request: Request) -> dict:
+    row = _me_row(request)
+    try:
+        return users.update_profile(row["id"], **body.model_dump())
+    except users.UserError as exc:
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(exc)) from exc
+
+
+@router.post("/me/sign-out-everywhere", dependencies=[Depends(require_auth)], summary="Esci da tutti i dispositivi: i token già emessi decadono")
+def sign_out_everywhere(request: Request) -> dict:
+    users.revoke_sessions(_me_row(request)["id"])
+    return {"revoked": True}
+
+
+@router.get("/me/export", dependencies=[Depends(require_auth)], summary="Scarica tutti i dati del mio studio in un file")
+def export_me(request: Request) -> dict:
+    return users.export_data(_me_row(request)["id"])
+
+
+@router.delete("/me", dependencies=[Depends(require_auth)], summary="Elimina il mio account con lavori e template (password e e-mail per confermare)")
+def delete_me(body: DeleteBody, request: Request) -> dict:
+    row = _me_row(request)
+    try:
+        return {"deleted": users.delete_account(row["id"], body.password, body.confirm_email)}
+    except users.AuthFailed:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Password non corretta") from None
+    except users.UserError as exc:
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(exc)) from exc
 
 
 @router.post("/change-password", dependencies=[Depends(require_auth)], summary="Cambia la tua password (tutti i token già emessi decadono)")

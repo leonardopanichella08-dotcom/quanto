@@ -172,7 +172,7 @@ export default function Confronto({ validation, client }) {
         <div><h3 className="font-semibold text-base">Il budget consigliato</h3>
           <p className="text-xs text-ink-2 mt-0.5 max-w-2xl leading-relaxed">Scegli la nicchia (codice ATECO) e il bando: ti mostro come hanno ripartito il budget le aziende simili che hanno scelto quel bando, contando di più quelle ammesse.</p></div>
         <div className="grid sm:grid-cols-4 gap-3">
-          <label className="space-y-1"><span className="label">Codice ATECO{client ? ` di ${client.name}` : ''}</span><input className="field" value={ateco} onChange={(e) => setAteco(e.target.value)} placeholder="es. 01.11 o 62.01" /></label>
+          <label className="space-y-1"><span className="label">Codice ATECO del lavoro</span><input className="field" value={ateco} onChange={(e) => setAteco(e.target.value)} placeholder="es. 01.11 o 62.01" /></label>
           <label className="space-y-1 sm:col-span-2"><span className="label">Bando scelto (solo quelli affini a questa azienda)</span>
             <select className="field" value={bandoId} onChange={(e) => setBandoId(e.target.value)}>
               <option value="">— scegli il bando —</option>

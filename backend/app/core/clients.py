@@ -78,13 +78,13 @@ def update_client(owner: str, client_id: int, name: Optional[str] = None, note: 
     return _summary(owner, get(owner, client_id))  # type: ignore[arg-type]
 
 
-def delete_client(owner: str, client_id: int, confirm_name: str) -> Dict[str, int]:
+def delete_client(owner: str, client_id: int, confirm_name: str, force: bool = False) -> Dict[str, int]:
     """Elimina il lavoro e tutto ciò che contiene (profilo, bilanci, documenti, modello di previsione, risultati). Chiede di riscrivere il nome."""
     from app.core.fonte_c import service as fonte_c
     c = get(owner, client_id)
     if c is None:
         raise KeyError(client_id)
-    if (confirm_name or "").strip().lower() != c["name"].strip().lower():
+    if not force and (confirm_name or "").strip().lower() != c["name"].strip().lower():
         raise ClientError("Per eliminare il lavoro riscrivi il suo nome")
     sc = scope(owner, client_id)
     docs = [d["id"] for d in fonte_c.list_documents(sc)]

@@ -475,6 +475,14 @@ ALTER TABLE clients ENABLE ROW LEVEL SECURITY;
 ALTER TABLE client_state ENABLE ROW LEVEL SECURITY;
 """ + CLIENTS_DATA_MIGRATION
 
+_USER_PROFILE = """
+-- Dati dello studio sul profilo dell'utente.
+ALTER TABLE users ADD COLUMN studio_name TEXT NOT NULL DEFAULT '';
+ALTER TABLE users ADD COLUMN studio_vat TEXT NOT NULL DEFAULT '';
+ALTER TABLE users ADD COLUMN phone TEXT NOT NULL DEFAULT '';
+ALTER TABLE users ADD COLUMN job_title TEXT NOT NULL DEFAULT '';
+"""
+
 MIGRATIONS: List[Tuple[int, str, str]] = [
     (1, "init", _INIT),
     (2, "fonte_b", _FONTE_B),
@@ -491,4 +499,5 @@ MIGRATIONS: List[Tuple[int, str, str]] = [
     (13, "retire_demo", _RETIRE_DEMO),
     (14, "budget_templates", _BUDGET_TEMPLATES),
     (15, "clients", _CLIENTS),
+    (16, "user_profile", _USER_PROFILE),
 ]

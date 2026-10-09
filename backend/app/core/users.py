@@ -104,7 +104,7 @@ def is_owner(email: str) -> bool:
 def _public(r) -> Dict[str, Any]:
     return {"id": r["id"], "email": r["email"], "name": r["name"], "role": r["role"], "active": r["active"], "created_at": r["created_at"],
             "last_login_at": r["last_login_at"], "locked": bool(r["locked_until"] and r["locked_until"] > events.now_iso()),
-            "is_owner": is_owner(r["email"])}
+            "is_owner": is_owner(r["email"]), "studio_name": r["studio_name"], "studio_vat": r["studio_vat"], "phone": r["phone"], "job_title": r["job_title"]}
 
 
 def _norm_email(email: str) -> str:
@@ -191,6 +191,97 @@ def change_password(user_id: int, current: str, new: str) -> None:
         check_password_policy(new, r["email"])
         conn.execute("UPDATE users SET password_hash=?, token_version=token_version+1 WHERE id=?", (hash_password(new), user_id))
     events.record("users.password", f"Password cambiata da {r['email']}", actor=f"user:{r['email']}")
+
+
+# ------------------------------------------------------------------------------------------------ profilo, sicurezza e dati dell'account
+_PHONE = re.compile(r"^[+0-9 ()./-]{6,25}$")
+
+
+def update_profile(user_id: int, name: Optional[str] = None, studio_name: Optional[str] = None, studio_vat: Optional[str] = None, phone: Optional[str] = None,
+                   job_title: Optional[str] = None) -> Dict[str, Any]:
+    """I dati dello studio che l'utente può cambiare da solo (l'e-mail e il ruolo no)."""
+    sets, params = [], []
+    if name is not None:
+        if not name.strip():
+            raise UserError("Indica il nome")
+        sets.append("name=?"); params.append(name.strip()[:120])
+    if studio_name is not None:
+        sets.append("studio_name=?"); params.append(studio_name.strip()[:160])
+    if studio_vat is not None:
+        v = re.sub(r"\s|^IT", "", studio_vat.upper())
+        if v and not re.fullmatch(r"\d{11}", v):
+            raise UserError("La partita IVA ha 11 cifre")
+        sets.append("studio_vat=?"); params.append(v)
+    if phone is not None:
+        if phone.strip() and not _PHONE.match(phone.strip()):
+            raise UserError("Numero di telefono non valido")
+        sets.append("phone=?"); params.append(phone.strip())
+    if job_title is not None:
+        sets.append("job_title=?"); params.append(job_title.strip()[:80])
+    with connect() as conn:
+        if sets:
+            conn.execute(f"UPDATE users SET {', '.join(sets)} WHERE id=?", (*params, user_id))
+        r = conn.execute("SELECT * FROM users WHERE id=?", (user_id,)).fetchone()
+    if r is None:
+        raise KeyError(user_id)
+    events.record("users.profile", "Dati del profilo aggiornati", actor=f"user:{r['email']}")
+    return _public(r)
+
+
+def revoke_sessions(user_id: int) -> None:
+    """Esci da tutti i dispositivi: i token già emessi (anche questo) non valgono più."""
+    with connect() as conn:
+        r = conn.execute("UPDATE users SET token_version=token_version+1 WHERE id=? RETURNING email", (user_id,)).fetchone()
+    if r:
+        events.record("users.sessions", "Uscita da tutti i dispositivi", actor=f"user:{r['email']}")
+
+
+def login_history(email: str, limit: int = 10) -> List[Dict[str, Any]]:
+    return [{"ts": e["ts"], "status": e["status"], "summary": e["summary"]} for e in events.list_events(op="auth.login", actor=f"user:{email}", limit=limit)]
+
+
+def export_data(user_id: int) -> Dict[str, Any]:
+    """Tutti i dati dello studio in un solo file (portabilità): profilo, lavori con profilo e bilanci, template di budget, operazioni recenti. I file caricati si scaricano dai lavori."""
+    from app.core import clients, company_profile as cp, template_learning as tl
+    u = get(user_id)
+    if u is None:
+        raise KeyError(user_id)
+    owner = f"user:{u['email']}"
+    jobs = []
+    for c in clients.list_clients(owner):
+        ov = cp.overview(clients.scope(owner, c["id"]))
+        jobs.append({"id": c["id"], "name": c["name"], "note": c["note"], "created_at": c["created_at"], "profile": {f["key"]: f["value"] for f in ov["fields"] if f["value"] is not None},
+                     "financials": ov["financials"], "documents": c["documents"]})
+    return {"exported_at": events.now_iso(), "account": {k: u[k] for k in ("email", "name", "role", "created_at", "last_login_at", "studio_name", "studio_vat", "phone", "job_title")},
+            "jobs": jobs, "budget_templates": tl.list_templates(owner), "recent_operations": events.list_events(actor=owner, limit=200)}
+
+
+def delete_account(user_id: int, password: str, confirm_email: str) -> Dict[str, int]:
+    """Elimina l'account con tutti i suoi lavori e template. Serve la password e riscrivere l'e-mail; il titolare e l'ultimo manager non si eliminano da qui."""
+    from app.core import clients
+    with connect() as conn:
+        r = conn.execute("SELECT * FROM users WHERE id=?", (user_id,)).fetchone()
+        if r is None:
+            raise KeyError(user_id)
+        if not verify_password(password or "", r["password_hash"]):
+            raise AuthFailed()
+        if (confirm_email or "").strip().lower() != r["email"]:
+            raise UserError("Per eliminare l'account riscrivi la tua e-mail")
+        if is_owner(r["email"]):
+            raise UserError("L'account del titolare non si elimina da qui")
+        if r["role"] == "MANAGER" and _managers_left(conn, user_id) == 0:
+            raise UserError("Deve restare almeno un manager attivo")
+    owner = f"user:{r['email']}"
+    n_jobs = 0
+    for c in clients.list_clients(owner):
+        clients.delete_client(owner, c["id"], c["name"], force=True)
+        n_jobs += 1
+    with connect() as conn:
+        n_tpl = conn.execute("DELETE FROM budget_templates WHERE owner=?", (owner,)).rowcount
+        conn.execute("DELETE FROM clients WHERE owner=?", (owner,))
+        conn.execute("DELETE FROM users WHERE id=?", (user_id,))
+    events.record("users.delete", f"Account {r['email']} eliminato", actor=owner, details={"jobs": n_jobs, "templates": n_tpl})
+    return {"jobs": n_jobs, "templates": n_tpl}
 
 
 # ------------------------------------------------------------------------------------------------ accesso

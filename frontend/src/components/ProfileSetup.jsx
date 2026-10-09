@@ -183,10 +183,10 @@ export default function ProfileSetup({ version = 0, onChanged, onGoAllocation, o
 
       <div key={s.id} className="story-in p-6 md:p-8 space-y-5 min-h-[18rem]">
         <div className="flex items-start gap-4">
-          <span className="icon-tile w-14 h-14 rounded-3xl shrink-0"><Icon className="w-7 h-7" /></span>
+          <span className="icon-tile w-10 h-10 shrink-0"><Icon className="w-5 h-5" /></span>
           <div className="min-w-0">
             <div className="flex flex-wrap items-center gap-2">
-              <h3 className="text-2xl md:text-3xl font-display font-bold tracking-tight leading-tight">{s.title}</h3>
+              <h3 className="text-xl font-semibold tracking-tight leading-tight">{s.title}</h3>
               {s.done && s.id !== 'end' && <span className="px-2 py-0.5 rounded-full text-[11px] font-medium bg-emerald-500/15 text-emerald-700 border border-emerald-500/30 inline-flex items-center gap-1"><CheckCircle2 className="w-3 h-3" />fatto</span>}
               {s.optional && <span className="px-2 py-0.5 rounded-full text-[11px] text-mute border border-line-strong">facoltativo</span>}
             </div>

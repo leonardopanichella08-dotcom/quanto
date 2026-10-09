@@ -11,9 +11,9 @@ import Guida from './components/Guida'
 import Profile from './components/Profile'
 import Landing from './components/Landing'
 import Vision from './components/Vision'
-import CreditsBadge from './components/CreditsBadge'
-import { ClientSwitcher, NeedClient } from './components/Clients'
-import { ArrowLeft, LogOut, BookOpen, Calculator, GitCompare, Library, ShieldCheck, Split, User } from 'lucide-react'
+import Sidebar, { MobileBar } from './components/Sidebar'
+import { NeedClient } from './components/Clients'
+import { ArrowLeft, BookOpen, Calculator, GitCompare, Library, ShieldCheck, Split, User } from 'lucide-react'
 import { Mark, PageHead, Wordmark } from './components/ui'
 import { NavContext } from './lib/nav'
 import { api, download, fileToBase64, session, workspace } from './lib/api'
@@ -69,6 +69,7 @@ export default function App() {
   const [clients, setClients] = useState(null)              // i lavori dello studio (aziende clienti)
   const [clientId, setClientId] = useState(null)            // il lavoro attivo
   const [visited, setVisited] = useState(() => new Set())
+  const [menuOpen, setMenuOpen] = useState(false)
   const budgetLoaded = useRef(false)
   useEffect(() => { setVisited((v) => (v.has(tab) ? v : new Set(v).add(tab))) }, [tab])
 
@@ -236,37 +237,16 @@ export default function App() {
 
   return (
     <NavContext.Provider value={nav}>
-    <div className="min-h-screen text-ink">
-      <div className="liquid-bg" aria-hidden="true"><span /><span /><span /></div>
-      <header className="md:sticky top-0 z-40 px-3 md:px-6 pt-3">
-        <div className="glass-strong rounded-3xl max-w-7xl mx-auto px-3 md:px-4 py-2.5 flex flex-wrap items-center gap-x-4 gap-y-2">
-          <button onClick={() => nav.go('bandi')} className="flex items-center gap-2.5 rounded-2xl" aria-label="Quanto, torna ai bandi">
-            <Mark size={34} />
-            <Wordmark height={20} className="text-ink" />
-          </button>
-          <nav className="flex items-center gap-1 overflow-x-auto max-w-full md:ml-auto order-3 md:order-none w-full md:w-auto -mx-1 px-1 pb-0.5" aria-label="Pagine">
-            {TABS.map(([id, label, Icon]) => {
-              const on = tab === id || (tab === 'lab' && id === 'canvas') || (tab === 'hq' && id === 'profilo')
-              return (
-                <button key={id} onClick={() => nav.go(id)} aria-current={on ? 'page' : undefined}
-                  className={`inline-flex items-center gap-1.5 px-3 py-2 rounded-full text-[13px] whitespace-nowrap transition duration-200 ${on ? 'bg-liquid text-ink font-medium shadow-[0_6px_16px_-8px_rgba(200,185,0,0.9),0_0_0_1px_rgba(150,135,0,0.16)]' : 'text-ink-2 hover:text-ink hover:bg-white/70'}`}>
-                  <Icon className="w-4 h-4" />{label}
-                </button>
-              )
-            })}
-          </nav>
-          {user && (
-            <div className="flex items-center gap-1 text-xs text-ink-2 order-2 md:order-none">
-              <ClientSwitcher clients={clients} clientId={clientId} onChange={chooseClient} onNew={() => { nav.go('profilo'); setTimeout(() => document.getElementById('lavori')?.scrollIntoView({ behavior: 'smooth' }), 200) }} />
-              <span className="hidden 2xl:inline max-w-[160px] truncate" title={user.email}>{user.name}</span>
-              <CreditsBadge onClick={() => nav.go('profilo')} />
-              <button onClick={logout} className="btn !px-2.5 !py-1.5" title="Esci" aria-label="Esci"><LogOut className="w-3.5 h-3.5" /></button>
-            </div>
-          )}
-        </div>
-      </header>
-
-      <main className="px-4 md:px-8 pt-6 pb-16 max-w-7xl mx-auto space-y-6">
+    <div className="min-h-screen text-ink md:flex">
+      <Sidebar user={user} isOwner={isOwner} tab={tab === 'lab' ? 'canvas' : tab} clients={clients} clientId={clientId} onClient={(id) => { chooseClient(id); setMenuOpen(false) }}
+        onNewClient={() => { nav.go('profilo'); setMenuOpen(false); setTimeout(() => document.getElementById('lavori')?.scrollIntoView({ behavior: 'smooth' }), 250) }}
+        onGo={(id) => { nav.go(id); setMenuOpen(false) }} onLogout={logout} open={menuOpen} onClose={() => setMenuOpen(false)}
+        groups={[{ title: 'Analisi', items: TABS.filter(([id]) => ['allocation', 'pattern'].includes(id)) }, { title: 'Bandi e budget', items: TABS.filter(([id]) => ['bandi', 'canvas'].includes(id)) },
+          { title: 'Controllo', items: TABS.filter(([id]) => id === 'auditor') }]}
+        footer={TABS.filter(([id]) => ['guida', 'profilo'].includes(id))} />
+      <div className="flex-1 min-w-0">
+      <MobileBar onOpen={() => setMenuOpen(true)} />
+      <main className="px-5 md:px-10 pt-8 pb-20 max-w-6xl mx-auto space-y-6">
         {HEADS[tab] && <PageHead icon={TABS.find(([id]) => id === tab)[2]} title={HEADS[tab][0]} sub={HEADS[tab][1]}>
           <div className="flex flex-wrap items-center gap-2 text-xs">
             <span className="chip"><span className={`h-1.5 w-1.5 rounded-full ${banner.dot}`} /><span className={banner.tone}>{banner.text}</span></span>
@@ -307,6 +287,7 @@ export default function App() {
         </Keep>
         {tab === 'hq' && isOwner && <HQ onReplay={openReplay} user={user} />}
       </main>
+      </div>
 
       {pwOpen && <PasswordModal onClose={() => setPwOpen(false)} />}
       {validation && (

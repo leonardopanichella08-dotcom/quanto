@@ -35,7 +35,7 @@ export default function CatalogBrowser({ onPick, picking }) {
   if (!open) {
     return (
       <button onClick={() => setOpen(true)} className="btn flex items-center gap-2 w-full justify-center">
-        <Layers className="w-4 h-4" />Sfoglia tutti i bandi in memoria (il catalogo nazionale, migliaia di voci)
+        <Layers className="w-4 h-4" />Sfoglia tutti i bandi in memoria (il catalogo nazionale dei bandi aperti)
       </button>
     )
   }

@@ -11,7 +11,7 @@ import CatalogBrowser from './CatalogBrowser'
 import { Hint, Term } from './Help'
 
 const COV_STYLE = {
-  REGOLA_DEL_BANDO: 'bg-liquid text-ink', SOLO_DATI: 'bg-sky-500/60 text-ink', NON_ATTIVO: 'bg-tint-2 text-mute border border-line-strong',
+  REGOLA_DEL_BANDO: 'bg-ink text-white', SOLO_DATI: 'bg-sky-500/60 text-ink', NON_ATTIVO: 'bg-tint-2 text-mute border border-line-strong',
 }
 const CONF_STYLE = {
   PRIMARIA: 'text-emerald-700 border-emerald-500/30', SECONDARIA: 'text-amber-700 border-amber-500/30', INTERPRETAZIONE: 'text-sky-700 border-sky-500/30',
@@ -36,7 +36,7 @@ function CoverageGrid({ coverage }) {
         ))}
       </div>
       <div className="flex flex-wrap gap-4 text-xs text-ink-2">
-        <span><span className="inline-block w-2.5 h-2.5 rounded bg-liquid mr-1.5" />attivato da una regola del bando</span>
+        <span><span className="inline-block w-2.5 h-2.5 rounded bg-ink mr-1.5" />attivato da una regola del bando</span>
         <span><span className="inline-block w-2.5 h-2.5 rounded bg-sky-500/60 mr-1.5" />si fa solo sui dati della voce</span>
         <span><span className="inline-block w-2.5 h-2.5 rounded bg-tint-2 border border-line-strong mr-1.5" />spento: il bando non dà la regola</span>
       </div>

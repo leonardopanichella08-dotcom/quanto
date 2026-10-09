@@ -138,6 +138,8 @@ QUANTO non inventa nulla. Il bando resta nella lista «Bandi senza una percentua
 
 **Cosa si salva da solo, per ogni lavoro.** Le scelte e i risultati restano: anno e percentuali dell'Allocazione, bandi inclusi nel piano, obiettivo e de minimis; il budget con il bando scelto e il risultato del controllo; il motore, il bando e i dati inseriti nel Confronto. Cambiando pagina si ritrova tutto com'era, e anche chiudendo e riaprendo QUANTO. I calcoli si rifanno da soli sugli stessi dati, con lo stesso risultato.
 
+**Il profilo dello studio.** La pagina Profilo ha quattro sezioni: **Lavori** (le aziende clienti e il lavoro attivo), **Studio e dati** (nome, ruolo, ragione sociale e partita IVA dello studio, telefono), **Sicurezza** (cambio password con le regole in vista, uscita da tutti i dispositivi, ultimi accessi) e **Piano e dati** (crediti, operazioni recenti, esportazione di tutti i dati dello studio in un file, eliminazione dell'account con password e e-mail). L'e-mail è l'identificativo di accesso e non si cambia da qui.
+
 ### 7.1 Il profilo dell'azienda e i documenti
 
 **I documenti** (visura, bilanci, buste paga, F24, bozze di candidatura, altri file) si caricano nel Profilo. Il lettore trasforma ogni file in campi e per ogni campo dice quanto è sicuro: AUTO (sicuro), da verificare, confermato, corretto. Entrano nei calcoli solo i campi sicuri o confermati da una persona; i campi incerti restano da controllare e il totale dell'anno viene segnalato come parziale finché non si verificano.
