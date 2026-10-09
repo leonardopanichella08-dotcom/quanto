@@ -12,10 +12,11 @@ import Profile from './components/Profile'
 import Landing from './components/Landing'
 import Vision from './components/Vision'
 import CreditsBadge from './components/CreditsBadge'
+import { ClientSwitcher, NeedClient } from './components/Clients'
 import { ArrowLeft, LogOut, BookOpen, Calculator, GitCompare, Library, ShieldCheck, Split, User } from 'lucide-react'
 import { Mark, PageHead, Wordmark } from './components/ui'
 import { NavContext } from './lib/nav'
-import { api, download, fileToBase64, session } from './lib/api'
+import { api, download, fileToBase64, session, workspace } from './lib/api'
 import { PasswordModal } from './components/Login'
 
 const TABS = [
@@ -29,7 +30,13 @@ const HEADS = {
   allocation: ['Allocazione', 'Scopri quale fondo paga ogni spesa e quanto resta a carico tuo.'],
   pattern: ['Confronto', 'Quali aziende, di quale nicchia, partecipano a quali bandi e con quale budget: i tuoi template allenano il consiglio.'],
   auditor: ['Verifica', 'Controlla che un budget certificato non sia stato modificato.'],
-  profilo: ['Profilo', 'I tuoi dati, le operazioni recenti e i documenti che hai caricato.'],
+  profilo: ['Profilo', 'Il profilo dello studio e i suoi lavori: ogni azienda cliente ha i suoi dati, i suoi documenti e i suoi risultati.'],
+}
+
+// Le pagine già aperte restano montate (nascoste): tornando indietro si ritrova tutto com'era, senza dover rifare nulla.
+function Keep({ id, tab, visited, children }) {
+  if (tab !== id && !visited.has(id)) return null
+  return <div className={tab === id ? '' : 'hidden'}>{children}</div>
 }
 
 const params = new URLSearchParams(window.location.search)
@@ -59,6 +66,11 @@ export default function App() {
   const [labFrom, setLabFrom] = useState('canvas')   // da dove si è arrivati alla vista dell'algoritmo
   const seq = useRef(0)
   const debounce = useRef(null)
+  const [clients, setClients] = useState(null)              // i lavori dello studio (aziende clienti)
+  const [clientId, setClientId] = useState(null)            // il lavoro attivo
+  const [visited, setVisited] = useState(() => new Set())
+  const budgetLoaded = useRef(false)
+  useEffect(() => { setVisited((v) => (v.has(tab) ? v : new Set(v).add(tab))) }, [tab])
 
   const loadBandi = useCallback(async () => { setBandi(await api.bandi()) }, [])
   const loadRegistry = useCallback(() => api.registryStatus().then(setRegistry).catch(() => setRegistry({ offline: true })), [])
@@ -67,7 +79,7 @@ export default function App() {
     window.addEventListener('quanto-logout', out)
     return () => window.removeEventListener('quanto-logout', out)
   }, [])
-  const logout = () => { session.clear(); setUser(null); setBando(null); setValidation(null); setAttestation(null) }
+  const logout = () => { session.clear(); workspace.set(null); setUser(null); setBando(null); setValidation(null); setAttestation(null); setClients(null); setClientId(null); setVisited(new Set()); budgetLoaded.current = false }
   useEffect(() => {
     if (!user) return
     loadBandi().catch((e) => setError(e.message))
@@ -75,6 +87,45 @@ export default function App() {
     api.fields().then((f) => setFields(f.fields)).catch(() => {})
     api.criteria().then((c) => setCriteriaTitles(Object.fromEntries(c.criteria.map((x) => [x.number, x.title])))).catch(() => {})
   }, [user, loadBandi, loadRegistry])
+
+  const resetBudget = () => { setRequest(EMPTY_REQUEST); setBando(null); setValidation(null); setAttestation(null); setImportInfo(null); setNotice(null); setError(null) }
+  const restoreBudget = async () => {
+    budgetLoaded.current = false
+    try {
+      const st = await api.clientState('budget')
+      const v = st.value
+      if (v?.request) {
+        setRequest(v.request); setValidation(v.validation || null)
+        if (v.bandoId) { try { setBando(await api.bandoDetail(v.bandoId)) } catch { /* il bando potrebbe non esserci più */ } }
+      }
+    } catch { /* nessun salvataggio: si parte da zero */ } finally { budgetLoaded.current = true }
+  }
+  const chooseClient = async (id) => {
+    if (id === workspace.id()) return
+    workspace.set(id); workspace.remember(user, id)
+    setClientId(id); setVisited(new Set([tab])); resetBudget()
+    if (id) await restoreBudget(); else budgetLoaded.current = true
+  }
+  // ricarica l'elenco dei lavori; `prefer` = lavoro da attivare (undefined = resta quello attuale)
+  const refreshClients = useCallback(async (prefer) => {
+    const list = await api.clients()
+    setClients(list)
+    const wanted = prefer !== undefined ? prefer : (workspace.id() || workspace.remembered(user))
+    const target = list.some((c) => c.id === wanted) ? wanted : (list[0]?.id ?? null)
+    await chooseClient(target)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user])
+  useEffect(() => { if (user) refreshClients().catch((e) => setError(e.message)) }, [user])      // eslint-disable-line react-hooks/exhaustive-deps
+  // il budget del lavoro attivo si salva da solo: cambiando pagina o chiudendo la scheda non si perde nulla
+  useEffect(() => {
+    if (!clientId || !budgetLoaded.current || (!request.grant_rules && !request.cost_items.length)) return undefined
+    const t = setTimeout(() => {
+      let value = { request, bandoId: bando?.bando_id || null, validation }
+      if (JSON.stringify(value).length > 1_800_000) value = { ...value, validation: null }
+      api.saveClientState('budget', value).catch(() => {})
+    }, 1200)
+    return () => clearTimeout(t)
+  }, [clientId, request, validation, bando])
 
   // Una voce di personale senza RAL non si può controllare (il motore la pretende persona per persona): resta nell'elenco, segnalata, e non blocca il resto.
   const isIncomplete = (it) => it.category === 'PERSONNEL' && !(Number(it.ral_eur) > 0)
@@ -175,6 +226,8 @@ export default function App() {
         : registry.is_dev_key ? { dot: 'bg-amber-500', text: `Registro attivo (${registry.entries} ${registry.entries === 1 ? 'registrazione' : 'registrazioni'}) · chiave di prova: le certificazioni non valgono come prova`, tone: 'text-amber-700' }
           : { dot: 'bg-emerald-500', text: `Registro integro · ${registry.entries} ${registry.entries === 1 ? 'registrazione' : 'registrazioni'}`, tone: 'text-ink-2' }
 
+  const activeClient = (clients || []).find((c) => c.id === clientId) || null
+  const gate = clients !== null && clients.length === 0
   const labData = replay || validation
   const isOwner = !!user?.is_owner
 
@@ -204,6 +257,7 @@ export default function App() {
           </nav>
           {user && (
             <div className="flex items-center gap-1 text-xs text-ink-2 order-2 md:order-none">
+              <ClientSwitcher clients={clients} clientId={clientId} onChange={chooseClient} onNew={() => { nav.go('profilo'); setTimeout(() => document.getElementById('lavori')?.scrollIntoView({ behavior: 'smooth' }), 200) }} />
               <span className="hidden 2xl:inline max-w-[160px] truncate" title={user.email}>{user.name}</span>
               <CreditsBadge onClick={() => nav.go('profilo')} />
               <button onClick={logout} className="btn !px-2.5 !py-1.5" title="Esci" aria-label="Esci"><LogOut className="w-3.5 h-3.5" /></button>
@@ -216,20 +270,21 @@ export default function App() {
         {HEADS[tab] && <PageHead icon={TABS.find(([id]) => id === tab)[2]} title={HEADS[tab][0]} sub={HEADS[tab][1]}>
           <div className="flex flex-wrap items-center gap-2 text-xs">
             <span className="chip"><span className={`h-1.5 w-1.5 rounded-full ${banner.dot}`} /><span className={banner.tone}>{banner.text}</span></span>
+            {activeClient && <span className="chip">Lavoro: {activeClient.name}</span>}
             <span className="chip">{bando ? `In uso: ${bando.name}` : 'Nessun bando scelto'}</span>
           </div>
         </PageHead>}
 
-        {tab === 'bandi' && <BandiLibrary bandi={bandi} selectedId={bando?.bando_id} onSelect={selectBando} onReload={loadBandi} />}
-        {tab === 'canvas' && (
-          <BudgetCanvas bandi={bandi} bando={bando} request={request} fields={fields} validation={validation} loading={loading} error={error} busy={busy} importInfo={importInfo} criteriaTitles={criteriaTitles}
+        <Keep id="bandi" tab={tab} visited={visited}><BandiLibrary bandi={bandi} selectedId={bando?.bando_id} onSelect={selectBando} onReload={loadBandi} /></Keep>
+        <Keep id="canvas" tab={tab} visited={visited}>
+          <BudgetCanvas key={clientId || 'x'} bandi={bandi} bando={bando} request={request} fields={fields} validation={validation} loading={loading} error={error} busy={busy} importInfo={importInfo} criteriaTitles={criteriaTitles}
             onSelectBando={(id) => selectBando(id).catch(() => {})} onProjectId={changeProject} onItemsChange={changeItems} onImport={importFile}
             onValidate={() => validate(request)} onRegister={() => setModalOpen(true)} onExport={exportAs}
             onOpenLab={() => { setReplay(null); setLabFrom('canvas'); setTab('lab') }} onDismissImport={() => setImportInfo(null)} onGoBandi={() => setTab('bandi')}
             onUsePayslip={addPayslipItem} onUseBalance={() => nav.go('allocation')} onUseDraft={addDraftItems}
             onUseTemplate={applyTemplate} onGoProfile={() => nav.go('profilo')} templateOpen={templateOpen}
             incompleteItems={request.cost_items.filter(isIncomplete)} notice={notice} onDismissNotice={() => setNotice(null)} />
-        )}
+        </Keep>
         {tab === 'lab' && (
           <div className="space-y-4">
             <button onClick={() => nav.go(labFrom)} className="btn"><ArrowLeft className="w-3.5 h-3.5" />{labFrom === 'hq' ? 'Torna al Quartier Generale' : 'Torna al Budget'}</button>
@@ -239,17 +294,17 @@ export default function App() {
             <AlgorithmLab validation={labData} title={labData?.project_id} criteriaTitles={criteriaTitles} />
           </div>
         )}
-        {tab === 'allocation' && <AllocationView onGoProfile={() => nav.go('profilo')} onBudgetFrom={budgetFrom} />}
-        {tab === 'pattern' && <Confronto validation={validation} />}
+        <Keep id="allocation" tab={tab} visited={visited}>{clientId ? <AllocationView key={clientId} onGoProfile={() => nav.go('profilo')} onBudgetFrom={budgetFrom} /> : gate ? <NeedClient onGo={() => nav.go('profilo')} /> : null}</Keep>
+        <Keep id="pattern" tab={tab} visited={visited}>{clientId ? <Confronto key={clientId} validation={validation} client={activeClient} /> : gate ? <NeedClient onGo={() => nav.go('profilo')} /> : null}</Keep>
         {tab === 'auditor' && (
           <AuditorPortal request={request} defaultProject={params.get('project') || validation?.project_id || request.project_id}
             defaultRoot={params.get('root') || validation?.merkle_root} />
         )}
         {tab === 'guida' && <Guida anchor={guideAnchor} />}
-        {tab === 'profilo' && (
-          <Profile user={user} isOwner={isOwner} onChangePassword={() => setPwOpen(true)} onGoHQ={() => nav.go('hq')} onGoAllocation={() => nav.go('allocation')}
+        <Keep id="profilo" tab={tab} visited={visited}>
+          <Profile user={user} isOwner={isOwner} clients={clients} clientId={clientId} onSelectClient={chooseClient} onClientsChanged={refreshClients} onChangePassword={() => setPwOpen(true)} onGoHQ={() => nav.go('hq')} onGoAllocation={() => nav.go('allocation')}
             onUsePayslip={addPayslipItem} onUseBalance={() => nav.go('allocation')} onUseDraft={addDraftItems} />
-        )}
+        </Keep>
         {tab === 'hq' && isOwner && <HQ onReplay={openReplay} user={user} />}
       </main>
 

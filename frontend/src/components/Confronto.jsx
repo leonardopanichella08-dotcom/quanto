@@ -30,9 +30,15 @@ function sharesOfValidation(validation) {
   return sum ? { shares: Object.fromEntries(Object.entries(tot).map(([k, v]) => [k, Math.round((v / sum) * 1000) / 10])), total: Math.round(sum) } : null
 }
 
-export default function Confronto({ validation }) {
+export default function Confronto({ validation, client }) {
   const [meta, setMeta] = useState(null)
   const [bandi, setBandi] = useState([])
+  const [affini, setAffini] = useState(null)             // bandi affini al lavoro: {options, note}
+  const [searchQ, setSearchQ] = useState('')
+  const [searchRes, setSearchRes] = useState([])
+  const [extra, setExtra] = useState([])                 // bandi cercati per nome e scelti a mano
+  const [engine, setEngine] = useState('COLLETTIVO')
+  const [restored, setRestored] = useState(false)
   const [mine, setMine] = useState([])
   const [niches, setNiches] = useState([])
   const [learning, setLearning] = useState(null)
@@ -42,45 +48,70 @@ export default function Confronto({ validation }) {
   const [region, setRegion] = useState('')
   const [rec, setRec] = useState(null)
   const [recError, setRecError] = useState(null)
-  const [form, setForm] = useState({ shares: {}, total: '', outcome: 'BOZZA', score: '', note: '', shared: false })
+  const [form, setForm] = useState({ shares: {}, total: '', outcome: 'BOZZA', score: '', note: '' })
   const [saving, setSaving] = useState(false)
-  const [showMine, setShowMine] = useState(false)
   const [msg, setMsg] = useState(null)
   const [error, setError] = useState(null)
   const seq = useRef(0)
   const fromBudget = useMemo(() => sharesOfValidation(validation), [validation])
 
   const refresh = useCallback(async () => {
-    const [m, n, l] = await Promise.all([api.templatesMine(), api.templateNiches(), api.templateLearning()])
+    const [m, n, l] = await Promise.all([api.templatesMine(), api.templateNiches(engine), api.templateLearning(engine)])
     setMine(m); setNiches(n); setLearning(l)
-  }, [])
+  }, [engine])
 
   useEffect(() => {
     (async () => {
       try {
-        const [mt, bl, ov] = await Promise.all([api.templateMeta(), api.bandi(), api.profile().catch(() => null)])
+        const [mt, bl, ov, st] = await Promise.all([api.templateMeta(), api.bandi(), api.profile().catch(() => null), api.clientState('confronto').catch(() => ({ value: null }))])
         setMeta(mt); setBandi(bl.filter((b) => b.curated || b.rules_count || b.requirements_count).sort((a, b) => a.name.localeCompare(b.name)))
         const f = ov?.fields || []
         const get = (k) => f.find((x) => x.key === k)?.value
-        if (get('ateco_code')) setAteco(String(get('ateco_code')))
-        if (get('region')) setRegion(String(get('region')))
-        if (ov?.size?.code) setSize(ov.size.code)
-        const [m, n, l] = await Promise.all([api.templatesMine(), api.templateNiches(), api.templateLearning()])
-        setMine(m); setNiches(n); setLearning(l)
-      } catch (e) { setError(e.message) }
+        const v = st?.value
+        setAteco(v?.ateco || (get('ateco_code') ? String(get('ateco_code')) : client?.ateco_code || ''))
+        setRegion(v?.region || (get('region') ? String(get('region')) : ''))
+        setSize(v?.size || ov?.size?.code || '')
+        if (v?.bandoId) setBandoId(v.bandoId)
+        if (v?.engine) setEngine(v.engine)
+        if (v?.extra) setExtra(v.extra)
+        if (v?.form) setForm(v.form)
+        setRestored(true)
+      } catch (e) { setError(e.message); setRestored(true) }
     })()
-  }, [])
+  }, [client])
+  // i bandi affini al lavoro (stessa logica dell'Allocazione): solo quelli che l'azienda può davvero fare, per evitare errori di scelta
+  useEffect(() => {
+    if (!restored) return
+    api.profileMatch(new Date().getFullYear() + 1, {}).then((r) => {
+      const studied = r.matching.results.filter((x) => x.fit !== 'NON_ADATTO').map((x) => ({ bando_id: x.bando_id, name: x.name, tag: x.fit === 'ADATTO' ? 'adatto' : 'da verificare' }))
+      const cat = (r.matching.catalog?.items || []).filter((x) => x.affinity !== 'BASSA').slice(0, 40).map((x) => ({ bando_id: x.bando_id, name: x.name, tag: `catalogo · ${x.affinity === 'ALTA' ? 'molto affine' : 'affine'}` }))
+      setAffini({ options: [...studied, ...cat], note: null })
+    }).catch(() => setAffini({ options: null, note: 'Per vedere solo i bandi affini servono i bilanci del lavoro: completa il profilo. Intanto sono elencati i bandi già studiati.' }))
+  }, [restored])
+  // scelte e consigli per lavoro: salvati da soli
+  useEffect(() => {
+    if (!restored) return undefined
+    const t = setTimeout(() => { api.saveClientState('confronto', { ateco, region, size, bandoId, engine, extra, form }).catch(() => {}) }, 800)
+    return () => clearTimeout(t)
+  }, [restored, ateco, region, size, bandoId, engine, extra, form])
+  useEffect(() => { if (restored) refresh().catch((e) => setError(e.message)) }, [restored, engine, refresh])
+  // ricerca di un altro bando per nome (se il cliente ha partecipato a un bando non tra gli affini)
+  useEffect(() => {
+    if (searchQ.trim().length < 3) { setSearchRes([]); return undefined }
+    const t = setTimeout(() => { api.bandiSearch(searchQ.trim()).then((r) => setSearchRes((r.matches || []).slice(0, 8))).catch(() => setSearchRes([])) }, 350)
+    return () => clearTimeout(t)
+  }, [searchQ])
 
   const ask = useCallback(async (draft) => {
     if (!ateco && !bandoId) { setRec(null); return }
     const id = ++seq.current
     setRecError(null)
     try {
-      const r = await api.templateRecommend({ ateco_code: ateco || undefined, bando_id: bandoId || undefined, ...(draft ? { draft } : {}) })
+      const r = await api.templateRecommend({ ateco_code: ateco || undefined, bando_id: bandoId || undefined, engine, ...(draft ? { draft } : {}) })
       if (id === seq.current) setRec(r)
     } catch (e) { if (id === seq.current) { setRec(null); setRecError(e.message) } }
-  }, [ateco, bandoId])
-  useEffect(() => { const t = setTimeout(() => ask(), 350); return () => clearTimeout(t) }, [ask, mine.length])
+  }, [ateco, bandoId, engine])
+  useEffect(() => { if (!restored) return undefined; const t = setTimeout(() => ask(), 350); return () => clearTimeout(t) }, [ask, mine.length, restored])
 
   const draftPct = useMemo(() => Object.fromEntries(Object.entries(form.shares).filter(([, v]) => v !== '' && !Number.isNaN(Number(v))).map(([k, v]) => [k, Number(v) / 100])), [form.shares])
   const sum = Object.values(draftPct).reduce((a, b) => a + b, 0)
@@ -89,31 +120,47 @@ export default function Confronto({ validation }) {
   const save = async () => {
     setSaving(true); setError(null); setMsg(null)
     try {
-      const body = { ateco_code: ateco, bando_id: bandoId, shares: draftPct, outcome: form.outcome, shared: form.shared, note: form.note,
+      const body = { ateco_code: ateco, bando_id: bandoId, shares: draftPct, outcome: form.outcome, note: form.note,
         ...(form.total ? { total_eur: Number(form.total) } : {}), ...(form.score !== '' ? { score: Number(form.score) } : {}), ...(size ? { company_size: size } : {}), ...(region ? { region } : {}) }
       const t = await api.createTemplate(body)
-      setMsg(`Template salvato (${t.niche}). Il consiglio si è aggiornato${t.distance != null ? `: questo budget distava il ${fmtNum(t.distance * 100, 1)}% dal consiglio di prima` : ''}.`)
+      setMsg(`Template salvato (${t.niche}) e aggiunto al motore collettivo in forma anonima. Il consiglio si è aggiornato${t.distance != null ? `: questo budget distava il ${fmtNum(t.distance * 100, 1)}% dal consiglio di prima` : ''}.`)
       await refresh(); await ask()
     } catch (e) { setError(e.message) } finally { setSaving(false) }
   }
   const setOutcome = async (t, outcome) => { try { await api.patchTemplate(t.id, { outcome }); await refresh(); await ask() } catch (e) { setError(e.message) } }
-  const toggleShared = async (t) => { try { await api.patchTemplate(t.id, { shared: !t.shared }); await refresh(); await ask() } catch (e) { setError(e.message) } }
   const remove = async (t) => { if (!window.confirm('Eliminare questo template?')) return; try { await api.deleteTemplate(t.id); await refresh(); await ask() } catch (e) { setError(e.message) } }
 
+  const bandoOptions = useMemo(() => {
+    const base = affini?.options || bandi.map((b) => ({ bando_id: b.bando_id, name: b.name, tag: '' }))
+    const seen = new Set(base.map((o) => o.bando_id))
+    return [...base, ...extra.filter((e) => !seen.has(e.bando_id))]
+  }, [affini, bandi, extra])
   if (!meta) return <div className="space-y-6"><Guide page="pattern" />{error ? <p className="text-xs text-red-700">{error}</p> : <p className="text-xs text-mute flex items-center gap-2"><Loader2 className="w-3.5 h-3.5 animate-spin" />Carico…</p>}</div>
   const shareMeta = meta.shares
-  const bandoName = (id) => bandi.find((b) => b.bando_id === id)?.name || id
+  const bandoName = (id) => bandoOptions.find((b) => b.bando_id === id)?.name || bandi.find((b) => b.bando_id === id)?.name || id
 
   return (
     <div className="space-y-6">
       <Guide page="pattern" />
       {error && <div className="p-3 rounded-xl border border-red-500/30 text-red-700 text-xs">{error}</div>}
 
+      <div className="card p-5 space-y-3">
+        <div className="flex flex-wrap items-center gap-3">
+          <div className="min-w-0 flex-1"><span className="label">Con quale motore ti confronti</span>
+            <p className="text-[11px] text-ink-2 mt-0.5 max-w-2xl leading-relaxed">Ogni template che salvi entra sempre, in forma anonima, nel motore collettivo. Il motore interno invece lavora solo sui template del tuo studio.</p></div>
+          <div className="inline-flex rounded-xl border border-line overflow-hidden" role="group" aria-label="Motore di confronto">
+            {[['COLLETTIVO', 'Collettivo'], ['INTERNO', 'Interno dello studio']].map(([k, l]) => (
+              <button key={k} aria-pressed={engine === k} onClick={() => setEngine(k)} className={`px-3.5 py-2 text-xs font-medium transition ${engine === k ? 'bg-liquid text-ink' : 'text-ink-2 hover:bg-field'}`}>{l}</button>
+            ))}
+          </div>
+        </div>
+      </div>
+
       {learning && (
         <div className="card p-5 space-y-2">
-          <span className="label">Come sta imparando l’algoritmo</span>
+          <span className="label">Come sta imparando l’algoritmo · {engine === 'INTERNO' ? 'motore interno' : 'motore collettivo'}</span>
           <div className="flex flex-wrap gap-x-8 gap-y-2">
-            {[['Template tuoi', learning.templates_mine], ['Nel campione', learning.templates_pool], ['Nicchie', learning.niches], ['Bandi', learning.bandi], ['Ammessi', learning.outcomes.AMMESSO]].map(([l, v]) => (
+            {[['Template tuoi', learning.templates_mine], [engine === 'INTERNO' ? 'Nel motore' : 'Nel campione', learning.templates_pool], ['Nicchie', learning.niches], ['Bandi', learning.bandi], ['Ammessi', learning.outcomes.AMMESSO]].map(([l, v]) => (
               <div key={l}><span className="label">{l}</span><div className="text-xl font-display font-semibold tabular-nums">{v}</div></div>
             ))}
           </div>
@@ -125,11 +172,28 @@ export default function Confronto({ validation }) {
         <div><h3 className="font-semibold text-base">Il budget consigliato</h3>
           <p className="text-xs text-ink-2 mt-0.5 max-w-2xl leading-relaxed">Scegli la nicchia (codice ATECO) e il bando: ti mostro come hanno ripartito il budget le aziende simili che hanno scelto quel bando, contando di più quelle ammesse.</p></div>
         <div className="grid sm:grid-cols-4 gap-3">
-          <label className="space-y-1"><span className="label">Codice ATECO</span><input className="field" value={ateco} onChange={(e) => setAteco(e.target.value)} placeholder="es. 01.11 o 62.01" /></label>
-          <label className="space-y-1 sm:col-span-2"><span className="label">Bando scelto</span>
-            <select className="field" value={bandoId} onChange={(e) => setBandoId(e.target.value)}><option value="">— tutti i bandi —</option>{bandi.map((b) => <option key={b.bando_id} value={b.bando_id}>{b.name}</option>)}</select></label>
+          <label className="space-y-1"><span className="label">Codice ATECO{client ? ` di ${client.name}` : ''}</span><input className="field" value={ateco} onChange={(e) => setAteco(e.target.value)} placeholder="es. 01.11 o 62.01" /></label>
+          <label className="space-y-1 sm:col-span-2"><span className="label">Bando scelto (solo quelli affini a questa azienda)</span>
+            <select className="field" value={bandoId} onChange={(e) => setBandoId(e.target.value)}>
+              <option value="">— scegli il bando —</option>
+              {bandoId && !bandoOptions.some((o) => o.bando_id === bandoId) && <option value={bandoId}>{bandoName(bandoId)}</option>}
+              {bandoOptions.map((o) => <option key={o.bando_id} value={o.bando_id}>{o.name}{o.tag ? ` — ${o.tag}` : ''}</option>)}
+            </select></label>
           <label className="space-y-1"><span className="label">Dimensione</span>
             <select className="field" value={size} onChange={(e) => setSize(e.target.value)}><option value="">—</option><option value="MICRO">Microimpresa</option><option value="SMALL">Piccola</option><option value="MEDIUM">Media</option><option value="LARGE">Grande</option></select></label>
+        </div>
+        {affini?.note && <p className="text-[11px] text-amber-700">{affini.note}</p>}
+        <div className="space-y-1.5">
+          <label className="space-y-1 block"><span className="label">Il cliente ha partecipato a un altro bando? Cercalo per nome</span>
+            <input className="field" value={searchQ} onChange={(e) => setSearchQ(e.target.value)} placeholder="es. Resto al Sud, Voucher digitalizzazione, Transizione 5.0…" /></label>
+          {searchRes.length > 0 && (
+            <ul className="rounded-xl border border-line bg-field divide-y divide-line text-xs">
+              {searchRes.map((m) => (
+                <li key={m.bando_id}><button className="w-full text-left px-3 py-2 hover:bg-white/60 flex flex-wrap items-center gap-2" onClick={() => { setExtra((e) => (e.some((x) => x.bando_id === m.bando_id) ? e : [...e, { bando_id: m.bando_id, name: m.name, tag: 'scelto a mano' }])); setBandoId(m.bando_id); setSearchQ(''); setSearchRes([]) }}>
+                  <span className="text-ink-2 min-w-0 flex-1 break-words">{m.name}</span><span className="text-[10px] text-mute">{m.issuer || ''}</span></button></li>
+              ))}
+            </ul>
+          )}
         </div>
         {recError && <p className="text-xs text-red-700">{recError}</p>}
         {rec && rec.status === 'NO_DATA' && (
@@ -181,7 +245,7 @@ export default function Confronto({ validation }) {
           <label className="space-y-1"><span className="label">Regione</span><input className="field" value={region} onChange={(e) => setRegion(e.target.value)} /></label>
         </div>
         <label className="space-y-1 block"><span className="label">Nota (facoltativa)</span><input className="field" maxLength={500} value={form.note} onChange={(e) => setForm({ ...form, note: e.target.value })} placeholder="Per esempio: progetto di meccanizzazione, cofinanziamento 40%" /></label>
-        <label className="inline-flex items-center gap-2 text-xs text-ink-2 cursor-pointer"><input type="checkbox" checked={form.shared} onChange={(e) => setForm({ ...form, shared: e.target.checked })} />Condividi in forma anonima (niente ragione sociale né partita IVA) per allenare l’algoritmo di tutti</label>
+        <p className="text-[11px] text-mute leading-relaxed">Il template è anonimo (nessuna ragione sociale né partita IVA) e alimenta il motore collettivo; la nota resta tua.</p>
         <div className="flex items-center gap-3">
           <button className="btn-primary" disabled={saving || !ateco || !bandoId || Math.abs(sum - 1) > 0.0205} onClick={save}>{saving && <Loader2 className="w-3.5 h-3.5 animate-spin" />}Salva template</button>
           {(!ateco || !bandoId) && <span className="text-xs text-mute">Indica il codice ATECO e il bando.</span>}
@@ -208,22 +272,18 @@ export default function Confronto({ validation }) {
       </div>
 
       <div className="card p-6 space-y-3">
-        <div className="flex flex-wrap items-center gap-3">
-          <div className="min-w-0 flex-1"><h3 className="font-semibold text-base">I miei dati di apprendimento</h3>
-            <p className="text-xs text-ink-2 mt-0.5">I template che hai salvato servono solo all’algoritmo e restano chiusi: aprili per aggiornare un esito (quando il bando risponde) o per eliminarne uno. Nessun altro li vede.</p></div>
-          <button className="btn" onClick={() => setShowMine(!showMine)}>{showMine ? 'Nascondi' : `Apri i miei template (${mine.length})`}</button>
-        </div>
-        {showMine && mine.length === 0 && <p className="text-xs text-mute">Nessun template salvato.</p>}
-        {showMine && mine.length > 0 && (
+        <div><h3 className="font-semibold text-base">I template del tuo studio ({mine.length})</h3>
+          <p className="text-xs text-ink-2 mt-0.5 max-w-2xl leading-relaxed">Tutti i budget che hai salvato, con il cliente da cui vengono. Quando il bando risponde, aggiorna l’esito: i budget ammessi pesano di più e il consiglio si ricalcola da solo.</p></div>
+        {mine.length === 0 && <p className="text-xs text-mute">Nessun template salvato.</p>}
+        {mine.length > 0 && (
           <div className="overflow-x-auto">
-            <table className="w-full text-xs"><thead><tr className="text-left text-mute"><th className="py-1.5 font-medium">Nicchia</th><th className="font-medium">Bando</th><th className="font-medium w-48">Ripartizione</th><th className="font-medium">Esito</th><th className="font-medium">Condiviso</th><th /></tr></thead>
+            <table className="w-full text-xs"><thead><tr className="text-left text-mute"><th className="py-1.5 font-medium">Cliente · nicchia</th><th className="font-medium">Bando</th><th className="font-medium w-48">Ripartizione</th><th className="font-medium">Esito</th><th /></tr></thead>
               <tbody>{mine.map((t) => (
                 <tr key={t.id} className="border-t border-line align-top">
-                  <td className="py-2 pr-2 text-ink-2">{t.niche}{t.total_eur ? <span className="block text-[10px] text-mute">{fmtEur(t.total_eur)}</span> : null}</td>
-                  <td className="pr-2 text-ink-2 max-w-[14rem] break-words">{bandoName(t.bando_id)}</td>
+                  <td className="py-2 pr-2 text-ink-2">{t.client_name && <span className="block font-medium text-ink">{t.client_name}</span>}{t.niche}{t.total_eur ? <span className="block text-[10px] text-mute">{fmtEur(t.total_eur)}</span> : null}</td>
+                  <td className="pr-2 text-ink-2 max-w-[14rem] break-words">{t.bando_name || bandoName(t.bando_id)}</td>
                   <td className="pr-2"><ShareBar shares={t.shares} meta={shareMeta} height="h-3" /></td>
                   <td><select className="field !py-1 !w-auto" value={t.outcome} onChange={(e) => setOutcome(t, e.target.value)}>{meta.outcomes.map((o) => <option key={o.key} value={o.key}>{o.label}</option>)}</select></td>
-                  <td><input type="checkbox" checked={t.shared} onChange={() => toggleShared(t)} aria-label="Condiviso in forma anonima" /></td>
                   <td className="text-right"><button className="text-mute hover:text-red-700" onClick={() => remove(t)} aria-label="Elimina"><Trash2 className="w-3.5 h-3.5" /></button></td>
                 </tr>
               ))}</tbody></table>

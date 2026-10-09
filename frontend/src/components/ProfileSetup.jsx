@@ -130,7 +130,7 @@ export default function ProfileSetup({ version = 0, onChanged, onGoAllocation, o
   const steps = useMemo(() => {
     if (!ov) return []
     return [
-      { id: 'all', icon: FolderOpen, title: 'Carica i documenti della tua azienda', optional: false, done: docs.length > 0,
+      { id: 'all', icon: FolderOpen, title: 'Carica i documenti dell’azienda', optional: false, done: docs.length > 0,
         text: 'Trascina insieme tutto quello che hai: visura camerale, bilanci, buste paga, F24, bozze di candidatura e ogni altro documento. QUANTO riconosce il tipo dal nome del file (lo puoi correggere) e legge quello che può.' },
       { id: 'registry', icon: Building2, title: 'Visura camerale', done: filled('legal_name') && filled('vat_number') && filled('ateco_code'),
         text: 'Dalla visura ricavo ragione sociale, partita IVA, forma giuridica, codice ATECO, sede e anno di costituzione.' },
@@ -175,7 +175,7 @@ export default function ProfileSetup({ version = 0, onChanged, onGoAllocation, o
           ))}
         </div>
         <div className="flex items-center gap-3 text-xs text-ink-2">
-          <span className="font-medium text-ink">Configura la tua azienda</span>
+          <span className="font-medium text-ink">Configura l’azienda del lavoro</span>
           <span>passo {step + 1} di {steps.length}</span>
           <span className="ml-auto tabular-nums font-semibold text-ink">{pct}% completo</span>
         </div>

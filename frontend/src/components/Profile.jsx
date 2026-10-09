@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useState } from 'react'
-import { Building2, KeyRound, Loader2, ShieldCheck, Sparkles, User } from 'lucide-react'
+import { Briefcase, Building2, KeyRound, Loader2, ShieldCheck, Sparkles, User } from 'lucide-react'
 import { api } from '../lib/api'
 import { fmtTs } from '../lib/format'
 import { SectionTitle } from './ui'
@@ -8,6 +8,7 @@ import CompanyProfile from './CompanyProfile'
 import ProfileSetup from './ProfileSetup'
 import Guide from './Guide'
 import { CreditsRing } from './CreditsBadge'
+import { ClientsPanel } from './Clients'
 
 const STATUS_TONE = { OK: 'text-emerald-700', WARN: 'text-amber-700', FAIL: 'text-red-700', DENIED: 'text-red-700', LOCKED: 'text-red-700', CONFLICT: 'text-amber-700', NOT_FOUND: 'text-amber-700' }
 const ROLE_LABEL = { MANAGER: 'Manager', USER: 'Utente' }
@@ -65,9 +66,10 @@ function Activity() {
   )
 }
 
-export default function Profile({ user, isOwner, onChangePassword, onGoHQ, onGoAllocation, onUsePayslip, onUseBalance, onUseDraft }) {
+export default function Profile({ user, isOwner, clients, clientId, onSelectClient, onClientsChanged, onChangePassword, onGoHQ, onGoAllocation, onUsePayslip, onUseBalance, onUseDraft }) {
   const [version, setVersion] = useState(0)          // si alza quando un documento cambia: il profilo azienda si ricarica
-  const bump = useCallback(() => setVersion((v) => v + 1), [])
+  const bump = useCallback(() => { setVersion((v) => v + 1); onClientsChanged?.(clientId) }, [onClientsChanged, clientId])
+  const active = (clients || []).find((c) => c.id === clientId)
   return (
     <div className="space-y-6">
       <Guide page="profilo" />
@@ -75,17 +77,30 @@ export default function Profile({ user, isOwner, onChangePassword, onGoHQ, onGoA
         <div className="w-12 h-12 rounded-2xl bg-tint-2 flex items-center justify-center shrink-0"><User className="w-6 h-6 text-ink-2" /></div>
         <div className="min-w-0">
           <p className="text-sm font-semibold text-ink truncate">{user.name}</p>
-          <p className="text-xs text-mute truncate">{user.email} · {ROLE_LABEL[user.role] || user.role}</p>
+          <p className="text-xs text-mute truncate">Profilo dello studio · {user.email} · {ROLE_LABEL[user.role] || user.role}</p>
         </div>
         <button onClick={onChangePassword} className="btn ml-auto"><KeyRound className="w-3.5 h-3.5" />Cambia password</button>
       </div>
 
-      <ProfileSetup version={version} onChanged={bump} onGoAllocation={onGoAllocation}
-        onGoDocuments={() => document.getElementById('documenti-azienda')?.scrollIntoView({ behavior: 'smooth', block: 'start' })} />
-
-      <CompanyProfile version={version} />
-
       <Credits />
+
+      <div className="card p-6"><ClientsPanel clients={clients} clientId={clientId} onSelect={onSelectClient} onChanged={onClientsChanged} /></div>
+
+      {active && (
+        <div className="space-y-6" key={active.id}>
+          <div className="flex items-center gap-2 px-1"><Briefcase className="w-4 h-4 text-ink-2" /><h3 className="text-base font-semibold text-ink">Lavoro attivo: {active.name}</h3></div>
+          <ProfileSetup version={version} onChanged={bump} onGoAllocation={onGoAllocation}
+            onGoDocuments={() => document.getElementById('documenti-azienda')?.scrollIntoView({ behavior: 'smooth', block: 'start' })} />
+
+          <CompanyProfile version={version} />
+
+          <div id="documenti-azienda" className="space-y-3 scroll-mt-20">
+            <div className="flex items-center gap-2 px-1"><span className="text-sm font-medium text-ink">I documenti di {active.name}</span></div>
+            <p className="text-xs text-mute px-1 -mt-2">Visura, bilanci, buste paga, F24, bozze di candidatura e ogni altro documento aziendale: restano dentro questo lavoro e li vede solo il tuo studio. Da visura e bilanci si compila il profilo qui sopra.</p>
+            <Documents onUsePayslip={onUsePayslip} onUseBalance={onUseBalance} onUseDraft={onUseDraft} onProfileChanged={bump} refreshKey={version} />
+          </div>
+        </div>
+      )}
 
       {isOwner && (
         <button onClick={onGoHQ} className="w-full card p-5 flex items-center gap-4 text-left hover:border-line-strong transition">
@@ -99,12 +114,6 @@ export default function Profile({ user, isOwner, onChangePassword, onGoHQ, onGoA
       )}
 
       <Activity />
-
-      <div id="documenti-azienda" className="space-y-3 scroll-mt-20">
-        <div className="flex items-center gap-2 px-1"><span className="text-sm font-medium text-ink">I documenti dell’azienda</span></div>
-        <p className="text-xs text-mute px-1 -mt-2">Visura, bilanci, buste paga, F24, bozze di candidatura e ogni altro documento aziendale: solo tu li vedi. Da visura e bilanci si compila il profilo qui sopra.</p>
-        <Documents onUsePayslip={onUsePayslip} onUseBalance={onUseBalance} onUseDraft={onUseDraft} onProfileChanged={bump} refreshKey={version} />
-      </div>
     </div>
   )
 }

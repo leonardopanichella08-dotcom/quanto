@@ -13,7 +13,8 @@ L'algoritmo non è un modello opaco: è statistica spiegabile e ripetibile (stes
   vincitori più pesanti. Si registra anche quanto ogni template si discostava dal consiglio che c'era al momento del salvataggio: con abbastanza esiti si vede se
   chi si avvicina al consiglio vince più spesso. Nessun testo viene generato: solo conti.
 
-I template sono privati; chi vuole li condivide in forma anonima (niente ragione sociale né partita IVA) e allena l'algoritmo di tutti.
+Ogni template salvato alimenta SEMPRE il motore collettivo, in forma anonima (niente ragione sociale né partita IVA). Lo studio sceglie con quale motore confrontarsi: il
+**collettivo** (tutti i template) o l'**interno** (solo i suoi). Dei template altrui si usano solo gruppi di almeno ``MIN_FOREIGN``: sotto, nessuno può risalire a un cliente.
 """
 from __future__ import annotations
 
@@ -31,6 +32,7 @@ from app.core.pattern_bank import kmeans, silhouette
 SHARES = ("personnel_pct", "assets_pct", "consulting_pct", "research_pct", "overhead_pct", "training_pct", "communication_pct", "other_pct")
 SHARE_LABEL = {"personnel_pct": "Personale", "assets_pct": "Beni strumentali", "consulting_pct": "Consulenze", "research_pct": "Ricerca e sviluppo",
                "overhead_pct": "Spese generali", "training_pct": "Formazione", "communication_pct": "Comunicazione", "other_pct": "Altro"}
+ENGINES = {"COLLETTIVO": "motore collettivo (tutti i template)", "INTERNO": "motore interno (solo i template del tuo studio)"}
 OUTCOMES = ("BOZZA", "PRESENTATO", "AMMESSO", "NON_AMMESSO")
 OUTCOME_LABEL = {"BOZZA": "Bozza", "PRESENTATO": "Presentato", "AMMESSO": "Ammesso", "NON_AMMESSO": "Non ammesso"}
 OUTCOME_WEIGHT = {"AMMESSO": 3.0, "PRESENTATO": 1.5, "BOZZA": 1.0, "NON_AMMESSO": 0.25}
@@ -129,15 +131,26 @@ def _row(r) -> Dict[str, Any]:
     return d
 
 
-def _pool(owner: str) -> List[Dict[str, Any]]:
+def _engine(engine: Optional[str]) -> str:
+    e = (engine or "COLLETTIVO").upper()
+    if e not in ENGINES:
+        raise TemplateError("Motore non valido: collettivo o interno")
+    return e
+
+
+def _pool(owner: str, engine: str = "COLLETTIVO") -> List[Dict[str, Any]]:
+    """Il campione su cui lavora il motore: tutti i template (collettivo) oppure solo quelli dello studio (interno)."""
     with connect() as conn:
-        rows = conn.execute("SELECT * FROM budget_templates WHERE owner=? OR shared=TRUE ORDER BY id", (owner,)).fetchall()
+        if _engine(engine) == "INTERNO":
+            rows = conn.execute("SELECT * FROM budget_templates WHERE owner=? ORDER BY id", (owner,)).fetchall()
+        else:
+            rows = conn.execute("SELECT * FROM budget_templates ORDER BY id").fetchall()
     return [_row(r) for r in rows]
 
 
 def list_templates(owner: str) -> List[Dict[str, Any]]:
     with connect() as conn:
-        rows = conn.execute("SELECT * FROM budget_templates WHERE owner=? ORDER BY id DESC", (owner,)).fetchall()
+        rows = conn.execute("SELECT t.*, c.name AS client_name FROM budget_templates t LEFT JOIN clients c ON c.id = t.client_id WHERE t.owner=? ORDER BY t.id DESC", (owner,)).fetchall()
     out = []
     for r in rows:
         d = _row(r)
@@ -165,17 +178,19 @@ def _matches(t: Dict[str, Any], tier: str, division: Optional[str], section: Opt
             "SETTORE": section is not None and t["ateco_section"] == section, "TUTTI": True}[tier]
 
 
-def recommend(owner: str, ateco_code: Optional[str], bando_id: Optional[str], draft: Optional[Dict[str, Any]] = None, exclude_id: Optional[int] = None) -> Dict[str, Any]:
+def recommend(owner: str, ateco_code: Optional[str], bando_id: Optional[str], draft: Optional[Dict[str, Any]] = None, exclude_id: Optional[int] = None,
+              engine: str = "COLLETTIVO") -> Dict[str, Any]:
     """Il budget consigliato per questa nicchia e questo bando, con i numeri da cui viene. Confronta anche un budget bozza, se c'è."""
     division = section = None
     if ateco_code:
         division = division_of(ateco_code)
         section = section_of(division)
-    pool = [t for t in _pool(owner) if t["id"] != exclude_id]
+    engine = _engine(engine)
+    pool = [t for t in _pool(owner, engine) if t["id"] != exclude_id]
     groups = {tier: _visible(owner, [t for t in pool if _matches(t, tier, division, section, bando_id)]) for tier, _ in TIERS}
     counts = {tier: len(g) for tier, g in groups.items()}
     chosen = next((tier for tier, _ in TIERS if counts[tier] >= MIN_TEMPLATES), None)
-    out: Dict[str, Any] = {"tier_counts": [{"tier": t, "label": lbl, "templates": counts[t]} for t, lbl in TIERS], "pool_size": len(pool), "pool_hash": _pool_hash(pool),
+    out: Dict[str, Any] = {"engine": engine, "engine_label": ENGINES[engine], "tier_counts": [{"tier": t, "label": lbl, "templates": counts[t]} for t, lbl in TIERS], "pool_size": len(pool), "pool_hash": _pool_hash(pool),
                            "min_templates": MIN_TEMPLATES}
     if chosen is None:
         out.update({"status": "NO_DATA", "message": f"Servono almeno {MIN_TEMPLATES} template simili per dare un consiglio: oggi ce ne sono {len(pool)} in tutto. "
@@ -272,10 +287,10 @@ def _validate_common(data: Dict[str, Any]) -> Dict[str, Any]:
         raise TemplateError("Importo totale non valido")
     return {"ateco_code": ateco, "ateco_division": niche["division"], "ateco_section": niche["section"], "outcome": outcome, "score": score, "total_eur": total,
             "company_size": (str(data.get("company_size") or "")[:20] or None), "region": (str(data.get("region") or "")[:40] or None),
-            "note": str(data.get("note") or "")[:500], "shared": bool(data.get("shared"))}
+            "note": str(data.get("note") or "")[:500], "shared": True}
 
 
-def save_template(owner: str, data: Dict[str, Any], actor: Optional[str] = None) -> Dict[str, Any]:
+def save_template(owner: str, data: Dict[str, Any], actor: Optional[str] = None, client_id: Optional[int] = None) -> Dict[str, Any]:
     from app.core import bandi
     from app.core.ingestion import Ingestion
     bandi.ensure_seeded()                                   # i bandi curati entrano in archivio alla prima richiesta
@@ -285,19 +300,19 @@ def save_template(owner: str, data: Dict[str, Any], actor: Optional[str] = None)
     if bando is None:
         raise TemplateError("Scegli il bando a cui si riferisce il template (deve essere tra quelli in memoria)")
     shares = clean_shares(data.get("shares") or {})
-    rec = recommend(owner, common["ateco_code"], bando_id)          # il consiglio che c'era prima di questo template: serve a misurare se l'algoritmo ci prende
+    rec = recommend(owner, common["ateco_code"], bando_id, engine="COLLETTIVO")          # il consiglio che c'era prima di questo template: serve a misurare se l'algoritmo ci prende
     recommended = rec.get("recommended")
     distance = round(_distance(shares, recommended), 4) if recommended else None
     now = events.now_iso()
     with connect() as conn:
         cur = conn.execute(
             "INSERT INTO budget_templates (owner, shared, ateco_code, ateco_division, ateco_section, company_size, region, bando_id, bando_name, total_eur, shares, outcome, score, "
-            "note, recommended, distance, created_at, updated_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?) RETURNING id",
+            "note, recommended, distance, client_id, created_at, updated_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?) RETURNING id",
             (owner, common["shared"], common["ateco_code"], common["ateco_division"], common["ateco_section"], common["company_size"], common["region"], bando_id, bando["name"],
-             common["total_eur"], json.dumps(shares), common["outcome"], common["score"], common["note"], json.dumps(recommended) if recommended else None, distance, now, now))
+             common["total_eur"], json.dumps(shares), common["outcome"], common["score"], common["note"], json.dumps(recommended) if recommended else None, distance, client_id, now, now))
         new_id = cur.fetchone()["id"]
     events.record("template.save", f"Template salvato: {niche_label(common['ateco_code'])['label']} · {bando['name'][:50]} · {OUTCOME_LABEL[common['outcome']]}", actor=actor or owner, bando_id=bando_id,
-                  details={"template_id": new_id, "shared": common["shared"], "distance_from_recommendation": distance})
+                  details={"template_id": new_id, "client_id": client_id, "distance_from_recommendation": distance})
     with connect() as conn:
         row = conn.execute("SELECT * FROM budget_templates WHERE id=?", (new_id,)).fetchone()
     return _row(row)
@@ -310,12 +325,12 @@ def update_template(owner: str, template_id: int, data: Dict[str, Any], actor: O
         raise KeyError(template_id)
     cur = _row(row)
     merged = {"ateco_code": cur["ateco_code"], "outcome": cur["outcome"], "score": cur["score"], "total_eur": cur["total_eur"], "company_size": cur["company_size"],
-              "region": cur["region"], "note": cur["note"], "shared": cur["shared"], **{k: v for k, v in data.items() if k in ("outcome", "score", "note", "shared", "total_eur")}}
+              "region": cur["region"], "note": cur["note"], "shared": True, **{k: v for k, v in data.items() if k in ("outcome", "score", "note", "total_eur")}}
     common = _validate_common(merged)
     shares = clean_shares(data["shares"]) if data.get("shares") else cur["shares"]
     with connect() as conn:
-        conn.execute("UPDATE budget_templates SET outcome=?, score=?, note=?, shared=?, total_eur=?, shares=?, updated_at=? WHERE id=?",
-                     (common["outcome"], common["score"], common["note"], common["shared"], common["total_eur"], json.dumps(shares), events.now_iso(), template_id))
+        conn.execute("UPDATE budget_templates SET outcome=?, score=?, note=?, shared=TRUE, total_eur=?, shares=?, updated_at=? WHERE id=?",
+                     (common["outcome"], common["score"], common["note"], common["total_eur"], json.dumps(shares), events.now_iso(), template_id))
         row = conn.execute("SELECT * FROM budget_templates WHERE id=?", (template_id,)).fetchone()
     events.record("template.update", f"Template {template_id} aggiornato: {OUTCOME_LABEL[common['outcome']]}", actor=actor or owner, bando_id=cur["bando_id"], details={"template_id": template_id})
     return _row(row)
@@ -331,9 +346,9 @@ def delete_template(owner: str, template_id: int, actor: Optional[str] = None) -
 
 
 # ------------------------------------------------------------------------------------------------ mappa delle nicchie e stato dell'apprendimento
-def niche_map(owner: str) -> List[Dict[str, Any]]:
+def niche_map(owner: str, engine: str = "COLLETTIVO") -> List[Dict[str, Any]]:
     """Per ogni nicchia (ATECO a 2 cifre): quanti template, quali bandi hanno scelto, con quale ripartizione media e quanti ammessi."""
-    pool = _pool(owner)
+    pool = _pool(owner, engine)
     cells: Dict[Tuple[str, str], List[Dict[str, Any]]] = {}
     for t in pool:
         cells.setdefault((t["ateco_division"], t["bando_id"]), []).append(t)
@@ -363,9 +378,10 @@ def niche_map(owner: str) -> List[Dict[str, Any]]:
     return out
 
 
-def learning_status(owner: str) -> Dict[str, Any]:
+def learning_status(owner: str, engine: str = "COLLETTIVO") -> Dict[str, Any]:
     """Come sta imparando l'algoritmo: quanti template, con che esiti, e se i budget vicini al consiglio vincono più spesso."""
-    pool = _pool(owner)
+    engine = _engine(engine)
+    pool = _pool(owner, engine)
     mine = [t for t in pool if t["owner"] == owner]
     outcomes = {o: sum(1 for t in pool if t["outcome"] == o) for o in OUTCOMES}
     judged = [t for t in pool if t["outcome"] in ("AMMESSO", "NON_AMMESSO") and t["distance"] is not None]
@@ -380,5 +396,5 @@ def learning_status(owner: str) -> Dict[str, Any]:
     else:
         feedback["message"] = (f"Servono almeno {MIN_FEEDBACK} esiti noti sia tra i budget vicini al consiglio sia tra gli altri per dire se seguire il consiglio conviene: "
                                f"oggi {len(close)} vicini e {len(far)} lontani.")
-    return {"templates_mine": len(mine), "templates_pool": len(pool), "templates_shared_by_others": sum(1 for t in pool if t["owner"] != owner), "outcomes": outcomes,
+    return {"engine": engine, "engine_label": ENGINES[engine], "templates_mine": len(mine), "templates_pool": len(pool), "templates_shared_by_others": sum(1 for t in pool if t["owner"] != owner), "outcomes": outcomes,
             "pool_hash": _pool_hash(pool), "feedback": feedback, "niches": len({t["ateco_division"] for t in pool}), "bandi": len({t["bando_id"] for t in pool})}

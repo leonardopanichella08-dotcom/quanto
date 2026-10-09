@@ -4,7 +4,7 @@ from typing import Dict, Optional
 from fastapi import APIRouter, HTTPException, Request, status
 from pydantic import BaseModel, ConfigDict, Field
 
-from app.api.deps import actor_of
+from app.api.deps import actor_of, client_of
 from app.core import template_learning as tl
 
 router = APIRouter()
@@ -22,7 +22,6 @@ class TemplateBody(BaseModel):
     company_size: Optional[str] = Field(default=None, max_length=20)
     region: Optional[str] = Field(default=None, max_length=40)
     note: str = Field(default="", max_length=500)
-    shared: bool = Field(default=False, description="Condividi il template in forma anonima per allenare l'algoritmo di tutti")
 
 
 class TemplatePatch(BaseModel):
@@ -32,7 +31,6 @@ class TemplatePatch(BaseModel):
     score: Optional[float] = Field(default=None, ge=0, le=1000)
     total_eur: Optional[float] = Field(default=None, gt=0)
     note: Optional[str] = Field(default=None, max_length=500)
-    shared: Optional[bool] = None
     shares: Optional[Dict[str, float]] = None
 
 
@@ -42,6 +40,7 @@ class RecommendBody(BaseModel):
     ateco_code: Optional[str] = Field(default=None, max_length=12)
     bando_id: Optional[str] = Field(default=None, max_length=80)
     draft: Optional[Dict[str, float]] = Field(default=None, description="Il tuo budget bozza da confrontare con il consiglio")
+    engine: str = Field(default="COLLETTIVO", description="COLLETTIVO (tutti i template) o INTERNO (solo quelli del tuo studio)")
 
 
 def _guard(fn, *a, **kw):
@@ -54,7 +53,7 @@ def _guard(fn, *a, **kw):
 @router.get("/meta", summary="Voci del budget, esiti e livelli usati dai template")
 def meta() -> dict:
     return {"shares": [{"key": k, "label": tl.SHARE_LABEL[k]} for k in tl.SHARES], "outcomes": [{"key": k, "label": tl.OUTCOME_LABEL[k], "weight": tl.OUTCOME_WEIGHT[k]} for k in tl.OUTCOMES],
-            "min_templates": tl.MIN_TEMPLATES, "tiers": [{"key": k, "label": v} for k, v in tl.TIERS]}
+            "min_templates": tl.MIN_TEMPLATES, "engines": [{"key": k, "label": v} for k, v in tl.ENGINES.items()], "tiers": [{"key": k, "label": v} for k, v in tl.TIERS]}
 
 
 @router.get("", summary="I miei template di budget")
@@ -65,7 +64,7 @@ def mine(request: Request) -> list:
 @router.post("", status_code=status.HTTP_201_CREATED, summary="Salva un template: nicchia, bando scelto, ripartizione del budget ed esito")
 def create(body: TemplateBody, request: Request) -> dict:
     owner = actor_of(request)
-    return _guard(tl.save_template, owner, body.model_dump(), owner)
+    return _guard(tl.save_template, owner, body.model_dump(), owner, client_of(request))
 
 
 @router.patch("/{template_id}", summary="Aggiorna l'esito, il punteggio o le quote di un mio template: l'algoritmo si riallena da solo")
@@ -87,14 +86,14 @@ def remove(template_id: int, request: Request) -> dict:
 
 @router.post("/recommend", summary="Il budget consigliato per una nicchia e un bando (e il confronto con un budget bozza)")
 def recommend(body: RecommendBody, request: Request) -> dict:
-    return _guard(tl.recommend, actor_of(request), body.ateco_code, body.bando_id, body.draft)
+    return _guard(tl.recommend, actor_of(request), body.ateco_code, body.bando_id, body.draft, None, body.engine)
 
 
 @router.get("/niches", summary="Mappa: quali nicchie partecipano a quali bandi, con quale ripartizione e quanti ammessi")
-def niches(request: Request) -> list:
-    return tl.niche_map(actor_of(request))
+def niches(request: Request, engine: str = "COLLETTIVO") -> list:
+    return _guard(tl.niche_map, actor_of(request), engine)
 
 
 @router.get("/learning", summary="Come sta imparando l'algoritmo: template, esiti e se seguire il consiglio conviene")
-def learning(request: Request) -> dict:
-    return tl.learning_status(actor_of(request))
+def learning(request: Request, engine: str = "COLLETTIVO") -> dict:
+    return _guard(tl.learning_status, actor_of(request), engine)

@@ -8,7 +8,7 @@ from urllib.parse import quote
 from fastapi import APIRouter, HTTPException, Request, Response, status
 from pydantic import BaseModel, Field
 
-from app.api.deps import actor_of
+from app.api.deps import actor_of, scope_of
 from app.core import crypto_store
 from app.core.fonte_c import service
 
@@ -27,7 +27,7 @@ class ReviewBody(BaseModel):
 
 
 def _owner(request: Request) -> str:
-    return actor_of(request)
+    return scope_of(request)
 
 
 def _guard(fn, *a, **kw):

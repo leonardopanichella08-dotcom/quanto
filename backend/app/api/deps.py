@@ -7,7 +7,7 @@ from typing import Optional
 
 from fastapi import HTTPException, Request, status
 
-from app.core import auth, users
+from app.core import auth, clients, users
 from app.core.auditor_engine import AuditorVerificationEngine
 
 logger = logging.getLogger("quanto.api")
@@ -82,3 +82,23 @@ def require_hq(request: Request) -> None:
         return
     if u["role"] != "MANAGER":
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Serve il ruolo di manager")
+
+
+def client_of(request: Request) -> Optional[int]:
+    """Il lavoro (azienda cliente) attivo, dall'intestazione X-Client-Id; deve appartenere allo studio che fa la richiesta."""
+    raw = request.headers.get("x-client-id")
+    if not raw:
+        return None
+    if not raw.isdigit():
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Lavoro non valido")
+    cid = int(raw)
+    if not clients.owns(actor_of(request), cid):
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Lavoro non trovato")
+    return cid
+
+
+def scope_of(request: Request) -> str:
+    """La chiave dei dati d'impresa: studio + lavoro attivo. Senza lavoro (uso diretto dell'API) resta la sola chiave dello studio."""
+    base = actor_of(request)
+    cid = client_of(request)
+    return clients.scope(base, cid) if cid else base

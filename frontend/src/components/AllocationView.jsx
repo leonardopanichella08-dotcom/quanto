@@ -190,6 +190,8 @@ export default function AllocationView({ onGoProfile, onBudgetFrom }) {
   const [studyingMore, setStudyingMore] = useState(false)
   const [studyNote, setStudyNote] = useState(null)
   const auto = useRef(false)
+  const pending = useRef(null)                           // bandi inclusi nel piano al momento dell'ultimo salvataggio
+  const [restored, setRestored] = useState(false)
   const [target, setTarget] = useState('MINIMIZE_NET_COST')
   const [deMinimis, setDeMinimis] = useState('')
   const [plan, setPlan] = useState(null)
@@ -200,6 +202,18 @@ export default function AllocationView({ onGoProfile, onBudgetFrom }) {
   const seq = useRef(0)
 
   useEffect(() => { api.profile().then(setOv).catch((e) => setError(e.message)) }, [])
+  // scelte salvate per questo lavoro: anno, percentuali scritte a mano, bandi inclusi, obiettivo, de minimis
+  useEffect(() => {
+    api.clientState('allocation').then((st) => {
+      const v = st.value
+      if (v) { if (v.year) setYear(v.year); setGrowth(v.growth || {}); if (v.target) setTarget(v.target); setDeMinimis(v.deMinimis ?? ''); pending.current = v.picked || [] }
+    }).catch(() => {}).finally(() => setRestored(true))
+  }, [])
+  useEffect(() => {
+    if (!restored) return undefined
+    const t = setTimeout(() => { api.saveClientState('allocation', { year, growth, picked, target, deMinimis }).catch(() => {}) }, 800)
+    return () => clearTimeout(t)
+  }, [restored, year, growth, picked, target, deMinimis])
 
   const growthBody = useCallback(() => Object.fromEntries(Object.entries(growth).filter(([, v]) => v !== undefined && v !== '' && !Number.isNaN(Number(v))).map(([k, v]) => [k, Number(v) / 100])), [growth])
   const setOverride = (key, v) => setGrowth((g) => { const n = { ...g }; if (v === undefined) delete n[key]; else n[key] = v; return n })
@@ -212,9 +226,13 @@ export default function AllocationView({ onGoProfile, onBudgetFrom }) {
     return full
   }
   const estimate = async () => {
-    setMatching(true); setError(null); setPlan(null); setPicked([]); setStudied(null)
+    setMatching(true); setError(null); setPlan(null); setStudied(null)
     try {
       const res = await runMatch()
+      const valid = new Set(res.matching.results.filter((r) => r.fund).map((r) => r.bando_id))
+      const keep = pending.current ?? picked                         // i bandi già inclusi restano inclusi (se ancora validi): ricalcolare non deve cancellare le scelte
+      pending.current = null
+      setPicked(keep.filter((id) => valid.has(id)))
       setTab(res.matching.summary.ADATTO ? 'ADATTO' : res.matching.summary.DA_VERIFICARE ? 'DA_VERIFICARE' : 'NON_ADATTO')
     } catch (e) { setError(e.message); setMatch(null) } finally { setMatching(false) }
   }
@@ -222,9 +240,9 @@ export default function AllocationView({ onGoProfile, onBudgetFrom }) {
   const templateChanged = async () => { setGrowth({}); setMatching(true); setError(null); setPlan(null); setPicked([]); try { const res = await api.profileMatch(Number(year), {}); setMatch({ ...res, growthSent: {} }) } catch (e) { setError(e.message) } finally { setMatching(false) } }
   // La stima parte da sola appena c'è un bilancio: le percentuali arrivano già compilate, l'utente non deve rifarle.
   useEffect(() => {
-    if (ov && ov.last_year != null && !auto.current) { auto.current = true; estimate() }
+    if (ov && ov.last_year != null && restored && !auto.current) { auto.current = true; estimate() }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [ov])
+  }, [ov, restored])
   // Dopo lo studio di un bando del catalogo: si ricalcola, si porta l'utente alla scheda dove il bando è finito e si mostra com'è andata la lettura.
   const afterStudy = async (it, r) => {
     try {

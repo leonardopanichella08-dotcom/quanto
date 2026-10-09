@@ -4,7 +4,7 @@ from typing import Any, Dict, Optional
 from fastapi import APIRouter, HTTPException, Request, status
 from pydantic import BaseModel, Field
 
-from app.api.deps import actor_of
+from app.api.deps import actor_of, scope_of
 from app.core import company_profile as cp
 from app.core import events, matching
 
@@ -45,56 +45,56 @@ class TemplateBody(BaseModel):
 
 @router.get("", summary="Il profilo aziendale: dati, bilanci per esercizio, cosa manca e quanto è completo")
 def get_profile(request: Request) -> dict:
-    return cp.overview(actor_of(request))
+    return cp.overview(scope_of(request))
 
 
 @router.put("", summary="Salva i dati dell'impresa inseriti a mano")
 def put_profile(body: ProfileBody, request: Request) -> dict:
-    owner = actor_of(request)
+    owner = scope_of(request)
     _guard(cp.update_profile, owner, body.fields, owner)
     return cp.overview(owner)
 
 
 @router.put("/financials/{year}", summary="Salva i dati di un esercizio inseriti a mano")
 def put_financials(year: int, body: FinancialsBody, request: Request) -> dict:
-    owner = actor_of(request)
+    owner = scope_of(request)
     _guard(cp.update_financials, owner, year, body.values, owner)
     return cp.overview(owner)
 
 
 @router.post("/sync", summary="Rileggi i documenti caricati e aggiorna il profilo (i valori inseriti a mano restano)")
 def sync(request: Request) -> dict:
-    owner = actor_of(request)
+    owner = scope_of(request)
     changed = cp.sync_from_documents(owner, owner)
     return {"changed": changed, "profile": cp.overview(owner)}
 
 
 @router.get("/forecast-template", summary="Il modello di previsione salvato dall'utente (percentuali annue di crescita o calo di costi e ricavi)")
 def get_forecast_template(request: Request) -> dict:
-    return {"template": cp.get_forecast_template(actor_of(request)), "keys": [{"key": k, "label": cp.GROWTH_LABEL[k]} for k in cp.GROWTH_KEYS]}
+    return {"template": cp.get_forecast_template(scope_of(request)), "keys": [{"key": k, "label": cp.GROWTH_LABEL[k]} for k in cp.GROWTH_KEYS]}
 
 
 @router.put("/forecast-template", summary="Salva il modello di previsione: sostituisce il precedente")
 def put_forecast_template(body: ForecastTemplateBody, request: Request) -> dict:
-    owner = actor_of(request)
+    owner = scope_of(request)
     return {"template": _guard(cp.save_forecast_template, owner, body.growth, body.label, body.note, owner)}
 
 
 @router.delete("/forecast-template", summary="Elimina il modello di previsione: le percentuali tornano a essere ricavate dai bilanci")
 def delete_forecast_template(request: Request) -> dict:
-    owner = actor_of(request)
+    owner = scope_of(request)
     cp.delete_forecast_template(owner, owner)
     return {"template": None}
 
 
 @router.post("/forecast", summary="Stima delle spese dell'anno indicato a partire dall'ultimo bilancio")
 def forecast(body: ForecastBody, request: Request) -> dict:
-    return _guard(cp.forecast, actor_of(request), body.year, body.growth)
+    return _guard(cp.forecast, scope_of(request), body.year, body.growth)
 
 
 @router.post("/match", summary="Quali bandi vanno bene per l'azienda, quali voci riducono, di quanto e come rientrarci")
 def match(body: ForecastBody, request: Request) -> dict:
-    owner = actor_of(request)
+    owner = scope_of(request)
     fc = _guard(cp.forecast, owner, body.year, body.growth)
     by_cat = {r["category"]: r["forecast_eur"] for r in fc["categories"]}
     result = matching.match_all(cp.profile_values(owner), by_cat, body.year)
@@ -105,7 +105,7 @@ def match(body: ForecastBody, request: Request) -> dict:
 
 @router.post("/template", summary="Bozza di budget per un bando, ricavata dai bilanci dell'azienda (da modificare)")
 def template(body: TemplateBody, request: Request) -> dict:
-    owner = actor_of(request)
+    owner = scope_of(request)
     try:
         out = _guard(matching.budget_template, owner, body.bando_id, body.scale_pct, body.fit)
     except KeyError:

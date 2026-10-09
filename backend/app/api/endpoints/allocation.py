@@ -5,7 +5,7 @@ from typing import List, Optional
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request, status
 from pydantic import BaseModel, Field
 
-from app.api.deps import actor_of, require_hq
+from app.api.deps import actor_of, scope_of, require_hq
 from app.core import company_profile, events, funds, llm, webhooks
 from app.core.renderer import render_with_grounding
 from app.core.fonte_c import service as fonte_c
@@ -40,7 +40,7 @@ def optimize_allocation_plan(request: AllocationOptimizationRequest, background:
         source = f"bilancio {request.historical_balance_ref}" + (" con variazioni" if growth else "")
     elif request.use_profile_forecast:                      # spese dell'anno da pianificare = ultimo bilancio del profilo + le variazioni scelte dall'utente
         try:
-            fc = company_profile.forecast(actor_of(http), request.fiscal_year, {k.value: v for k, v in request.growth_pct.items()})
+            fc = company_profile.forecast(scope_of(http), request.fiscal_year, {k.value: v for k, v in request.growth_pct.items()})
         except company_profile.ProfileError as exc:
             raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(exc)) from exc
         request.historical_expenses = [ExpenseLine(item_id=f"STIMA-{r['category']}", category=r["category"], amount_eur=r["forecast_eur"]) for r in fc["categories"] if r["forecast_eur"] > 0]

@@ -130,7 +130,7 @@ export const GUIDE = {
   },
   allocation: {
     title: 'Allocazione',
-    what: 'Parte dai bilanci della tua azienda, stima le spese dell’anno successivo, trova i bandi adatti (e come rientrare nei loro tetti) e decide quali spese far coprire da quali bandi, per pagare di tasca propria il meno possibile.',
+    what: 'Parte dai bilanci dell’azienda del lavoro attivo, stima le spese dell’anno successivo, trova i bandi adatti (e come rientrare nei loro tetti) e decide quali spese far coprire da quali bandi, per pagare di tasca propria il meno possibile.',
     steps: ['1 · Controlla i dati: bilanci e documenti si caricano nel Profilo; ciò che manca lo completi tu.', '2 · Stima dell’anno: parte dall’ultimo bilancio, la variazione per categoria la scegli tu.', '3 · Bandi adatti: per ognuno vedi se puoi partecipare, quanto potrebbe coprire e quali voci ridurre per rispettare i tetti. In «Da studiare» trovi i bandi del catalogo non ancora letti, in ordine di affinità: se uno ti interessa, premi «Studia questo bando».', '4 · Spunta i bandi da includere: il programma calcola il piano e il flusso di ogni spesa.'],
     example: 'Le consulenze del bilancio sono 40.000 €, ma il bando le ammette solo fino al 10% delle spese: la scheda ti dice quanto è ammissibile e di quanto ridurre la voce.',
     terms: ['milp', 'whatif', 'deminimis', 'cumulo'],
@@ -158,7 +158,7 @@ export const GUIDE = {
   },
   profilo: {
     title: 'Profilo',
-    what: 'Il profilo della tua azienda e i suoi documenti: da visura e bilanci QUANTO ricava i dati dell’impresa e i costi di ogni anno. Serve all’Allocazione e a creare la bozza di budget per i bandi futuri.',
+    what: 'Il profilo dello studio (crediti e account) e, sotto, un lavoro per ogni azienda cliente con i suoi documenti: da visura e bilanci QUANTO ricava i dati dell’impresa e i costi di ogni anno. Serve all’Allocazione e a creare la bozza di budget per i bandi futuri.',
     steps: ['Segui la procedura guidata in alto: trascina insieme visura, bilanci e altri file, poi rispondi alle poche domande che restano.', 'Controlla i dati: ogni valore dice se viene da un documento o l’hai scritto tu (il tuo non viene mai sovrascritto).', 'Completa i campi che mancano e i costi degli anni senza bilancio.', 'Nel Budget, «Bozza di budget dal profilo azienda» parte da questi dati.'],
     example: 'Carichi il bilancio 2025: ricavi, personale e consulenze compaiono nel profilo. Resta da indicare se sei una start-up innovativa: lo scrivi tu.',
     terms: ['fontea'],
@@ -174,7 +174,7 @@ export const GUIDE = {
 
 // ---------------------------------------------------------------- percorso rapido
 export const QUICKSTART = [
-  { t: 'Configura la tua azienda', d: 'Pagina Profilo: la procedura guidata ti fa caricare visura e bilanci e rispondere a due domande. Serve per stimare l’anno dopo, trovare i bandi adatti e avere una bozza di budget.' },
+  { t: 'Apri un lavoro per l’azienda cliente', d: 'Pagina Profilo: crei il lavoro, poi la procedura guidata ti fa caricare visura e bilanci e rispondere a due domande. Serve per stimare l’anno dopo, trovare i bandi adatti e avere una bozza di budget.' },
   { t: 'Scegli il bando', d: 'Pagina Bandi: cerca o apri un bando, leggi regole e requisiti, premi “Usa questo bando”.' },
   { t: 'Carica il budget', d: 'Pagina Budget: bozza dal profilo, Excel o voci a mano.' },
   { t: 'Controlla il budget', d: 'Ogni voce viene controllata con i 60 controlli. Vedi ammesso, ridotto, respinto.' },
@@ -214,7 +214,7 @@ export const FUNCTIONS = [
     { name: 'Albero dell’impronta', what: 'Le foglie sono le righe, la cima è la Merkle Root.', example: 'Per la spiegazione passo passo vai alla sezione Merkle di questa Guida.' },
   ] },
   { page: 'Allocazione', items: [
-    { name: '1 · I dati della tua azienda', what: 'Riepilogo del profilo: completezza, ultimo bilancio, dimensione e cosa manca.', example: 'Profilo al 92%: manca solo se sei una start-up innovativa.' },
+    { name: '1 · I dati dell’azienda', what: 'Riepilogo del profilo: completezza, ultimo bilancio, dimensione e cosa manca.', example: 'Profilo al 92%: manca solo se sei una start-up innovativa.' },
     { name: '2 · Stima dell’anno successivo', what: 'Parte dall’ultimo bilancio; la variazione per categoria la scegli tu (le tue due ultime annate ti danno solo un suggerimento).', example: 'Consulenze +10%: da 172.500 € a 189.750 €.' },
     { name: '3 · Bandi adatti', what: 'Per ogni bando studiato: se puoi partecipare, quanto copre, quali voci ridurre per i tetti. «Da studiare» elenca i bandi del catalogo per affinità.', example: 'Consulenze al massimo il 10% del totale: con 40.000 € di consulenze e 224.200 € di altre spese, ne sono ammissibili 24.911 €.' },
     { name: 'Studia questo bando', what: 'Cerca, scarica e legge i documenti ufficiali di un bando del catalogo; poi lo trovi tra quelli valutati, con il contributo stimato se dichiara un’aliquota.', example: 'Lettura completa: 8 documenti, 165 requisiti, 2 regole numeriche.' },
@@ -229,7 +229,7 @@ export const FUNCTIONS = [
     { name: 'Salva come template', what: 'Registra come hai ripartito il budget per un cliente di quella nicchia, con l’esito. Ogni template nuovo riallena il consiglio.', example: 'Salvi «ammesso» e quel budget pesa 3 volte una bozza.' },
     { name: 'Mappa nicchie e bandi', what: 'Quali nicchie hanno scelto quali bandi, con budget medio e numero di ammessi.', example: 'Agricoltura: 3 bandi, il primo con 4 ammessi su 6.' },
     { name: 'Stili di budget', what: 'Con almeno sei template, i gruppi di budget simili e quanti di ciascuno hanno vinto.', example: 'Stile «beni strumentali»: 5 template, 4 ammessi.' },
-    { name: 'Condividi in forma anonima', what: 'Il template entra nel campione di tutti (senza ragione sociale né partita IVA) e allena l’algoritmo di tutti.', example: 'Disattivato di default: i tuoi template restano tuoi.' },
+    { name: 'Motore collettivo o interno', what: 'Il collettivo lavora su tutti i template (ognuno entra sempre, in forma anonima); l’interno solo su quelli del tuo studio.', example: 'Interno: «come lavora il mio studio»; collettivo: «come si fa di solito in questa nicchia».' },
   ] },
   { page: 'Verifica', items: [
     { name: 'Verifica impronta', what: 'Confronta un’impronta con quella registrata; controlla anche firma e integrità della catena.', example: 'Tre segni verdi: impronta, firma, catena.' },

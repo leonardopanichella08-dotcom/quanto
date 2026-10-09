@@ -22,10 +22,19 @@ export const session = {
 }
 export const hqToken = { get: session.token, set: () => {}, clear: session.clear }   // compatibilità: il Quartier Generale usa il token dell'utente manager
 
+// Il lavoro (azienda cliente) su cui sta lavorando lo studio: ogni chiamata ne porta l'identificativo, così profilo, bilanci, documenti e risultati sono sempre quelli giusti.
+let activeClientId = null
+export const workspace = {
+  id: () => activeClientId,
+  set: (id) => { activeClientId = id },
+  remembered: (user) => { try { return Number(localStorage.getItem(`quanto_client_${user?.email}`)) || null } catch { return null } },
+  remember: (user, id) => { try { if (id) localStorage.setItem(`quanto_client_${user?.email}`, String(id)); else localStorage.removeItem(`quanto_client_${user?.email}`) } catch { /* localStorage non disponibile */ } },
+}
+
 async function call(path, options = {}) {
   let res
   const token = session.token()
-  const headers = { ...(token ? { Authorization: `Bearer ${token}` } : {}), ...(options.headers || {}) }
+  const headers = { ...(token ? { Authorization: `Bearer ${token}` } : {}), ...(activeClientId ? { 'X-Client-Id': String(activeClientId) } : {}), ...(options.headers || {}) }
   try {
     res = await fetch(`${BASE}${path}`, { ...options, headers })
   } catch {
@@ -128,8 +137,8 @@ export const api = {
   matchPattern: (body) => post('/pattern/match', body),
   templateMeta: () => call('/templates/meta').then((r) => r.json()),
   templatesMine: () => call('/templates').then((r) => r.json()),
-  templateNiches: () => call('/templates/niches').then((r) => r.json()),
-  templateLearning: () => call('/templates/learning').then((r) => r.json()),
+  templateNiches: (engine = 'COLLETTIVO') => call(`/templates/niches?engine=${engine}`).then((r) => r.json()),
+  templateLearning: (engine = 'COLLETTIVO') => call(`/templates/learning?engine=${engine}`).then((r) => r.json()),
   templateRecommend: (body) => post('/templates/recommend', body),
   createTemplate: (body) => post('/templates', body),
   patchTemplate: (id, body) => call(`/templates/${id}`, { method: 'PATCH', headers: json, body: JSON.stringify(body) }).then((r) => r.json()),
@@ -147,6 +156,12 @@ export const api = {
   profileSync: () => post('/profile/sync', {}),
   profileForecast: (year, growth) => post('/profile/forecast', { year, growth }),
   profileMatch: (year, growth) => post('/profile/match', { year, growth }),
+  clients: () => call('/clients').then((r) => r.json()),
+  createClient: (name, note = '') => post('/clients', { name, note }),
+  patchClient: (id, body) => call(`/clients/${id}`, { method: 'PATCH', headers: json, body: JSON.stringify(body) }).then((r) => r.json()),
+  deleteClient: (id, confirm) => call(`/clients/${id}?confirm=${encodeURIComponent(confirm)}`, { method: 'DELETE' }).then((r) => r.json()),
+  clientState: (key) => call(`/clients/current/state/${key}`).then((r) => r.json()),
+  saveClientState: (key, value) => call(`/clients/current/state/${key}`, { method: 'PUT', headers: json, body: JSON.stringify({ value }) }).then((r) => r.json()),
   forecastTemplate: () => call('/profile/forecast-template').then((r) => r.json()),
   saveForecastTemplate: (growth, label, note) => call('/profile/forecast-template', { method: 'PUT', headers: json, body: JSON.stringify({ growth, label, note }) }).then((r) => r.json()),
   deleteForecastTemplate: () => call('/profile/forecast-template', { method: 'DELETE' }).then((r) => r.json()),

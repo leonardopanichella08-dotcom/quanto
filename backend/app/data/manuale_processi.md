@@ -132,7 +132,13 @@ La **garanzia** non si somma ai contributi: si calcola solo l'importo garantibil
 ### 6.3 Quando manca la percentuale
 QUANTO non inventa nulla. Il bando resta nella lista «Bandi senza una percentuale nei documenti letti» con il motivo, e si può rilanciare lo studio: la ricerca cerca apposta la percentuale.
 
-## 7. Il profilo dell'azienda e i documenti
+## 7. Lo studio, i lavori e il profilo dell'azienda
+
+**Lo studio e i lavori.** L'account è dello studio: nome, password e crediti (i token) valgono per tutto lo studio. Ogni azienda cliente è un **lavoro**: sotto il Profilo dello studio si aprono tanti lavori quanti sono i clienti, e ognuno ha il suo profilo, i suoi bilanci, i suoi documenti, il suo modello di previsione e i suoi risultati salvati. Il lavoro attivo si sceglie dal selettore in alto: tutte le pagine (Allocazione, Budget, Confronto) mostrano allora i dati di quell'azienda e di nessun'altra. Per questo non si mescolano mai: ogni dato aziendale vive con la chiave «studio + lavoro». Eliminare un lavoro cancella i suoi dati (si riscrive il nome per confermare), ma i template di budget restano allo studio.
+
+**Cosa si salva da solo, per ogni lavoro.** Le scelte e i risultati restano: anno e percentuali dell'Allocazione, bandi inclusi nel piano, obiettivo e de minimis; il budget con il bando scelto e il risultato del controllo; il motore, il bando e i dati inseriti nel Confronto. Cambiando pagina si ritrova tutto com'era, e anche chiudendo e riaprendo QUANTO. I calcoli si rifanno da soli sugli stessi dati, con lo stesso risultato.
+
+### 7.1 Il profilo dell'azienda e i documenti
 
 **I documenti** (visura, bilanci, buste paga, F24, bozze di candidatura, altri file) si caricano nel Profilo. Il lettore trasforma ogni file in campi e per ogni campo dice quanto è sicuro: AUTO (sicuro), da verificare, confermato, corretto. Entrano nei calcoli solo i campi sicuri o confermati da una persona; i campi incerti restano da controllare e il totale dell'anno viene segnalato come parziale finché non si verificano.
 
@@ -263,8 +269,11 @@ Esempio: un commercialista lavora con aziende agricole. Mese 1: salva 3 template
 ### 14.5 La mappa nicchie e bandi
 Mostra, per ogni nicchia, quali bandi hanno scelto i clienti, con la ripartizione media, quanti sono stati presentati e quanti ammessi. Serve a vedere a colpo d'occhio «che cosa fanno le aziende agricole» o «che cosa fanno le imprese informatiche».
 
-### 14.6 Privacy
-I template sono tuoi e restano chiusi: nella pagina compaiono solo il consiglio e la mappa, mentre l'elenco dei tuoi template si apre soltanto per aggiornare un esito o eliminarne uno. Gli altri professionisti non vedono mai un template singolo. Se spunti «condividi in forma anonima», il template entra nel campione di tutti, senza ragione sociale né partita IVA (non vengono nemmeno salvate): contiene solo nicchia, bando, Regione, dimensione, quote ed esito. La nota libera resta privata e l'algoritmo non la usa. I template condivisi da altri entrano nel tuo consiglio e nella tua mappa solo in gruppi di almeno 3: sotto questa soglia non si usano, così nessuno può risalire a un singolo cliente.
+### 14.6 I due motori e la privacy
+Lo studio sceglie con quale motore confrontarsi:
+- **Motore collettivo**: lavora su tutti i template della piattaforma. Ogni template salvato entra sempre e comunque nel collettivo, in forma anonima: così l'algoritmo si auto-migliora con i dati di tutti.
+- **Motore interno**: lavora solo sui template del tuo studio. Serve a vedere come lavora il tuo studio, senza influenze esterne.
+L'elenco dei template dello studio è sempre visibile (con il cliente da cui vengono) e lì si aggiorna l'esito. I template contengono solo nicchia, bando, Regione, dimensione, quote ed esito: ragione sociale e partita IVA non vengono nemmeno salvate. La nota libera resta dello studio e l'algoritmo non la usa. Dei template degli altri studi si usano solo gruppi di almeno 3: sotto questa soglia non entrano, così nessuno può risalire a un singolo cliente. Nel Confronto compaiono solo i bandi affini al lavoro attivo (stesso criterio dell'Allocazione); chi ha partecipato a un bando diverso lo cerca per nome.
 
 ### 14.7 Nota professionale
 Il consiglio è una statistica sulla struttura della spesa, non una previsione di esito. Non sostituisce la verifica dei requisiti formali con la documentazione del cliente.

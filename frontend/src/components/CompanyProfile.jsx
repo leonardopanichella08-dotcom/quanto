@@ -78,7 +78,7 @@ export default function CompanyProfile({ version = 0, onChanged }) {
     <ChromeCard label="quanto.app/profilo/azienda" bodyClassName="p-6 space-y-6">
       <div className="flex flex-wrap items-start justify-between gap-4 pb-4 border-b border-line">
         <div className="max-w-xl">
-          <SectionTitle icon={Building2} className="!text-lg">Il profilo della tua azienda</SectionTitle>
+          <SectionTitle icon={Building2} className="!text-lg">Il profilo dell’azienda</SectionTitle>
           <p className="text-xs text-ink-2 mt-0.5 leading-relaxed">Carica visura, bilanci e documenti qui sotto: QUANTO ne ricava i dati dell’impresa e i costi di ogni anno. Il profilo serve all’Allocazione (stima dell’anno dopo e bandi adatti) e al Budget (bozza di partenza per un bando). Quello che scrivi tu non viene mai sovrascritto dai documenti.</p>
         </div>
         <div className="min-w-[12rem]">

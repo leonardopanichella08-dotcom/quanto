@@ -113,15 +113,20 @@ def test_a_draft_budget_is_compared_with_the_recommendation():
     assert cmp["main"]["key"] == "assets_pct" and cmp["main"]["pp"] == -20.0 and 0 < cmp["distance"] < 0.5 and "Nota professionale" in cmp["message"]
 
 
-def test_private_templates_stay_private_and_shared_ones_train_everybody_anonymously():
+def test_every_template_feeds_the_collective_engine_and_the_internal_engine_uses_only_the_studio():
     seed_bandi()
     for _ in range(3):
-        post(shared=True)
-    post(sh=shares(consulting_pct=0.5, assets_pct=0.0))                      # privato di chi scrive
-    # un altro professionista vede il consiglio costruito dai soli template condivisi, non quello privato
+        post()
+    post(sh=shares(consulting_pct=0.5, assets_pct=0.0, personnel_pct=0.17))                      # dello studio, molto diverso dagli altri
+    # un altro studio con il motore collettivo vede il consiglio costruito su tutti; con quello interno non ha nulla
     other = tl.recommend("altro-utente", "01.11", BANDO)
-    assert other["status"] == "OK" and other["templates_used"] == 3 and other["pool_size"] == 3
+    assert other["status"] == "OK" and other["engine"] == "COLLETTIVO" and other["templates_used"] == 4
+    assert tl.recommend("altro-utente", "01.11", BANDO, engine="INTERNO")["status"] == "NO_DATA"
     assert tl.list_templates("altro-utente") == []
+    # lo studio che li ha scritti: l'interno lavora solo sui suoi, il collettivo su tutti
+    mine = client.post("/api/v2/templates/recommend", json={"ateco_code": "01.11", "bando_id": BANDO, "engine": "INTERNO"}).json()
+    assert mine["status"] == "OK" and mine["engine"] == "INTERNO" and mine["templates_used"] == 4
+    assert client.post("/api/v2/templates/recommend", json={"ateco_code": "01.11", "bando_id": BANDO, "engine": "BANANE"}).status_code == 422
     assert all("owner" not in t for t in tl.list_templates("anonymous"))                              # chi legge i propri template non vede mai il proprietario
 
 
@@ -160,10 +165,11 @@ def test_styles_appear_only_with_enough_clearly_separated_templates():
 
 def test_other_peoples_shared_templates_are_used_only_in_groups_of_three_or_more():
     seed_bandi()
-    post(shared=True); post(shared=True)                                    # solo due condivisi: un secondo professionista non deve poterli distinguere
+    post(); post()                                    # solo due condivisi: un secondo professionista non deve poterli distinguere
     assert tl.recommend("altro-utente", "01.11", BANDO)["status"] == "NO_DATA"
     assert tl.niche_map("altro-utente") == []
-    post(shared=True)                                                       # con il terzo il gruppo è anonimo abbastanza
+    assert len(tl.niche_map("anonymous", "INTERNO")[0]["bandi"]) == 1                                     # lo studio che li ha scritti li vede sempre
+    post()                                                       # con il terzo il gruppo è anonimo abbastanza
     assert tl.recommend("altro-utente", "01.11", BANDO)["status"] == "OK"
     assert tl.niche_map("altro-utente")[0]["templates"] == 3
     assert len(tl.niche_map("anonymous")[0]["bandi"]) == 1                  # chi li ha scritti li vede sempre tutti
