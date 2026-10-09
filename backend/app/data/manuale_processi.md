@@ -264,7 +264,7 @@ Esempio: un commercialista lavora con aziende agricole. Mese 1: salva 3 template
 Mostra, per ogni nicchia, quali bandi hanno scelto i clienti, con la ripartizione media, quanti sono stati presentati e quanti ammessi. Serve a vedere a colpo d'occhio «che cosa fanno le aziende agricole» o «che cosa fanno le imprese informatiche».
 
 ### 14.6 Privacy
-I template sono tuoi. Se spunti «condividi in forma anonima», il template entra nel campione di tutti, senza ragione sociale né partita IVA (non vengono nemmeno salvate): contiene solo nicchia, bando, Regione, dimensione, quote ed esito.
+I template sono tuoi e restano chiusi: nella pagina compaiono solo il consiglio e la mappa, mentre l'elenco dei tuoi template si apre soltanto per aggiornare un esito o eliminarne uno. Gli altri professionisti non vedono mai un template singolo. Se spunti «condividi in forma anonima», il template entra nel campione di tutti, senza ragione sociale né partita IVA (non vengono nemmeno salvate): contiene solo nicchia, bando, Regione, dimensione, quote ed esito. La nota libera resta privata e l'algoritmo non la usa. I template condivisi da altri entrano nel tuo consiglio e nella tua mappa solo in gruppi di almeno 3: sotto questa soglia non si usano, così nessuno può risalire a un singolo cliente.
 
 ### 14.7 Nota professionale
 Il consiglio è una statistica sulla struttura della spesa, non una previsione di esito. Non sostituisce la verifica dei requisiti formali con la documentazione del cliente.

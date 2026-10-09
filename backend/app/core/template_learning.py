@@ -35,6 +35,7 @@ OUTCOMES = ("BOZZA", "PRESENTATO", "AMMESSO", "NON_AMMESSO")
 OUTCOME_LABEL = {"BOZZA": "Bozza", "PRESENTATO": "Presentato", "AMMESSO": "Ammesso", "NON_AMMESSO": "Non ammesso"}
 OUTCOME_WEIGHT = {"AMMESSO": 3.0, "PRESENTATO": 1.5, "BOZZA": 1.0, "NON_AMMESSO": 0.25}
 MIN_TEMPLATES = 3
+MIN_FOREIGN = 3              # dei template condivisi da altri si usa un gruppo solo se ne ha almeno tre: sotto, nessuno può risalire a un singolo cliente
 HIGH_MIN = 8
 CLUSTER_MIN = 6
 MAX_K = 4
@@ -149,6 +150,12 @@ def _pool_hash(pool: List[Dict[str, Any]]) -> str:
     return hashlib.sha256("|".join(f"{t['id']}:{t['updated_at']}:{t['outcome']}" for t in pool).encode()).hexdigest()[:12]
 
 
+def _visible(owner: str, group: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    """I tuoi template contano sempre; quelli condivisi da altri solo se, in quel gruppo, sono almeno ``MIN_FOREIGN``."""
+    foreign = [t for t in group if t["owner"] != owner]
+    return group if len(foreign) >= MIN_FOREIGN else [t for t in group if t["owner"] == owner]
+
+
 # ------------------------------------------------------------------------------------------------ il consiglio
 def _matches(t: Dict[str, Any], tier: str, division: Optional[str], section: Optional[str], bando_id: Optional[str]) -> bool:
     same_bando = bool(bando_id) and t["bando_id"] == bando_id
@@ -165,7 +172,8 @@ def recommend(owner: str, ateco_code: Optional[str], bando_id: Optional[str], dr
         division = division_of(ateco_code)
         section = section_of(division)
     pool = [t for t in _pool(owner) if t["id"] != exclude_id]
-    counts = {tier: sum(1 for t in pool if _matches(t, tier, division, section, bando_id)) for tier, _ in TIERS}
+    groups = {tier: _visible(owner, [t for t in pool if _matches(t, tier, division, section, bando_id)]) for tier, _ in TIERS}
+    counts = {tier: len(g) for tier, g in groups.items()}
     chosen = next((tier for tier, _ in TIERS if counts[tier] >= MIN_TEMPLATES), None)
     out: Dict[str, Any] = {"tier_counts": [{"tier": t, "label": lbl, "templates": counts[t]} for t, lbl in TIERS], "pool_size": len(pool), "pool_hash": _pool_hash(pool),
                            "min_templates": MIN_TEMPLATES}
@@ -173,7 +181,7 @@ def recommend(owner: str, ateco_code: Optional[str], bando_id: Optional[str], dr
         out.update({"status": "NO_DATA", "message": f"Servono almeno {MIN_TEMPLATES} template simili per dare un consiglio: oggi ce ne sono {len(pool)} in tutto. "
                                                      "Salva i budget dei tuoi clienti (con l'esito) e il consiglio nasce da solo."})
         return out
-    sel = [t for t in pool if _matches(t, chosen, division, section, bando_id)]
+    sel = groups[chosen]
     w = np.array([OUTCOME_WEIGHT[t["outcome"]] for t in sel])
     x = np.array([_vec(t["shares"]) for t in sel])
     mean = (x * w[:, None]).sum(axis=0) / w.sum()
@@ -326,11 +334,16 @@ def delete_template(owner: str, template_id: int, actor: Optional[str] = None) -
 def niche_map(owner: str) -> List[Dict[str, Any]]:
     """Per ogni nicchia (ATECO a 2 cifre): quanti template, quali bandi hanno scelto, con quale ripartizione media e quanti ammessi."""
     pool = _pool(owner)
-    by: Dict[str, List[Dict[str, Any]]] = {}
+    cells: Dict[Tuple[str, str], List[Dict[str, Any]]] = {}
     for t in pool:
-        by.setdefault(t["ateco_division"], []).append(t)
+        cells.setdefault((t["ateco_division"], t["bando_id"]), []).append(t)
+    by: Dict[str, List[Dict[str, Any]]] = {}
+    for (div, _bid), group in cells.items():
+        by.setdefault(div, []).extend(_visible(owner, group))
     out = []
     for div, items in sorted(by.items()):
+        if not items:
+            continue
         bandi: Dict[str, List[Dict[str, Any]]] = {}
         for t in items:
             bandi.setdefault(t["bando_id"], []).append(t)

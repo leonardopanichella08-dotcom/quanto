@@ -156,3 +156,14 @@ def test_styles_appear_only_with_enough_clearly_separated_templates():
         post(sh=shares(consulting_pct=0.05 + i * 0.005, assets_pct=0.53 - i * 0.005), outcome="AMMESSO")
     rec = client.post("/api/v2/templates/recommend", json={"ateco_code": "01.11", "bando_id": BANDO}).json()
     assert len(rec["styles"]) == 2 and rec["styles"][0]["wins"] == 4 and rec["styles"][1]["wins"] == 0
+
+
+def test_other_peoples_shared_templates_are_used_only_in_groups_of_three_or_more():
+    seed_bandi()
+    post(shared=True); post(shared=True)                                    # solo due condivisi: un secondo professionista non deve poterli distinguere
+    assert tl.recommend("altro-utente", "01.11", BANDO)["status"] == "NO_DATA"
+    assert tl.niche_map("altro-utente") == []
+    post(shared=True)                                                       # con il terzo il gruppo è anonimo abbastanza
+    assert tl.recommend("altro-utente", "01.11", BANDO)["status"] == "OK"
+    assert tl.niche_map("altro-utente")[0]["templates"] == 3
+    assert len(tl.niche_map("anonymous")[0]["bandi"]) == 1                  # chi li ha scritti li vede sempre tutti

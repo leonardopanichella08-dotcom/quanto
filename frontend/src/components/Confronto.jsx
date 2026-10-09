@@ -44,6 +44,7 @@ export default function Confronto({ validation }) {
   const [recError, setRecError] = useState(null)
   const [form, setForm] = useState({ shares: {}, total: '', outcome: 'BOZZA', score: '', note: '', shared: false })
   const [saving, setSaving] = useState(false)
+  const [showMine, setShowMine] = useState(false)
   const [msg, setMsg] = useState(null)
   const [error, setError] = useState(null)
   const seq = useRef(0)
@@ -207,9 +208,13 @@ export default function Confronto({ validation }) {
       </div>
 
       <div className="card p-6 space-y-3">
-        <h3 className="font-semibold text-base">I miei template</h3>
-        {mine.length === 0 && <p className="text-xs text-mute">Nessun template salvato.</p>}
-        {mine.length > 0 && (
+        <div className="flex flex-wrap items-center gap-3">
+          <div className="min-w-0 flex-1"><h3 className="font-semibold text-base">I miei dati di apprendimento</h3>
+            <p className="text-xs text-ink-2 mt-0.5">I template che hai salvato servono solo all’algoritmo e restano chiusi: aprili per aggiornare un esito (quando il bando risponde) o per eliminarne uno. Nessun altro li vede.</p></div>
+          <button className="btn" onClick={() => setShowMine(!showMine)}>{showMine ? 'Nascondi' : `Apri i miei template (${mine.length})`}</button>
+        </div>
+        {showMine && mine.length === 0 && <p className="text-xs text-mute">Nessun template salvato.</p>}
+        {showMine && mine.length > 0 && (
           <div className="overflow-x-auto">
             <table className="w-full text-xs"><thead><tr className="text-left text-mute"><th className="py-1.5 font-medium">Nicchia</th><th className="font-medium">Bando</th><th className="font-medium w-48">Ripartizione</th><th className="font-medium">Esito</th><th className="font-medium">Condiviso</th><th /></tr></thead>
               <tbody>{mine.map((t) => (
