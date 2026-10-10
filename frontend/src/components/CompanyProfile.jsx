@@ -39,6 +39,11 @@ export default function CompanyProfile({ version = 0, onChanged }) {
 
   const load = useCallback(() => api.profile().then((o) => { setOv(o); setError(null) }).catch((e) => setError(e.message)), [])
   useEffect(() => { load() }, [load, version])
+  useEffect(() => {                                       // l'assistente ha salvato dati nel profilo: si rileggono
+    const on = () => load()
+    window.addEventListener('quanto-profile-changed', on)
+    return () => window.removeEventListener('quanto-profile-changed', on)
+  }, [load])
 
   const years = useMemo(() => {
     const ys = new Set([...(ov?.financials || []).map((f) => f.fiscal_year), ...extraYears])

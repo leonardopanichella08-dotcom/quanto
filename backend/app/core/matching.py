@@ -191,12 +191,13 @@ def evaluate(bando_id: str, profile: Dict[str, Any], by_cat: Dict[str, float], y
     estimate = None
     guarantee = None
     val = valuation.value_bando(bando_id, detail, rules, profile, by_cat)
+    dm = valuation.de_minimis_info(bando_id, bandi.valuation_model(bando_id))     # in de minimis solo se lo dice una fonte (modello curato o testo ufficiale)
     if val and val["kind"] == "GARANZIA":                    # non è un guadagno: si calcola l'importo garantibile, ma non entra nel piano né nelle somme
         guarantee = {"financed_eur": val["financed_eur"], "guaranteed_low_eur": val["guaranteed_low_eur"], "guaranteed_high_eur": val["guaranteed_high_eur"]}
     elif val:
         from_rule = val["origin"] == "REGOLA"
         try:
-            fund = funds.build_fund(bando_id, year, max_total_eur=val.get("cap_low"), de_minimis=bool(val.get("de_minimis")),
+            fund = funds.build_fund(bando_id, year, max_total_eur=val.get("cap_low"), de_minimis=bool(val.get("de_minimis")) or dm["applies"],
                                     coverage_pct=None if from_rule else val["rate_low"], categories=None if from_rule else val.get("categories"))
         except funds.FundError as exc:
             if "finestra di ammissibilità" in str(exc):
@@ -230,7 +231,7 @@ def evaluate(bando_id: str, profile: Dict[str, Any], by_cat: Dict[str, float], y
     else:
         fit = "ADATTO"
     return {"bando_id": bando_id, "name": detail["name"], "issuer": detail.get("issuer"), "status": detail.get("status"), "fit": fit, "checks": checks, "estimate": estimate,
-            "fund": fund, "guarantee": guarantee, "guarantee_info": ({"kind_label": valuation.KIND_LABEL["GARANZIA"], "assumptions": val.get("assumptions", []), "evidence": val.get("evidence", [])} if guarantee else None),
+            "fund": fund, "de_minimis": dm, "guarantee": guarantee, "guarantee_info": ({"kind_label": valuation.KIND_LABEL["GARANZIA"], "assumptions": val.get("assumptions", []), "evidence": val.get("evidence", [])} if guarantee else None),
             "benefit": benefit, "notes": notes, "missing_profile": sorted(set(missing)), "requirements_count": len(detail.get("requirements", [])),
             "rules_count": len(rules)}
 

@@ -6,7 +6,7 @@ from pydantic import BaseModel, Field
 
 from app.api.deps import actor_of, scope_of
 from app.core import company_profile as cp
-from app.core import events, matching
+from app.core import de_minimis, events, matching
 
 router = APIRouter()
 
@@ -100,7 +100,7 @@ def match(body: ForecastBody, request: Request) -> dict:
     result = matching.match_all(cp.profile_values(owner), by_cat, body.year)
     events.record("profile.match", f"Bandi per l'esercizio {body.year}: {result['summary']['ADATTO']} adatti, {result['summary']['DA_VERIFICARE']} da verificare, "
                   f"{result['summary']['NON_ADATTO']} non adatti", actor=owner, details={"summary": result["summary"]})
-    return {"forecast": fc, "matching": result}
+    return {"forecast": fc, "matching": result, "de_minimis": de_minimis.estimate(owner, body.year)}
 
 
 @router.post("/template", summary="Bozza di budget per un bando, ricavata dai bilanci dell'azienda (da modificare)")

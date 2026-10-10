@@ -50,15 +50,32 @@ def _from_texts(bando_id: str) -> Dict[str, Any]:
         return _CACHE[key]
     rows: List[Dict[str, Any]] = []
     caps: List[float] = []
+    dm: List[Dict[str, Any]] = []
     for d in docs:
         if d["tier"] == "SECONDARIA":                      # le percentuali si leggono solo dal testo ufficiale
             continue
         rows += benefit_extract.intensity_rows(d["text"] or "", d["url"])
         caps += benefit_extract.caps(d["text"] or "")
-    out = {"rows": rows, "caps": sorted(set(caps))}
+        dm += benefit_extract.de_minimis_mentions(d["text"] or "", d["url"])
+    out = {"rows": rows, "caps": sorted(set(caps)), "dm": dm}
     _CACHE.clear() if len(_CACHE) > 200 else None
     _CACHE[key] = out
     return out
+
+
+def de_minimis_info(bando_id: str, model: Optional[Dict[str, Any]]) -> Dict[str, Any]:
+    """Il bando è in regime de minimis? Si dice solo se lo dice una fonte: il modello curato del bando o il testo ufficiale letto.
+    ``applies`` = conta contro il plafond (per prudenza anche se il testo lo cita solo); ``mentioned`` = il testo lo nomina; ``basis`` = da dove viene."""
+    if model and model.get("de_minimis"):
+        return {"applies": True, "basis": "MODELLO", "mentioned": True,
+                "evidence": [{"text": "Il fondo perduto di questo bando rientra nel regime de minimis (Reg. UE 2023/2831): conta contro il tetto di 300.000 € in tre anni.", "url": None}, *(model.get("evidence") or [])[:1]]}
+    hits = _from_texts(bando_id).get("dm", [])
+    yes = [h for h in hits if not h["negated"]]
+    if yes:
+        return {"applies": True, "basis": "TESTO", "mentioned": True, "evidence": [{"text": h["text"], "url": h["url"]} for h in yes[:2]]}
+    if hits:
+        return {"applies": False, "basis": "TESTO", "mentioned": True, "evidence": [{"text": h["text"], "url": h["url"]} for h in hits[:2]]}
+    return {"applies": False, "basis": None, "mentioned": False, "evidence": []}
 
 
 def has_intensity(bando_id: str) -> bool:

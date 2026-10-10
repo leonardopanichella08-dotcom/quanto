@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react'
-import { Briefcase, Building2, ChevronDown, LogOut, Menu, Plus, X } from 'lucide-react'
+import { Briefcase, Building2, ChevronDown, LogOut, Menu, Plus, Sparkles, X } from 'lucide-react'
 import { Mark, Wordmark } from './ui'
 import { api } from '../lib/api'
 import { CreditsRing } from './CreditsBadge'
@@ -56,7 +56,7 @@ function Credits({ onClick }) {
 }
 
 /** Menu di gestione a sinistra: lavoro attivo, pagine di lavoro, archivio, profilo e crediti dello studio. */
-export default function Sidebar({ user, isOwner, tab, onGo, clients, clientId, onClient, onNewClient, onLogout, groups, footer, open, onClose }) {
+export default function Sidebar({ onAssistant, user, isOwner, tab, onGo, clients, clientId, onClient, onNewClient, onLogout, groups, footer, open, onClose }) {
   const body = (
     <div className="h-full flex flex-col gap-5 px-3 py-4 overflow-y-auto">
       <div className="flex items-center gap-2.5 px-1">
@@ -65,6 +65,11 @@ export default function Sidebar({ user, isOwner, tab, onGo, clients, clientId, o
         <button className="md:hidden ml-auto btn !px-2 !py-1.5" onClick={onClose} aria-label="Chiudi il menu"><X className="w-4 h-4" /></button>
       </div>
       <Workspace clients={clients} clientId={clientId} onChange={onClient} onNew={onNewClient} />
+      {onAssistant && (
+        <button className="w-full flex items-center gap-2.5 px-3 py-2.5 rounded-lg bg-ink text-white text-[13px] font-medium hover:bg-ink/90" onClick={() => { onAssistant(); onClose?.() }}>
+          <Sparkles className="w-4 h-4 shrink-0" />Assistente<span className="ml-auto text-[10px] font-normal text-white/60">fa lui per te</span>
+        </button>
+      )}
       <nav className="flex-1 space-y-5" aria-label="Pagine">
         {groups.map((g) => (
           <Group key={g.title} title={g.title}>

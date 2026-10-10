@@ -18,6 +18,7 @@ import { Mark, PageHead, Wordmark } from './components/ui'
 import { NavContext } from './lib/nav'
 import { api, download, fileToBase64, session, workspace } from './lib/api'
 import { PasswordModal } from './components/Login'
+import { AssistantProvider, useAssistant } from './assistant/AssistantContext'
 
 const TABS = [
   ['bandi', 'Bandi', Library], ['canvas', 'Budget', Calculator], ['allocation', 'Allocazione', Split],
@@ -43,6 +44,12 @@ const params = new URLSearchParams(window.location.search)
 const EMPTY_REQUEST = { project_id: 'PRJ-2026-001', grant_rules: null, cost_items: [], entity_liquidity_eur: null, baseline_totals: null }
 
 export default function App() {
+  const bridge = useRef({})                              // ciò che l'assistente può fare nell'app: lo compila AppInner a ogni render
+  return <AssistantProvider bridge={bridge} enabled><AppInner bridge={bridge} /></AssistantProvider>
+}
+
+function AppInner({ bridge }) {
+  const assistant = useAssistant()
   const [user, setUser] = useState(session.user())
   const [pwOpen, setPwOpen] = useState(false)
   const [notice, setNotice] = useState(null)               // avvisi dopo aver aggiunto voci da documenti o dalla bozza
@@ -71,6 +78,8 @@ export default function App() {
   const [visited, setVisited] = useState(() => new Set())
   const [menuOpen, setMenuOpen] = useState(false)
   const budgetLoaded = useRef(false)
+  const requestRef = useRef(request)                   // l'ultima versione del budget, anche tra due render (serve all'assistente)
+  requestRef.current = request
   useEffect(() => { setVisited((v) => (v.has(tab) ? v : new Set(v).add(tab))) }, [tab])
 
   const loadBandi = useCallback(async () => { setBandi(await api.bandi()) }, [])
@@ -80,7 +89,7 @@ export default function App() {
     window.addEventListener('quanto-logout', out)
     return () => window.removeEventListener('quanto-logout', out)
   }, [])
-  const logout = () => { session.clear(); workspace.set(null); setUser(null); setBando(null); setValidation(null); setAttestation(null); setClients(null); setClientId(null); setVisited(new Set()); budgetLoaded.current = false }
+  const logout = () => { window.dispatchEvent(new Event('quanto-logout')); session.clear(); workspace.set(null); setUser(null); setBando(null); setValidation(null); setAttestation(null); setClients(null); setClientId(null); setVisited(new Set()); budgetLoaded.current = false }
   useEffect(() => {
     if (!user) return
     loadBandi().catch((e) => setError(e.message))
@@ -138,14 +147,16 @@ export default function App() {
   // Ogni validazione è una chiamata al server; le risposte fuori ordine vengono scartate.
   const validate = useCallback(async (req) => {
     const ready = readyOf(req)
-    if (!req.grant_rules || !ready.cost_items.length) { if (req.cost_items.length) setValidation(null); return }
+    if (!req.grant_rules || !ready.cost_items.length) { if (req.cost_items.length) setValidation(null); return null }
     const mine = ++seq.current
     setLoading(true); setError(null)
     try {
       const res = await api.validateBudget(ready)
       if (mine === seq.current) setValidation(res)
+      return res
     } catch (e) {
       if (mine === seq.current) { setError(friendly(e.message, ready.cost_items)); setValidation(null) }       // un risultato vecchio accanto a voci cambiate sarebbe fuorviante
+      return null
     } finally {
       if (mine === seq.current) setLoading(false)
     }
@@ -160,7 +171,9 @@ export default function App() {
       setBando(detail)
       setRequest((r) => ({ ...r, grant_rules: detail.grant_rules }))
       setValidation(null); setAttestation(null); setImportInfo(null)
+      requestRef.current = { ...requestRef.current, grant_rules: detail.grant_rules }
       setTab('canvas')
+      return detail
     } catch (e) { setError(e.message); throw e } finally { setBusy(false) }
   }
 
@@ -206,6 +219,23 @@ export default function App() {
     changeItems([...request.cost_items.filter((x) => !String(x.item_id).startsWith('TPL-')), ...res.cost_items])
     setNotice(res.needs_personnel ? [res.needs_personnel.message] : null)
   }
+  // cosa può fare l'assistente nell'app: le stesse azioni dell'utente (cambiare pagina, scegliere il bando, mettere voci nel budget, controllarlo)
+  bridge.current = {
+    go: (t) => nav.go(t),
+    bandi: () => bandi,
+    currentBando: () => bando?.bando_id || null,
+    selectBando: (id) => selectBando(id),
+    applyTemplate: async (res) => {
+      const next = { ...requestRef.current, cost_items: [...requestRef.current.cost_items.filter((x) => !String(x.item_id).startsWith('TPL-')), ...res.cost_items] }
+      requestRef.current = next; setRequest(next); setAttestation(null); setNotice(res.needs_personnel ? [res.needs_personnel.message] : null)
+    },
+    addItems: async (items) => {
+      const ids = new Set(items.map((i) => i.item_id))
+      const next = { ...requestRef.current, cost_items: [...requestRef.current.cost_items.filter((x) => !ids.has(x.item_id)), ...items] }
+      requestRef.current = next; setRequest(next); setAttestation(null); setNotice(null)
+    },
+    validate: () => validate(requestRef.current),
+  }
   const budgetFrom = async (bandoId) => {
     try { await selectBando(bandoId); setTemplateOpen(true); nav.go('canvas'); window.scrollTo({ top: 0 }) } catch { nav.go('canvas') }          // l'errore (es. bando senza regole pubblicate) lo mostra la pagina Budget
   }
@@ -238,12 +268,12 @@ export default function App() {
   return (
     <NavContext.Provider value={nav}>
     <div className="min-h-screen text-ink md:flex">
-      <Sidebar user={user} isOwner={isOwner} tab={tab === 'lab' ? 'canvas' : tab} clients={clients} clientId={clientId} onClient={(id) => { chooseClient(id); setMenuOpen(false) }}
+      {!assistant.open && <Sidebar user={user} isOwner={isOwner} tab={tab === 'lab' ? 'canvas' : tab} clients={clients} clientId={clientId} onClient={(id) => { chooseClient(id); setMenuOpen(false) }}
         onNewClient={() => { nav.go('profilo'); setMenuOpen(false); setTimeout(() => document.getElementById('lavori')?.scrollIntoView({ behavior: 'smooth' }), 250) }}
         onGo={(id) => { nav.go(id); setMenuOpen(false) }} onLogout={logout} open={menuOpen} onClose={() => setMenuOpen(false)}
         groups={[{ title: 'Analisi', items: TABS.filter(([id]) => ['allocation', 'pattern'].includes(id)) }, { title: 'Bandi e budget', items: TABS.filter(([id]) => ['bandi', 'canvas'].includes(id)) },
           { title: 'Controllo', items: TABS.filter(([id]) => id === 'auditor') }]}
-        footer={TABS.filter(([id]) => ['guida', 'profilo'].includes(id))} />
+        footer={TABS.filter(([id]) => ['guida', 'profilo'].includes(id))} onAssistant={assistant.openMenu} />}
       <div className="flex-1 min-w-0">
       <MobileBar onOpen={() => setMenuOpen(true)} />
       <main className="px-5 md:px-10 pt-8 pb-20 max-w-6xl mx-auto space-y-6">

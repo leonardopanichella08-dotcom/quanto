@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react'
 import { api } from '../lib/api'
 import { fmtEur, fmtNum, CATEGORY_LABEL } from '../lib/format'
-import { AlertTriangle, CheckCircle2, ChevronDown, ChevronRight, CircleHelp, ExternalLink, Loader2, XCircle } from 'lucide-react'
+import { AlertTriangle, CheckCircle2, ChevronDown, ChevronRight, CircleHelp, ExternalLink, Loader2, Sparkles, XCircle } from 'lucide-react'
 import { ChromeCard, SectionTitle } from './ui'
 import Guide from './Guide'
 import PipelineButton from './PipelineButton'
@@ -14,6 +14,7 @@ const PALETTE = ['#38bdf8', '#a78bfa', '#f472b6', '#34d399', '#fbbf24', '#fb7185
 /** Flusso delle spese verso i fondi: lo spessore è proporzionale all'importo coperto (dati del solver, nessun calcolo qui). */
 function Sankey({ plan }) {
   const items = plan.allocation_plan
+  const allFunds = plan.fund_usage.map((f) => f.fund_id)
   const funds = plan.fund_usage.filter((f) => f.used_eur > 0)
   const gross = items.reduce((s, i) => s + i.gross_amount_eur, 0) || 1
   const W = 700, H = Math.max(240, items.length * 46), gap = 10, X0 = 150, X1 = W - 170
@@ -21,7 +22,7 @@ function Sankey({ plan }) {
   const leftY = {}
   let y = 0
   items.forEach((i) => { leftY[i.item_id] = y; y += i.gross_amount_eur * scale + gap })
-  const rightNodes = [...funds.map((f, k) => ({ id: f.fund_id, total: f.used_eur, color: PALETTE[k % PALETTE.length] })),
+  const rightNodes = [...funds.map((f) => ({ id: f.fund_id, total: f.used_eur, color: PALETTE[allFunds.indexOf(f.fund_id) % PALETTE.length] })),
     { id: 'CARICO ENTE', total: plan.net_cost_to_entity_eur, color: '#f59e0b' }]
   const rightY = {}
   y = 0
@@ -113,7 +114,10 @@ function BandoCard({ r, picked, onToggle, onBudget }) {
           <p className="text-sm font-semibold text-ink break-words">{r.name}</p>
           <p className="text-[11px] text-mute">{r.issuer || 'Ente non indicato'} · {r.bando_id}</p>
         </div>
-        <span className={`px-2 py-0.5 text-[11px] font-medium rounded border ${tone}`}>{fit}</span>
+        <div className="flex flex-wrap gap-1.5 justify-end">
+          {r.de_minimis?.applies && <span title={r.de_minimis.evidence[0]?.text} className="px-2 py-0.5 text-[11px] font-medium rounded border border-violet-500/30 bg-violet-500/10 text-violet-700">In de minimis</span>}
+          <span className={`px-2 py-0.5 text-[11px] font-medium rounded border ${tone}`}>{fit}</span>
+        </div>
       </div>
 
       {e ? (
@@ -169,6 +173,8 @@ function BandoCard({ r, picked, onToggle, onBudget }) {
                 <tr key={c.category} className="border-t border-line"><td className="py-1 text-ink-2">{c.label}{c.note ? <span className="block text-[10px] text-mute">{c.note}</span> : null}</td>
                   <td className="text-right tabular-nums">{fmtEur(c.forecast_eur)}</td><td className="text-right tabular-nums">{fmtEur(c.eligible_eur)}</td><td className="text-right tabular-nums text-emerald-700">{fmtEur(c.covered_eur)}</td></tr>))}</tbody></table>
           )}
+          {r.de_minimis?.applies && <p className="text-ink-2"><span className="font-medium text-ink">De minimis:</span> questo aiuto conta contro il tetto di 300.000 € in tre anni. {r.de_minimis.basis === 'MODELLO' ? 'Lo dichiara la scheda curata del bando.' : 'Lo dice il testo ufficiale letto:'} {r.de_minimis.basis === 'TESTO' && <>«{r.de_minimis.evidence[0]?.text}»{r.de_minimis.evidence[0]?.url && <> · <a href={r.de_minimis.evidence[0].url} target="_blank" rel="noreferrer" className="underline">fonte</a></>}</>}</p>}
+          {!r.de_minimis?.applies && r.de_minimis?.mentioned && <p className="text-mute">Il testo ufficiale cita il de minimis ma dice che questo aiuto non rientra: «{r.de_minimis.evidence[0]?.text}»</p>}
           {r.notes.filter((n) => !n.startsWith('Il bando non dichiara')).map((n) => <p key={n} className="text-mute">• {n}</p>)}
           {r.missing_profile.length > 0 && <p className="text-amber-700">Per decidere servono ancora: {r.missing_profile.map((m) => MISSING_LABEL[m] || m).join(', ')}.</p>}
           <p className="text-[11px] text-mute">{r.rules_count} regole e {r.requirements_count} requisiti letti dal bando. Punto di attenzione per la tua diagnosi consulenziale: stima basata solo su ciò che il bando dichiara; l’esito dipende dall’istruttoria.</p>
@@ -194,7 +200,7 @@ export default function AllocationView({ onGoProfile, onBudgetFrom }) {
   const allMode = useRef(true)                           // vero finché il piano include TUTTI i bandi adatti: quelli nuovi entrano da soli
   const [restored, setRestored] = useState(false)
   const [target, setTarget] = useState('MINIMIZE_NET_COST')
-  const [deMinimis, setDeMinimis] = useState('300000')                 // ipotesi di partenza: nessun aiuto de minimis ricevuto nel triennio
+  const [dmOverride, setDmOverride] = useState('')                    // vuoto = vale la stima di QUANTO (dagli aiuti dichiarati nei bilanci); pieno = il valore scritto dall'utente
   const [plan, setPlan] = useState(null)
   const [planHigh, setPlanHigh] = useState(null)
   const [loading, setLoading] = useState(false)
@@ -207,14 +213,14 @@ export default function AllocationView({ onGoProfile, onBudgetFrom }) {
   useEffect(() => {
     api.clientState('allocation').then((st) => {
       const v = st.value
-      if (v) { if (v.year) setYear(v.year); setGrowth(v.growth || {}); if (v.target) setTarget(v.target); setDeMinimis(v.deMinimis || '300000'); allMode.current = v.allMode ?? false; pending.current = v.allMode ? null : (v.picked || []) }
+      if (v) { if (v.year) setYear(v.year); setGrowth(v.growth || {}); if (v.target) setTarget(v.target); setDmOverride(v.dmOverride || ''); allMode.current = v.allMode ?? false; pending.current = v.allMode ? null : (v.picked || []) }
     }).catch(() => {}).finally(() => setRestored(true))
   }, [])
   useEffect(() => {
     if (!restored) return undefined
-    const t = setTimeout(() => { api.saveClientState('allocation', { year, growth, picked, target, deMinimis, allMode: allMode.current }).catch(() => {}) }, 800)
+    const t = setTimeout(() => { api.saveClientState('allocation', { year, growth, picked, target, dmOverride, allMode: allMode.current }).catch(() => {}) }, 800)
     return () => clearTimeout(t)
-  }, [restored, year, growth, picked, target, deMinimis])
+  }, [restored, year, growth, picked, target, dmOverride])
 
   const growthBody = useCallback(() => Object.fromEntries(Object.entries(growth).filter(([, v]) => v !== undefined && v !== '' && !Number.isNaN(Number(v))).map(([k, v]) => [k, Number(v) / 100])), [growth])
   const setOverride = (key, v) => setGrowth((g) => { const n = { ...g }; if (v === undefined) delete n[key]; else n[key] = v; return n })
@@ -272,11 +278,12 @@ export default function AllocationView({ onGoProfile, onBudgetFrom }) {
 
   const pickedRows = (match?.matching.results || []).filter((r) => picked.includes(r.bando_id) && r.fund)
   const needsDeMinimis = pickedRows.some((r) => r.fund.de_minimis)
+  const dmEstimate = match?.de_minimis || null
+  const deMinimis = dmOverride !== '' ? dmOverride : String(dmEstimate ? dmEstimate.residual_eur : 300000)      // il valore che usa il piano: la stima, salvo correzione dell'utente
 
   // Il piano si ricalcola da solo a ogni scelta (bandi inclusi, obiettivo, de minimis): il calcolo è sul server.
   const run = useCallback(async () => {
     if (!match || pickedRows.length === 0) { setPlan(null); setPlanHigh(null); setPlanError(null); return }
-    if (needsDeMinimis && deMinimis === '') { setPlan(null); setPlanError('Uno dei bandi scelti è in de minimis: indica quanto plafond ti resta nel triennio.'); return }
     const mine = ++seq.current
     setLoading(true); setPlanError(null)
     try {
@@ -298,6 +305,35 @@ export default function AllocationView({ onGoProfile, onBudgetFrom }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [match, picked, target, deMinimis])
   useEffect(() => { run() }, [run])
+  const declareAid = () => window.dispatchEvent(new CustomEvent('quanto-assistant', { detail: { task: 'deminimis', year: Number(year) } }))
+  // L'assistente chiede di ricalcolare (dopo aver salvato dati nel profilo) e aspetta il risultato: lo si comunica quando il piano è pronto.
+  const estimateRef = useRef(null)
+  estimateRef.current = estimate
+  const recalc = useRef({ wanted: false, done: false })
+  useEffect(() => {
+    const on = (e) => {
+      const d = e.detail || {}
+      if (d.year) setYear(Number(d.year))
+      if (d.allMode) allMode.current = true
+      recalc.current = { wanted: true, done: false }
+      api.profile().then(setOv).catch(() => {})
+      estimateRef.current().finally(() => { recalc.current.done = true; setTick((t) => t + 1) })
+    }
+    window.addEventListener('quanto-recalc', on)
+    return () => window.removeEventListener('quanto-recalc', on)
+  }, [])
+  const [tick, setTick] = useState(0)
+  useEffect(() => {
+    const r = recalc.current
+    if (!r.wanted || !r.done || matching || loading || !match) return
+    if (pickedRows.length > 0 && !plan && !planError) return
+    r.wanted = false
+    window.dispatchEvent(new CustomEvent('quanto-allocation-result', { detail: {
+      adatti: match.matching.summary.ADATTO, picked: pickedRows.length, usesDeMinimis: needsDeMinimis,
+      covered: plan?.covered_by_public_funds_eur ?? 0, coveredHigh: planHigh?.covered_by_public_funds_eur ?? plan?.covered_by_public_funds_eur ?? 0,
+      expense: plan?.total_gross_expense_eur ?? 0, net: plan?.net_cost_to_entity_eur ?? 0, coveragePct: plan?.overall_coverage_percentage ?? 0,
+      deMinimis: dmEstimate ? { ...dmEstimate, residual_eur: Number(deMinimis), needed_eur: plan?.de_minimis_used_eur ?? 0 } : null } }))
+  }, [tick, plan, planHigh, planError, loading, matching, match])         // eslint-disable-line react-hooks/exhaustive-deps
 
   const toggle = (id) => { allMode.current = false; setPicked((p) => (p.includes(id) ? p.filter((x) => x !== id) : [...p, id])) }
   const pick = (ids, all) => { allMode.current = !!all; setPicked(ids) }
@@ -319,7 +355,10 @@ export default function AllocationView({ onGoProfile, onBudgetFrom }) {
             <div><span className="label">Ultimo bilancio</span><div className="text-sm font-semibold">{ov.last_year ?? 'nessuno'}</div></div>
             <div><span className="label">Dimensione</span><div className="text-sm font-semibold">{ov.size ? ov.size.label : 'da indicare'}</div></div>
             <div><span className="label">Documenti</span><div className="text-sm font-semibold">{ov.documents.total}{ov.documents.to_review ? ` · ${ov.documents.to_review} campi da verificare` : ''}</div></div>
-            <button className="btn-primary ml-auto" onClick={onGoProfile}>{ov.missing.length ? 'Completa il profilo' : 'Apri il profilo'}</button>
+            <div className="ml-auto flex flex-wrap gap-2">
+              {(ov.missing.length > 0 || !hasData) && <button className="btn" onClick={() => window.dispatchEvent(new CustomEvent('quanto-assistant', { detail: { task: 'profilo' } }))}><Sparkles className="w-3.5 h-3.5" />Falli inserire all’assistente</button>}
+              <button className="btn-primary" onClick={onGoProfile}>{ov.missing.length ? 'Completa il profilo' : 'Apri il profilo'}</button>
+            </div>
           </div>
         )}
         {ov && ov.missing.length > 0 && (
@@ -379,7 +418,7 @@ export default function AllocationView({ onGoProfile, onBudgetFrom }) {
       {match && (
         <Step n={4} title="Tutti i bandi insieme: il potenziale massimo" done={picked.length > 0 && !!plan}
           sub="Se l’azienda partecipasse e vincesse tutti i bandi a cui può accedere, quanto riuscirebbe a coprire in un anno? Li applico insieme rispettando cumulo, tetti e de minimis, senza pagare due volte la stessa spesa.">
-          <PotentialStep results={results} picked={picked} onPick={pick} plan={plan} planHigh={planHigh} loading={loading} planError={planError} onStudyMore={studyMore} studyingMore={studyingMore} />
+          <PotentialStep results={results} picked={picked} onPick={pick} dm={{ estimate: dmEstimate, override: dmOverride, setOverride: setDmOverride, value: Number(deMinimis), onDeclare: declareAid }} plan={plan} planHigh={planHigh} loading={loading} planError={planError} onStudyMore={studyMore} studyingMore={studyingMore} />
           {studyNote && <p className="text-[11px] text-ink-2 leading-relaxed">{studyNote}</p>}
         </Step>
       )}
@@ -390,10 +429,9 @@ export default function AllocationView({ onGoProfile, onBudgetFrom }) {
           <div className="flex flex-wrap items-end gap-3">
             <label className="flex items-center gap-2 text-xs text-ink-2">Obiettivo <Hint id="alloc_obiettivo" />
               <select value={target} onChange={(e) => setTarget(e.target.value)} className="field !w-full md:!w-auto min-w-0">{TARGETS.map(([v, l]) => <option key={v} value={v}>{l}</option>)}</select></label>
-            {needsDeMinimis && <label className="space-y-1 text-xs text-ink-2"><span className="label">De minimis ancora disponibile (€)</span><input type="number" className="field !w-36" value={deMinimis} onChange={(e) => setDeMinimis(e.target.value)} /></label>}
             <span className="text-xs text-mute">{pickedRows.length} {pickedRows.length === 1 ? 'bando incluso' : 'bandi inclusi'}</span>
           </div>
-          {needsDeMinimis && <p className="text-[11px] text-ink-2 leading-relaxed max-w-3xl"><strong className="text-ink">Cos’è il de minimis.</strong> È il tetto agli aiuti «piccoli»: 300.000 € in tre anni per impresa. Alcuni dei bandi scelti (per esempio il fondo perduto SIMEST) contano contro quel tetto. Il valore è 300.000 € <em>nell’ipotesi che l’azienda non abbia ricevuto altri aiuti de minimis negli ultimi tre anni</em>: se ne ha ricevuti, scrivi qui quanto resta (lo trovi nel registro nazionale degli aiuti o nelle dichiarazioni del cliente).</p>}
+          {needsDeMinimis && <p className="text-[11px] text-ink-2 leading-relaxed max-w-3xl">Alcuni bandi scelti sono in de minimis: il tetto residuo che il piano rispetta (<strong className="text-ink">{fmtEur(Number(deMinimis))}</strong>) e come è stato stimato sono spiegati nel punto 4.</p>}
           {planError && <div className="p-3 rounded-xl border border-red-500/30 text-red-700 text-xs">{planError}</div>}
         </Step>
       )}

@@ -52,6 +52,7 @@ FIN_FIELDS: Dict[str, Tuple[str, str]] = {
     "net_result_eur": ("Utile (perdita) dell'esercizio", "money"),
     "total_costs_eur": ("Totale costi della produzione", "money"),
     "employees_avg": ("Numero medio di dipendenti", "count"),
+    "public_aid_eur": ("Contributi pubblici ricevuti nell'esercizio (anche de minimis)", "money"),
     **{FIN_KEY[c]: (f"Costi: {CATEGORY_LABEL[c].lower()}", "money") for c in CATEGORIES},
 }
 FIN_REQUIRED = ["revenue_eur", *FIN_KEY.values()]
@@ -308,7 +309,8 @@ def overview(owner: str) -> Dict[str, Any]:
     data, sources = _load_profile(owner)
     fin = _load_financials(owner)
     years = sorted(fin)
-    last_year = years[-1] if years else None
+    with_data = [y for y in years if any(fin[y][0].get(k) is not None for k in (*FIN_REQUIRED, "net_result_eur", "total_costs_eur", "employees_avg"))]
+    last_year = with_data[-1] if with_data else None           # un esercizio con i soli aiuti dichiarati (de minimis) non è «l'ultimo bilancio»
     last = fin[last_year][0] if last_year else {}
 
     effective = dict(data)

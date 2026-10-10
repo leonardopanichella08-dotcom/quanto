@@ -35,6 +35,7 @@ export default function TemplateFromProfile({ bando, onApply, onGoProfile, start
               <input type="number" min="1" max="100" className="field !w-28" value={scale} onChange={(e) => setScale(e.target.value)} /></label>
             <label className="inline-flex items-center gap-2 text-xs text-ink-2 pb-2"><input type="checkbox" checked={fit} onChange={(e) => setFit(e.target.checked)} />Riduci le voci sopra i tetti del bando</label>
             <button className="btn-primary" disabled={busy || !(Number(scale) > 0)} onClick={generate}>{busy && <Loader2 className="w-3.5 h-3.5 animate-spin" />}{res ? 'Rigenera la bozza' : 'Crea la bozza'}</button>
+            <button className="btn" onClick={() => window.dispatchEvent(new CustomEvent('quanto-assistant', { detail: { task: 'budget', bandoId: bando.bando_id, scale: Number(scale) > 0 ? Number(scale) : undefined } }))}><Sparkles className="w-3.5 h-3.5" />Fallo fare all’assistente</button>
           </div>
           {error && (
             <p className="text-xs text-red-700">{error} {error.startsWith('Mancano i dati') && <button className="underline font-medium" onClick={onGoProfile}>Vai al profilo</button>}</p>
@@ -44,7 +45,7 @@ export default function TemplateFromProfile({ bando, onApply, onGoProfile, start
               <p className="text-ink"><span className="font-semibold">{res.cost_items.length} voci</span> aggiunte al budget, per {fmtEur(res.total_eur)} (base: bilancio {res.base_year}). Quelle con codice <span className="font-mono">TPL-</span> sostituiscono la bozza precedente.</p>
               {res.adjustments.map((a) => <p key={a.category} className="text-amber-700">{a.reason}: {a.label.toLowerCase()} ridotte da {fmtEur(a.forecast_eur)} a {fmtEur(a.eligible_eur)}.</p>)}
               {res.excluded_categories.length > 0 && <p className="text-mute">Non incluse perché il bando non le ammette: {res.excluded_categories.map((c) => c.label.toLowerCase()).join(', ')}.</p>}
-              {res.needs_personnel && <p className="text-amber-700">Personale ({fmtEur(res.needs_personnel.amount_eur)} dal bilancio): {res.needs_personnel.message}</p>}
+              {res.needs_personnel && <p className="text-amber-700">Personale ({fmtEur(res.needs_personnel.amount_eur)} dal bilancio): {res.needs_personnel.message} <button className="underline font-medium" onClick={() => window.dispatchEvent(new CustomEvent('quanto-assistant', { detail: { task: 'budget', bandoId: bando.bando_id, scale: Number(scale) } }))}>Aggiungile con l’assistente</button></p>}
               {res.notes.map((n) => <p key={n} className="text-mute">• {n}</p>)}
             </div>
           )}

@@ -95,6 +95,31 @@ def caps(text: str) -> List[float]:
     return sorted(set(found))
 
 
+_DM = re.compile(r"de[\s\-]*minimis|2023/2831|1407/2013", re.I)
+_DM_NEG = re.compile(r"\bnon\s+(?:rientra|è\s+soggett\w+|è\s+concess\w+|è\s+in\s+regime|costituisce|si\s+configura)[^.;]{0,60}$", re.I)   # solo la negazione esplicita: nel dubbio il bando conta
+
+
+def de_minimis_mentions(text: str, url: Optional[str] = None) -> List[Dict[str, Any]]:
+    """I passaggi del testo ufficiale che citano il regime de minimis (o i suoi regolamenti), ognuno con le parole da cui viene.
+    ``negated`` = il passaggio dice il contrario («non rientra nel de minimis»): quello non conta come aiuto in de minimis."""
+    flat = re.sub(r"\s+", " ", text or "")
+    out: List[Dict[str, Any]] = []
+    last_end = -1
+    for m in _DM.finditer(flat):
+        if m.start() < last_end:                           # lo stesso passaggio citato due volte di seguito (regime + regolamento)
+            continue
+        lo, hi = max(0, m.start() - 170), min(len(flat), m.end() + 170)
+        if lo > 0 and " " in flat[lo:m.start()]:
+            lo += flat[lo:].index(" ") + 1
+        if hi < len(flat) and " " in flat[m.end():hi]:
+            hi = flat.rfind(" ", m.end(), hi)
+        last_end = hi
+        out.append({"text": flat[lo:hi].strip(), "url": url, "negated": bool(_DM_NEG.search(flat[max(0, m.start() - 90):m.start()]))})
+        if len(out) >= 4:
+            break
+    return out
+
+
 def applicable(rows: List[Dict[str, Any]], size_code: Optional[str]) -> List[Dict[str, Any]]:
     """Le righe che valgono per la dimensione dell'impresa (microimpresa, piccola, media, grande); quelle senza dimensione valgono per tutti."""
     if size_code is None:

@@ -2,6 +2,60 @@ import React, { useState } from 'react'
 import { CheckCircle2, CircleHelp, Loader2, Sparkles } from 'lucide-react'
 import { fmtEur, fmtNum, CATEGORY_LABEL } from '../lib/format'
 
+const BASIS = {
+  DICHIARATI: ['Dato dichiarato', 'tutti e tre gli ultimi esercizi hanno i contributi pubblici dichiarati nel profilo'],
+  PARZIALE: ['Dato parziale', 'alcuni esercizi non hanno la voce compilata: per quelli non si sottrae nulla'],
+  IPOTESI: ['Ipotesi', 'nessun contributo pubblico dichiarato: si assume che non ne siano stati ricevuti'],
+}
+
+/** Il tetto de minimis (300.000 € in tre anni): quali bandi lo toccano, quanto ne resta all'azienda (stima di QUANTO, con la sua base) e quanto ne usa il piano. */
+function DeMinimisBox({ rows, dm, plan }) {
+  const est = dm?.estimate
+  if (!est) return null
+  const [basisLabel, basisText] = BASIS[est.basis]
+  const needed = plan?.de_minimis_used_eur
+  const manual = dm.override !== ''
+  return (
+    <div className="rounded-xl border border-violet-500/30 bg-violet-500/5 p-4 space-y-2 text-xs">
+      <p className="font-medium text-ink">De minimis: il tetto agli aiuti «piccoli» (300.000 € in tre anni per impresa)</p>
+      <p className="text-ink-2 leading-relaxed">Bandi del piano che ci rientrano: {rows.map((r) => r.name).join('; ')}. Questi aiuti si sommano a quelli già ricevuti dall’azienda, e insieme non possono superare il tetto: il piano lo rispetta.</p>
+      <div className="flex flex-wrap items-end gap-x-8 gap-y-2">
+        <div><span className="label">Ancora disponibile (stima)</span><div className="text-base font-semibold tabular-nums">{fmtEur(dm.value)}</div></div>
+        {needed != null && <div><span className="label">Usato da questo piano</span><div className="text-base font-semibold tabular-nums">{fmtEur(needed)}</div></div>}
+        <span className={`px-2 py-0.5 rounded border text-[11px] font-medium ${est.basis === 'DICHIARATI' ? 'border-emerald-500/30 text-emerald-700' : 'border-amber-500/30 text-amber-700'}`} title={basisText}>{manual ? 'Valore scritto da te' : basisLabel}</span>
+      </div>
+      <p className="text-ink-2 leading-relaxed">{manual ? 'Stai usando un valore scritto da te al posto della stima.' : est.note}{needed != null && !manual && est.basis !== 'DICHIARATI' && dm.value >= needed ? ` Il piano usa solo ${fmtEur(needed)}: resta valido anche se l’azienda ha già ricevuto fino a ${fmtEur(300000 - needed)} di aiuti de minimis negli ultimi tre anni.` : ''}</p>
+      <p className="text-mute leading-relaxed">{est.verify}</p>
+      <div className="flex flex-wrap items-center gap-2 pt-1">
+        <button className="btn !py-1" onClick={dm.onDeclare}>Dichiara gli aiuti già ricevuti</button>
+        <label className="flex items-center gap-2 text-ink-2">oppure scrivi il residuo (€)<input type="number" className="field !py-1 !w-32 text-right" value={dm.override} placeholder={String(est.residual_eur)} onChange={(e) => dm.setOverride(e.target.value)} /></label>
+        {manual && <button className="btn !py-1" onClick={() => dm.setOverride('')}>Torna alla stima</button>}
+      </div>
+    </div>
+  )
+}
+
+/** Cosa significa ogni numero di questo riquadro, in parole semplici: resta sempre visibile sotto i risultati. */
+function Legend({ multi }) {
+  const items = [
+    ['Coperto dai bandi', 'Quanto delle spese dell’anno verrebbe pagato dai bandi se l’azienda li ottenesse. Se vedi due cifre: la prima è lo scenario prudente (percentuale base di ogni bando), la seconda il massimo con tutte le maggiorazioni.'],
+    ['Su una spesa di', 'Le spese previste per l’anno: la stima partita dall’ultimo bilancio, con le variazioni del punto 2.'],
+    ['Quota coperta', 'Il «coperto dai bandi» diviso per la spesa: la percentuale delle spese pagata da fondi pubblici.'],
+    ['Resta a tuo carico', 'La parte di spesa che nessun bando paga: la mette l’azienda.'],
+    ...(multi ? [
+      ['Da solo', 'Quanto darebbe quel bando se fosse l’unico. Due cifre = dal prudente al massimo.'],
+      ['Nel piano insieme', 'Quanto di quel bando serve davvero quando i bandi lavorano insieme: la stessa spesa non si può far pagare due volte, quindi ogni spesa riceve un solo fondo perduto (il migliore). «Non serve» = le sue spese sono già coperte da un bando più conveniente, oppure ha raggiunto il suo tetto.'],
+      ['Totale', 'La colonna «Da solo» somma i bandi come se fossero separati; la colonna «Nel piano insieme» è il vero massimo. I pochi centesimi di scarto tra le due cifre di un bando sono arrotondamenti: il piano lavora in centesimi interi, sempre per difetto.'],
+    ] : []),
+  ]
+  return (
+    <div className="rounded-xl border border-line bg-field p-4 space-y-1.5 text-[11px] leading-relaxed">
+      <p className="text-xs font-medium text-ink">Come leggere questi numeri</p>
+      <dl className="grid md:grid-cols-2 gap-x-8 gap-y-1.5">{items.map(([k, v]) => <div key={k}><dt className="inline font-semibold text-ink">{k}: </dt><dd className="inline text-ink-2">{v}</dd></div>)}</dl>
+    </div>
+  )
+}
+
 
 const PALETTE = ['#38bdf8', '#a78bfa', '#f472b6', '#34d399', '#fbbf24', '#fb7185', '#2dd4bf', '#818cf8', '#f97316', '#84cc16', '#e879f9', '#94a3b8']
 const NET = '#f59e0b'
@@ -46,7 +100,7 @@ function RebuiltBudget({ plan, nameOf }) {
 
 /** Tutti i bandi a cui l'azienda può partecipare, applicati insieme: quanto potrebbe coprire se li vincesse tutti. Il calcolo è quello del piano (stesse regole di
  *  cumulo, tetti e de minimis): qui si scelgono i bandi e si legge il confronto con la somma dei bandi presi uno per uno. */
-export default function PotentialStep({ results, picked, onPick, plan, planHigh, loading, planError, onStudyMore, studyingMore }) {
+export default function PotentialStep({ results, picked, onPick, dm, plan, planHigh, loading, planError, onStudyMore, studyingMore }) {
   const [withMaybe, setWithMaybe] = useState(false)
   const sure = results.filter((r) => r.fit === 'ADATTO' && r.fund)
   const maybe = results.filter((r) => r.fit === 'DA_VERIFICARE' && r.fund)
@@ -102,7 +156,7 @@ export default function PotentialStep({ results, picked, onPick, plan, planHigh,
                     <thead><tr className="text-left text-mute"><th className="py-1 font-medium">Bando</th><th className="font-medium text-right">Da solo</th><th className="font-medium text-right">Nel piano insieme</th></tr></thead>
                     <tbody>
                       {pickedRows.map((r) => (
-                        <tr key={r.bando_id} className="border-t border-line"><td className="py-1.5 text-ink-2 pr-3">{r.name}{r.estimate?.kind_label && <span className="block text-[10px] text-mute">{r.estimate.kind_label}</span>}{r.fit === 'DA_VERIFICARE' && <span className="ml-1.5 text-[10px] text-amber-700">(da verificare)</span>}</td>
+                        <tr key={r.bando_id} className="border-t border-line"><td className="py-1.5 text-ink-2 pr-3">{r.name}{r.de_minimis?.applies && <span className="ml-1.5 px-1.5 py-px rounded border border-violet-500/30 bg-violet-500/10 text-[10px] font-medium text-violet-700" title={r.de_minimis.evidence[0]?.text}>de minimis</span>}{r.estimate?.kind_label && <span className="block text-[10px] text-mute">{r.estimate.kind_label}</span>}{r.fit === 'DA_VERIFICARE' && <span className="ml-1.5 text-[10px] text-amber-700">(da verificare)</span>}</td>
                           <td className="text-right tabular-nums">{fmtEur(r.estimate?.covered_eur)}{r.estimate?.covered_high_eur > r.estimate?.covered_eur + 0.5 && <span className="text-mute"> – {fmtEur(r.estimate.covered_high_eur)}</span>}</td><td className={`text-right tabular-nums ${(used[r.fund.fund_id] ?? 0) > 0 ? 'text-emerald-700' : 'text-mute'}`}>{(used[r.fund.fund_id] ?? 0) > 0 ? fmtEur(used[r.fund.fund_id]) : 'non serve'}</td></tr>
                       ))}
                       <tr className="border-t border-line-strong font-semibold"><td className="py-1.5">Totale</td><td className="text-right tabular-nums">{fmtEur(alone)}</td><td className="text-right tabular-nums">{fmtEur(plan.covered_by_public_funds_eur)}</td></tr>
@@ -120,6 +174,8 @@ export default function PotentialStep({ results, picked, onPick, plan, planHigh,
                 </div>
               )}
               <RebuiltBudget plan={plan} nameOf={(id) => (results.find((r) => r.fund?.fund_id === id)?.name || id)} />
+              {pickedRows.some((r) => r.fund.de_minimis) && <DeMinimisBox rows={pickedRows.filter((r) => r.fund.de_minimis)} dm={dm} plan={plan} />}
+              <Legend multi={pickedRows.length > 1} />
             </>
           ) : !planError && <p className="text-xs text-mute flex items-center gap-2"><Loader2 className="w-3.5 h-3.5 animate-spin" />Calcolo il piano con tutti i bandi insieme…</p>}
           <p className="text-[11px] text-mute leading-relaxed">Nota professionale da includere nel report per il cliente: è un massimo teorico, presuppone di presentare domanda a tutti i bandi e di vincerli tutti. Usa solo ciò che ogni bando dichiara (aliquote, categorie, tetti) e, per prudenza, ogni spesa riceve un solo contributo a fondo perduto (il migliore): i contributi a fondo perduto non si sommano sulla stessa spesa, mentre garanzie, interessi e risparmi fiscali sì; l’esito reale dipende dall’istruttoria e dalle risorse disponibili.</p>
