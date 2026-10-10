@@ -1,4 +1,4 @@
-"""Genera il dossier completo di QUANTO (ex FKOS) in PDF: stessa struttura del documento v2.1, aggiornata allo stato reale.
+"""Genera il dossier completo di QUANTO (ex FKOS) in PDF (v4.0): stessa struttura del documento v2.1, aggiornata allo stato reale del 10 ottobre 2026.
 
 Uso:  python docs/dossier/build_dossier.py  (dalla radice del repository, con il venv del backend)
 Ogni affermazione sullo stato (FATTO / PARZIALE / DA FARE) è verificata sul codice o sul sistema online alla data indicata.
@@ -92,7 +92,7 @@ def page_decor(canv, doc):
     canv.saveState()
     canv.setFont("Body", 7.5)
     canv.setFillColor(MUTE)
-    canv.drawString(18 * mm, 10 * mm, "QUANTO v3.0 — Documento completo · stato reale al 4 ottobre 2026")
+    canv.drawString(18 * mm, 10 * mm, "QUANTO v4.0 — Documento completo · stato reale al 10 ottobre 2026")
     canv.drawRightString(A4[0] - 18 * mm, 10 * mm, f"pag. {doc.page}")
     canv.restoreState()
 
@@ -100,9 +100,9 @@ def page_decor(canv, doc):
 from content import build  # noqa: E402  (il testo vive in content.py)
 
 if __name__ == "__main__":
-    out = ROOT / "docs" / "dossier" / "QUANTO_v3_documento_completo.pdf"
+    out = ROOT / "docs" / "dossier" / "QUANTO_v4_documento_completo.pdf"
     build(sys.modules[__name__])
-    doc = BaseDocTemplate(str(out), pagesize=A4, leftMargin=18 * mm, rightMargin=18 * mm, topMargin=16 * mm, bottomMargin=18 * mm, title="QUANTO v3.0 — Documento completo",
+    doc = BaseDocTemplate(str(out), pagesize=A4, leftMargin=18 * mm, rightMargin=18 * mm, topMargin=16 * mm, bottomMargin=18 * mm, title="QUANTO v4.0 — Documento completo",
                           author="QUANTO", subject="Motore di budgeting, allocazione e profilo aziendale")
     doc.addPageTemplates([PageTemplate(id="p", frames=[Frame(doc.leftMargin, doc.bottomMargin, doc.width, doc.height, id="f")], onPage=page_decor)])
     doc.build(story)

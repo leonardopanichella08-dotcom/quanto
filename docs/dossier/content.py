@@ -1,4 +1,4 @@
-"""Testo del dossier QUANTO v3.0. Ogni affermazione di stato è stata verificata sul codice o sul sistema online il 4 ottobre 2026."""
+"""Testo del dossier QUANTO v4.0. Ogni affermazione di stato è verificata sul codice (10 ottobre 2026); i dati del sistema online sono quelli dell'ultima lettura (4 ottobre 2026) e sono datati."""
 from __future__ import annotations
 
 import json
@@ -12,22 +12,31 @@ def build(m):  # noqa: C901 - un documento lungo è una sola funzione di testo
     from reportlab.platypus import PageBreak, Paragraph
 
     # ------------------------------------------------------------------------------------------------ copertina
-    story.append(Paragraph("QUANTO v3.0 — Documento Completo", m.S["title"]))
-    story.append(Paragraph("Motore di budgeting, allocazione annuale e profilo aziendale per la finanza agevolata", m.S["sub"]))
-    story.append(Paragraph("Riscrittura integrale del documento FKOS v2.1, aggiornata allo stato reale del sistema al 4 ottobre 2026. Nessuna sintesi: ogni processo è spiegato nel dettaglio e ogni funzione porta il suo stato.", m.S["p"]))
+    story.append(Paragraph("QUANTO v4.0 — Documento Completo", m.S["title"]))
+    story.append(Paragraph("Il motore di calcolo per studi di commercialisti e boutique di finanza agevolata", m.S["sub"]))
+    story.append(Paragraph("Riscrittura integrale del documento v3.0, aggiornata allo stato reale del sistema al 10 ottobre 2026. Nessuna sintesi: ogni processo è spiegato nel dettaglio e ogni funzione porta il suo stato.", m.S["p"]))
     SP(6)
     H1("Nota di apertura — cosa contiene questo documento e cosa è cambiato")
-    P("Questo documento riprende, modulo per modulo, la struttura del documento «FKOS v2.1 — Documento Completo» (22 moduli, executive summary, schema tecnico API) e la porta al presente. "
-      "Il prodotto oggi si chiama **QUANTO** (FKOS era il nome di lavoro) ed è in produzione su https://quanto-self.vercel.app. A differenza della v2.1, che descriveva un progetto da costruire, "
-      "questa versione descrive un sistema che esiste: per ogni funzione si dice se è **realizzata e verificata**, **parziale**, oppure **ancora da fare**, e cosa manca per il 100%.")
-    P("Le quattro decisioni strategiche della v2.1 restano il perno e sono tutte rispettate dal codice:")
+    P("Questo documento riprende, modulo per modulo, la struttura del documento «FKOS v2.1 — Documento Completo» (22 moduli, executive summary, schema tecnico API) e la porta al presente, partendo dalla v3.0 del 4 ottobre. "
+      "Il prodotto si chiama **QUANTO** (FKOS era il nome di lavoro) ed è in produzione su https://quanto-self.vercel.app. Per ogni funzione si dice se è **realizzata e verificata**, **parziale**, oppure **ancora da fare**, e cosa manca per il 100%.")
+    P("**Il cambio di posizionamento.** Dalla v3 QUANTO è pensato per chi lo usa di mestiere: **studi di commercialisti e boutique di finanza agevolata**. L'account è dello studio; ogni azienda cliente è un «lavoro» con il suo profilo, i suoi bilanci e i suoi risultati; "
+      "il testo dell'interfaccia parla al professionista e non rimanda mai a «consulta il tuo commercialista». Le quattro decisioni strategiche della v2.1 restano il perno e sono tutte rispettate dal codice:")
     B(["**QUANTO non scrive progetti.** Nessun testo persuasivo, nessuna relazione illustrativa: solo la componente numerica (budget, ammissibilità, allocazione, stima dell'anno successivo).",
        "**Multi-verticale fin dal disegno.** Catalogo nazionale di oltre 5.900 misure letto dalle fonti istituzionali; le regole si estraggono solo su richiesta, con cache.",
        "**Metriche oneste e separate.** Nessun tasso di errore dichiarato prima di avere pratiche reali (Modulo 14).",
-       "**Pricing ibrido.** Oggi l'app è gratuita e mostra un'anteprima a crediti (Modulo 21): il pagamento reale non esiste ancora."])
-    P("A queste si aggiungono decisioni prese dopo la v2.1, riportate con la data nel Modulo 26: eliminazione della blockchain (19/09/2026), regola «mai dati inventati» (ogni numero risale a una fonte reale o dichiara la propria lacuna), "
-      "un solo processo standard per studiare ogni bando (01/10/2026), nessuna migrazione di Tailwind finché non serve (03/10/2026).")
-
+       "**Pricing ibrido.** Oggi l'app è gratuita e mostra un'anteprima a crediti dello studio (Modulo 21): il pagamento reale non esiste ancora."])
+    P("A queste si aggiungono le decisioni prese dopo la v2.1, riportate con la data nel Modulo 29 e nella cronologia: eliminazione della blockchain (19/09/2026), regola **«mai dati inventati»** (ogni numero risale a una fonte reale o dichiara la propria lacuna), "
+      "un solo processo standard per studiare ogni bando (01/10/2026, oggi RICERCA-v2), nessuna migrazione di Tailwind finché non serve (03/10/2026), caricamento manuale dei bandi riservato al Quartier Generale e scenario demo tolto dall'applicazione (tra il 5 e l'8 ottobre).")
+    H2("Cosa è successo dal 4 al 10 ottobre, in sintesi")
+    B(["**Studio e lavori** (Modulo 25): l'account è dello studio; ogni cliente è un lavoro con dati, documenti e risultati propri; cambiando pagina o chiudendo l'app ogni scelta si ritrova.",
+       "**Ogni bando ha un valore in euro** (Modulo 24): regola pubblicata, modello curato con le sue ipotesi, oppure tabella di intensità letta dal testo ufficiale; il processo di ricerca ora segue i link fino a tre giri e cerca apposta la percentuale (RICERCA-v2).",
+       "**Potenziale massimo con tutti i bandi insieme**, bilancio ricostruito con il grafico di ogni bando, piano **sempre uguale a parità di dati e sempre massimo**, legenda sempre visibile di ogni numero e **de minimis** spiegato, riconosciuto dalle fonti e stimato dai dati dichiarati (Modulo 24).",
+       "**Confronto riscritto sui template di budget** (Modulo 25): due motori (collettivo e interno), consiglio che si auto-migliora a ogni dato, mappa nicchie-bandi, solo bandi affini al lavoro attivo.",
+       "**Interfaccia professionale e minimale**: menu di gestione a sinistra, profilo completo dello studio (dati, sicurezza, piano e dati), nessun effetto vetro o «cartone animato».",
+       "**Assistente guidato** (Modulo 26): dove l'utente dovrebbe inserire dati o muoversi nell'app, l'assistente lo fa al suo posto, passo per passo, e chiede i valori spiegando in parole semplici cosa sono e dove si trovano.",
+       "**Manuale dei processi** (testo in Quartier Generale e PDF) e «I 60 criteri spiegati» (Modulo 15 e docs)."])
+    P("**Come è stato verificato.** Ogni affermazione sul codice è provata dai **499 test automatici** (tutti verdi al 10 ottobre). I dati del sistema online sono quelli dell'ultima lettura del 4 ottobre 2026 e sono indicati con la data. "
+      "Le funzioni aggiunte dopo quella data sono provate in locale, su un database temporaneo con l'azienda di prova: **la verifica online con dati reali dopo l'ultimo rilascio resta da fare** (richiede l'accesso dell'utente).")
     H2("Legenda degli stati")
     T([["Etichetta", "Significato"],
        ["[[FATTO]]", "Realizzato, coperto da test automatici e, dove ha senso, provato online con dati reali."],
@@ -39,67 +48,72 @@ def build(m):  # noqa: C901 - un documento lungo è una sola funzione di testo
     # ------------------------------------------------------------------------------------------------ stato in una pagina
     H1("Lo stato in una pagina")
     T([["Modulo (v2.1)", "Stato", "In una riga"],
-       ["1-3 Visione, missioni, posizionamento", "[[FATTO]]", "Le due missioni sono entrambe in produzione; la seconda (allocazione) è stata ricostruita attorno al profilo aziendale."],
-       ["4-6 Demo e pattern vincenti", "[[PARZIALE]]", "Pagina Confronto, 5 budget reali di società quotate, k-means; con meno di 6 budget per categoria c'è un solo archetipo (la media), dichiarato."],
+       ["1-3 Visione, missioni, posizionamento", "[[FATTO]]", "Le due missioni sono in produzione; il posizionamento è ora quello di strumento per studi e boutique di finanza agevolata (account dello studio, aziende clienti come «lavori»)."],
+       ["4-6 Prova su dati realistici, Confronto e pattern", "[[PARZIALE]]", "Demo tolta dall'app; azienda di prova fittizia. Il Confronto è riscritto sui template di budget dello studio (due motori, consiglio che si auto-migliora): funziona, ma senza template reali dichiara «ancora pochi dati»."],
        ["7 Disaccoppiamento / Strict Grounding", "[[PARZIALE]]", "Motore e validatore numerico completi; il modello linguistico non è collegato in produzione (nessuna chiave), il testo è il template fisso."],
-       ["8 Console", "[[FATTO]]", "7 pagine cliente + Algoritmo + Quartier Generale (11 sezioni). Il frontend non calcola mai nulla."],
-       ["9.1 Fonte A (normativa)", "[[PARZIALE]]", "Catalogo, trigger, cache, pipeline standard, Stadio 2 deterministico, coda di revisione: fatti. Stadio 3 con più passaggi AI: pronto ma spento. Audit di calibrazione: da fare."],
-       ["9.2 Fonte B (tabelle)", "[[PARZIALE]]", "Versionata per data nel database, nessun valore nel codice; 3 CCNL, 2 parametri, 5 aliquote; zero benchmark di prezzo/tariffa."],
+       ["8 Console", "[[FATTO]]", "Menu laterale con 7 pagine (Bandi, Budget, Allocazione, Confronto, Verifica, Guida, Profilo) + Algoritmo + Quartier Generale (12 sezioni) + assistente guidato. Il frontend non calcola mai importi."],
+       ["9.1 Fonte A (normativa)", "[[PARZIALE]]", "Catalogo, schede, processo standard RICERCA-v2 (fino a 3 giri di link, ricerca mirata della percentuale), valutazione in euro, cache e coda di revisione: fatti. Stadio 3 con più passaggi AI: pronto ma spento. Audit di calibrazione: da fare."],
+       ["9.2 Fonte B (tabelle)", "[[PARZIALE]]", "Versionata per data nel database, nessun valore nel codice; 3 CCNL, 2 parametri, 5 aliquote (ultima lettura online); zero benchmark di prezzo/tariffa."],
        ["9.3 Fonte C (dati del cliente)", "[[FATTO]]", "6 tipi di documento, cifratura AES-256-GCM, confidenza per campo, revisione, token per i dati personali. OCR su scansioni solo dove gira Tesseract (non su Vercel)."],
-       ["9.4 Profilo aziendale (nuovo)", "[[FATTO]]", "Dati dell'impresa e bilanci per esercizio con provenienza, procedura guidata, stima, abbinamento ai bandi, bozza di budget."],
+       ["9.4 Profilo dell'azienda e dello studio", "[[FATTO]]", "Un profilo per ogni lavoro (dati, bilanci con provenienza, modello di previsione) e un profilo dello studio a quattro sezioni (lavori, studio e dati, sicurezza, piano e dati)."],
        ["10-11 Motore e 60 criteri", "[[FATTO]]", "Tutti i 60 criteri implementati con Decimal; un criterio senza dato o regola è «non valutato», mai «superato»."],
-       ["12 Allocazione annuale", "[[FATTO]]", "MILP esatto (HiGHS), verifica in centesimi; nuova pagina a 4 passi dal bilancio al piano."],
-       ["13 Dove interviene l'AI", "[[PARZIALE]]", "Confini rispettati; unica AI in produzione: la ricerca Brave per trovare i documenti, non per interpretarli."],
+       ["12 Allocazione e potenziale massimo", "[[FATTO]]", "MILP esatto (HiGHS), verifica in centesimi, piano deterministico e sempre massimo; pagina a 5 passi dal bilancio al piano; potenziale massimo con tutti i bandi adatti."],
+       ["24 Valore in euro dei bandi e de minimis", "[[PARZIALE]]", "Ogni bando adatto ha un valore con intervallo e le sue ipotesi; il de minimis è riconosciuto dalle fonti e stimato dai dati dichiarati. Limite: un bando senza percentuale nei testi letti resta senza importo (e lo dice)."],
+       ["25 Studio, lavori e Confronto a template", "[[FATTO]]", "Multi-lavoro con salvataggio per lavoro; template con esito, sei livelli di somiglianza, fiducia dichiarata, stili, due motori e privacy per gruppi minimi."],
+       ["26 Assistente guidato", "[[FATTO]]", "Quattro attività con pannello a destra e passi visibili; provato in locale, da verificare online dopo il rilascio."],
+       ["13 Dove interviene l'AI", "[[PARZIALE]]", "Confini rispettati; unica AI in produzione: la ricerca Brave per trovare i documenti, non per interpretarli. L'assistente non usa modelli linguistici."],
        ["14 Metriche", "[[FATTO]]", f"{FACTS['tests']} test automatici passano; nessuna metrica su pratiche reali (non esistono)."],
        ["15 Stack", "[[FATTO]]", "FastAPI + PostgreSQL + React/Vite su Vercel; CI con test, build e audit delle dipendenze."],
-       ["16 Sicurezza e GDPR", "[[FATTO]]", "Cifratura a riposo, pseudonimizzazione, scrypt, blocco account, RLS su tutte le tabelle, intestazioni di sicurezza e CSP. DPA e valutazione d'impatto: da fare."],
+       ["16 Sicurezza e GDPR", "[[FATTO]]", "Cifratura a riposo, pseudonimizzazione, scrypt, blocco account, RLS su tutte le tabelle, intestazioni di sicurezza e CSP; esportazione ed eliminazione dei dati dello studio. DPA e valutazione d'impatto: da fare."],
        ["17 Registro crittografico", "[[DECISIONE]]", "Anticipato dalla Fase 2 e realizzato SENZA blockchain: catena di hash firmata Ed25519, Merkle, attestazioni offline, Auditor Portal."],
        ["18 Componente assicurativa", "[[FASE 3]]", "Non toccata, per scelta."],
        ["19 Reparto di consulenza", "[[FASE 4]]", "Non toccato; esiste solo la «scheda per il consulente» nel Quartier Generale."],
        ["20-22 Go-to-market", "[[DA FARE]]", "Nessuna attività commerciale avviata; registrazione libera e crediti simulati pronti."]], [52, 22, 96])
-
-    H2("Numeri del sistema (verificati il 4 ottobre 2026)")
+    H2("Numeri del sistema")
+    P("Il codice è stato contato il 10 ottobre 2026; i dati online (catalogo, bandi, regole, database) sono quelli dell'ultima lettura del sistema, il **4 ottobre 2026**.")
     T([["Dato", "Valore"],
-       ["Test automatici backend", f"{FACTS['tests']} (tutti verdi; CI su ogni push: test su PostgreSQL 16, build, audit dipendenze)"],
-       ["Endpoint REST", "121 sotto /api/v2 (più la radice di salute)"],
-       ["Migrazioni del database", "11 (init, fonte_b, fonte_c, funding_lines, users, pattern, draft_doc_type, enable_rls, requirement_figures, company_profile, catalog_meta)"],
-       ["Tabelle", "24, tutte con Row Level Security attiva"],
+       ["Test automatici backend (10/10)", f"{FACTS['tests']} (tutti verdi; CI su ogni push: test su PostgreSQL 16, build, audit dipendenze)"],
+       ["Endpoint REST (10/10)", f"{FACTS['endpoints']} operazioni sotto /api/v2 (più la radice di salute)"],
+       ["Migrazioni del database (10/10)", f"{FACTS['migrations']} (init, fonte_b, fonte_c, funding_lines, users, pattern, draft_doc_type, enable_rls, requirement_figures, company_profile, catalog_meta, forecast_template, retire_demo, budget_templates, clients, user_profile)"],
+       ["Tabelle (10/10)", f"{FACTS['tables']}, tutte con Row Level Security attiva"],
        ["Criteri del motore", "60 su 60 implementati"],
-       ["Catalogo nazionale", f"{FACTS['catalog_total']} voci aperte o senza data (da 5.975 prima della pulizia); {FACTS['catalog_open']} con scadenza futura certa, {FACTS['catalog_undated']} senza data; tutte con la scheda letta"],
-       ["Bandi in memoria", f"{FACTS['bandi']} voci totali; 9 curati a mano; {FACTS['studied']} del catalogo già studiati con il processo standard"],
-       ["Regole / requisiti letti", f"{FACTS['rules']} regole pubblicate o in revisione, {FACTS['requirements']} requisiti, {FACTS['sources']} documenti di fonte con {FACTS['files']} file originali conservati"],
-       ["Fonte B pubblicata", "3 CCNL (Commercio, Metalmeccanica, Terzo settore), 2 parametri nazionali, 5 aliquote d'ammortamento, 0 benchmark"],
+       ["Bandi curati a mano (10/10)", "8: Transizione 5.0 (iperammortamento), Nuova Sabatini, Horizon Europe, Smart&Start Italia, Investimenti Sostenibili 4.0, Fondo di Garanzia PMI, SIMEST 394/81, FVG Validazione TRL"],
+       ["Catalogo nazionale (online, 4/10)", f"{FACTS['catalog_total']} voci aperte o senza data (da 5.975 prima della pulizia); {FACTS['catalog_open']} con scadenza futura certa, {FACTS['catalog_undated']} senza data; tutte con la scheda letta"],
+       ["Bandi in memoria (online, 4/10)", f"{FACTS['bandi']} voci totali (comprendono il bando di prova poi eliminato); {FACTS['studied']} del catalogo già studiati con il processo standard"],
+       ["Regole / requisiti letti (online, 4/10)", f"{FACTS['rules']} regole pubblicate o in revisione, {FACTS['requirements']} requisiti, {FACTS['sources']} documenti di fonte con {FACTS['files']} file originali conservati"],
+       ["Fonte B pubblicata (online, 4/10)", "3 CCNL (Commercio, Metalmeccanica, Terzo settore), 2 parametri nazionali, 5 aliquote d'ammortamento, 0 benchmark"],
        ["Banca dei pattern", "5 budget da bilanci di società quotate, ciascuno con pagina e nota della fonte"],
-       ["Database", f"PostgreSQL, {FACTS['db_mb']} MB, {FACTS['events']} eventi registrati, {FACTS['runs']} esecuzioni salvate"],
-       ["Registro firmato", "1 registrazione (prova della demo), catena integra, chiave di firma 4e5773cd74cfe97d"]], [48, 122])
+       ["Database (online, 4/10)", f"PostgreSQL, {FACTS['db_mb']} MB, {FACTS['events']} eventi registrati, {FACTS['runs']} esecuzioni salvate"],
+       ["Registro firmato (online, 4/10)", "1 registrazione (prova della demo), catena integra, chiave di firma 4e5773cd74cfe97d"]], [48, 122])
 
     H2("Cosa è cambiato rispetto alla v2.1 — in dettaglio")
     T([["Area", "v2.1 (progetto)", "Oggi (sistema)"],
-       ["Nome", "FKOS", "QUANTO"],
+       ["Nome e destinatario", "FKOS, enti e PMI", "QUANTO, per studi di commercialisti e boutique di finanza agevolata: l'utente è il professionista, il cliente è un «lavoro»."],
        ["Registro (Mod. 17)", "Fase 2: albero di Merkle + hash dei documenti, ancoraggio non specificato", "Realizzato: catena di hash append-only firmata Ed25519, Merkle con separazione di dominio (RFC 6962), attestazione verificabile offline, Auditor Portal con QR. Blockchain eliminata per decisione del 19/09/2026."],
-       ["Database", "PostgreSQL + vettoriale", "PostgreSQL con 11 migrazioni, trigger che rendono il registro append-only, RLS. Nessun database vettoriale: la lettura delle fonti è lessicale e strutturata (vedi 9.1)."],
+       ["Database", "PostgreSQL + vettoriale", f"PostgreSQL con {FACTS['migrations']} migrazioni e {FACTS['tables']} tabelle, trigger che rendono il registro append-only, RLS. Nessun database vettoriale: la lettura delle fonti è lessicale e strutturata (vedi 9.1)."],
        ["Fonte B", "Connettori che scaricano le tabelle", "Caricamento da file con bozza → attestazione → pubblicazione da un manager, versioni per data di validità, provenienza obbligatoria. I connettori automatici non esistono."],
        ["Fonte C", "Buste paga, F24, registri IVA, bilanci, piano dei conti, organigrammi", "Buste paga, bilanci (schema civilistico), F24, bozze di candidatura, visure camerali, altri documenti (archiviati e non letti). Registri IVA e piano dei conti: non letti."],
-       ["Profilo aziendale", "Non previsto", "Nuovo: dati dell'impresa, bilanci per esercizio, provenienza di ogni valore, procedura guidata, stima dell'anno successivo, bandi adatti, bozza di budget."],
-       ["Catalogo (Stadio 1)", "Metadati: nome, ente, scadenza, link", "Più la descrizione ufficiale e le caratteristiche della scheda (forma di agevolazione, costi ammessi, dimensione, regioni, ATECO), la scadenza, lo stato aperto/chiuso e l'ordinamento per affinità con l'azienda. Le voci chiuse vengono eliminate ogni notte."],
-       ["Studio di un bando", "Stadio 2 e 3 sparsi", "Un solo processo standard: cerca → scarica → leggi → valuta, con rapporto di completezza (COMPLETA / PARZIALE / INSUFFICIENTE) e motivo di ogni lacuna."],
-       ["Allocazione", "Dal bilancio all'anno successivo, fondi dal codice o a mano", "Pagina a 4 passi: dati → stima (variazione scelta dall'utente) → bandi adatti con tetti e riduzioni → piano MILP con i bandi spuntati. I fondi si ricavano dalle regole pubblicate dei bandi."],
+       ["Profilo e lavori", "Non previsto", "Nuovo: un profilo per ogni azienda cliente (lavoro), con provenienza di ogni valore, modello di previsione, stima, bandi adatti e bozza di budget; profilo dello studio con sicurezza, esportazione ed eliminazione dei dati."],
+       ["Catalogo (Stadio 1)", "Metadati: nome, ente, scadenza, link", "Più la descrizione ufficiale e le caratteristiche della scheda, la scadenza, lo stato aperto/chiuso e l'ordinamento per affinità con l'azienda. Le voci chiuse vengono eliminate ogni notte."],
+       ["Studio di un bando", "Stadio 2 e 3 sparsi", "Un solo processo standard, RICERCA-v2: cerca → scarica → segui i link (fino a 3 giri) → leggi → cerca la percentuale → valuta, con rapporto COMPLETA / PARZIALE / INSUFFICIENTE e motivo di ogni lacuna."],
+       ["Valore dei bandi", "Non previsto", "Ogni bando adatto ha un valore in euro con intervallo prudente-massimo: regola pubblicata, modello curato (interessi, risparmio fiscale, fondo perduto, garanzia) o tabella di intensità del testo ufficiale."],
+       ["Allocazione", "Dal bilancio all'anno successivo, fondi dal codice o a mano", "Pagina a 5 passi: dati → stima (modello di previsione o variazione dai bilanci, con la spiegazione) → bandi adatti → potenziale massimo con tutti i bandi insieme → piano voce per voce. Risultato deterministico e sempre massimo; de minimis gestito."],
        ["Criteri", "Fino a 60, costruiti progressivamente", "60 su 60. Un criterio senza dato o regola risulta «non valutato», mai «superato»."],
-       ["Pattern", "Banca da graduatorie pubbliche", "Bilanci reali di società quotate (cinque), k-means con soglia dichiarata; sotto soglia una sola media."],
-       ["Utenti", "Non descritti", "Account con ruoli USER e MANAGER, accesso riservato al titolare per il Quartier Generale, registrazione libera, crediti simulati."],
+       ["Confronto (pattern)", "Banca da graduatorie pubbliche", "Template di budget dello studio con esito, consiglio per nicchia e bando con sei livelli di somiglianza, due motori (collettivo e interno), mappa nicchie-bandi. La banca dei 5 bilanci quotati resta nel Quartier Generale."],
+       ["Utenti", "Non descritti", "Account dello studio con ruoli USER e MANAGER, accesso riservato al titolare per il Quartier Generale, registrazione libera, crediti simulati per studio."],
        ["LLM", "Renderer + Stadio 3", "Modulo completo e testato, spento in produzione (nessuna chiave): vale il template fisso."],
-       ["Interfaccia", "4 viste + pannello interno", "Bandi, Budget, Allocazione, Confronto, Verifica, Guida, Profilo + Algoritmo (dal Budget) + Quartier Generale (11 sezioni)."],
+       ["Interfaccia", "4 viste + pannello interno", "Menu laterale: Allocazione, Confronto, Bandi, Budget, Verifica, Guida, Profilo + Algoritmo (dal Budget) + Quartier Generale (12 sezioni) + assistente guidato a destra."],
        ["Webhook", "8 eventi", "7 eventi emessi; consultation.requested e rule.audit_flagged non attivi (dipendono da Fase 4 e dall'audit)."],
        ["Qualità", "Regression test sui 60 criteri", f"{FACTS['tests']} test su PostgreSQL reale, CI con azioni fissate per impronta, Dependabot, audit delle dipendenze."]], [28, 50, 92])
     story.append(PageBreak())
 
     # ------------------------------------------------------------------------------------------------ indice
     H1("Indice")
-    for line in ["PARTE I — Visione e missione: Moduli 1-3", "PARTE II — La demo e la validazione dei pattern vincenti: Moduli 4-6",
-                 "PARTE III — Architettura tecnica e algoritmica: Moduli 7-16 (con il nuovo 9.4 Profilo aziendale)",
+    for line in ["PARTE I — Visione e missione: Moduli 1-3", "PARTE II — Prova su dati realistici, Confronto e pattern: Moduli 4-6",
+                 "PARTE III — Architettura tecnica e algoritmica: Moduli 7-16 (con il 9.4 Profilo e studio)",
                  "PARTE IV — La visione a lungo termine: Moduli 17-19", "PARTE V — Go-to-market: Moduli 20-22",
-                 "PARTE VI — Il sistema com'è oggi (nuova): Moduli 23-27 — Quartier Generale, dati e database, cosa fa l'app a ogni azione, esito del test demo, cosa manca per il 100%",
-                 "Executive summary", "Schema tecnico API (reale)", "Appendici A-D — variabili d'ambiente, tabelle, test, cronologia delle fasi"]:
+                 "PARTE VI — Il sistema com'è oggi: Moduli 23-30 — Quartier Generale, valore dei bandi e de minimis, studio e Confronto, assistente guidato, dati e database, cosa fa l'app a ogni azione, esito del test demo, cosa manca per il 100%",
+                 "Executive summary", "Schema tecnico API (reale)", "Appendici A-B — variabili d'ambiente, cronologia del lavoro"]:
         P(line)
 
     # ================================================================================================ PARTE I
@@ -112,8 +126,8 @@ def build(m):  # noqa: C901 - un documento lungo è una sola funzione di testo
     P("Invariata: il consulente tradizionale lavora a compartimenti stagni e produce budget generici; l'IA generica stima invece di calcolare e sbaglia sistematicamente sui numeri (costi orari fuori scala, lordo e netto confusi, categorie di beni non ammesse). "
       "QUANTO occupa lo spazio in mezzo: calcola, non stima e non scrive. Il caso che l'ha reso concreto è stato il nostro: un'azienda con bilanci e buste paga vuole sapere a quali bandi può accedere, quali spese rientrano, di quanto vanno ridotte e quanto vale il contributo.")
     H3("1.3 Perché non restringersi a un solo bando")
-    P("Rispettato. Il motore ospita le regole di qualsiasi bando come istanze dello stesso insieme di criteri. Oggi il sistema contiene 9 bandi curati a mano (Transizione 5.0 – iperammortamento, Nuova Sabatini, Horizon Europe, Smart&Start Italia, Investimenti Sostenibili 4.0, Fondo di Garanzia PMI, SIMEST 394/81, FVG Validazione TRL, più il bando di prova a 60 criteri) "
-      "e un catalogo nazionale di oltre 800 misure aperte, delle quali una quota si studia su richiesta. L'ampiezza di copertura resta funzione di quanti bandi sono stati studiati, non un interruttore: **oggi 13 bandi reali (più il bando di prova) hanno regole o requisiti letti**, gli altri sono descritti ma non valutabili in euro.")
+    P("Rispettato. Il motore ospita le regole di qualsiasi bando come istanze dello stesso insieme di criteri. Oggi il sistema contiene 8 bandi curati a mano (Transizione 5.0 – iperammortamento, Nuova Sabatini, Horizon Europe, Smart&Start Italia, Investimenti Sostenibili 4.0, Fondo di Garanzia PMI, SIMEST 394/81, FVG Validazione TRL) "
+      "e un catalogo nazionale di oltre 800 misure aperte, delle quali una quota si studia su richiesta. L'ampiezza di copertura resta funzione di quanti bandi sono stati studiati, non un interruttore: **all'ultima lettura online (4 ottobre) 13 bandi reali avevano regole o requisiti letti**, gli altri sono descritti ma non valutabili in euro.")
 
     H2("MODULO 2 — Il prodotto reale: le due missioni")
     H3("2.1 Missione Uno — in fase di candidatura  [[FATTO]]")
@@ -134,8 +148,8 @@ def build(m):  # noqa: C901 - un documento lungo è una sola funzione di testo
     P("**Esempio verificato da test.** Quattro voci ammesse da 60.000, 20.000, 15.000 e 5.000 € e tre WP con quote desiderate 50%, 30% e 20% (il primo con massimo 60%): senza dividere voci lo scostamento totale minimo è di 20 punti; consentendo di dividerne una (la voce da 60.000 € tra i primi due WP) le quote tornano esattamente 50/30/20. "
       "L'operazione compare in timeline e nella mappa delle operazioni; il risultato si scarica in CSV. Non è un controllo dei 60 criteri: le regole del bando sui tetti per categoria restano affidate al motore, i vincoli per WP sono quelli dichiarati dall'utente.")
     H3("2.2 Missione Due — pianificazione ordinaria  [[FATTO]]")
-    P("L'ente carica visura e bilanci (anche più anni) nel Profilo; l'Allocazione stima le spese dell'anno successivo partendo dall'ultimo bilancio con le variazioni scelte dall'utente, valuta i bandi studiati e il catalogo, "
-      "mostra quanto ogni bando coprirebbe e quali voci vanno ridotte per rispettare i tetti, e calcola il piano ottimo con i bandi scelti: quale fonte copre quale spesa, quanto resta a carico, come si distribuisce mese per mese.")
+    P("Lo studio apre un lavoro per l'azienda cliente e carica visura e bilanci (anche più anni) nel Profilo; l'Allocazione stima le spese dell'anno successivo, valuta i bandi studiati e il catalogo con un valore in euro per ciascuno, "
+      "mostra quanto ogni bando coprirebbe e quali voci vanno ridotte per rispettare i tetti, calcola il **potenziale massimo** con tutti i bandi insieme e il piano ottimo: quale fonte copre quale spesa, quanto resta a carico, come si distribuisce mese per mese (Moduli 12 e 24).")
     H3("2.3 Il filo conduttore")
     P("Le due missioni condividono motore, fonti A/B/C e console. L'effetto di lock-in descritto nella v2.1 è ora concreto: il **profilo aziendale** è il ponte. Un'azienda che ha caricato i suoi documenti per la pianificazione arriva al bando con la bozza di budget già costruita sui propri bilanci.")
 
@@ -144,34 +158,31 @@ def build(m):  # noqa: C901 - un documento lungo è una sola funzione di testo
       "Un elemento nuovo rafforza la differenza: il catalogo con le schede ufficiali e l'ordinamento per affinità trasforma «quale bando fa per me?» da ricerca manuale a lista ordinata e motivata (regione, dimensione, ATECO, settore, spese ammesse), senza promettere un esito.")
 
     # ================================================================================================ PARTE II
-    H1("PARTE II — LA DEMO E LA VALIDAZIONE DEI PATTERN VINCENTI")
-    H2("MODULO 4 — La demo reale  [[PARZIALE]]")
-    P("La demo si esegue oggi con dati reali. Sull'account di prova (Meridiana Digital Solutions S.r.l., azienda interamente fittizia con 14 documenti coerenti tra loro) il percorso è: procedura guidata nel Profilo (profilo dallo 0% al 92% con un solo gesto di caricamento, 100% dopo una risposta), "
-      "stima 2027 dall'ultimo bilancio, confronto con 12 bandi studiati e 136 voci del catalogo, bozza di budget per il bando scelto, controllo dei 60 criteri, esportazione, registrazione dell'impronta, verifica (anche con manomissione simulata), confronto con i budget premiati.")
-    B(["**Selezione del bando:** da catalogo o ricerca per nome (ricerca interna, poi web con Brave Search). [[FATTO]]",
-       "**Budget bozza:** a mano, Excel, PDF di candidatura, busta paga o bilancio dell'azienda. [[FATTO]]",
-       "**Pattern comparabili:** i budget storici della categoria scelta; con i dati attuali (3 e 2 budget) si ottiene un solo archetipo per categoria, dichiarato come media. [[PARZIALE]]",
-       "**Pattern Similarity Score** con scostamento principale, e pulsanti «Usa il budget che ho controllato» e «Usa i costi del mio profilo». [[FATTO]]",
-       "**Simulazione di correzione in tempo reale:** ogni modifica rilancia il confronto sul server dopo 450 ms. [[FATTO]]",
+    H1("PARTE II — PROVA SU DATI REALISTICI, CONFRONTO E PATTERN")
+    H2("MODULO 4 — La prova su dati realistici  [[PARZIALE]]")
+    P("Lo scenario «demo» e il bando di prova a 60 criteri sono stati **tolti dall'applicazione** e le loro tracce dal database (migrazione 13): ciò che compare è sempre un dato dell'utente o un dato reale. Per provare il sistema esiste un'azienda interamente fittizia, "
+      "Meridiana Digital Solutions S.r.l. (14 documenti coerenti tra loro: visura, tre bilanci 2023-2025, buste paga, F24, bozza di candidatura, DURC, de minimis, business plan, Excel), generata da `backend/scripts/make_sample_company.py` e conservata in `documenti_di_prova/`. "
+      "Si carica come si farebbe con un cliente vero: nessuna scorciatoia nel codice.")
+    P("Il percorso di prova è quello di tutti: aprire un lavoro → caricare i documenti nel Profilo → profilo (92% con un solo gesto, 100% dopo la risposta sulla start-up) → stima dell'anno → bandi adatti → potenziale massimo → bozza di budget → controllo dei 60 criteri → esportazione → registrazione dell'impronta → verifica → Confronto.")
+    B(["**Selezione del bando:** dal catalogo o ricerca per nome (ricerca interna, poi web con Brave Search). [[FATTO]]",
+       "**Budget:** a mano, Excel, PDF di candidatura, busta paga, bilancio dell'azienda o **con l'assistente** (Modulo 26). [[FATTO]]",
+       "**Confronto con i template:** consiglio per nicchia e bando (Modulo 25). [[PARZIALE]]",
        "**Conformity Score** in parallelo, con motivazione per ogni voce respinta o sospesa. [[FATTO]]"])
-    H3("4.3 Perché la demo è onesta")
-    P("Ogni elemento è verificabile nello stesso momento: i budget storici sono bilanci pubblicati con la pagina da cui derivano (visibile in «Banca pattern» del Quartier Generale), il calcolo è deterministico, la correzione ha il riferimento esatto. "
-      "Esempio reale della demo del 4 ottobre: ripartizione dell'azienda di prova (64,8% personale, 8,2% beni, 12,5% consulenze, 13,2% spese generali, 1,3% formazione) → archetipo «TRAZIONE_BILANCIATA», somiglianza 0,87, scostamento principale −24,8 punti sulle spese generali; i tre budget più simili sono Websolute (93,3%), Alkemy (82,5%) e Doxee (79,9%).")
-    NOTE("Il valore dello scostamento dipende dal dataset corrente (5 budget).")
+    H3("4.3 Un risultato letto sul database di prova")
+    P("Eseguito il 10 ottobre 2026 su un database locale temporaneo (catalogo ridotto, non quello online) con l'azienda di prova: spesa prevista 2027 di 1.965.919,31 € (ricavi 1.583.200 € nel 2025, +19,2% sul 2024); 6 bandi adatti, 5 inclusi nel piano; "
+      "il piano copre 1.243.460,21 € (63,3%), fino a 1.708.776,43 € con tutte le maggiorazioni, e lascia 722.459,10 € a carico. Il risultato dipende dai bandi studiati: sul sistema online, con un catalogo più ricco, è diverso.")
+    NOTE("I numeri sono quelli del database di prova e servono a mostrare il percorso, non a promettere un esito.")
 
-    H2("MODULO 5 — La banca dati dei pattern vincenti  [[PARZIALE]]")
-    P("Struttura del dato: per ogni budget la ripartizione percentuale tra sei categorie (personale, beni, consulenze, spese generali, formazione, comunicazione) più metadati (categoria di bando, fonte obbligatoria, anno, punteggio opzionale). "
-      "L'importazione avviene da CSV nel Quartier Generale (sezione «Banca pattern») e **blocca le righe incomplete**; la fonte è obbligatoria su ogni riga.")
-    T([["Categoria", "Budget", "Fonti (tutte bilanci pubblicati, con pagina e criterio di calcolo nella nota)"],
+    H2("MODULO 5 — La banca dei pattern e i template  [[PARZIALE]]")
+    P("La **banca dei pattern** (5 bilanci reali di società quotate, ciascuno con pagina e criterio di calcolo nella nota) resta nel Quartier Generale («Banca pattern») e si importa da CSV con fonte obbligatoria su ogni riga. È un proxy della struttura di costo, non un insieme di budget vincenti.")
+    T([["Categoria", "Budget", "Fonti (bilanci pubblicati)"],
        ["DIGITALE_ICT", "3", "Websolute S.p.A. (consolidato 2024), Alkemy S.p.A. (consolidato 2023, anno scelto per escludere un impairment one-off), Doxee S.p.A. (bilancio d'esercizio 2024)"],
        ["MANIFATTURIERO_INDUSTRIA40", "2", "Vimi Fasteners Group (consolidato 2024), Fervi S.p.A. (consolidato 2024)"]], [48, 14, 108])
-    P("Differenza dalla v2.1: le graduatorie pubbliche dei bandi non sono ancora state importate (il piano finanziario di sintesi è raro e disomogeneo); la banca parte da bilanci di società quotate, che sono dati veri e verificabili ma sono proxy di struttura di costo, non budget di progetto vincenti. "
-      "Il vero set di pattern vincenti (graduatorie e dati del pilota con consenso) resta **[[DA FARE]]** ed è la prima voce dei dati da fornire (Modulo 27).")
-    H2("MODULO 6 — L'algoritmo di pattern matching  [[FATTO]]")
-    B(["**Fase uno — archetipi:** k-means++ con seme fisso (stesso dataset, stessi archetipi). Sotto **6 budget per categoria** non si finge un clustering: c'è un solo archetipo, la media, dichiarata come tale («media di 3 budget: servono almeno 6 per fare il clustering»).",
-       "**Fase due — similarità:** similarità del coseno tra il vettore delle sei quote e ogni archetipo; si restituiscono archetipo più vicino, scostamento voce per voce in punti percentuali, i tre budget storici più simili con fonte, e il Conformity Score del budget controllato.",
-       "**Natura statistica dichiarata:** è l'unico calcolo non univoco; non c'è alcun modello linguistico. L'etichetta dice sempre «indicazione statistica, non previsione»."])
-
+    P("Il **vero** insieme di budget vincenti nasce ora dai **template dello studio** (Modulo 25): ogni commercialista salva i budget dei suoi clienti con l'esito e l'algoritmo impara da quelli. Finché i template non sono abbastanza il Confronto lo dice («ancora pochi dati») e non inventa nulla. Le graduatorie pubbliche dei bandi non sono state importate (il piano finanziario di sintesi è raro e disomogeneo). **[[DA FARE]]** per il dataset iniziale.")
+    H2("MODULO 6 — Gli algoritmi del Confronto  [[FATTO]]")
+    B(["**Banca dei pattern:** k-means++ con seme fisso e similarità del coseno tra le quote di spesa; sotto 6 budget per categoria c'è un solo archetipo, la media, dichiarata come tale.",
+       "**Template:** media pesata per esito (ammesso 3, presentato 1,5, bozza 1, non ammesso 0,25) sul primo livello di somiglianza con almeno 3 template; con almeno 6 template un k-means a seme fisso trova gli «stili» di budget e dice quanti hanno vinto; la fiducia (alta, media, bassa) è dichiarata. Dettagli nel Modulo 25.",
+       "**Natura statistica dichiarata:** non c'è alcun modello linguistico; l'etichetta dice sempre «indicazione statistica, non previsione di esito»."])
     # ================================================================================================ PARTE III
     H1("PARTE III — ARCHITETTURA TECNICA E ALGORITMICA")
     H2("MODULO 7 — Architettura generale: il principio di disaccoppiamento  [[PARZIALE]]")
@@ -189,19 +200,21 @@ def build(m):  # noqa: C901 - un documento lungo è una sola funzione di testo
     H3("8.1 Filosofia di interfaccia")
     P("Ogni numero mostrato è verificabile: l'Ispettore di una voce mostra fonti, formula e ogni controllo con il motivo; le cifre della procedura guidata e dell'allocazione dicono da quale documento o regola arrivano. Il frontend non esegue mai un calcolo economico: ogni interazione genera una chiamata e un risultato lato server.")
     H3("8.2 Le pagine (oggi)")
+    P("Il menu di gestione sta a sinistra (sul telefono si apre dal pulsante in alto): in alto il **lavoro attivo** (l'azienda cliente su cui si lavora), poi il pulsante **Assistente**, poi le pagine in tre gruppi, in basso Guida, Profilo, Quartier Generale (solo titolare), crediti dello studio e utente.")
     T([["Pagina", "Cosa fa", "Corrispondenza con la v2.1"],
-       ["Bandi", "Libreria dei bandi studiati e curati; sfoglia tutto il catalogo con le descrizioni; cerca sul web; aggiungi un documento a mano; pulsante «Studia il bando».", "Vista «Bandi attivi»"],
+       ["Allocazione", "Cinque passi: dati dell'azienda, stima dell'anno, bandi adatti (adatti / da verificare / non adatti / da studiare), tutti i bandi insieme (potenziale massimo, bilancio ricostruito, de minimis, legenda dei numeri), piano voce per voce con Sankey, uso dei fondi e mesi.", "Vista 2 Allocazione annuale"],
+       ["Confronto", "Template di budget dello studio, consiglio per nicchia e bando, due motori, stili, mappa nicchie-bandi; solo bandi affini al lavoro attivo.", "Vista 3 Demo Pattern (riscritta)"],
+       ["Bandi", "Libreria dei bandi studiati e curati; sfoglia tutto il catalogo con le descrizioni; cerca sul web; pulsante «Studia il bando». Non si caricano più bandi da testo libero (solo il Quartier Generale).", "Vista «Bandi attivi»"],
        ["Budget", "Voci per categoria, controllo dei 60 criteri, Ispettore, modifica voce, bozza dal profilo azienda, ripartizione tra i pacchetti di lavoro (WP), import Excel/PDF, export XLSX/PDF, registrazione dell'impronta.", "Vista 1 Budget Canvas + Vista 4 Report"],
-       ["Allocazione", "Quattro passi: dati dell'azienda, stima dell'anno, bandi adatti (adatti / da verificare / non adatti / da studiare), piano con Sankey, uso dei fondi e mesi.", "Vista 2 Allocazione annuale"],
-       ["Confronto", "Pattern matching con archetipi e budget storici più simili.", "Vista 3 Demo Pattern"],
        ["Verifica", "Auditor Portal: verifica impronta, ricalcolo dai dati, manomissione simulata.", "Modulo 17 (anticipato)"],
        ["Guida", "Percorso rapido, Merkle passo passo, ogni funzione con un esempio, glossario.", "—"],
-       ["Profilo", "Procedura guidata a passi, dati e bilanci dell'azienda, crediti, operazioni recenti, documenti con anteprima, download singolo e scarico di tutti i file in un archivio ZIP.", "Nuova (Modulo 9.4)"],
+       ["Profilo", "Quattro sezioni: Lavori (le aziende clienti), Studio e dati, Sicurezza, Piano e dati; dentro ogni lavoro il profilo dell'azienda con procedura guidata, bilanci, documenti (anteprima, download singolo, ZIP).", "Nuova (Modulo 9.4)"],
        ["Algoritmo", "Il «film» del calcolo: 7 fasi, mappa voci × 60 controlli, cascata degli importi, albero di Merkle. Si apre dal Budget.", "—"],
-       ["Quartier Generale", "Solo titolare: 11 sezioni (Modulo 23).", "Pannello di Ingestion (Mod. 8.4), esteso"]], [28, 100, 42])
-    H3("8.3 Stack di presentazione")
-    P("React 18.3 con Vite 7.3 e Tailwind 3.4, icone Lucide, font Archivo, Outfit e JetBrains Mono. Stile: riquadri in forma di finestra («chrome») sulle pagine principali, tipografia marcata, e nella homepage lo sfondo «catena di blocchi» al posto della precedente animazione a costellazioni. "
-      "Due fatti di processo: il frontend non ha router (si naviga con uno stato interno), e la migrazione a Tailwind 4 è stata rimandata per decisione del 03/10/2026 perché non è necessaria (gli avvisi «high» restanti riguardano solo la catena di build di Tailwind 3, non il codice in produzione).")
+       ["Quartier Generale", "Solo titolare: 12 sezioni (Modulo 23).", "Pannello di Ingestion (Mod. 8.4), esteso"]], [28, 100, 42])
+    H3("8.3 Stack di presentazione e disegno")
+    P("React 18.3 con Vite 7.3 e Tailwind 3.4, icone Lucide, un solo carattere (Inter) più JetBrains Mono per il codice. Disegno **minimale e professionale**: superfici piatte bianche con bordo sottile, nessun effetto vetro, nessuna sfocatura, spigoli piccoli, palette neutra in cui il giallo del marchio compare solo nel logo e in piccoli accenti. "
+      "Gli spazi seguono una scala fissa; le pagine già visitate restano montate, quindi cambiando pagina si ritrova tutto com'era. La homepage mantiene la grafica d'apertura con la «catena di blocchi». "
+      "Due fatti di processo: il frontend non ha router (si naviga con uno stato interno), e la migrazione a Tailwind 4 è stata rimandata per decisione del 03/10/2026 perché non è necessaria.")
     H3("8.4 Il Pannello di Ingestion")
     P("Esiste, ed è la sezione «Bandi» e «Catalogo» del Quartier Generale: per ogni bando, documenti (testo estratto e file originale), regole (anche quelle in disaccordo), requisiti, scheda per il consulente, linea di finanziamento per l'allocazione, utilizzi, esportazione ZIP; per il catalogo, descrizioni e caratteristiche. Non è visibile agli utenti.")
     story.append(PageBreak())
@@ -217,19 +230,22 @@ def build(m):  # noqa: C901 - un documento lungo è una sola funzione di testo
       "+0,15 se tra i settori elencati (massimo 10) c'è il suo (la divisione ATECO si traduce nelle parole delle schede: 62 → ICT, 25 e 28 → meccanica, 56 → ristorazione, ecc.), −0,30 se sono elencati settori che non includono il suo; +0,05 per le start-up innovative; −0,40 se la misura è per «start-up» e l'impresa ha almeno cinque anni. "
       "Sono esclusi i bandi scaduti, riservati a un'altra regione o dimensione d'impresa, con ATECO incompatibili, o per start-up innovative quando l'azienda dichiara di non esserlo. A pari punteggio vince chi scade prima. Ogni risultato elenca i motivi e ciò che resta da verificare.")
     P("**Trigger e cache  [[FATTO]].** L'estrazione delle regole parte quando un cliente conferma il bando («Sì, è questo» o «Studia questo bando»). Se le regole di quel bando sono già in memoria vengono riusate (`cache_hit`) e il contatore `requested_by_clients_count` cresce; altrimenti parte il processo standard.")
-    P("**Il processo standard di studio  [[FATTO]]** (`pipeline.py`, uguale per ogni bando e ripetibile):")
-    B(["**Cerca:** otto interrogazioni sul nome; scoperta senza motori di ricerca dai cataloghi, dagli elenchi di Invitalia e MIMIT e dai portali di famiglia (Erasmus+, coesione/FSE/FESR/PNRR, PSR, energia, export); con la chiave Brave attiva si usa anche la ricerca web. Ogni risultato è classificato UFFICIALE (Gazzetta Ufficiale, Normattiva, EUR-Lex, ministeri, Invitalia, regioni…) o SECONDARIA.",
-       "**Scarica:** in parallelo, con un secondo giro sui PDF ufficiali collegati dalle pagine scaricate; ogni documento è salvato intero (testo e file originale) con la sua impronta SHA-256. Protezioni: guardia contro richieste verso indirizzi interni (SSRF), limite di dimensione e di tempo, limite di frequenza (400 richieste ogni 10 minuti).",
-       "**Leggi (`analysis.py`):** nessun documento può risultare «vuoto» senza dire perché (lingua, testo usato, motivo). Tre decisioni uguali per tutti: un foglio elettronico è dato di riferimento (conservato, non letto); tra le edizioni dello stesso documento conta solo l'ultima; un documento «severo» (che si intitola come il bando o lo cita spesso) si legge intero, gli altri solo nei passaggi che nominano il bando, e le regole numeriche ricavate da questi ultimi si pubblicano solo se confermate da due fonti.",
-       "**Valuta:** rapporto con soglie fisse: COMPLETA, PARZIALE o INSUFFICIENTE, e l'elenco dei motivi di ogni lacuna.",
-       "**Dopo la lettura:** requisiti con tema, tipo (obbligo, divieto, limite, informazione, da rivedere), controlli collegati, sezione di provenienza e **cifre strutturate** (percentuali, importi, durate con qualificatore massimo/minimo/riferimento). Cinque regole numeriche si ricavano da cifre con frase-guida e un solo valore corrispondente (tetto d'installazione, intensità d'aiuto, anticipo, variazione tra capitoli, ritardo di rimborso in mesi); i conflitti vanno in revisione con i candidati."])
-    P("Esito reale sul bando CNR «progetti di ricerca industriale e sviluppo sperimentale» (studiato dall'Allocazione online il 4 ottobre): lettura completa, 8 documenti ufficiali, 165 requisiti, 90 cifre, 2 regole numeriche.")
+    P("**Il processo standard di studio  [[FATTO]]** (`pipeline.py`, standard **RICERCA-v2**, uguale per ogni bando e ripetibile; dura da pochi secondi a circa mezzo minuto, entro il limite di 60 secondi della funzione):")
+    B(["**Cerca:** parte dal nome e dall'indirizzo della scheda ufficiale; scoperta senza motori di ricerca dai cataloghi, dagli elenchi di Invitalia e MIMIT e dai portali di famiglia (Erasmus+, coesione/FSE/FESR/PNRR, PSR, energia, export); con la chiave Brave attiva si usa anche la ricerca web. Ogni risultato è classificato **UFFICIALE** (Gazzetta Ufficiale, Normattiva, EUR-Lex, ministeri, Invitalia, SIMEST, Mediocredito Centrale, Regioni, Camere di commercio, comuni…) o **SECONDARIA**: solo dal testo ufficiale si leggono regole e percentuali.",
+       "**Scarica, primo giro:** fino a 8 documenti, 6 alla volta in parallelo; pagine web, PDF (fino a 12 MB e 400 pagine), Word, Excel; ogni documento è salvato intero (testo e file originale) con la sua impronta SHA-256 e **si accetta solo se parla davvero di quel bando** (nome o parole distintive), così il bando di un'altra Regione con un nome simile non inquina le regole. Protezioni: guardia contro richieste verso indirizzi interni (SSRF), limite di dimensione e di tempo, 400 richieste ogni 10 minuti.",
+       "**Segui i link, fino a tre giri:** dalle pagine scaricate si scelgono fino a 4 documenti per giro (prima i PDF; punteggio in più per «bando», «avviso», «decreto», «regolamento», «allegato 1»; in meno per «privacy», «graduatoria», «report», «CUP»…), solo se sono passati meno di 26 secondi. È questo che porta dalla scheda del catalogo alla pagina dell'ente e agli allegati veri.",
+       "**Leggi (`analysis.py`):** nessun documento può risultare «vuoto» senza dire perché. Un foglio elettronico è dato di riferimento (conservato, non letto); tra le edizioni dello stesso documento conta solo l'ultima; un documento che cita spesso il bando si legge intero, gli altri solo nei passaggi che lo nominano, e le regole numeriche ricavate da questi ultimi si pubblicano solo se confermate da due fonti.",
+       "**Cerca la percentuale, apposta:** se dopo la lettura non c'è né una regola «contributo pari al N%» né una tabella di intensità, e sono passati meno di 30 secondi, parte un ultimo giro con fino a 4 documenti in più cercati con parole come «intensità contributo percentuale spese ammissibili beneficiari»; poi si rilegge tutto.",
+       "**Valuta:** rapporto con soglie fisse. **COMPLETA** = almeno 20.000 caratteri di testo ufficiale, 40 requisiti e metà dei requisiti riconosciuti; **PARZIALE** = almeno un documento ufficiale e 10 requisiti; **INSUFFICIENTE** = il resto. Il rapporto elenca una per una le lacune (per esempio «nessuna percentuale di agevolazione trovata»): nessun bando resta a metà senza che si sappia perché.",
+       "**Dopo la lettura:** requisiti con tema, tipo (obbligo, divieto, limite, informazione, da rivedere), controlli collegati, sezione di provenienza e **cifre strutturate** (percentuali, importi, durate). Cinque regole numeriche si ricavano da cifre con frase-guida e un solo valore corrispondente (tetto d'installazione, intensità d'aiuto, anticipo, variazione tra capitoli, ritardo di rimborso in mesi); i conflitti vanno in revisione con i candidati."])
+    P("Esito reale su un bando regionale (SWIch 2026, Regione Piemonte): prima il sistema si fermava alla scheda del catalogo (8.754 caratteri); con la ricerca a più giri ha raggiunto la pagina della Regione (22.281 caratteri) e gli allegati (il bando completo da 177.687 caratteri, le definizioni, la normativa, le regole di compilazione): **6 documenti ufficiali, 293.206 caratteri, 158 requisiti**, e dalla tabella del bando «micro-piccole imprese: base 25%, massimo 60%» con i massimali per progetto da 1.000.000 a 5.000.000 euro.")
+    P("**Limiti dichiarati della ricerca.** Le pagine costruite interamente con JavaScript danno poco testo; i PDF scansionati non si leggono senza riconoscimento ottico; i motori di ricerca gratuiti possono bloccare un server cloud (per questo la scheda del catalogo e i suoi link sono il percorso principale).")
     P("**Ciclo di vita  [[FATTO]].** Dalle schede si leggono «Data apertura» e «Data chiusura». Ogni notte si eliminano le voci mai toccate e certamente chiuse (con scadenza passata, oppure senza data e il cui nome cita solo anni passati). Un bando già studiato o richiesto da un cliente non si cancella mai in automatico. Nella libreria i bandi del catalogo mostrano ora «APERTO (fino al …)» o «CHIUSO (scaduto il …)» dalla scadenza ufficiale.")
     P("**Stadio 2 — estrazione deterministica  [[FATTO]].** Pattern e tassonomia collegata ai 60 criteri, nessun modello: ogni frase che tocca un tema noto diventa un requisito; ogni frase con obbligo o divieto fuori tassonomia finisce in «DA_REVISIONARE». Le regole numeriche estratte sono solo quelle riconosciute senza ambiguità (circa 24 chiavi note). Una regola pubblicata non viene mai sovrascritta da un'estrazione successiva: solo la revisione umana la corregge.")
     P("**Stadio 3 — più passaggi AI  [[PARZIALE]].** Implementato e testato: N estrazioni indipendenti (numero configurabile), ogni valore accettato solo se accompagnato dalla frase del documento da cui deriva e solo se quella frase compare davvero nel testo; il codice confronta i passaggi, concordanza → pubblicata, disaccordo → coda di revisione. **Non attivo in produzione** perché manca la chiave del provider.")
     P("**Coda di verifica umana  [[FATTO]].** `/ingestion/review-queue` e `/ingestion/review` (il consulente risolve un disaccordo e la regola viene pubblicata); il Quartier Generale permette di impostare, correggere o eliminare ogni regola e requisito, rileggere i documenti, esportare uno ZIP o eliminare il bando.")
     P("**Audit di calibrazione continua e canale reattivo  [[DA FARE]].** Il campionamento casuale di regole già pubblicate e l'evento `rule.audit_flagged` non esistono ancora; il canale verso il Reparto di Consulenza è Fase 4.")
-    P("**Embedding e indicizzazione vettoriale  [[DA FARE]].** La v2.1 prevedeva chunking e vettori per la consultazione libera. Oggi la lettura è lessicale e strutturata: la rilevanza di un documento si decide da parole distintive del nome e dall'ente (con un elenco di parole generiche escluse), il che spiega un limite noto: un bando «fratello» dello stesso ente può contaminare lo studio di un altro (vedi Modulo 27).")
+    P("**Embedding e indicizzazione vettoriale  [[DA FARE]].** La v2.1 prevedeva chunking e vettori per la consultazione libera. Oggi la lettura è lessicale e strutturata: la rilevanza di un documento si decide da parole distintive del nome e dall'ente (con un elenco di parole generiche escluse), il che spiega un limite noto: un bando «fratello» dello stesso ente può contaminare lo studio di un altro (vedi Modulo 30).")
 
     H3("9.2 Fonte B — tabelle di mercato e benchmark ufficiali  [[PARZIALE]]")
     P("**Nessun valore è scritto nel codice.** Le tabelle stanno nel database (`fonte_b_datasets`, `fonte_b_ccnl`, `fonte_b_params`, `fonte_b_amort`, `fonte_b_benchmarks`), arrivano da un file con la loro provenienza (documento, indirizzo, impronta del file, riferimento), nascono come **bozza** e un manager le **pubblica** attestando la fonte; "
@@ -260,8 +276,8 @@ def build(m):  # noqa: C901 - un documento lungo è una sola funzione di testo
        "**Aprire e scaricare tutto ciò che l'azienda ha allegato  [[FATTO]]:** nell'elenco «I tuoi documenti» ogni file ha «Apri» (anteprima nella pagina per PDF, immagini e testo semplice; i fogli Excel e simili si scaricano), «Scarica» (file originale, decifrato solo per il proprietario, con il nome originale anche se contiene accenti) ed «Elimina» (con conferma). "
        "«Scarica tutti i file (ZIP)» crea nel browser un archivio con tutti i file divisi per tipo (Visura camerale, Bilancio, Busta paga…) e un `elenco_documenti.csv` con tipo, stato, data, dimensione e impronta SHA-256 di ciascuno. L'archivio si compone nel browser perché Vercel limita a 4,5 MB la risposta di una singola chiamata; i file tornano identici agli originali (verificato byte per byte)."])
 
-    H3("9.4 Il profilo aziendale  [[FATTO]]  (nuovo)")
-    P("Il profilo è il ponte tra le due missioni: i dati veri dell'impresa, raccolti una sola volta, usati ovunque. Due tabelle (`company_profiles`, una riga per utente; `company_financials`, una per utente ed esercizio), entrambe con la **provenienza di ogni valore**.")
+    H3("9.4 Il profilo dell'azienda e dello studio  [[FATTO]]")
+    P("Il profilo è il ponte tra le due missioni: i dati veri dell'impresa, raccolti una sola volta, usati ovunque. Due tabelle (`company_profiles`, una riga per lavoro; `company_financials`, una per lavoro ed esercizio), entrambe con la **provenienza di ogni valore**.")
     T([["Origine", "Significato", "Regola"],
        ["DOCUMENT", "Letto da un documento (con il suo numero)", "Entra solo se letto con sicurezza o confermato. Se il documento viene eliminato, il valore decade alla successiva sincronizzazione."],
        ["MANUAL", "Scritto dall'utente", "**Non viene mai sovrascritto** da una nuova lettura dei documenti."],
@@ -272,14 +288,17 @@ def build(m):  # noqa: C901 - un documento lungo è una sola funzione di testo
        "**Classe dimensionale UE** (raccomandazione 2003/361/CE, indicativa): microimpresa sotto 10 addetti e 2 M€; piccola sotto 50 e 10 M€; media sotto 250 e 50 M€; altrimenti grande; «provvisoria» se manca il fatturato; senza il totale di bilancio né le imprese collegate.",
        "**Procedura guidata (nel Profilo):** barra di avanzamento a segmenti e un passo alla volta: 1) carica tutti i documenti insieme (il tipo si propone dal nome del file e si può correggere; ogni file mostra «letto · N campi» o «archiviato»), 2) visura, 3) bilancio dell'ultimo esercizio, 4) bilanci precedenti (facoltativo), 5) due domande (la start-up e gli eventuali dati mancanti), 6) controllo delle righe incerte, 7) altri documenti (facoltativo), 8) profilo completo con il pulsante verso l'Allocazione. Parte dal primo passo obbligatorio non ancora fatto.",
        "**Sincronizzazione:** ogni caricamento, conferma o eliminazione di un documento rilancia `POST /profile/sync`."])
-    P("**Stima dell'anno successivo.** Parte dall'ultimo esercizio ≤ anno−1: spesa = base × (1 + variazione)^(anni di proiezione). **La variazione non ha un valore predefinito**: la sceglie l'utente; dalle sue due ultime annate si ricava solo un suggerimento («+19,0%», «+29,6%») che l'utente applica con un clic. Variazioni non plausibili (sotto −95% o sopra +500%) e categorie sconosciute sono errori. Se l'ultimo bilancio è di due anni prima, la stima avvisa che proietta più anni.")
-    P("**Abbinamento ai bandi (`/profile/match`).** Per ogni bando con regole o requisiti letti: controlli con esito OK / NON OK / DA VERIFICARE (apertura, categorie ammesse, ATECO, territorio, start-up, tipologia di soggetto), contributo stimato **solo se il bando dichiara un'aliquota**, e le riduzioni imposte dai tetti. "
-      "Esempio con le cifre vere dell'azienda di prova: per «Investimenti Sostenibili 4.0» (aliquota 75%, solo beni strumentali) i 112.700 € di beni strumentali del 2025 danno un contributo stimato di 84.525 € (6,1% delle spese totali). "
+    P("**Stima dell'anno successivo.** Parte dall'ultimo esercizio ≤ anno−1: spesa = base × (1 + variazione)^(anni di proiezione), per le cinque categorie e per i ricavi. **La percentuale di ogni voce viene, in ordine,** da: quella scritta dall'utente in quel calcolo; il **modello di previsione** del lavoro (percentuali indicate dal cliente, dal suo CFO o stimate dallo studio, salvate con etichetta e nota); "
+      "la variazione che risulta dai due ultimi bilanci, **già inserita** senza che l'utente la riscriva. Ogni riga ha la sua **spiegazione con i numeri dei documenti** («Nel bilancio 2024 il personale era 748.700 €, nel 2025 890.700 €: +19,0%; i ricavi sono passati da 1.327.900 a 1.583.200 € (+19,2%): la voce pesa il 56,4% e poi il 56,3% dei ricavi, in linea; gli addetti medi sono passati da 13 a 15»), "
+      "con i nomi dei file da cui vengono i dati e un punto di attenzione sopra il 25% annuo. Variazioni non plausibili (sotto −95% o sopra +500%) e categorie sconosciute sono errori. Se l'ultimo bilancio è di due anni prima, la stima avvisa che proietta più anni.")
+    P("**Abbinamento ai bandi (`/profile/match`).** Per ogni bando con regole o requisiti letti: controlli con esito OK / NON OK / DA VERIFICARE (apertura, categorie ammesse, ATECO, territorio, start-up, chi può presentare domanda), **valore in euro con intervallo prudente-massimo** (Modulo 24) e le riduzioni imposte dai tetti. "
+      "Risultato: **Adatto** (nessun NO, nessun controllo decisivo da verificare, c'è un valore), **Da verificare** (manca un dato decisivo o il valore), **Non adatto** (almeno un NO). "
+      "Esempio con le cifre dell'azienda di prova: per «Investimenti Sostenibili 4.0» (aliquota 75%, solo beni strumentali) i 112.700 € di beni strumentali del 2025 danno 84.525 €. "
       "Formula dei tetti: se una categoria supera la sua quota massima c del totale ammissibile, l'importo ammissibile è c × (altre spese ammesse) / (1 − c); con consulenze 40.000 €, altre spese 224.200 € e tetto del 10%, ne sono ammissibili 24.911 €.")
-    P("**Quando non c'è un'aliquota.** Garanzia pubblica, finanziamento a tasso zero, contributo in conto interessi, iperammortamento (beneficio fiscale): il beneficio non è una percentuale delle spese del bilancio, dipende da altri dati (prestito richiesto, durata, imposte pagate). La scheda lo dice con la spiegazione specifica del tipo e **non scrive alcun importo**.")
-    P("**Bozza di budget per un bando (`/profile/template`).** Parte dalle righe dell'ultimo bilancio, tiene le categorie che il bando ammette, applica la quota di progetto scelta dall'utente (da 1 a 100%), riduce le voci sopra i tetti. Punti di onestà: il **personale non diventa una voce** (il motore pretende persona per persona livello, CCNL, RAL e quota di tempo) ma viene indicato come importo da completare; le voci di ammortamento sono segnalate come costo di beni già acquistati; "
+    P("**Quando manca la percentuale.** Il bando non riceve un importo inventato: resta nell'elenco «Bandi senza una percentuale nei documenti letti» con il motivo, e si può rilanciare lo studio, che ora cerca apposta la percentuale. Le garanzie pubbliche non sono un guadagno e non si sommano: si calcola solo l'importo garantibile.")
+    P("**Bozza di budget per un bando (`/profile/template`).** Parte dalle righe dell'ultimo bilancio, tiene le categorie che il bando ammette, applica la quota di progetto scelta dall'utente (da 1 a 100%), riduce le voci sopra i tetti. Punti di onestà: il **personale non diventa una voce unica** (il motore pretende persona per persona livello, CCNL, RAL e quota di tempo): "
+      "viene indicato come importo da completare e **l'assistente guidato chiede le persone una per una** (Modulo 26); le voci di ammortamento sono segnalate come costo di beni già acquistati; "
       "se il bando richiede il CUP (criterio 50) o le milestone (criterio 57) lo si dice, perché finché mancano la voce resta «in attesa». Le voci TPL-* si sostituiscono a ogni rigenerazione, il resto del budget non si tocca.")
-
     H2("MODULO 10 — L'algoritmo deterministico: dal dato grezzo alla riga validata  [[FATTO]]")
     P("Walkthrough illustrativo (cifre dell'esempio della v2.1; non è un caso reale): un Project Manager Junior al 50% su un progetto, livello 3 del CCNL Terzo settore, RAL dichiarata 38.000 €.")
     T([["Passo", "Cosa fa il motore", "Dove prende il dato"],
@@ -311,25 +330,33 @@ def build(m):  # noqa: C901 - un documento lungo è una sola funzione di testo
     B(["Σ_j x_pj ≤ 1 — una voce non è coperta oltre il 100%;", "Σ_p a_p·x_pj ≤ dotazione_j — tetto del fondo;", "Σ_(p∈c) a_p·x_pj ≤ quota_cj · Σ_p a_p·x_pj — massimali per categoria (criteri 31 e 36);",
        "z_pj + z_pk ≤ 1 per i fondi non cumulabili (criterio 47, double funding);", "Σ_(p, j∈de minimis) a_p·x_pj ≤ plafond residuo (criterio 49); l'importo è obbligatorio se uno dei fondi scelti è in de minimis;", "finestre di attività mensili dei fondi (criterio 46)."])
     P("Il solver lavora in euro (float) solo per trovare la struttura ottima; gli importi finali sono interi in centesimi, arrotondati per difetto e **ri-verificati in aritmetica esatta** contro tutti i vincoli, con riparazione deterministica dei residui. Le spese senza mese sono espanse in 12 mensilità solo se un fondo ha una finestra ridotta. "
-      "Obiettivi: minimizzare la spesa netta (default), massimizzare le voci coperte, minimizzare i fondi coinvolti (con un parametro di risparmio minimo).")
-    H3("12.2 Da dove vengono spese e fondi (cambiato rispetto alla v2.1)")
-    B(["**Spese:** una sola origine per richiesta — un bilancio caricato (righe sicure o confermate; se ci sono righe da verificare la richiesta fallisce con l'elenco), spese fornite dal chiamante, oppure **il profilo aziendale** (`use_profile_forecast`: spese per categoria dell'ultimo esercizio, proiettate con le variazioni `growth_pct` scelte dall'utente, voci «STIMA-<CATEGORIA>»).",
-       "**Fondi:** non sono nel codice. Una linea si ricava dalle regole **pubblicate** di un bando (categorie ammesse, intensità del contributo, finestra di ammissibilità, fondi non cumulabili, tetti di consulenze e spese generali); ciò che il bando non dice (dotazione massima, regime de minimis) non si inventa: lo indica una persona o resta vuoto. Nella pagina, spuntando i bandi nel passo 3 la linea di ciascuno viene passata al solver."])
-    H3("12.3 Flusso operativo (pagina Allocazione)")
+      "Obiettivi: minimizzare la spesa netta (default), massimizzare le voci coperte, minimizzare i fondi coinvolti.")
+    H3("12.2 Sempre lo stesso risultato, sempre il massimo")
+    P("**Perché è stato corretto.** Con gli stessi dati dello stesso cliente il piano poteva cambiare ripartizione da un calcolo all'altro: quando due fondi valgono uguale su una spesa, il risolutore sceglieva in base all'ordine in cui i fondi arrivavano (il totale era lo stesso, la divisione no). "
+      "**Come funziona ora.** I fondi sono messi in un ordine canonico (prima chi non è in de minimis, poi il tetto più alto, poi il nome) e dopo aver trovato il massimo un ultimo stadio, lessicografico, sceglie tra i piani equivalenti sempre lo stesso: stesso valore più alto, a parità il fondo senza de minimis, poi il tetto più alto, poi il nome. "
+      "Verificato con cinque fondi equivalenti in tutti gli ordini possibili (9 esiti diversi prima, 1 dopo) e da due test dedicati. Il piano considera di default **tutti i bandi adatti** e include da solo quelli che entrano nel catalogo: cambia solo se cambiano i dati dell'azienda o il catalogo (per esempio Invitalia pubblica un bando nuovo). Se l'utente toglie dei bandi a mano, il piano è un sottoinsieme e lo dice.")
+    H3("12.3 Da dove vengono spese e fondi")
+    B(["**Spese:** una sola origine per richiesta — un bilancio caricato (righe sicure o confermate; se ci sono righe da verificare la richiesta fallisce con l'elenco), spese fornite dal chiamante, oppure **il profilo del lavoro** (`use_profile_forecast`: spese per categoria dell'ultimo esercizio, proiettate con le percentuali della stima, voci «STIMA-<CATEGORIA>»).",
+       "**Fondi:** non sono nel codice. Una linea si ricava dalle regole **pubblicate** di un bando o dal suo modello di valore (categorie ammesse, intensità, finestra di ammissibilità, fondi non cumulabili, tetti di consulenze e spese generali); ciò che il bando non dice (dotazione massima) non si inventa. "
+       "**Regola di prudenza:** due contributi a fondo perduto non si sommano sulla stessa spesa, quindi nella pagina ogni voce riceve un solo fondo perduto, il migliore; garanzie, interessi e risparmi fiscali invece possono convivere."])
+    H3("12.4 Flusso operativo (pagina Allocazione)")
     T([["Passo", "Cosa succede", "Chiamata"],
-       ["1", "Riepilogo del profilo: completezza, ultimo bilancio, dimensione, documenti, cosa manca; rimando al Profilo.", "GET /profile"],
-       ["2", "Anno da pianificare (default anno corrente + 1); tabella con base, variazione suggerita, variazione scelta, stima; avvisi sulla proiezione e sulle categorie senza dato.", "POST /profile/match"],
-       ["3", "Quattro schede: Adatto, Da verificare, Non adatto, Da studiare. Ogni bando mostra contributo, aliquota, quota sul totale, riduzioni per i tetti, controlli e note (CUP, DNSH, beni nuovi, vincolo di destinazione). «Bozza di budget per questo bando» apre il Budget con la bozza.", "POST /profile/match"],
-       ["4", "Obiettivo, de minimis residuo (se serve) e piano: costi, copertura, quota coperta, Sankey spesa → fondo, piano voce per voce, uso dei fondi con margine di sicurezza, mese per mese. Si ricalcola a ogni scelta (risposte fuori ordine scartate).", "POST /allocation/optimize"]], [14, 126, 30])
-    P("Dopo «Studia questo bando» su una voce del catalogo, la pagina ricalcola, porta l'utente alla scheda dove il bando è finito (adatto, da verificare o non adatto) e mostra com'è andata la lettura (completa/parziale, documenti, requisiti, cifre, regole) e se c'è una stima in euro.")
-
+       ["1", "Riepilogo del profilo del lavoro: completezza, ultimo bilancio, dimensione, documenti, cosa manca; rimando al Profilo o all'assistente.", "GET /profile"],
+       ["2", "Anno da pianificare (default anno corrente + 1); tabella con base, variazione già compilata (modello o bilanci) con la spiegazione di ogni riga, stima; avvisi sulla proiezione. Il modello di previsione si salva o si elimina da qui.", "POST /profile/match"],
+       ["3", "Quattro schede: Adatto, Da verificare, Non adatto, Da studiare. Ogni bando mostra valore con intervallo, percentuale, quota sul totale, riduzioni per i tetti, controlli, note (CUP, DNSH, beni nuovi) e l'etichetta «In de minimis» con la frase di prova. «Bozza di budget per questo bando» apre il Budget.", "POST /profile/match"],
+       ["4", "**Il potenziale massimo:** «Combina tutti i bandi adatti» (con scenario ottimistico opzionale per i da verificare); «Coperto dai bandi» con l'intervallo prudente-massimo, spesa, quota coperta, resto a carico; tabella «Da solo» / «Nel piano insieme»; **bilancio ricostruito** con una barra per categoria e il contributo di ogni bando (12 colori; i bandi che non servono sono in legenda come «non usato»); riquadro de minimis; legenda dei numeri.", "POST /allocation/optimize (due volte: prudente e massimo)"],
+       ["5", "Obiettivo e piano voce per voce: costi, copertura, Sankey spesa → fondo, uso dei fondi con margine di sicurezza, mese per mese. Si ricalcola a ogni scelta (risposte fuori ordine scartate); le scelte restano salvate per il lavoro.", "POST /allocation/optimize"]], [14, 126, 30])
+    P("Dopo «Studia questo bando» su una voce del catalogo, la pagina ricalcola, porta l'utente alla scheda dove il bando è finito e mostra com'è andata la lettura (completa/parziale, documenti, requisiti, cifre, regole). Il pulsante «Studia i 5 bandi del catalogo più affini» li studia uno dopo l'altro e rifà la stima.")
     H2("MODULO 13 — Dove interviene l'AI e dove il dato proprietario")
     T([["Funzione", "Motore proprietario (codice)", "Modello linguistico", "Stato"],
        ["Estrazione dati da buste paga, bilanci, visure", "Sì — parser e lettore (testo del PDF o OCR)", "Mai", "[[FATTO]]"],
        ["Costo orario, ammortamenti, oneri, i 60 criteri", "Sì — formule e regole codificate", "Mai", "[[FATTO]]"],
        ["Allocazione multi-fonte", "Sì — MILP con verifica esatta", "Mai", "[[FATTO]]"],
        ["Stima dell'anno, abbinamento ai bandi, bozza di budget", "Sì — aritmetica e regole", "Mai", "[[FATTO]]"],
-       ["Pattern matching", "Sì — k-means e coseno", "Mai", "[[FATTO]]"],
+       ["Pattern matching (banca dei 5 bilanci)", "Sì — k-means e coseno", "Mai", "[[FATTO]]"],
+       ["Valore in euro dei bandi e de minimis", "Sì — regole, modelli dichiarati, tabelle del testo ufficiale", "Mai", "[[FATTO]]"],
+       ["Template e consiglio del Confronto", "Sì — media pesata e k-means a seme fisso", "Mai", "[[FATTO]]"],
+       ["Assistente guidato", "Sì — procedure dichiarate, nessun testo generato", "Mai", "[[FATTO]]"],
        ["Ricerca e catalogazione dei bandi (Stadio 1)", "Sì — mappe dei siti, schede ufficiali, estrazione di campi dalla pagina", "No: oggi non serve un modello", "[[FATTO]]"],
        ["Ricerca del documento giusto di un bando", "Orchestrazione e filtri", "Nessuno: motore di ricerca Brave (indirizzi, non interpretazione)", "[[FATTO]]"],
        ["Conferma del bando e cache", "Sì", "Cliente conferma", "[[FATTO]]"],
@@ -343,7 +370,7 @@ def build(m):  # noqa: C901 - un documento lungo è una sola funzione di testo
     H2("MODULO 14 — Le metriche di accuratezza")
     T([["Metrica", "Cosa misura", "Stato"],
        ["14.1 Conformity Score", f"Percentuale di criteri rispettati da un budget; il motore è provato da {FACTS['tests']} test automatici (inclusi 55 sui singoli criteri e 14 sul motore) su casi con esito noto. Claim ammesso: «il motore applica correttamente il 100% delle regole testate sul set di validazione attuale».", "[[FATTO]]"],
-       ["14.2 Pattern Similarity Score", "Distanza dagli archetipi dei budget storici; con i dati attuali ha valore indicativo (5 budget).", "[[PARZIALE]]"],
+       ["14.2 Fiducia del consiglio del Confronto", "Alta, media o bassa secondo quanti template lo sostengono; con pochi template il Confronto lo dice invece di dare un consiglio. Per i 5 bilanci della banca dei pattern il valore resta indicativo.", "[[PARZIALE]]"],
        ["14.3 Successo e clawback reali", "Richiede pratiche presentate e controlli ex post. Non compare in alcun materiale commerciale.", "non misurabile oggi"],
        ["Nuova: completezza della lettura", "Per ogni bando studiato: COMPLETA / PARZIALE / INSUFFICIENTE, con motivi. È una misura di copertura della lettura, non di correttezza delle regole.", "[[FATTO]]"],
        ["Nuova: confidenza dei campi", "Ogni campo di un documento del cliente porta la sua confidenza; sotto 0,90 non entra nei calcoli.", "[[FATTO]]"]], [40, 100, 30])
@@ -351,7 +378,7 @@ def build(m):  # noqa: C901 - un documento lungo è una sola funzione di testo
     H2("MODULO 15 — Stack tecnologico e infrastruttura  [[FATTO]]")
     T([["Livello", "Scelta reale"],
        ["Backend", "Python 3.12 (produzione e CI), FastAPI, Pydantic v2, uvicorn; calcolo in decimal.Decimal; risolutore HiGHS via SciPy; NumPy; pdfplumber e pypdf per i PDF; reportlab per i PDF generati; openpyxl per Excel; qrcode; cryptography (AES-GCM, Ed25519); httpx"],
-       ["Database", "PostgreSQL gestito (Supabase) con psycopg e un pool di connessioni; 11 migrazioni versionate; trigger che rendono append-only il registro; Row Level Security attiva su tutte le tabelle; in test un PostgreSQL vero incorporato"],
+       ["Database", "PostgreSQL gestito (Supabase) con psycopg e un pool di connessioni; 16 migrazioni versionate; trigger che rendono append-only il registro; Row Level Security attiva su tutte le tabelle; in test un PostgreSQL vero incorporato"],
        ["Frontend", "React 18.3, Vite 7.3, Tailwind 3.4, Lucide; nessuna libreria di grafici (Sankey e istogrammi sono SVG propri)"],
        ["Hosting", "Vercel: funzione Python (durata massima 60 secondi) nella regione di Francoforte, sito statico, due cron giornalieri (03:00 e 03:30); il database e i file cifrati stanno nel database"],
        ["CI/CD", "GitHub Actions con azioni fissate per impronta del commit, permessi minimi, ubuntu-24.04: test backend su PostgreSQL 16, build del frontend, controllo delle dipendenze che finiscono in produzione (pip-audit, npm audit senza dipendenze di sviluppo); Dependabot per le dipendenze, ignorando gli aggiornamenti di versione maggiore del frontend; ogni push su main ridistribuisce"],
@@ -366,6 +393,7 @@ def build(m):  # noqa: C901 - un documento lungo è una sola funzione di testo
        ["Dati dei clienti", "AES-256-GCM a riposo (chiave a 32 byte); token HMAC per nomi, codici fiscali e IBAN; ricomposizione solo per l'utente proprietario; ogni documento è visibile solo a chi lo ha caricato"],
        ["Password e accessi", "scrypt con sale casuale; 5 errori di fila bloccano l'account per 15 minuti (il blocco sta nel database, vale su tutte le istanze); un utente inesistente costa lo stesso tempo e dà lo stesso messaggio; token JWT HS256 di 8 ore con versione: cambiare password o disattivare l'utente lo invalida subito"],
        ["Ruoli", "USER e MANAGER; il Quartier Generale è riservato al titolare (`QUANTO_OWNER_EMAIL`), non a ogni manager"],
+       ["Account dello studio", "Esportazione di tutti i dati in un file, eliminazione dell'account con password ed e-mail di conferma, uscita da tutti i dispositivi, ultimi accessi visibili; i dati di ogni lavoro sono separati dagli altri dalla chiave «studio + lavoro»"],
        ["Integrazione ERP", "OAuth 2.0 client-credentials (token di 1 ora) e firma HMAC-SHA256 della richiesta con timestamp (tolleranza 5 minuti) contro il replay"],
        ["Rete", "Intestazioni nosniff, X-Frame-Options DENY, Referrer-Policy, Permissions-Policy e Content-Security-Policy restrittiva (solo risorse dello stesso sito, fonti Google solo per i caratteri; cornici e oggetti solo se creati dall'app stessa come blob, per l'anteprima dei documenti); guardia SSRF nel recupero dei documenti; limite di frequenza; i webhook usano solo indirizzi dall'ambiente e corpo firmato"],
        ["Dati nel database", "Row Level Security attiva su tutte le tabelle; il registro firmato è protetto da trigger e non è cancellabile dal Quartier Generale"],
@@ -392,9 +420,10 @@ def build(m):  # noqa: C901 - un documento lungo è una sola funzione di testo
     # ================================================================================================ PARTE V
     H1("PARTE V — GO-TO-MARKET")
     H2("MODULO 20 — Target e segmentazione  [[DA FARE]]")
-    P("Invariato: commercialisti e studi strutturati come canale moltiplicatore, CFO di PMI e associazioni per la Missione Due, bandifici come canale secondario. Una novità di prodotto cambia il racconto commerciale: la procedura guidata e il profilo rendono credibile anche l'uso diretto da parte di un'impresa senza intermediari.")
+    P("Il bersaglio è ora **esplicito: studi di commercialisti e boutique di finanza agevolata**, che usano QUANTO per più clienti (un lavoro per cliente) e ne traggono il vantaggio commerciale del consiglio basato sui propri template. CFO di PMI e associazioni restano un canale per la Missione Due; i bandifici un canale secondario. "
+      "La procedura guidata, il profilo per lavoro e l'assistente rendono credibile anche l'uso diretto da parte di un'impresa senza intermediari. Nessuna attività commerciale è stata avviata.")
     H2("MODULO 21 — Canali e pricing  [[DA FARE]]")
-    P("Vendita guidata dalla demo: la demo reale ora esiste (Modulo 4) e può essere mostrata su dati del prospect caricati dal vivo. Pricing a tre livelli (abbonamento, crediti, success fee) più la commissione di Fase 4: **non implementato**. Esiste solo l'anteprima: ogni utente ha un «piano gratuito — anteprima di un piano annuale» con 100 crediti per ciclo e un credito per controllo del budget, con rinnovo dopo 364 giorni; i pagamenti sono simulati, nessun conto è addebitato. "
+    P("Vendita guidata dalla demo: il percorso di prova (Modulo 4) può essere mostrato su dati del prospect caricati dal vivo. Pricing a tre livelli (abbonamento, crediti, success fee) più la commissione di Fase 4: **non implementato**. Esiste solo l'anteprima: ogni studio ha un «piano gratuito — anteprima di un piano annuale» con 100 crediti per ciclo e un credito per controllo del budget, con rinnovo dopo 364 giorni; i pagamenti sono simulati, nessun conto è addebitato. "
       "La registrazione è libera (account USER gratuito, nessuna e-mail di conferma): va chiusa o protetta prima di un lancio.")
     H2("MODULO 22 — Competizione e barriere all'entrata")
     P("Invariato nelle conclusioni. Barriere che il codice ha già iniziato a costruire: la libreria di parser e di tassonomia dei requisiti, i bandi studiati con tutte le fonti originali conservate, il profilo e i documenti dei clienti, il registro firmato. La strategia di partnership con gli ERP resta un'opzione da valutare con dati di mercato.")
@@ -408,8 +437,9 @@ def build(m):  # noqa: C901 - un documento lungo è una sola funzione di testo
        ["Panoramica", "Budget controllati, progetti, bandi, documenti, eventi, registrazioni; stato della memoria (PostgreSQL, dimensione) e della sicurezza (utenti, manager, chiave di firma); attività recente; ultimi eventi."],
        ["Timeline", "Ogni operazione in ordine di tempo, filtrabile per operazione, progetto, bando, esito; dal dettaglio si rivede nell'Algoritmo l'esecuzione salvata."],
        ["Mappa operazioni", "Tutte le operazioni fattibili con le fasi interne e le statistiche (numero, durata)."],
-       ["Bandi", "Ogni bando in memoria: documenti con testo e file originale, regole (anche in disaccordo, modificabili), requisiti (riclassificabili), scheda per il consulente, linea di finanziamento, utilizzi; rilettura, esportazione ZIP, eliminazione (con lapide per i curati e ripristino dei predefiniti)."],
+       ["Bandi", "Ogni bando in memoria: documenti con testo e file originale, regole (anche in disaccordo, modificabili), requisiti (riclassificabili), scheda per il consulente, linea di finanziamento, utilizzi; rilettura, esportazione ZIP, eliminazione (con lapide per i curati e ripristino dei predefiniti); qui, e solo qui, si carica a mano il testo o il PDF di un bando."],
        ["Catalogo (nuova)", "Tutte le voci del catalogo con descrizione e caratteristiche, ricerca e filtro (con scheda letta / da leggere), contatori (voci, schede lette, da leggere, con scadenza futura, già studiate) e pulsante che legge in sequenza tutte le schede mancanti."],
+       ["Manuale (nuova)", "Il manuale dei processi di QUANTO (versione 4.0, standard RICERCA-v2): testo a schermo e **PDF scaricabile**, costruito dallo stesso testo."],
        ["Tabelle ufficiali", "Fonte B: caricamento da file, bozze, pubblicazione con attestazione della fonte, versioni; modelli di file per tipo."],
        ["Banca pattern", "Importazione CSV con fonte obbligatoria, budget in banca e archetipi."],
        ["Utenti", "Creazione utenti, cambio ruolo, attivazione, reimpostazione password, sblocco."],
@@ -417,14 +447,100 @@ def build(m):  # noqa: C901 - un documento lungo è una sola funzione di testo
        ["Documenti", "Bandi caricati, importazioni, esportazioni (con impronta e dimensione)."],
        ["Database", "Tutte le tabelle in sola lettura, righe paginate, esportazione CSV, eliminazione di righe o svuotamento con conferma digitata (il registro firmato è escluso). Comprende anche i profili e i bilanci delle aziende."]], [30, 140])
 
-    H2("MODULO 24 — Dati e database  [[FATTO]]")
+    H2("MODULO 24 — Quanto vale un bando in euro, il potenziale massimo e il de minimis  [[PARZIALE]]")
+    P("Domanda da cui è nato il modulo: «perché per la maggior parte dei bandi non c'è un importo? I dati ci sono, altrimenti il bando non esisterebbe». Risposta: **ogni bando adatto deve essere calcolabile**, con un solo criterio: ogni numero viene da una fonte ufficiale o da una formula dichiarata, e le ipotesi si scrivono accanto al numero.")
+    H3("24.1 Da dove viene la percentuale (in quest'ordine)")
+    T([["Livello", "Cosa è", "Esempio"],
+       ["1. Regola pubblicata", "Il bando dichiara «contributo pari al N% delle spese»: valore unico.", "Investimenti Sostenibili 4.0: 75% sui beni strumentali"],
+       ["2. Modello del bando (bandi curati)", "Formula con fonti e ipotesi, per i casi in cui l'aiuto non è una semplice percentuale.", "Tabella sotto"],
+       ["3. Tabella del testo ufficiale", "Intensità per dimensione d'impresa: la prima percentuale è la **base**, la più alta il **massimo** con tutte le maggiorazioni; si usano le sole righe che riguardano la dimensione dell'azienda, ognuna con la frase e il documento da cui viene.", "«Micro-piccole imprese 25% 20% 15% 60%» → base 25%, massimo 60%: su 1.965.919 € di spesa, da 491.480 € a 1.179.552 €"]], [36, 76, 58])
+    T([["Bando curato", "Natura del valore", "Come si calcola", "Ipotesi dichiarata"],
+       ["Nuova Sabatini", "Contributo sugli interessi", "Interessi convenzionali di un finanziamento a 5 anni al 2,75% (3,575% per 4.0 e green), rate semestrali costanti: 7,66% (10,0%) dell'investimento", "Si finanzia l'intero investimento; il metodo ufficiale è nella circolare MIMIT"],
+       ["Transizione 5.0 (iperammortamento)", "Risparmio fiscale", "Maggiorazione (180% fino a 2,5 milioni) × aliquota IRES del 24% = 43,2% dei beni", "Serve reddito imponibile capiente e beni 4.0"],
+       ["Fondo 394/81 (SIMEST)", "Fondo perduto, in de minimis", "10% (con almeno un requisito) o 20% (imprese energivore)", "Il finanziamento copre le spese; il fondo perduto rientra nel de minimis"],
+       ["Horizon Europe", "Fondo perduto", "Dal 70% (innovazione, imprese a scopo di lucro) al 100% (ricerca)", "Massimo teorico: solo la parte di spesa che entra in un progetto è finanziata"],
+       ["Fondo di Garanzia PMI", "Garanzia (non è un guadagno)", "50% (liquidità) o 80% (investimenti) del finanziamento bancario", "L'investimento è finanziato per intero con un prestito"]], [34, 30, 66, 40])
+    P("Il valore si calcola sulla spesa prevista dell'anno nelle categorie ammesse e non supera il tetto per progetto, se il bando ne ha uno. La **garanzia** non si somma ai contributi: si calcola solo l'importo garantibile (per esempio 78.861-126.178 € su un finanziamento di 157.722 €). "
+      "Se nessuna fonte dà una percentuale il bando resta senza importo e lo dice: questo è il limite per cui il modulo è [[PARZIALE]].")
+    H3("24.2 Il potenziale massimo e il bilancio ricostruito")
+    P("Il potenziale massimo combina **tutti i bandi adatti** nel piano (Modulo 12) e risponde a: «se l'azienda ottenesse tutti i bandi a cui può accedere, quanto coprirebbe in un anno?». Si calcola due volte, con le percentuali prudenti e con quelle massime, e si mostra l'intervallo. "
+      "Esempio dell'azienda di prova: da 1.307.746 € a 1.863.062 € coperti (66,5% e oltre) con 8 bandi, mentre sommando i bandi uno per uno si arriverebbe a 2.394.221 €: la differenza è la stessa spesa che non si può far pagare due volte. "
+      "Il **bilancio ricostruito** è un grafico: per ogni categoria di spesa, quanto copre ciascun bando e quanto resta a carico. È un massimo teorico, e il riquadro lo ricorda con una nota da riportare al cliente.")
+    H3("24.3 Come leggere i numeri")
+    P("Sotto i risultati c'è sempre il riquadro «Come leggere questi numeri»: **Coperto dai bandi** (quanto delle spese pagano i bandi; due cifre = prudente e massimo), **Su una spesa di** (la spesa prevista), **Quota coperta** (il rapporto), **Resta a tuo carico** (il resto), **Da solo** (cosa darebbe il bando se fosse l'unico), "
+      "**Nel piano insieme** (quanto serve davvero quando lavorano insieme), **non serve** (le sue spese sono già coperte da un bando più conveniente o il bando ha raggiunto il suo tetto: non è scartato e rientra se i dati cambiano). Gli scarti di pochi centesimi tra due cifre sono arrotondamenti: il piano lavora in centesimi interi, sempre per difetto. "
+      "Tutti i bandi del piano compaiono in legenda e in tabella, ognuno con il suo colore (12 colori), anche quelli che non portano euro.")
+    H3("24.4 Il de minimis")
+    P("**Cos'è.** Un aiuto pubblico è normalmente vietato dalle regole europee sulla concorrenza; il de minimis (Reg. UE 2023/2831) è l'eccezione per gli aiuti piccoli: un'impresa unica, cioè l'azienda più le società collegate, può riceverne al massimo **300.000 € in tre anni mobili**. Conta solo per i bandi che lo dichiarano; gli altri non lo toccano.")
+    B(["**Quali bandi sono in de minimis.** Lo dice solo una fonte: la scheda curata del bando oppure il testo ufficiale letto, che cita il regime o i suoi regolamenti (2023/2831, 1407/2013). Se il testo lo cita ma lo nega esplicitamente («non rientra nel regime de minimis») il bando non conta e la frase si mostra. Le fonti secondarie non servono a questo. Ogni bando riconosciuto porta l'etichetta «In de minimis» con la frase da cui viene. Un bando di cui nessuna fonte parla non è segnato.",
+       "**Quanto ne resta all'azienda.** QUANTO non legge il Registro Nazionale degli Aiuti, quindi non inserisce un numero inventato: lo calcola da ciò che l'azienda ha dichiarato nel profilo (voce «Contributi pubblici ricevuti nell'esercizio» dei tre esercizi che precedono l'anno del piano). Per prudenza ogni contributo dichiarato conta come de minimis. Residuo = 300.000 € − somma, mai sotto zero.",
+       "**La base della stima è sempre scritta:** **dato dichiarato** (tutti e tre gli anni compilati), **dato parziale** (alcuni anni; per gli altri non si sottrae nulla) o **ipotesi** (nessun anno compilato: si assume che non ci siano aiuti; non è un dato verificato).",
+       "**Quanto ne usa il piano.** Il riquadro mostra anche il de minimis che il piano usa davvero: se ne usa 17.000 €, resta valido anche se l'azienda ne ha già ricevuti fino a 283.000 €. Il campo si può correggere a mano; l'assistente raccoglie i dati e spiega dove trovarli (visura aiuti RNA, provvedimenti di concessione, dichiarazioni firmate; per un gruppo si sommano le società collegate).",
+       "**Il piano non si blocca mai** in attesa di questo dato. [[PARZIALE]]: senza il dato del cliente il residuo è un'ipotesi dichiarata; un collegamento automatico al registro non esiste."])
+
+    H2("MODULO 25 — Lo studio, i lavori e il Confronto a template  [[FATTO]]")
+    H3("25.1 Lo studio e i lavori")
+    P("L'account è **dello studio**: nome, password e crediti valgono per tutto lo studio. Ogni azienda cliente è un **lavoro**: sotto il Profilo si aprono tanti lavori quanti sono i clienti, e ognuno ha il suo profilo, i suoi bilanci, i suoi documenti, il suo modello di previsione e i suoi risultati salvati. "
+      "Il lavoro attivo si sceglie dal selettore in cima al menu e **tutte le pagine mostrano i dati di quell'azienda e di nessun'altra**: ogni dato vive con la chiave «studio + lavoro» (intestazione `X-Client-Id` su ogni chiamata). I dati già presenti prima di questa funzione sono stati convertiti nel primo lavoro (migrazione 15). "
+      "Eliminare un lavoro cancella i suoi dati (si riscrive il nome per confermare), ma i template di budget restano allo studio.")
+    P("**Cosa si salva da solo, per lavoro** (tabella `client_state`): anno e percentuali dell'Allocazione, bandi inclusi nel piano, obiettivo e de minimis; il budget con il bando scelto e il risultato del controllo; motore, bando e dati del Confronto. Cambiando pagina si ritrova tutto com'era (le pagine già visitate restano montate) e anche chiudendo e riaprendo l'app.")
+    H3("25.2 Il profilo dello studio")
+    T([["Sezione", "Contenuto"],
+       ["Lavori", "Le aziende clienti, il lavoro attivo, apertura, rinomina ed eliminazione di un lavoro."],
+       ["Studio e dati", "Nome, ruolo, ragione sociale e partita IVA dello studio, telefono. L'e-mail è l'identificativo di accesso e non si cambia da qui."],
+       ["Sicurezza", "Cambio password con le regole in vista, uscita da tutti i dispositivi, ultimi accessi."],
+       ["Piano e dati", "Crediti dello studio, operazioni recenti, esportazione di tutti i dati dello studio in un file, eliminazione dell'account con password ed e-mail di conferma."]], [30, 140])
+    H3("25.3 Il Confronto: i template e come l'algoritmo impara")
+    P("Il Confronto risponde a una domanda da commercialista: «per un'azienda di questa nicchia che sceglie questo bando, com'è fatto di solito il budget che vince?». Un **template** è una scheda con la **nicchia** (codice ATECO: le prime due cifre e il settore), il **bando**, la **ripartizione in otto voci** (personale, beni strumentali, consulenze, ricerca e sviluppo, spese generali, formazione, comunicazione, altro; somma 100%), l'**esito** (bozza, presentato, ammesso, non ammesso, con punteggio facoltativo), dimensione, Regione, importo e una nota.")
+    T([["Passaggio", "Regola"],
+       ["Chi somiglia a chi", "Sei livelli, dal più preciso: stessa nicchia e bando; stesso settore e bando; stesso bando; stessa nicchia; stesso settore; tutti. Si usa il primo livello con almeno **3 template**; se nessuno li ha, dice «ancora pochi dati»."],
+       ["Chi conta di più", "Media pesata per esito: ammesso 3, presentato 1,5, bozza 1, non ammesso 0,25. Esempio: quote consulenze 20% (ammesso), 5% (non ammesso), 13% (bozza) → (3×20 + 0,25×5 + 1×13) / 4,25 = 17,5%; senza pesi 12,7%."],
+       ["Fiducia", "ALTA se si usa il primo livello con almeno 8 template; MEDIA se il livello è 1, 2 o 3 (c'è un bando preciso); BASSA se solo livelli generici."],
+       ["Intervallo tipico", "Per ogni voce, media ± la dispersione dei template: dove c'è più libertà e dove no."],
+       ["Stili di budget", "Con almeno 6 template, k-means a seme fisso (ripetibile): gruppi di budget simili e quanti di ciascuno hanno vinto; se i gruppi non sono ben separati non si inventano stili."],
+       ["Auto-miglioramento", "Non c'è addestramento notturno né scatola nera: il consiglio si ricalcola ogni volta da tutti i template, quindi migliora a ogni dato nuovo (più template → livello più preciso; un esito «ammesso» fa salire il peso da 1,5 a 3 e sposta il consiglio)."],
+       ["Misura onesta", "Salvando un template si registra la distanza dal consiglio di quel momento (metà della somma degli scarti, 0-100%). Con almeno 5 esiti noti tra i budget vicini (scarto fino al 10%) e almeno 5 tra gli altri si mostra se i vicini vincono più spesso; prima lo dice."],
+       ["Riproducibile", "Ogni consiglio porta l'impronta dei template usati: stessi template, stesso consiglio."]], [34, 136])
+    H3("25.4 Due motori e privacy")
+    B(["**Motore collettivo:** lavora su tutti i template della piattaforma. Ogni template salvato entra **sempre** nel collettivo, in forma anonima: così l'algoritmo si auto-migliora con i dati di tutti.",
+       "**Motore interno:** lavora solo sui template dello studio, per vedere come lavora il proprio studio senza influenze esterne. Lo studio sceglie con quale motore confrontarsi.",
+       "**Elenco sempre visibile:** i template dello studio, con il cliente da cui vengono; lì si aggiorna l'esito.",
+       "**Cosa contiene un template:** solo nicchia, bando, Regione, dimensione, quote ed esito; ragione sociale e partita IVA non vengono salvate. La nota libera resta dello studio e l'algoritmo non la usa. Dei template degli altri studi si usano solo gruppi di **almeno 3**: sotto, nessuno può risalire a un singolo cliente.",
+       "**Mappa nicchie-bandi:** per ogni nicchia, quali bandi hanno scelto i clienti, con ripartizione media, presentati e ammessi. Nel Confronto compaiono solo i bandi affini al lavoro attivo (stesso criterio dell'Allocazione); chi ha partecipato a un bando diverso lo cerca per nome."])
+    P("**Stato [[PARZIALE]]:** il meccanismo è completo e testato; la qualità del consiglio dipende dai template reali che gli studi salvano. Con pochi dati il Confronto lo dice invece di inventare. Il consiglio è una statistica sulla struttura della spesa, non una previsione di esito: non sostituisce la verifica dei requisiti formali.")
+
+    H2("MODULO 26 — L'assistente guidato  [[FATTO]]")
+    P("Dove l'utente dovrebbe inserire dati o muoversi nell'app, può **affidare il lavoro all'assistente**. L'assistente non è un chatbot e non usa modelli linguistici: è un esecutore di procedure dichiarate, che compie le stesse azioni che farebbe l'utente e si ferma solo quando gli serve un dato che non c'è.")
+    H3("26.1 Come si presenta")
+    B(["Si avvia dal pulsante **Assistente** nel menu o da «Fallo fare all'assistente» nei punti in cui serve (dati mancanti nell'Allocazione, bozza di budget, aiuti de minimis).",
+       "L'app si **riduce a sinistra** dentro un riquadro e a destra compare il pannello con l'**elenco di tutti i passaggi**, che si spuntano man mano (in corso, in attesa di un dato, fatto, saltato, non riuscito) con il risultato di ciascuno.",
+       "Mentre l'assistente lavora l'app a sinistra si muove da sola (cambia pagina, salva, calcola) e non si può toccare; quando serve un valore il controllo passa all'utente, nel pannello.",
+       "Per ogni campo che chiede spiega in parole semplici **cos'è, cosa scrivere, perché serve, dove si trova e un esempio**; si può confermare, saltare o interrompere in qualsiasi momento con la X."])
+    H3("26.2 Le attività")
+    T([["Attività", "Passaggi"],
+       ["Calcolare il potenziale massimo", "Controlla i dati dell'azienda (chiede solo quelli che mancano: dati della visura, costi dell'ultimo bilancio) → apre l'Allocazione → stima l'anno e cerca i bandi adatti → verifica il de minimis (chiede gli aiuti ricevuti se serve) → mostra il risultato con le cifre."],
+       ["Preparare la bozza di budget", "Controlla i dati → sceglie il bando (solo bandi con regole lette) → chiede la quota di progetto → crea la bozza dal bilancio → chiede le **persone una per una** (ruolo, CCNL, livello, RAL, quota di tempo, mesi, documento) → aggiunge le voci → controlla il budget con i 60 criteri e riferisce voci ammesse, ridotte, respinte, in attesa."],
+       ["Dichiarare gli aiuti già ricevuti", "Apre il profilo → chiede i contributi pubblici degli ultimi tre anni (con «Nessuno» come risposta rapida) → li salva → ricalcola l'Allocazione e riferisce il nuovo residuo."],
+       ["Completare i dati dell'azienda", "Apre il profilo → chiede i dati che mancano con la spiegazione di ognuno (partita IVA, forma giuridica, ATECO, regione, dipendenti, start-up, bilancio) → li salva."]], [42, 128])
+    H3("26.3 Cosa non fa")
+    B(["**Non inventa dati:** usa solo ciò che l'utente scrive o che è già nel profilo. Un valore lasciato vuoto resta vuoto.",
+       "**Non sceglie al posto dell'utente quando una tabella non esiste:** se nel sistema non ci sono contratti collettivi (CCNL) pubblicati lo dice e salta il passaggio del personale, senza assumerne uno.",
+       "**Non fa nulla di irreversibile da solo:** non elimina dati e non registra impronte; compie azioni di inserimento, salvataggio e calcolo."])
+    H3("26.4 Come è costruito")
+    P("Il pannello e la macchina dei passaggi stanno in `frontend/src/assistant/AssistantContext.jsx`; le procedure in `tasks.js` (ogni attività dichiara in anticipo i suoi passaggi e li esegue uno alla volta). L'app espone all'assistente un ponte con le sole azioni dell'utente (cambiare pagina, scegliere il bando, mettere voci nel budget, controllarlo), "
+      "e le pagine comunicano con eventi (`quanto-assistant`, `quanto-recalc`, `quanto-allocation-result`, `quanto-profile-changed`). I calcoli restano sul server: l'assistente non calcola importi.")
+    P("**Stato:** provato in locale su un database temporaneo con l'azienda di prova (potenziale massimo, bozza di budget con una persona e controllo, dichiarazione degli aiuti); la **verifica online dopo il rilascio resta da fare**. Il passaggio del personale dipende dalle tabelle CCNL pubblicate in Fonte B.")
+
+    H2("MODULO 27 — Dati e database  [[FATTO]]")
     T([["Tabella", "Contenuto"],
        ["bandi", "Una riga per bando o voce del catalogo: identificativo, nome ufficiale, ente, scadenza, indirizzo della scheda, stato del catalogo, stato dell'estrazione, richieste dei clienti, descrizione, caratteristiche (JSON) e data di lettura della scheda"],
        ["bando_meta · rules · requirements", "Descrizione curata dei bandi predefiniti; regole numeriche con origine e stato (pubblicata, in revisione); requisiti con tema, tipo, controlli collegati, cifre strutturate"],
        ["bando_sources · bando_files · bando_tombstones", "Testo e metadati di ogni documento di fonte; file originali; lapidi dei bandi eliminati"],
        ["fonte_b_datasets · _ccnl · _params · _amort · _benchmarks", "Fonte B versionata per data, con provenienza"],
        ["client_documents · client_document_fields", "Documenti dei clienti cifrati e relativi campi con confidenza, stato, token, riga di prova"],
-       ["company_profiles · company_financials", "Profilo e bilanci per esercizio, con provenienza di ogni valore"],
+       ["company_profiles · company_financials", "Profilo e bilanci per esercizio di ogni lavoro, con provenienza di ogni valore; compresi i contributi pubblici dichiarati (de minimis)"],
+       ["forecast_templates · budget_templates", "Modello di previsione dei costi e dei ricavi di un lavoro; template di budget dello studio con nicchia, bando, quote ed esito"],
+       ["clients · client_state", "I lavori (aziende clienti) dello studio e le scelte salvate per ciascuno (Allocazione, Budget, Confronto)"],
        ["funding_lines", "Linee di finanziamento per l'allocazione, ricavate dai bandi o indicate da una persona"],
        ["pattern_budgets · pattern_archetypes", "Banca dei pattern e archetipi calcolati"],
        ["users", "Account con hash scrypt, ruolo, tentativi falliti, versione del token"],
@@ -433,7 +549,7 @@ def build(m):  # noqa: C901 - un documento lungo è una sola funzione di testo
     P(f"Contenuto online il 4 ottobre 2026: {FACTS['bandi']} bandi, {FACTS['rules']} regole, {FACTS['requirements']} requisiti, {FACTS['sources']} fonti, {FACTS['files']} file originali, {FACTS['events']} eventi, {FACTS['runs']} esecuzioni, {FACTS['documents']} documenti lavorati, 1 utente (il titolare), 1 profilo con 3 esercizi, 14 documenti del cliente di prova, 1 registrazione. "
       "Alla v2.1 di partenza il database era in memoria volatile; oggi i dati sopravvivono al riavvio del server.")
 
-    H2("MODULO 25 — Cosa fa l'app a ogni azione dell'utente  [[FATTO]]")
+    H2("MODULO 28 — Cosa fa l'app a ogni azione dell'utente  [[FATTO]]")
     T([["Azione", "Cosa succede, in ordine"],
        ["Registrarsi / accedere", "Crea l'account USER (scrypt) o verifica la password con tempo costante; emette un token di 8 ore con versione; nella timeline compare l'accesso."],
        ["Caricare un documento", "Controlli (tipo noto, non vuoto, massimo 15 MB, nome ripulito, PDF per i tipi letti) → cifratura AES-256-GCM → lettura del testo (o OCR se disponibile) → parser del tipo → ogni campo con confidenza e stato → dati personali in token → salvataggio → sincronizzazione del profilo."],
@@ -448,10 +564,13 @@ def build(m):  # noqa: C901 - un documento lungo è una sola funzione di testo
        ["Esportare", "Excel o PDF con CEP-ID e QR verso la verifica."],
        ["Registrare l'impronta", "Aggiunge una voce firmata Ed25519 alla catena; il trigger impedisce di cambiarla."],
        ["Verificare", "Confronta l'impronta, controlla la firma e la catena; «ricalcola dai dati» rifà tutto da zero; la manomissione simulata deve dare «impronta diversa»."],
-       ["Calcolare il piano", "Una richiesta con le spese stimate e le linee dei bandi spuntati; MILP; verifica esatta in centesimi; riepilogo con cifre controllate; evento e webhook."],
+       ["Calcolare il piano", "Una richiesta con le spese stimate e le linee dei bandi inclusi (due volte: percentuali prudenti e massime); un solo fondo perduto per spesa; fondi in ordine canonico; MILP; verifica esatta in centesimi; riepilogo con cifre controllate; evento e webhook."],
+       ["Chiedere all'assistente", "Si apre il pannello a destra e l'app si riduce; l'assistente esegue i passaggi dichiarati dell'attività scelta (cambia pagina, salva, calcola) e si ferma a chiedere solo i dati che mancano; ogni salvataggio passa dalle stesse chiamate dell'utente."],
+       ["Cambiare lavoro", "Il lavoro attivo cambia: ogni chiamata successiva porta la sua chiave, le pagine si ricaricano con i dati di quell'azienda e si ritrova il budget e le scelte salvate per quel lavoro."],
        ["Cambiare password", "Aggiorna l'hash e la versione del token: tutte le sessioni aperte decadono."]], [40, 130])
 
-    H2("MODULO 26 — Esito del test demo del 4 ottobre 2026 e decisioni prese")
+    H2("MODULO 29 — Esito del test demo del 4 ottobre 2026 e decisioni prese")
+    NOTE("Il test è stato eseguito sul sistema online il 4 ottobre. Da allora la demo è stata tolta dall'applicazione e l'interfaccia è cambiata (menu laterale, lavori, assistente): i difetti sotto elencati restano corretti, la cronologia è nell'Appendice B.")
     P("Il sistema è stato provato come lo userebbe un'azienda vera, in produzione, con i 14 documenti dell'azienda fittizia Meridiana Digital Solutions S.r.l. (software, Torino, 17 addetti, ricavi 2025 di 1.583.200 €, tre bilanci 2023-2025 con schema civilistico, due buste paga, due F24, una bozza di candidatura, DURC, de minimis, business plan, due Excel). Funzioni provate: "
       "registrazione e accesso, procedura guidata, lettura di tutti i tipi di documento, verifica delle letture incerte, stima dell'anno, abbinamento ai bandi, studio di un bando del catalogo (con ricerca web reale), bozza di budget, controllo dei 60 criteri, esportazione Excel e PDF, algoritmo, registrazione, verifica e manomissione, confronto, guida, ricerca di un bando, tutte le 11 sezioni del Quartier Generale e una serie di richieste volutamente sbagliate.")
     H3("Cosa ha funzionato al primo colpo")
@@ -483,9 +602,9 @@ def build(m):  # noqa: C901 - un documento lungo è una sola funzione di testo
     B(["L'importo di «ammortamento» e «licenze software e servizi cloud» finisce tra i beni strumentali perché così lo classificano le parole chiave del bilancio; la persona lo vede e può riassegnarlo.",
        "La bozza di budget contiene voci che il motore mette «in attesa» (CUP e milestone mancanti): è corretto, ma significa che un budget costruito dal bilancio non diventa ammissibile finché non si aggiungono quei dati.",
        "Lo studio di un bando dal catalogo con nome generico può includere documenti di bandi «fratelli» dello stesso ente (rilevanza lessicale). Il titolo ufficiale riduce il problema, non lo elimina.",
-       "Sul sito di produzione resta una registrazione di prova nel registro (n. 1) e un progetto «DEMO-SHAPE» nella timeline: sono tracce del test."])
+       "Sul sito di produzione resta una registrazione di prova nel registro (n. 1), che per costruzione non si può cancellare; il progetto «DEMO-SHAPE» e le altre tracce della demo sono state eliminate dalla migrazione 13."])
 
-    H2("MODULO 27 — Cosa manca per far funzionare QUANTO al 100%")
+    H2("MODULO 30 — Cosa manca per far funzionare QUANTO al 100%")
     H3("Dati e decisioni che servono dal titolare")
     T([["Cosa", "Perché serve", "Chi"],
        ["Chiave del provider del modello linguistico (e conferma del provider)", "Accende lo Stadio 3 (più passaggi) e il riepilogo scritto dal modello; oggi tutto è template.", "Titolare"],
@@ -499,10 +618,14 @@ def build(m):  # noqa: C901 - un documento lungo è una sola funzione di testo
        "**Rilevanza dei documenti:** da lessicale a vettoriale o con controllo sull'ente, per evitare la contaminazione tra bandi dello stesso ente (Modulo 9.1).",
        "**Audit di calibrazione** e relativo evento `rule.audit_flagged`; **Report di Asseverazione** in PDF; pubblicazione periodica di `head_hash` del registro.",
        "**WP: vincoli letti dal bando.** La ripartizione c'è (Modulo 2.1) ma i limiti dei WP li scrive l'utente; leggerli dal testo del bando è possibile solo dove il bando li dichiara.",
-       "**Bozza di budget per persona:** estrarre dall'organico (Excel) le persone con livello e quota di tempo per costruire le voci di personale.",
+       "**Bozza di budget per persona:** l'assistente chiede le persone una per una; resta da estrarle dall'organico (Excel) per non doverle scrivere.",
        "**Connettori automatici** per la Fonte B; **registri IVA e piano dei conti** come tipi di documento.",
        "**Integrazioni ERP** (Zucchetti, TeamSystem): l'API è pronta (OAuth 2.0 + HMAC), le integrazioni non esistono.",
-       "**Test dei processi sul campo:** nessuna pratica reale è stata presentata; per questo non esiste alcuna metrica di successo o di clawback."])
+       "**Test dei processi sul campo:** nessuna pratica reale è stata presentata; per questo non esiste alcuna metrica di successo o di clawback.",
+       "**Verifica online dell'ultimo rilascio** (assistente, de minimis, legenda, Confronto) con i dati reali dello studio: richiede l'accesso dell'utente.",
+       "**Collegamento al Registro Nazionale degli Aiuti** per il de minimis: oggi il residuo si stima dagli aiuti dichiarati e dice su cosa si regge.",
+       "**Tabelle CCNL online:** il passaggio del personale dell'assistente dipende dai contratti pubblicati in Fonte B (3 all'ultima lettura).",
+       "**Bandi senza percentuale nei testi letti:** restano senza importo finché una fonte ufficiale non la dichiara; si possono far studiare di nuovo."])
     H3("Fasi della roadmap")
     T([["Fase", "Contenuto", "Stato"],
        ["1", "Motore, console, fonti A/B/C, allocazione, demo, profilo", "[[FATTO]] in gran parte; chiusura con i dati del titolare (sopra)"],
@@ -513,29 +636,31 @@ def build(m):  # noqa: C901 - un documento lungo è una sola funzione di testo
 
     # ================================================================================================ EXECUTIVE SUMMARY
     H1("EXECUTIVE SUMMARY")
-    P("QUANTO è un motore di calcolo, allocazione e — in prospettiva — consulenza finanziaria per enti, PMI e associazioni, con due missioni permanenti: validare il budget di una candidatura a un bando pubblico e pianificare l'allocazione delle risorse dell'anno successivo tra spesa ordinaria e finanziamenti pubblici. "
+    P("QUANTO è un motore di calcolo, allocazione e — in prospettiva — consulenza finanziaria per studi di commercialisti e boutique di finanza agevolata, con due missioni permanenti: validare il budget di una candidatura a un bando pubblico e pianificare l'allocazione delle risorse dell'anno successivo tra spesa ordinaria e finanziamenti pubblici. "
       "Non scrive testo progettuale: produce solo la componente numerica, validata da un motore deterministico a 60 criteri, completamente disaccoppiato da qualunque modello linguistico.")
-    P("**Il sistema esiste ed è in produzione.** Un'azienda carica visura e bilanci in una procedura guidata; QUANTO ne ricava il profilo con la provenienza di ogni dato, stima le spese dell'anno successivo con le variazioni scelte dall'utente, trova tra i bandi studiati quelli adatti (indicando quanto coprirebbero e di quanto vanno ridotte le voci per rispettare i tetti) "
-      "e tra gli oltre 800 del catalogo quelli più affini da studiare, calcola il piano ottimo di copertura e costruisce la bozza di budget per il bando scelto, poi controllata dal motore, esportata e registrata con una impronta firmata verificabile da chiunque.")
-    P("La proposta si dimostra con una demo comparativa su dati reali; l'accuratezza con un Conformity Score su casi di test noti — non con un tasso di errore su pratiche reali, che non esistono. La copertura normativa non è vincolata a un solo bando: il catalogo individua tutto ciò che è aperto, e l'estrazione parte solo su conferma con riuso in cache. "
-      "Il Registro crittografico è stato anticipato e realizzato senza blockchain; la componente assicurativa e il reparto di consulenza restano visione a lungo termine. Per arrivare al 100% servono dati e decisioni del titolare (chiave del modello, dataset dei pattern, tabelle ufficiali, OCR, documenti legali) e alcuni sviluppi dichiarati nel Modulo 27.")
-
+    P("**Il sistema esiste ed è in produzione.** Lo studio apre un lavoro per ogni azienda cliente e carica visura e bilanci in una procedura guidata; QUANTO ne ricava il profilo con la provenienza di ogni dato, stima le spese dell'anno successivo (con il modello di previsione del cliente o con la variazione dei suoi bilanci, spiegata riga per riga), trova tra i bandi studiati quelli adatti con un **valore in euro per ciascuno** "
+      "e tra gli oltre 800 del catalogo quelli più affini da studiare, calcola il **potenziale massimo** con tutti i bandi insieme (sempre lo stesso a parità di dati, con il de minimis riconosciuto e stimato), costruisce la bozza di budget per il bando scelto, che il motore controlla, esporta e registra con un'impronta firmata verificabile da chiunque. "
+      "Il Confronto impara dai template di budget dello studio e dice quanto è sicuro del proprio consiglio. Un **assistente guidato** esegue al posto dell'utente i passaggi in cui servono dati, spiegandoli in parole semplici.")
+    P("La proposta si dimostra con casi su dati realistici; l'accuratezza con un Conformity Score su casi di test noti (499 test automatici) — non con un tasso di errore su pratiche reali, che non esistono. La copertura normativa non è vincolata a un solo bando: il catalogo individua tutto ciò che è aperto, e l'estrazione parte solo su conferma con riuso in cache. "
+      "Il Registro crittografico è stato anticipato e realizzato senza blockchain; la componente assicurativa e il reparto di consulenza restano visione a lungo termine. Per arrivare al 100% servono dati e decisioni del titolare (chiave del modello, dataset dei pattern, tabelle ufficiali, OCR, documenti legali, verifica online dell'ultimo rilascio) e alcuni sviluppi dichiarati nel Modulo 30.")
     # ================================================================================================ SCHEMA API
     H1("SCHEMA TECNICO API (reale)")
-    P("L'integrazione con ERP e gestionali avviene via REST protetta da OAuth 2.0 (client-credentials) o da firma HMAC; gli utenti dell'app usano un token a 8 ore. Non esiste alcun endpoint di generazione testuale progettuale. Tutto vive sotto `/api/v2`. Documentazione interattiva su `/docs`. Sono 121 endpoint; di seguito i gruppi con i principali.")
+    P("L'integrazione con ERP e gestionali avviene via REST protetta da OAuth 2.0 (client-credentials) o da firma HMAC; gli utenti dell'app usano un token a 8 ore. Non esiste alcun endpoint di generazione testuale progettuale. Tutto vive sotto `/api/v2`. Documentazione interattiva su `/docs`. Sono 145 operazioni; di seguito i gruppi con i principali.")
     T([["Gruppo", "Endpoint principali"],
        ["Salute", "GET /health, GET /health/ready"],
        ["Autenticazione", "POST /auth/register, /auth/login, /auth/token, /auth/change-password; GET /auth/me, /auth/me/activity, /auth/me/credits"],
-       ["Bandi", "GET /bandi, /bandi/{id}, /bandi/catalog (q, issuer, only_new, described, with_meta, page), /bandi/catalog/issuers, /bandi/catalog/stats, /bandi/search, /bandi/references; POST /bandi/{id}/select, /bandi/upload; ricerca e studio: POST /bandi/research/search, /fetch, /analyze, /confirm, /run"],
+       ["Bandi", "GET /bandi, /bandi/{id}, /bandi/catalog (q, issuer, only_new, described, with_meta, page), /bandi/catalog/issuers, /bandi/catalog/stats, /bandi/search, /bandi/references; POST /bandi/{id}/select, /bandi/upload (solo Quartier Generale); ricerca e studio: POST /bandi/research/search, /fetch, /analyze, /confirm, /run"],
        ["Ingestion", "GET /ingestion/catalog, /status/{id}, /review-queue, /grant-rules/{id}; POST /ingestion/catalog, /confirm/{id}, /extract, /review"],
-       ["Budget", "POST /budget/validate, /budget/wp-plan (nuovo), /budget/import, /budget/export/pdf, /budget/export/xlsx; GET /budget/criteria, /budget/fields, /budget/demo, /budget/template.xlsx"],
+       ["Budget", "POST /budget/validate, /budget/wp-plan (nuovo), /budget/import, /budget/export/pdf, /budget/export/xlsx; GET /budget/criteria, /budget/fields, /budget/template.xlsx"],
        ["Allocazione", "POST /allocation/optimize; GET e POST /allocation/funds, POST /allocation/funds/from-bando, DELETE /allocation/funds/{id}"],
-       ["Profilo (nuovo)", "GET /profile; PUT /profile; PUT /profile/financials/{anno}; POST /profile/sync, /profile/forecast, /profile/match, /profile/template"],
+       ["Profilo e lavori", "GET /profile; PUT /profile; PUT /profile/financials/{anno}; POST /profile/sync, /profile/forecast, /profile/match, /profile/template; GET/PUT/DELETE /profile/forecast-template (modello di previsione); GET/POST /clients, PATCH/DELETE /clients/{id}, GET/PUT /clients/current/state/{chiave}"],
+       ["Template e Confronto", "GET /templates, /templates/meta, /templates/niches, /templates/learning; POST /templates, /templates/recommend; PATCH/DELETE /templates/{id}"],
+       ["Account dello studio", "PATCH /auth/me; GET /auth/me/profile, /auth/me/export, /auth/me/activity, /auth/me/credits; POST /auth/me/sign-out-everywhere, /auth/change-password; DELETE /auth/me"],
        ["Documenti del cliente", "GET e POST /fonte-c/documents; GET e DELETE /fonte-c/documents/{id}; /file, /cost-line, /draft-items, /expenses; POST /fields/{id}/review"],
        ["Fonte B", "GET /fonte-b/summary, /kinds, /datasets, /template/{tipo}.csv; POST /datasets (bozza), /datasets/{id}/publish; DELETE bozza"],
        ["Pattern", "GET /pattern/categories, /pattern/budgets; POST /pattern/match, /pattern/import"],
        ["Registro", "POST /registry/register, /verify/recompute, /verify/attestation, /merkle-lab; GET /registry/status, /public-key, /verify/{progetto}, /attestation/{progetto}"],
-       ["Quartier Generale", "GET /hq/overview, /timeline, /operations, /projects, /documents, /users, /archive e /archive/{id} (con regole, requisiti, fonti, scheda consulente, ZIP), /db/tables"],
+       ["Quartier Generale", "GET /hq/overview, /manual, /manual.pdf, /timeline, /operations, /projects, /documents, /users, /archive e /archive/{id} (con regole, requisiti, fonti, scheda consulente, ZIP), /db/tables"],
        ["Lavori periodici", "GET/POST /cron/catalog-refresh, /cron/catalog-lifecycle, /cron/catalog-describe (segreto del cron o manager)"]], [32, 138])
     H3("1. Validazione del budget di progetto")
     P("Differenza dalla v2.1: le regole del bando viaggiano nel campo `grant_rules` (l'insieme completo delle regole pubblicate, con `rule_version_hash`), non in un `grant_context`; i valori della voce sono campi diretti della voce, non in `raw_values`. La rinomina verso lo schema originale non è stata fatta. [[PARZIALE]]")
@@ -546,6 +671,7 @@ def build(m):  # noqa: C901 - un documento lungo è una sola funzione di testo
     CODE('POST /api/v2/allocation/optimize\n{\n  "fiscal_year": 2027,\n  "use_profile_forecast": true,                 // oppure historical_balance_ref, oppure historical_expenses (una sola origine)\n  "growth_pct": { "CONSULTING": 0.10 },          // variazione annua scelta dall\'utente\n  "available_funding_lines": [ { "fund_id": "…", "allowed_categories": ["CAPITAL_ASSETS"], "coverage_pct": 0.75, "de_minimis": false, … } ],\n  "optimization_target": "MINIMIZE_NET_COST",    // MAXIMIZE_COVERED_ITEMS | MINIMIZE_FUNDS_INVOLVED\n  "excluded_funds": [], "de_minimis_residual_eur": null\n}')
     P("Risposta: `status`, `total_gross_expense_eur`, `covered_by_public_funds_eur`, `net_cost_to_entity_eur`, `overall_coverage_percentage`, `allocation_plan[]` (voce, importo, copertura per fondo, a carico), `fund_usage[]` (usato, dotazione, margine di sicurezza), `monthly_plan[]`, `summary`, `solver`.")
     H3("3. Profilo, stima, abbinamento e bozza")
+    P("La risposta di `/profile/match` contiene anche `de_minimis` (plafond, contributi dichiarati, residuo, base DICHIARATI / PARZIALE / IPOTESI, anni mancanti) e, per ogni bando, `de_minimis: {applies, basis, mentioned, evidence[]}` con la frase da cui viene.")
     CODE('POST /api/v2/profile/match      { "year": 2027, "growth": { "PERSONNEL": 0.04 } }\n  → { "forecast": { "base_year", "categories": [ { "category", "baseline_eur", "suggested_growth", "growth_applied", "forecast_eur" } ], "warnings", … },\n      "matching": { "results": [ { "bando_id", "fit": "ADATTO|DA_VERIFICARE|NON_ADATTO", "checks": [ { "id", "result": "OK|FAIL|UNKNOWN", "detail" } ],\n                      "estimate": { "rate_pct", "covered_eur", "by_category", "adjustments" } | null, "fund": { … }, "notes" } ],\n                    "catalog": { "items": [ { "bando_id", "summary", "score", "affinity", "reasons", "to_check" } ], "total_candidates", "excluded" },\n                    "summary", "missing_profile" } }\n\nPOST /api/v2/profile/template  { "bando_id": "…", "scale_pct": 25, "fit": true }\n  → { "cost_items": [ { "item_id": "TPL-01", … } ], "needs_personnel": { "amount_eur", "message" } | null, "adjustments", "excluded_categories", "notes", "total_eur" }')
     CODE('POST /api/v2/budget/wp-plan\n{ "project_id": "PRJ-2026-001", "allow_split": true,\n  "items": [ { "item_id": "A-01", "category": "PERSONNEL", "amount_eur": 60000, "pinned_wp": null } ],     // importi AMMESSI\n  "work_packages": [ { "wp_id": "WP1", "name": "Gestione", "min_share_pct": 0.1, "target_share_pct": 0.5, "max_share_pct": 0.6,\n                       "allowed_categories": ["PERSONNEL", "OVERHEAD"], "category_max_share": { "OVERHEAD": 0.2 } } ] }\n→ { "status": "OPTIMAL | BEST_FOUND | INFEASIBLE", "message", "assignments": [ { "item_id", "parts": [ { "wp_id", "amount_eur", "share" } ] } ],\n    "work_packages": [ { "wp_id", "total_eur", "share_pct", "by_category", "deviation_pp" } ], "checks": [ { "wp_id", "rule", "ok", "detail" } ],\n    "reasons": [], "unplaced": [], "notes": [] }')
     H3("4. Stato dell'ingestion")
@@ -587,5 +713,9 @@ def build(m):  # noqa: C901 - un documento lungo è una sola funzione di testo
        ["Dati veri", "21/09/2026", "PostgreSQL, Fonte B in database, Fonte C cifrata con confidenza e revisione, utenti e ruoli, banca dei pattern con k-means, modulo del modello linguistico, cron del catalogo."],
        ["Demo e pulizia", "26/09-01/10/2026", "Demo con bandi reali, banca dei pattern con bilanci di società quotate, rifacimento della homepage e delle pagine con lo stile «finestra», pulizia del catalogo, processo standard di studio, figure strutturate."],
        ["Sicurezza e profilo", "03/10/2026", "Sicurezza e CI (azioni fissate, audit, intestazioni, CSP), profilo aziendale, stima dell'anno, abbinamento ai bandi, bozza di budget, allocazione a passi."],
-       ["Catalogo, procedura guidata e test", "04/10/2026", "Schede del catalogo (descrizioni e caratteristiche), procedura guidata a passi, documenti dell'azienda di prova, test completo su dati reali con 18 correzioni, ripartizione delle voci tra i WP, anteprima e scarico di tutti i file dell'azienda, questo documento."]], [34, 28, 108])
+       ["Catalogo, procedura guidata e test", "04/10/2026", "Schede del catalogo (descrizioni e caratteristiche), procedura guidata a passi, documenti dell'azienda di prova, test completo su dati reali con 18 correzioni, ripartizione delle voci tra i WP, anteprima e scarico di tutti i file dell'azienda, questo documento."],
+       ["Valore dei bandi, studio e lavori", "05-08/10/2026", "Valore in euro di ogni bando (regola, modello, tabella di intensità), RICERCA-v2, modello di previsione con la spiegazione di ogni percentuale, potenziale massimo e bilancio ricostruito, demo tolta, caricamento manuale riservato al Quartier Generale, testi per gli studi."],
+       ["Confronto e interfaccia", "05-08/10/2026", "Confronto a template con due motori, lavori dello studio con salvataggio per lavoro, profilo dello studio completo, interfaccia minimale con menu laterale, manuale dei processi (PDF e Quartier Generale) e «I 60 criteri spiegati»."],
+       ["Allocazione deterministica", "09/10/2026", "Piano uguale a parità di dati e sempre massimo, tutti i bandi adatti di default, 12 colori e bandi «non serve» in legenda, ipotesi de minimis dichiarata."],
+       ["Legenda, de minimis e assistente", "10/10/2026", "Legenda dei numeri, de minimis riconosciuto dalle fonti e stimato dai dati dichiarati, assistente guidato con pannello a destra, download dei PDF affidabile, 499 test, questo documento."]], [34, 28, 108])
     NOTE("Fine del documento. Ogni numero riportato è stato letto dal sistema o dal codice alla data indicata; dove un dato non esiste (pratiche reali, metriche di successo, benchmark) il documento lo dichiara.")

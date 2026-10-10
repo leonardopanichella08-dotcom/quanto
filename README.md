@@ -18,7 +18,7 @@ frontend/  React + Vite + Tailwind (nessun calcolo monetario lato client)
 ```bash
 cd backend && python -m venv .venv && .venv/Scripts/activate   # Linux/mac: source .venv/bin/activate
 pip install -r requirements-dev.txt
-python -m pytest                                               # 298 test
+python -m pytest                                               # 499 test
 uvicorn main:app --reload --port 8000                          # http://localhost:8000/docs
 
 cd ../frontend && npm install && npm run dev                   # http://localhost:5173 (proxy /api -> :8000)
