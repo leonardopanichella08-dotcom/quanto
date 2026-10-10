@@ -219,12 +219,18 @@ export const api = {
   hqExportTable: (table) => hqBlob(`/db/table/${table}/export.csv`),
 }
 
+// Il link va agganciato alla pagina prima del clic (alcuni browser integrati ignorano un link «staccato») e l'indirizzo temporaneo non si revoca subito.
 export function download(blobData, filename) {
+  const typed = blobData.type ? blobData : new Blob([blobData], { type: filename.endsWith('.pdf') ? 'application/pdf' : 'application/octet-stream' })
+  const url = URL.createObjectURL(typed)
   const a = document.createElement('a')
-  a.href = URL.createObjectURL(blobData)
+  a.href = url
   a.download = filename
+  a.rel = 'noopener'
+  a.style.display = 'none'
+  document.body.appendChild(a)
   a.click()
-  URL.revokeObjectURL(a.href)
+  setTimeout(() => { a.remove(); URL.revokeObjectURL(url) }, 30000)
 }
 
 export function fileToBase64(file) {

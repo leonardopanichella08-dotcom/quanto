@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react'
 import { Download, Loader2 } from 'lucide-react'
-import { api } from '../../lib/api'
+import { api, download } from '../../lib/api'
 
 // Inline: **grassetto**, *corsivo*, `codice`
 function inline(text) {
@@ -84,11 +84,7 @@ export default function Manual() {
   const download = async () => {
     setBusy(true)
     try {
-      const blob = await api.hqManualPdf()
-      const url = URL.createObjectURL(blob)
-      const a = document.createElement('a')
-      a.href = url; a.download = 'QUANTO_manuale_dei_processi.pdf'; a.click()
-      setTimeout(() => URL.revokeObjectURL(url), 2000)
+      download(await api.hqManualPdf(), 'QUANTO_manuale_dei_processi.pdf')
     } catch (e) { setError(e.message) } finally { setBusy(false) }
   }
   if (error) return <p className="text-xs text-red-700">{error}</p>
