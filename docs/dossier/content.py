@@ -1,4 +1,4 @@
-"""Testo del dossier QUANTO v4.1. Ogni affermazione di stato è verificata sul codice (12 ottobre 2026); i dati online che richiedono l'accesso sono quelli dell'ultima lettura con accesso (4 ottobre 2026) e sono datati."""
+"""Testo del dossier QUANTO v4.2. Ogni affermazione di stato è verificata sul codice (12 ottobre 2026); i dati online che richiedono l'accesso sono quelli dell'ultima lettura con accesso (4 ottobre 2026) e sono datati."""
 from __future__ import annotations
 
 import json
@@ -12,9 +12,9 @@ def build(m):  # noqa: C901 - un documento lungo è una sola funzione di testo
     from reportlab.platypus import PageBreak, Paragraph
 
     # ------------------------------------------------------------------------------------------------ copertina
-    story.append(Paragraph("QUANTO v4.1 — Documento Completo", m.S["title"]))
+    story.append(Paragraph("QUANTO v4.2 — Documento Completo", m.S["title"]))
     story.append(Paragraph("Il motore di calcolo per studi di commercialisti e boutique di finanza agevolata", m.S["sub"]))
-    story.append(Paragraph("Versione 4.1: riscrittura integrale della v3.0, aggiornata allo stato reale del sistema al 12 ottobre 2026, con conteggi e schema API ricontrollati uno per uno sul codice. Nessuna sintesi: ogni processo è spiegato nel dettaglio e ogni funzione porta il suo stato.", m.S["p"]))
+    story.append(Paragraph("Versione 4.2: riscrittura integrale della v3.0, aggiornata allo stato reale del sistema al 12 ottobre 2026 e con la visione ridefinita, con conteggi e schema API ricontrollati uno per uno sul codice. Nessuna sintesi: ogni processo è spiegato nel dettaglio e ogni funzione porta il suo stato.", m.S["p"]))
     SP(6)
     H1("Nota di apertura — cosa contiene questo documento e cosa è cambiato")
     P("Questo documento riprende, modulo per modulo, la struttura del documento «FKOS v2.1 — Documento Completo» (22 moduli, executive summary, schema tecnico API) e la porta al presente, partendo dalla v3.0 del 4 ottobre. "
@@ -24,24 +24,27 @@ def build(m):  # noqa: C901 - un documento lungo è una sola funzione di testo
     B(["**QUANTO non scrive progetti.** Nessun testo persuasivo, nessuna relazione illustrativa: solo la componente numerica (budget, ammissibilità, allocazione, stima dell'anno successivo).",
        "**Multi-verticale fin dal disegno.** Catalogo nazionale di oltre 5.900 misure letto dalle fonti istituzionali; le regole si estraggono solo su richiesta, con cache.",
        "**Metriche oneste e separate.** Nessun tasso di errore dichiarato prima di avere pratiche reali (Modulo 14).",
-       "**Pricing ibrido.** Oggi l'app è gratuita e mostra un'anteprima a crediti dello studio (Modulo 21): il pagamento reale non esiste ancora."])
+       "**Strumenti gratuiti.** Gli strumenti di QUANTO sono gratuiti per gli studi (Modulo 21): il pricing ibrido della v2.1 non è la strategia attuale; il contatore a crediti è solo un limite d'uso senza pagamenti."])
     P("A queste si aggiungono le decisioni prese dopo la v2.1, riportate con la data nel Modulo 29 e nella cronologia: eliminazione della blockchain (19/09/2026), regola **«mai dati inventati»** (ogni numero risale a una fonte reale o dichiara la propria lacuna), "
-      "un solo processo standard per studiare ogni bando (01/10/2026, oggi RICERCA-v2), nessuna migrazione di Tailwind finché non serve (03/10/2026), caricamento manuale dei bandi riservato al Quartier Generale e scenario demo tolto dall'applicazione (tra il 5 e l'8 ottobre).")
-    H2("Cosa è successo dal 4 al 10 ottobre, in sintesi")
+      "un solo processo standard per studiare ogni bando (01/10/2026, oggi RICERCA-v2), nessuna migrazione di Tailwind finché non serve (03/10/2026), caricamento manuale dei bandi riservato al Quartier Generale e scenario demo tolto dall'applicazione (tra il 5 e l'8 ottobre), **visione ridefinita il 12 ottobre 2026**: niente consulenza esterna (le regole le cura un team interno), niente partnership assicurative, e a lungo termine l'acquisizione di studi di commercialisti resi dipendenti da QUANTO (Modulo 18).")
+    H2("Cosa è successo dal 4 al 12 ottobre, in sintesi")
     B(["**Studio e lavori** (Modulo 25): l'account è dello studio; ogni cliente è un lavoro con dati, documenti e risultati propri; cambiando pagina o chiudendo l'app ogni scelta si ritrova.",
        "**Ogni bando ha un valore in euro** (Modulo 24): regola pubblicata, modello curato con le sue ipotesi, oppure tabella di intensità letta dal testo ufficiale; il processo di ricerca ora segue i link fino a tre giri e cerca apposta la percentuale (RICERCA-v2).",
        "**Potenziale massimo con tutti i bandi insieme**, bilancio ricostruito con il grafico di ogni bando, piano **sempre uguale a parità di dati e sempre massimo**, legenda sempre visibile di ogni numero e **de minimis** spiegato, riconosciuto dalle fonti e stimato dai dati dichiarati (Modulo 24).",
        "**Confronto riscritto sui template di budget** (Modulo 25): due motori (collettivo e interno), consiglio che si auto-migliora a ogni dato, mappa nicchie-bandi, solo bandi affini al lavoro attivo.",
        "**Interfaccia professionale e minimale**: menu di gestione a sinistra, profilo completo dello studio (dati, sicurezza, piano e dati), nessun effetto vetro o «cartone animato».",
        "**Assistente guidato** (Modulo 26): dove l'utente dovrebbe inserire dati o muoversi nell'app, l'assistente lo fa al suo posto, passo per passo, e chiede i valori spiegando in parole semplici cosa sono e dove si trovano.",
-       "**Manuale dei processi** (testo in Quartier Generale e PDF) e «I 60 criteri spiegati» (Modulo 15 e docs)."])
-    P("**Come è stato verificato (12 ottobre 2026).** **Codice:** **499 test automatici** verdi; operazioni API, migrazioni, tabelle e bandi curati ricontati dal codice; lo schema API di questo documento è confrontato con le rotte reali (OpenAPI). **Online:** il sito pubblicato serve esattamente l'ultima versione del frontend (stessi file generati dal build) e il registro firmato è integro, con la stessa chiave e una registrazione. **Non verificato online:** tutto ciò che richiede l'accesso (catalogo, bandi, regole, database) resta quello dell'ultima lettura con accesso, del **4 ottobre 2026**, e porta la data, perché durante questa riscrittura non era disponibile una sessione di accesso. Le funzioni aggiunte dopo il 4 ottobre (assistente, de minimis, legenda, Confronto) sono provate in locale su un database temporaneo con l'azienda di prova: **la verifica online con i dati reali resta da fare**.")
+       "**Manuale dei processi** (testo in Quartier Generale e PDF) e «I 60 criteri spiegati» (Modulo 15 e docs).",
+       "**Documenti dell'azienda di prova ricostruiti come quelli veri** (Modulo 4 e 9.3): bilanci completi di 16 pagine con nota integrativa e relazione, visura, cedolini, F24, domanda di contributo e business plan; il test ha trovato e fatto correggere sette difetti di lettura.",
+       "**Assistente a chat** (Modulo 26): una scena a tutto schermo con l'app in una scheda ridotta e la chat a destra, con suggerimenti e barra di scrittura.",
+       "**Visione ridefinita** (Modulo 18) e nuovo documento breve, il **Riassunto** (7 pagine, `docs/riassunto/`): cosa fa QUANTO, come lavora, gli strumenti e il valore per gli studi."])
+    P("**Come è stato verificato (12 ottobre 2026).** **Codice:** **506 test automatici** verdi; operazioni API, migrazioni, tabelle e bandi curati ricontati dal codice; lo schema API di questo documento è confrontato con le rotte reali (OpenAPI). **Online:** il sito pubblicato serve esattamente l'ultima versione del frontend (stessi file generati dal build) e il registro firmato è integro, con la stessa chiave e una registrazione. **Non verificato online:** tutto ciò che richiede l'accesso (catalogo, bandi, regole, database) resta quello dell'ultima lettura con accesso, del **4 ottobre 2026**, e porta la data, perché durante questa riscrittura non era disponibile una sessione di accesso. Le funzioni aggiunte dopo il 4 ottobre (assistente, de minimis, legenda, Confronto) sono provate in locale su un database temporaneo con l'azienda di prova: **la verifica online con i dati reali resta da fare**.")
     H2("Legenda degli stati")
     T([["Etichetta", "Significato"],
        ["[[FATTO]]", "Realizzato, coperto da test automatici e, dove ha senso, provato online con dati reali."],
        ["[[PARZIALE]]", "Esiste e funziona, ma con un limite dichiarato (copertura, dato mancante, componente non collegata)."],
        ["[[DA FARE]]", "Previsto nella v2.1 e non ancora realizzato."],
-       ["[[FASE 3]] [[FASE 4]]", "Visione a lungo termine, volutamente non anticipata."],
+       ["[[VISIONE]]", "Direzione a lungo termine, volutamente non anticipata (Modulo 18)."],
        ["[[DECISIONE]]", "Scelta presa dopo la v2.1 che cambia il disegno originale."]], [45, 125])
 
     # ------------------------------------------------------------------------------------------------ stato in una pagina
@@ -65,8 +68,8 @@ def build(m):  # noqa: C901 - un documento lungo è una sola funzione di testo
        ["15 Stack", "[[FATTO]]", "FastAPI + PostgreSQL + React/Vite su Vercel; CI con test, build e audit delle dipendenze."],
        ["16 Sicurezza e GDPR", "[[FATTO]]", "Cifratura a riposo, pseudonimizzazione, scrypt, blocco account, RLS su tutte le tabelle, intestazioni di sicurezza e CSP; esportazione ed eliminazione dei dati dello studio. DPA e valutazione d'impatto: da fare."],
        ["17 Registro crittografico", "[[DECISIONE]]", "Anticipato dalla Fase 2 e realizzato SENZA blockchain: catena di hash firmata Ed25519, Merkle, attestazioni offline, Auditor Portal."],
-       ["18 Componente assicurativa", "[[FASE 3]]", "Non toccata, per scelta."],
-       ["19 Reparto di consulenza", "[[FASE 4]]", "Non toccato; esiste solo la «scheda per il consulente» nel Quartier Generale."],
+       ["18 Visione a lungo termine", "[[VISIONE]]", "Dal mercato degli studi, all'estero, all'acquisizione di studi resi dipendenti da QUANTO. Nessuna consulenza esterna e nessuna partnership assicurativa (decisione del 12/10/2026)."],
+       ["19 Team interno e revisione delle regole", "[[PARZIALE]]", "Le regole e le tabelle le cura un team interno di QUANTO dal Quartier Generale (coda di revisione, scheda di revisione per bando); il team è da costituire."],
        ["20-22 Go-to-market", "[[DA FARE]]", "Nessuna attività commerciale avviata; registrazione libera e crediti simulati pronti."]], [52, 22, 96])
     H2("Numeri del sistema")
     P("Il codice è stato contato il 12 ottobre 2026; i dati online che richiedono l'accesso (catalogo, bandi, regole, database) sono quelli dell'ultima lettura con accesso, il **4 ottobre 2026**.")
@@ -102,7 +105,7 @@ def build(m):  # noqa: C901 - un documento lungo è una sola funzione di testo
        ["Utenti", "Non descritti", "Account dello studio con ruoli USER e MANAGER, accesso riservato al titolare per il Quartier Generale, registrazione libera, crediti simulati per studio."],
        ["LLM", "Renderer + Stadio 3", "Modulo completo e testato, spento in produzione (nessuna chiave): vale il template fisso."],
        ["Interfaccia", "4 viste + pannello interno", "Menu laterale: Allocazione, Confronto, Bandi, Budget, Verifica, Guida, Profilo + Algoritmo (dal Budget) + Quartier Generale (12 sezioni) + assistente guidato a destra."],
-       ["Webhook", "8 eventi", "7 eventi emessi; consultation.requested e rule.audit_flagged non attivi (dipendono da Fase 4 e dall'audit)."],
+       ["Webhook", "8 eventi", "7 eventi emessi; rule.audit_flagged non è attivo (dipende dall'audit di calibrazione); consultation.requested è stato eliminato con la visione di consulenza."],
        ["Qualità", "Regression test sui 60 criteri", f"{FACTS['tests']} test su PostgreSQL reale, CI con azioni fissate per impronta, Dependabot, audit delle dipendenze."]], [28, 50, 92])
     story.append(PageBreak())
 
@@ -160,16 +163,16 @@ def build(m):  # noqa: C901 - un documento lungo è una sola funzione di testo
     H1("PARTE II — PROVA SU DATI REALISTICI, CONFRONTO E PATTERN")
     H2("MODULO 4 — La prova su dati realistici  [[PARZIALE]]")
     P("Lo scenario «demo» e il bando di prova a 60 criteri sono stati **tolti dall'applicazione** e le loro tracce dal database (migrazione 13): ciò che compare è sempre un dato dell'utente o un dato reale. Per provare il sistema esiste un'azienda interamente fittizia, "
-      "Meridiana Digital Solutions S.r.l. (14 documenti coerenti tra loro: visura, tre bilanci 2023-2025, buste paga, F24, bozza di candidatura, DURC, de minimis, business plan, Excel), generata da `backend/scripts/make_sample_company.py` e conservata in `documenti_di_prova/`. "
-      "Si carica come si farebbe con un cliente vero: nessuna scorciatoia nel codice.")
+      "Meridiana Digital Solutions S.r.l. (15 documenti lunghi e completi, coerenti tra loro: visura camerale di 5 pagine, tre bilanci 2023-2025 in forma ordinaria di 16 pagine ciascuno con stato patrimoniale, conto economico, rendiconto finanziario, nota integrativa, relazione sulla gestione, verbale di assemblea e conto economico analitico, due cedolini, due F24, domanda di contributo di 7 pagine, DURC, dichiarazione de minimis, business plan di 7 pagine e tre fogli Excel), generata da `backend/scripts/make_sample_company.py` e conservata in `documenti_di_prova/`. "
+      "Si carica come si farebbe con un cliente vero: nessuna scorciatoia nel codice. Tutti i numeri nascono da un modello contabile (`backend/scripts/sample_company/model.py`) in cui attivo e passivo tornano, il rendiconto riconcilia la cassa e i movimenti delle immobilizzazioni portano ai saldi. Gli importi dei prospetti sono in unità di euro, come in un bilancio vero; l'allegato analitico è in euro e centesimi.")
     P("Il percorso di prova è quello di tutti: aprire un lavoro → caricare i documenti nel Profilo → profilo (92% con un solo gesto, 100% dopo la risposta sulla start-up) → stima dell'anno → bandi adatti → potenziale massimo → bozza di budget → controllo dei 60 criteri → esportazione → registrazione dell'impronta → verifica → Confronto.")
     B(["**Selezione del bando:** dal catalogo o ricerca per nome (ricerca interna, poi web con Brave Search). [[FATTO]]",
        "**Budget:** a mano, Excel, PDF di candidatura, busta paga, bilancio dell'azienda o **con l'assistente** (Modulo 26). [[FATTO]]",
        "**Confronto con i template:** consiglio per nicchia e bando (Modulo 25). [[PARZIALE]]",
        "**Conformity Score** in parallelo, con motivazione per ogni voce respinta o sospesa. [[FATTO]]"])
     H3("4.3 Un risultato letto sul database di prova")
-    P("Eseguito il 10 ottobre 2026 su un database locale temporaneo (catalogo ridotto, non quello online) con l'azienda di prova: spesa prevista 2027 di 1.965.919,31 € (ricavi 1.583.200 € nel 2025, +19,2% sul 2024); 6 bandi adatti, 5 inclusi nel piano; "
-      "il piano copre 1.243.460,21 € (63,3%), fino a 1.708.776,43 € con tutte le maggiorazioni, e lascia 722.459,10 € a carico. Il risultato dipende dai bandi studiati: sul sistema online, con un catalogo più ricco, è diverso.")
+    P("Eseguito il 12 ottobre 2026 su un database locale temporaneo (catalogo ridotto, non quello online) con i nuovi documenti dell'azienda di prova: profilo al 100% con le risposte lette dai 15 file (nessuna riga da verificare tranne la RAL stimata dei cedolini), spesa prevista 2027 di 1.991.026,11 € (ricavi 1.583.200 € nel 2025, +19,2% sul 2024); 6 bandi adatti, 5 inclusi nel piano; "
+      "il piano copre 1.252.698,85 € (62,9%), fino a 1.718.015,07 € con tutte le maggiorazioni, e lascia 738.327,26 € a carico. Il risultato dipende dai bandi studiati: sul sistema online, con un catalogo più ricco, è diverso.")
     NOTE("I numeri sono quelli del database di prova e servono a mostrare il percorso, non a promettere un esito.")
 
     H2("MODULO 5 — La banca dei pattern e i template  [[PARZIALE]]")
@@ -215,7 +218,7 @@ def build(m):  # noqa: C901 - un documento lungo è una sola funzione di testo
       "Gli spazi seguono una scala fissa; le pagine già visitate restano montate, quindi cambiando pagina si ritrova tutto com'era. La homepage mantiene la grafica d'apertura con la «catena di blocchi». "
       "Due fatti di processo: il frontend non ha router (si naviga con uno stato interno), e la migrazione a Tailwind 4 è stata rimandata per decisione del 03/10/2026 perché non è necessaria.")
     H3("8.4 Il Pannello di Ingestion")
-    P("Esiste, ed è la sezione «Bandi» e «Catalogo» del Quartier Generale: per ogni bando, documenti (testo estratto e file originale), regole (anche quelle in disaccordo), requisiti, scheda per il consulente, linea di finanziamento per l'allocazione, utilizzi, esportazione ZIP; per il catalogo, descrizioni e caratteristiche. Non è visibile agli utenti.")
+    P("Esiste, ed è la sezione «Bandi» e «Catalogo» del Quartier Generale: per ogni bando, documenti (testo estratto e file originale), regole (anche quelle in disaccordo), requisiti, scheda di revisione, linea di finanziamento per l'allocazione, utilizzi, esportazione ZIP; per il catalogo, descrizioni e caratteristiche. Non è visibile agli utenti.")
     story.append(PageBreak())
 
     H2("MODULO 9 — Il triplo motore di retrieval proprietario (Fonti A, B, C)")
@@ -242,8 +245,8 @@ def build(m):  # noqa: C901 - un documento lungo è una sola funzione di testo
     P("**Ciclo di vita  [[FATTO]].** Dalle schede si leggono «Data apertura» e «Data chiusura». Ogni notte si eliminano le voci mai toccate e certamente chiuse (con scadenza passata, oppure senza data e il cui nome cita solo anni passati). Un bando già studiato o richiesto da un cliente non si cancella mai in automatico. Nella libreria i bandi del catalogo mostrano ora «APERTO (fino al …)» o «CHIUSO (scaduto il …)» dalla scadenza ufficiale.")
     P("**Stadio 2 — estrazione deterministica  [[FATTO]].** Pattern e tassonomia collegata ai 60 criteri, nessun modello: ogni frase che tocca un tema noto diventa un requisito; ogni frase con obbligo o divieto fuori tassonomia finisce in «DA_REVISIONARE». Le regole numeriche estratte sono solo quelle riconosciute senza ambiguità (circa 24 chiavi note). Una regola pubblicata non viene mai sovrascritta da un'estrazione successiva: solo la revisione umana la corregge.")
     P("**Stadio 3 — più passaggi AI  [[PARZIALE]].** Implementato e testato: N estrazioni indipendenti (numero configurabile), ogni valore accettato solo se accompagnato dalla frase del documento da cui deriva e solo se quella frase compare davvero nel testo; il codice confronta i passaggi, concordanza → pubblicata, disaccordo → coda di revisione. **Non attivo in produzione** perché manca la chiave del provider.")
-    P("**Coda di verifica umana  [[FATTO]].** `/ingestion/review-queue` e `/ingestion/review` (il consulente risolve un disaccordo e la regola viene pubblicata); il Quartier Generale permette di impostare, correggere o eliminare ogni regola e requisito, rileggere i documenti, esportare uno ZIP o eliminare il bando.")
-    P("**Audit di calibrazione continua e canale reattivo  [[DA FARE]].** Il campionamento casuale di regole già pubblicate e l'evento `rule.audit_flagged` non esistono ancora; il canale verso il Reparto di Consulenza è Fase 4.")
+    P("**Coda di verifica umana  [[FATTO]].** `/ingestion/review-queue` e `/ingestion/review` (il team interno di QUANTO risolve un disaccordo e la regola viene pubblicata); il Quartier Generale permette di impostare, correggere o eliminare ogni regola e requisito, rileggere i documenti, esportare uno ZIP o eliminare il bando.")
+    P("**Audit di calibrazione continua e canale reattivo  [[DA FARE]].** Il campionamento casuale di regole già pubblicate e l'evento `rule.audit_flagged` non esistono ancora; l'audit lo farà il team interno.")
     P("**Embedding e indicizzazione vettoriale  [[DA FARE]].** La v2.1 prevedeva chunking e vettori per la consultazione libera. Oggi la lettura è lessicale e strutturata: la rilevanza di un documento si decide da parole distintive del nome e dall'ente (con un elenco di parole generiche escluse), il che spiega un limite noto: un bando «fratello» dello stesso ente può contaminare lo studio di un altro (vedi Modulo 30).")
 
     H3("9.2 Fonte B — tabelle di mercato e benchmark ufficiali  [[PARZIALE]]")
@@ -275,6 +278,16 @@ def build(m):  # noqa: C901 - un documento lungo è una sola funzione di testo
        "**Aprire e scaricare tutto ciò che l'azienda ha allegato  [[FATTO]]:** nell'elenco «I tuoi documenti» ogni file ha «Apri» (anteprima nella pagina per PDF, immagini e testo semplice; i fogli Excel e simili si scaricano), «Scarica» (file originale, decifrato solo per il proprietario, con il nome originale anche se contiene accenti) ed «Elimina» (con conferma). "
        "«Scarica tutti i file (ZIP)» crea nel browser un archivio con tutti i file divisi per tipo (Visura camerale, Bilancio, Busta paga…) e un `elenco_documenti.csv` con tipo, stato, data, dimensione e impronta SHA-256 di ciascuno. L'archivio si compone nel browser perché Vercel limita a 4,5 MB la risposta di una singola chiamata; i file tornano identici agli originali (verificato byte per byte)."])
 
+    H3("9.3.1 Leggere documenti fatti come quelli veri  [[FATTO]]")
+    P("Quando i documenti dell'azienda di prova sono stati rifatti come quelli di un cliente vero (bilanci di 16 pagine, visura completa, F24 con più sezioni, domanda di contributo con più tabelle di costo) la lettura ha mostrato difetti che le versioni di una pagina nascondevano. Ora sono corretti e coperti da test dedicati:")
+    T([["Difetto trovato", "Cosa succedeva", "Come si legge ora"],
+       ["Importi senza centesimi", "Un bilancio redatto in unità di euro («1.583.200») non produceva nessuna riga: servivano i centesimi.", "Si legge come importo il primo numero intero che chiude la riga; un anno («2025 2024») non è un importo."],
+       ["Costi esposti due volte", "Lo schema civilistico (voci 6, 7, 8, 9…) e l'allegato analitico (conto per conto) sommati contavano ogni costo due volte; lo stesso nella domanda di contributo (per voce, per pacchetto di lavoro, per persona).", "Ogni tabella è un blocco con il suo totale: si usa un solo blocco, quello che torna con il totale dichiarato e ha più righe già riconosciute."],
+       ["Piè di pagina come costo", "«Pagina 13 di 14» diventava una riga di costo da 14 euro.", "Le intestazioni e i piè di pagina ripetuti sono ignorati."],
+       ["Sottovoce «c)» come fine dei costi", "«c) trattamento di fine rapporto» (lettera minuscola normalizzata in «C)») chiudeva la sezione dei costi.", "Solo «C) Proventi e oneri finanziari» chiude i costi."],
+       ["Etichetta ripetuta", "Lo stesso dato compariva più volte (ATECO prevalente e secondarie, addetti e dipendenti, totale e progressivi) e finiva «ambiguo».", "Conta l'etichetta più specifica e quella che apre la riga; tra occorrenze uguali vince il valore ripetuto, solo senza vincitore decide una persona."],
+       ["Sezione INPS e crediti dell'F24", "Una riga INPS («DM10 … 08/2026») diventava un tributo; un credito compensato (6938) risultava un debito.", "Si leggono le sole sezioni con codice tributo; l'importo nella colonna «a credito compensati» è un credito, riconosciuto dalla posizione sulla pagina."],
+       ["Costi che nessuna agevolazione copre", "Imposte indirette, quote associative, liberalità, svalutazioni, carburanti restavano «da assegnare» e il profilo non era mai completo.", "Nuova categoria «Altro (non agevolabile)»: riconosciuta da parole chiave sicure, entra nel totale dei costi ma non nelle cinque categorie di spesa."]], [40, 70, 60])
     H3("9.4 Il profilo dell'azienda e dello studio  [[FATTO]]")
     P("Il profilo è il ponte tra le due missioni: i dati veri dell'impresa, raccolti una sola volta, usati ovunque. Due tabelle (`company_profiles`, una riga per lavoro; `company_financials`, una per lavoro ed esercizio), entrambe con la **provenienza di ogni valore**.")
     T([["Origine", "Significato", "Regola"],
@@ -411,19 +424,30 @@ def build(m):  # noqa: C901 - un documento lungo è una sola funzione di testo
        "**Limite dichiarato:** il registro è gestito da QUANTO, non da un testimone terzo. Per rafforzarlo si può pubblicare periodicamente `head_hash` (PEC, repository pubblico, marca temporale qualificata). [[DA FARE]]",
        "**Non realizzato:** il «Report di Asseverazione Crittografica» in PDF come documento a sé. Esiste l'attestazione firmata in JSON e la pagina di verifica. [[DA FARE]]"])
     P("Stato online verificato il 12 ottobre 2026: una registrazione di prova (n. 1, del 4 ottobre), catena integra, chiave 4e5773cd74cfe97d (non di sviluppo).")
-    H2("MODULO 18 — La componente assicurativa  [[FASE 3]]")
-    P("Invariato: richiede storico di pratiche reali, struttura regolamentare adeguata (licenza IVASS o partner MGA) e validazione attuariale indipendente; esclusioni esplicite; rischio sistemico da mitigare con limiti di esposizione per regola. Nessuna riga di codice, per scelta.")
-    H2("MODULO 19 — Il reparto di consulenza  [[FASE 4]]")
-    P("Invariato: rete di consulenti partner, segnalazione dei casi limite, canale reattivo sulle regole. Precursore reale già presente: la **scheda per il consulente** nel Quartier Generale (per ogni bando: cosa dicono i documenti, cosa non dicono, quali parole cercare, dove compaiono, come verificare, quale controllo resta spento).")
-
+    H2("MODULO 18 — La visione: dagli strumenti all'acquisizione degli studi  [[VISIONE]]")
+    P("**Decisione del 12 ottobre 2026.** La visione precedente (una componente assicurativa con partnership per la responsabilità, un reparto di consulenza con consulenti partner) è **eliminata**. Non ci saranno consulenti esterni a sistemare le regole dei bandi: le cura un team interno di QUANTO. Non ci saranno partnership assicurative.")
+    P("La direzione è una sola, in quattro tappe. Ogni tappa ha senso solo se la precedente è compiuta, e nessuna è anticipata nel codice di oggi.")
+    T([["Tappa", "Cosa succede", "Perché"],
+       ["1. Mercato italiano degli studi", "Prendere tutta la fetta di mercato degli studi di commercialisti e delle boutique di finanza agevolata. Gli strumenti di QUANTO sono **gratuiti**: previsione di bilanci, bandi, budget, allocazione, confronto.", "Zero costo d'ingresso: lo studio li adotta e li usa per tutti i clienti."],
+       ["2. Mercati esteri", "Portare gli stessi strumenti in altri mercati, con le regole dei bandi e le tabelle locali curate dal team interno.", "Lo stesso motore deterministico vale ovunque ci siano regole scritte da applicare."],
+       ["3. Dipendenza", "Estendere gli strumenti fino a coprire circa il **90% delle funzioni** che uno studio svolge. Non solo previsione di bilanci, bandi e budget: quello è il punto di partenza, il resto viene molto più avanti.", "Uno studio che lavora dentro QUANTO per quasi tutto ciò che fa non può più farne a meno."],
+       ["4. Acquisizione", "Acquisire studi di commercialisti già dipendenti da QUANTO.", "Il ricarico che lo studio applica alle PMI clienti diventa tutto guadagno; i costi si abbassano perché tutti gli strumenti sono già di QUANTO e gratuiti."]], [36, 84, 50])
+    P("**Cosa implica per il prodotto oggi.** Strumenti gratuiti e sempre più larghi; dati dello studio separati per cliente (i «lavori»); template e Confronto che migliorano con l'uso dello studio; un assistente che esegue i passaggi al posto dell'utente. "
+      "Tutto questo esiste per le due missioni (budget e allocazione); le tappe 2-4 non sono iniziate. Stato: [[VISIONE]].")
+    NOTE("Condizione da verificare prima della tappa 4: l'ordinamento delle professioni regolamentate pone limiti alla proprietà degli studi da parte di soggetti che non sono professionisti (per esempio per le società tra professionisti). Non è una decisione presa: è un vincolo noto da chiarire.")
+    H2("MODULO 19 — Il team interno e la revisione delle regole  [[PARZIALE]]")
+    P("Le regole dei bandi, le tabelle ufficiali della Fonte B e ogni revisione le cura **un team interno di QUANTO**, dal Quartier Generale: coda di revisione dei disaccordi, regole e requisiti modificabili, rilettura dei documenti, tabelle con attestazione della fonte e, per ogni bando, la **scheda di revisione** "
+      "(cosa dicono i documenti, cosa non dicono, quali parole cercare, dove compaiono, come verificare, quale controllo resta spento). Non esiste, e non è previsto, un canale verso consulenti esterni.")
+    P("Stato: gli strumenti ci sono e funzionano; il team interno è da costituire (oggi opera il titolare) e l'audit di calibrazione delle regole già pubblicate è da fare.")
     # ================================================================================================ PARTE V
     H1("PARTE V — GO-TO-MARKET")
     H2("MODULO 20 — Target e segmentazione  [[DA FARE]]")
-    P("Il bersaglio è ora **esplicito: studi di commercialisti e boutique di finanza agevolata**, che usano QUANTO per più clienti (un lavoro per cliente) e ne traggono il vantaggio commerciale del consiglio basato sui propri template. CFO di PMI e associazioni restano un canale per la Missione Due; i bandifici un canale secondario. "
+    P("Il bersaglio è **esplicito: studi di commercialisti e boutique di finanza agevolata**, che usano QUANTO per più clienti (un lavoro per cliente) e ne traggono il vantaggio del consiglio basato sui propri template. CFO di PMI e associazioni restano un canale per la Missione Due; i bandifici un canale secondario. "
       "La procedura guidata, il profilo per lavoro e l'assistente rendono credibile anche l'uso diretto da parte di un'impresa senza intermediari. Nessuna attività commerciale è stata avviata.")
-    H2("MODULO 21 — Canali e pricing  [[DA FARE]]")
-    P("Vendita guidata dalla demo: il percorso di prova (Modulo 4) può essere mostrato su dati del prospect caricati dal vivo. Pricing a tre livelli (abbonamento, crediti, success fee) più la commissione di Fase 4: **non implementato**. Esiste solo l'anteprima: ogni studio ha un «piano gratuito — anteprima di un piano annuale» con 100 crediti per ciclo e un credito per controllo del budget, con rinnovo dopo 364 giorni; i pagamenti sono simulati, nessun conto è addebitato. "
-      "La registrazione è libera (account USER gratuito, nessuna e-mail di conferma): va chiusa o protetta prima di un lancio.")
+    H2("MODULO 21 — Canali e modello economico  [[DA FARE]]")
+    P("Vendita guidata dalla prova: il percorso (Modulo 4) può essere mostrato su dati del prospect caricati dal vivo. **Gli strumenti di QUANTO sono gratuiti per gli studi**: l'obiettivo non è l'abbonamento ma la dipendenza (Modulo 18). Il pricing a tre livelli della v2.1 (abbonamento, crediti, success fee) non è la strategia attuale. "
+      "Esiste solo un contatore a crediti (100 per ciclo, un credito per controllo del budget, rinnovo dopo 364 giorni) come anteprima e limite d'uso dello studio: i pagamenti sono simulati e nessun conto è addebitato. "
+      "La registrazione è libera (account gratuito, nessuna e-mail di conferma): va chiusa o protetta prima di un lancio.")
     H2("MODULO 22 — Competizione e barriere all'entrata")
     P("Invariato nelle conclusioni. Barriere che il codice ha già iniziato a costruire: la libreria di parser e di tassonomia dei requisiti, i bandi studiati con tutte le fonti originali conservate, il profilo e i documenti dei clienti, il registro firmato. La strategia di partnership con gli ERP resta un'opzione da valutare con dati di mercato.")
     story.append(PageBreak())
@@ -436,7 +460,7 @@ def build(m):  # noqa: C901 - un documento lungo è una sola funzione di testo
        ["Panoramica", "Budget controllati, progetti, bandi, documenti, eventi, registrazioni; stato della memoria (PostgreSQL, dimensione) e della sicurezza (utenti, manager, chiave di firma); attività recente; ultimi eventi."],
        ["Timeline", "Ogni operazione in ordine di tempo, filtrabile per operazione, progetto, bando, esito; dal dettaglio si rivede nell'Algoritmo l'esecuzione salvata."],
        ["Mappa operazioni", "Tutte le operazioni fattibili con le fasi interne e le statistiche (numero, durata)."],
-       ["Bandi", "Ogni bando in memoria: documenti con testo e file originale, regole (anche in disaccordo, modificabili), requisiti (riclassificabili), scheda per il consulente, linea di finanziamento, utilizzi; rilettura, esportazione ZIP, eliminazione (con lapide per i curati e ripristino dei predefiniti); qui, e solo qui, si carica a mano il testo o il PDF di un bando."],
+       ["Bandi", "Ogni bando in memoria: documenti con testo e file originale, regole (anche in disaccordo, modificabili), requisiti (riclassificabili), scheda di revisione, linea di finanziamento, utilizzi; rilettura, esportazione ZIP, eliminazione (con lapide per i curati e ripristino dei predefiniti); qui, e solo qui, si carica a mano il testo o il PDF di un bando."],
        ["Catalogo (nuova)", "Tutte le voci del catalogo con descrizione e caratteristiche, ricerca e filtro (con scheda letta / da leggere), contatori (voci, schede lette, da leggere, con scadenza futura, già studiate) e pulsante che legge in sequenza tutte le schede mancanti."],
        ["Manuale (nuova)", "Il manuale dei processi di QUANTO (versione 4.0, standard RICERCA-v2): testo a schermo e **PDF scaricabile**, costruito dallo stesso testo."],
        ["Tabelle ufficiali", "Fonte B: caricamento da file, bozze, pubblicazione con attestazione della fonte, versioni; modelli di file per tipo."],
@@ -511,10 +535,10 @@ def build(m):  # noqa: C901 - un documento lungo è una sola funzione di testo
     H2("MODULO 26 — L'assistente guidato  [[FATTO]]")
     P("Dove l'utente dovrebbe inserire dati o muoversi nell'app, può **affidare il lavoro all'assistente**. L'assistente non è un chatbot e non usa modelli linguistici: è un esecutore di procedure dichiarate, che compie le stesse azioni che farebbe l'utente e si ferma solo quando gli serve un dato che non c'è.")
     H3("26.1 Come si presenta")
-    B(["Si avvia dal pulsante **Assistente** nel menu o da «Fallo fare all'assistente» nei punti in cui serve (dati mancanti nell'Allocazione, bozza di budget, aiuti de minimis).",
-       "L'app si **riduce a sinistra** dentro un riquadro e a destra compare il pannello con l'**elenco di tutti i passaggi**, che si spuntano man mano (in corso, in attesa di un dato, fatto, saltato, non riuscito) con il risultato di ciascuno.",
-       "Mentre l'assistente lavora l'app a sinistra si muove da sola (cambia pagina, salva, calcola) e non si può toccare; quando serve un valore il controllo passa all'utente, nel pannello.",
-       "Per ogni campo che chiede spiega in parole semplici **cos'è, cosa scrivere, perché serve, dove si trova e un esempio**; si può confermare, saltare o interrompere in qualsiasi momento con la X."])
+    B(["Si avvia dal pulsante **Assistente** nel menu, da un suggerimento o scrivendo cosa si vuole fare nella chat. L'assistente capisce la richiesta con parole chiave («budget», «potenziale massimo», «aiuti ricevuti», «dati dell'azienda»): non è un modello linguistico e se non capisce lo dice, proponendo le attività possibili.",
+       "È una **scena a tutto schermo**: a sinistra l'app, ridotta in una scheda con gli angoli arrotondati; sotto la scheda due pillole (il passo in corso con il suo avanzamento e il pulsante «Interrompi»); a destra una colonna di vetro con la **chat**, i suggerimenti e la barra di scrittura in basso. Lo sfondo è un gradiente giallo, quello del marchio, con superfici di vetro.",
+       "Nella chat compare l'**elenco di tutti i passaggi**, che si spuntano man mano (in corso, in attesa di un dato, fatto, saltato, non riuscito) con il risultato di ciascuno; le risposte dell'utente restano come messaggi.",
+       "Mentre l'assistente lavora l'app a sinistra si muove da sola (cambia pagina, salva, calcola) e non si può toccare; quando serve un valore compare nella chat un riquadro con la domanda, e per ogni campo spiega in parole semplici **cos'è, cosa scrivere, perché serve, dove si trova e un esempio**. Si può rispondere, saltare, scrivere «annulla» o premere «Interrompi» in qualsiasi momento."])
     H3("26.2 Le attività")
     T([["Attività", "Passaggi"],
        ["Calcolare il potenziale massimo", "Controlla i dati dell'azienda (chiede solo quelli che mancano: dati della visura, costi dell'ultimo bilancio) → apre l'Allocazione → stima l'anno e cerca i bandi adatti → verifica il de minimis (chiede gli aiuti ricevuti se serve) → mostra il risultato con le cifre."],
@@ -608,7 +632,7 @@ def build(m):  # noqa: C901 - un documento lungo è una sola funzione di testo
     T([["Cosa", "Perché serve", "Chi"],
        ["Chiave del provider del modello linguistico (e conferma del provider)", "Accende lo Stadio 3 (più passaggi) e il riepilogo scritto dal modello; oggi tutto è template.", "Titolare"],
        ["Dataset dei pattern vincenti (graduatorie pubbliche, dati del pilota con consenso)", "Oggi 5 bilanci di società quotate come proxy; servono almeno 6 budget per categoria per avere archetipi veri.", "Titolare / pilota"],
-       ["Tabelle ufficiali: CCNL mancanti, benchmark di prezzo e di tariffa, aliquote d'ammortamento da fonte primaria", "Criteri 22 e 33 spenti; aliquote da fonte secondaria.", "Titolare con consulente"],
+       ["Tabelle ufficiali: CCNL mancanti, benchmark di prezzo e di tariffa, aliquote d'ammortamento da fonte primaria", "Criteri 22 e 33 spenti; aliquote da fonte secondaria.", "Titolare con il team interno"],
        ["Motore OCR per le scansioni (adattatore cloud)", "Tesseract non gira su Vercel: oggi le scansioni vengono rifiutate.", "Decisione di provider"],
        ["Regione del database e documenti legali (DPA, informativa, valutazione d'impatto)", "Condizione per clienti reali.", "Titolare / legale"],
        ["Decisione sulla registrazione libera e sul pagamento reale", "Oggi chiunque può iscriversi gratis; i crediti sono simulati.", "Titolare"]], [60, 80, 30])
@@ -629,8 +653,10 @@ def build(m):  # noqa: C901 - un documento lungo è una sola funzione di testo
     T([["Fase", "Contenuto", "Stato"],
        ["1", "Motore, console, fonti A/B/C, allocazione, demo, profilo", "[[FATTO]] in gran parte; chiusura con i dati del titolare (sopra)"],
        ["2", "Registro crittografico e Auditor Portal", "[[FATTO]] (senza blockchain)"],
-       ["3", "Componente assicurativa", "[[FASE 3]]"],
-       ["4", "Reparto di consulenza", "[[FASE 4]]"]], [14, 100, 56])
+       ["3", "Mercato italiano degli studi: tutta la fetta di commercialisti e boutique di finanza agevolata, con strumenti gratuiti", "[[VISIONE]]"],
+       ["4", "Mercati esteri: gli stessi strumenti con regole e tabelle locali curate dal team interno", "[[VISIONE]]"],
+       ["5", "Dipendenza: strumenti per circa il 90% delle funzioni di uno studio", "[[VISIONE]]"],
+       ["6", "Acquisizione di studi già dipendenti da QUANTO", "[[VISIONE]]"]], [14, 120, 36])
     story.append(PageBreak())
 
     # ================================================================================================ EXECUTIVE SUMMARY
@@ -640,8 +666,8 @@ def build(m):  # noqa: C901 - un documento lungo è una sola funzione di testo
     P("**Il sistema esiste ed è in produzione.** Lo studio apre un lavoro per ogni azienda cliente e carica visura e bilanci in una procedura guidata; QUANTO ne ricava il profilo con la provenienza di ogni dato, stima le spese dell'anno successivo (con il modello di previsione del cliente o con la variazione dei suoi bilanci, spiegata riga per riga), trova tra i bandi studiati quelli adatti con un **valore in euro per ciascuno** "
       "e tra gli oltre 800 del catalogo quelli più affini da studiare, calcola il **potenziale massimo** con tutti i bandi insieme (sempre lo stesso a parità di dati, con il de minimis riconosciuto e stimato), costruisce la bozza di budget per il bando scelto, che il motore controlla, esporta e registra con un'impronta firmata verificabile da chiunque. "
       "Il Confronto impara dai template di budget dello studio e dice quanto è sicuro del proprio consiglio. Un **assistente guidato** esegue al posto dell'utente i passaggi in cui servono dati, spiegandoli in parole semplici.")
-    P("La proposta si dimostra con casi su dati realistici; l'accuratezza con un Conformity Score su casi di test noti (499 test automatici) — non con un tasso di errore su pratiche reali, che non esistono. La copertura normativa non è vincolata a un solo bando: il catalogo individua tutto ciò che è aperto, e l'estrazione parte solo su conferma con riuso in cache. "
-      "Il Registro crittografico è stato anticipato e realizzato senza blockchain; la componente assicurativa e il reparto di consulenza restano visione a lungo termine. Per arrivare al 100% servono dati e decisioni del titolare (chiave del modello, dataset dei pattern, tabelle ufficiali, OCR, documenti legali, verifica online dell'ultimo rilascio) e alcuni sviluppi dichiarati nel Modulo 30.")
+    P("La proposta si dimostra con casi su dati realistici; l'accuratezza con un Conformity Score su casi di test noti (506 test automatici) — non con un tasso di errore su pratiche reali, che non esistono. La copertura normativa non è vincolata a un solo bando: il catalogo individua tutto ciò che è aperto, e l'estrazione parte solo su conferma con riuso in cache. "
+      "Il Registro crittografico è stato anticipato e realizzato senza blockchain; la visione a lungo termine (mercato degli studi, estero, acquisizione di studi dipendenti da QUANTO) è nel Modulo 18. Per arrivare al 100% servono dati e decisioni del titolare (chiave del modello, dataset dei pattern, tabelle ufficiali, OCR, documenti legali, verifica online dell'ultimo rilascio) e alcuni sviluppi dichiarati nel Modulo 30.")
     # ================================================================================================ SCHEMA API
     H1("SCHEMA TECNICO API (reale)")
     P("L'integrazione con ERP e gestionali avviene via REST protetta da OAuth 2.0 (client-credentials) o da firma HMAC; gli utenti dell'app usano un token a 8 ore. Non esiste alcun endpoint di generazione testuale progettuale. Tutto vive sotto `/api/v2`. Documentazione interattiva su `/docs`. Sono 144 operazioni sotto `/api/v2` (più la radice `/`); di seguito i gruppi con i principali.")
@@ -680,7 +706,7 @@ def build(m):  # noqa: C901 - un documento lungo è una sola funzione di testo
     T([["Evento", "Stato"],
        ["event.budget.validated", "[[FATTO]]"], ["event.budget.registered (nuovo)", "[[FATTO]]"], ["event.allocation.optimized", "[[FATTO]]"], ["event.criteria.failed", "[[FATTO]]"], ["event.pattern.matched", "[[FATTO]]"],
        ["event.bando.coverage_activated", "[[FATTO]]"], ["event.rule.disagreement_detected", "[[FATTO]] (attivo solo con lo Stadio 3)"],
-       ["event.consultation.requested", "[[FASE 4]]"], ["event.rule.audit_flagged", "[[DA FARE]]"]], [90, 80])
+       ["event.rule.audit_flagged", "[[DA FARE]]"]], [90, 80])
 
     # ================================================================================================ APPENDICI
     H1("APPENDICE A — Variabili d'ambiente")
@@ -707,7 +733,7 @@ def build(m):  # noqa: C901 - un documento lungo è una sola funzione di testo
        ["Fondazione", "19/09/2026", "Costruzione del monorepo (backend FastAPI, frontend React, test), 60 criteri, registro firmato, ingestion, OAuth/HMAC, export, allocazione MILP. Blockchain eliminata per decisione del titolare."],
        ["Quartier Generale e Algoritmo", "19/09/2026", "Quartier Generale, memoria degli eventi, Algoritmo grafico, libreria dei bandi con fonti, demo a 46 voci, import Excel."],
        ["Linguaggio e Guida", "20/09/2026", "Restyle minimale, linguaggio semplificato, Guida con Merkle interattiva, aiuti in ogni pagina."],
-       ["Ricerca e archivio", "20/09/2026", "Ricerca web reale con scarico e lettura dei documenti, scoperta senza motori, archivio dei bandi con file originali e scheda per il consulente."],
+       ["Ricerca e archivio", "20/09/2026", "Ricerca web reale con scarico e lettura dei documenti, scoperta senza motori, archivio dei bandi con file originali e scheda di revisione."],
        ["Identità visiva", "21/09/2026", "Restyle con colore bianco e giallo, caratteri, icone."],
        ["Dati veri", "21/09/2026", "PostgreSQL, Fonte B in database, Fonte C cifrata con confidenza e revisione, utenti e ruoli, banca dei pattern con k-means, modulo del modello linguistico, cron del catalogo."],
        ["Demo e pulizia", "26/09-01/10/2026", "Demo con bandi reali, banca dei pattern con bilanci di società quotate, rifacimento della homepage e delle pagine con lo stile «finestra», pulizia del catalogo, processo standard di studio, figure strutturate."],
@@ -716,6 +742,7 @@ def build(m):  # noqa: C901 - un documento lungo è una sola funzione di testo
        ["Valore dei bandi, studio e lavori", "05-08/10/2026", "Valore in euro di ogni bando (regola, modello, tabella di intensità), RICERCA-v2, modello di previsione con la spiegazione di ogni percentuale, potenziale massimo e bilancio ricostruito, demo tolta, caricamento manuale riservato al Quartier Generale, testi per gli studi."],
        ["Confronto e interfaccia", "05-08/10/2026", "Confronto a template con due motori, lavori dello studio con salvataggio per lavoro, profilo dello studio completo, interfaccia minimale con menu laterale, manuale dei processi (PDF e Quartier Generale) e «I 60 criteri spiegati»."],
        ["Allocazione deterministica", "09/10/2026", "Piano uguale a parità di dati e sempre massimo, tutti i bandi adatti di default, 12 colori e bandi «non serve» in legenda, ipotesi de minimis dichiarata."],
-       ["Legenda, de minimis e assistente", "10/10/2026", "Legenda dei numeri, de minimis riconosciuto dalle fonti e stimato dai dati dichiarati, assistente guidato con pannello a destra, download dei PDF affidabile, 499 test."],
-       ["Rilettura del dossier (v4.1)", "12/10/2026", "Conteggi e schema API ricontrollati sul codice (144 operazioni, 28 tabelle più quella delle migrazioni, 16 migrazioni), verifica del rilascio online (versione del frontend, registro firmato), stato della verifica dichiarato; questo documento."]], [34, 28, 108])
+       ["Legenda, de minimis e assistente", "10/10/2026", "Legenda dei numeri, de minimis riconosciuto dalle fonti e stimato dai dati dichiarati, assistente guidato con pannello a destra, download dei PDF affidabile, 506 test."],
+       ["Rilettura del dossier (v4.1)", "12/10/2026", "Conteggi e schema API ricontrollati sul codice (144 operazioni, 28 tabelle più quella delle migrazioni, 16 migrazioni), verifica del rilascio online (versione del frontend, registro firmato), stato della verifica dichiarato."],
+       ["Visione, documenti di prova, assistente e riassunto (v4.2)", "12/10/2026", "Tolte la visione di consulenza e le assicurazioni, nuova visione (Modulo 18); documenti dell'azienda di prova rifatti come quelli veri e sette difetti di lettura corretti (9.3.1); assistente a chat a tutto schermo; nuovo documento breve «Riassunto» di 7 pagine; 506 test; questo documento."]], [34, 28, 108])
     NOTE("Fine del documento. Ogni numero riportato è stato letto dal sistema o dal codice alla data indicata; dove un dato non esiste (pratiche reali, metriche di successo, benchmark) il documento lo dichiara.")

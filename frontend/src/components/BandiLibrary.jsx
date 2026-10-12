@@ -204,7 +204,7 @@ function Detail({ bando, onUse, using, onStudied }) {
             <div><span className="label">Testi caricati</span>
               {bando.usage.uploaded_sources.map((s) => <p key={s.sha256} className="font-mono text-[11px] text-ink-2">{s.name} · {s.chars.toLocaleString('it-IT')} car. · {fmtTs(s.ts)} · {s.sha256.slice(0, 12)}…</p>)}</div>
           )}
-          <p className="text-xs text-mute">Queste schede non sostituiscono il bando: fai controllare le regole da un consulente prima di presentare la domanda.</p>
+          <p className="text-xs text-mute">Queste schede non sostituiscono il bando: verifica le regole sul testo ufficiale prima di presentare la domanda.</p>
         </div>
       )}
     </ChromeCard>

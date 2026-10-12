@@ -15,7 +15,7 @@ import Sidebar, { MobileBar } from './components/Sidebar'
 import { NeedClient } from './components/Clients'
 import { ArrowLeft, BookOpen, Calculator, GitCompare, Library, ShieldCheck, Split, User } from 'lucide-react'
 import { Mark, PageHead, Wordmark } from './components/ui'
-import { NavContext } from './lib/nav'
+import { NavContext, scrollTop } from './lib/nav'
 import { api, download, fileToBase64, session, workspace } from './lib/api'
 import { PasswordModal } from './components/Login'
 import { AssistantProvider, useAssistant } from './assistant/AssistantContext'
@@ -204,7 +204,7 @@ function AppInner({ bridge }) {
     const it = res.cost_item
     const item = { item_id: `P-DOC${res.document_id}`, ...it }
     changeItems([...request.cost_items.filter((x) => x.item_id !== item.item_id), item])
-    setTab('canvas'); window.scrollTo({ top: 0 })
+    setTab('canvas'); scrollTop()
   }
   // tutte le voci lette da una bozza di candidatura già scritta (solo quelle confermate o già sicure)
   const addDraftItems = (res) => {
@@ -212,7 +212,7 @@ function AppInner({ bridge }) {
     changeItems([...request.cost_items, ...res.cost_items.filter((it) => !existing.has(it.item_id))])
     const pers = res.needs_personnel || []
     setNotice(pers.length ? [`Nella bozza ci sono ${pers.length} ${pers.length === 1 ? 'voce' : 'voci'} di personale (${pers.map((p) => `${p.description}: ${p.amount_eur.toLocaleString('it-IT')} €`).join('; ')}) non importata: il controllo vuole persona per persona livello, CCNL, RAL e quota di tempo. Aggiungila dalle buste paga nel Profilo o con «Aggiungi voce».`] : null)
-    setTab('canvas'); window.scrollTo({ top: 0 })
+    setTab('canvas'); scrollTop()
   }
   // bozza di budget dal profilo azienda: le voci TPL-* della bozza precedente vengono sostituite, il resto del budget resta
   const applyTemplate = (res) => {
@@ -237,7 +237,7 @@ function AppInner({ bridge }) {
     validate: () => validate(requestRef.current),
   }
   const budgetFrom = async (bandoId) => {
-    try { await selectBando(bandoId); setTemplateOpen(true); nav.go('canvas'); window.scrollTo({ top: 0 }) } catch { nav.go('canvas') }          // l'errore (es. bando senza regole pubblicate) lo mostra la pagina Budget
+    try { await selectBando(bandoId); setTemplateOpen(true); nav.go('canvas'); scrollTop() } catch { nav.go('canvas') }          // l'errore (es. bando senza regole pubblicate) lo mostra la pagina Budget
   }
   const changeProject = (project_id) => { setRequest((r) => ({ ...r, project_id })); setAttestation(null) }
 
@@ -249,7 +249,7 @@ function AppInner({ bridge }) {
   }
 
   const openReplay = (response) => { setReplay(response); setLabFrom('hq'); setTab('lab') }
-  const nav = useMemo(() => ({ go: (t, anchor) => { setGuideAnchor(anchor || null); setTab(t); window.scrollTo({ top: 0 }) } }), [])
+  const nav = useMemo(() => ({ go: (t, anchor) => { setGuideAnchor(anchor || null); setTab(t); scrollTop() } }), [])
 
   const banner = registry?.offline ? { dot: 'bg-ink/30', text: 'Il server non risponde', tone: 'text-ink-2' }
     : !registry ? { dot: 'bg-ink/30', text: 'Mi collego al registro…', tone: 'text-ink-2' }

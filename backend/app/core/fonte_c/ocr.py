@@ -146,4 +146,4 @@ def group_lines(words: List[Word], y_tol: float = 3.0) -> List[dict]:
 def _line(ws: List[Word]) -> dict:
     ws = sorted(ws, key=lambda w: w.x0)
     return {"text": " ".join(w.text for w in ws), "page": ws[0].page, "conf_min": min(w.conf for w in ws),
-            "conf_mean": sum(w.conf for w in ws) / len(ws), "top": ws[0].top}
+            "conf_mean": sum(w.conf for w in ws) / len(ws), "top": ws[0].top, "words": [(w.text, w.x0, w.x1) for w in ws]}

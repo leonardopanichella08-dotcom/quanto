@@ -1,4 +1,4 @@
-"""Genera il dossier completo di QUANTO (ex FKOS) in PDF (v4.1): stessa struttura del documento v2.1, aggiornata allo stato reale del 12 ottobre 2026.
+"""Genera il dossier completo di QUANTO (ex FKOS) in PDF (v4.2): stessa struttura del documento v2.1, aggiornata allo stato reale del 12 ottobre 2026.
 
 Uso:  python docs/dossier/build_dossier.py  (dalla radice del repository, con il venv del backend)
 Ogni affermazione sullo stato (FATTO / PARZIALE / DA FARE) è verificata sul codice o sul sistema online alla data indicata.
@@ -45,7 +45,7 @@ S = {
     "code": ParagraphStyle("code", fontName="Mono", fontSize=7.6, leading=9.4, textColor=INK),
     "note": ParagraphStyle("note", fontName="Body-I", fontSize=8.8, leading=12, textColor=MUTE, spaceAfter=4),
 }
-BADGE = {"FATTO": OK, "PARZIALE": WARN, "DA FARE": TODO, "FASE 3": MUTE, "FASE 4": MUTE, "DECISIONE": BRAND}
+BADGE = {"FATTO": OK, "PARZIALE": WARN, "DA FARE": TODO, "VISIONE": MUTE, "DECISIONE": BRAND}
 
 story: list = []
 
@@ -92,7 +92,7 @@ def page_decor(canv, doc):
     canv.saveState()
     canv.setFont("Body", 7.5)
     canv.setFillColor(MUTE)
-    canv.drawString(18 * mm, 10 * mm, "QUANTO v4.1 — Documento completo · stato reale al 12 ottobre 2026")
+    canv.drawString(18 * mm, 10 * mm, "QUANTO v4.2 — Documento completo · stato reale al 12 ottobre 2026")
     canv.drawRightString(A4[0] - 18 * mm, 10 * mm, f"pag. {doc.page}")
     canv.restoreState()
 
@@ -100,9 +100,9 @@ def page_decor(canv, doc):
 from content import build  # noqa: E402  (il testo vive in content.py)
 
 if __name__ == "__main__":
-    out = ROOT / "docs" / "dossier" / "QUANTO_v4_1_documento_completo.pdf"
+    out = ROOT / "docs" / "dossier" / "QUANTO_v4_2_documento_completo.pdf"
     build(sys.modules[__name__])
-    doc = BaseDocTemplate(str(out), pagesize=A4, leftMargin=18 * mm, rightMargin=18 * mm, topMargin=16 * mm, bottomMargin=18 * mm, title="QUANTO v4.1 — Documento completo",
+    doc = BaseDocTemplate(str(out), pagesize=A4, leftMargin=18 * mm, rightMargin=18 * mm, topMargin=16 * mm, bottomMargin=18 * mm, title="QUANTO v4.2 — Documento completo",
                           author="QUANTO", subject="Motore di budgeting, allocazione e profilo aziendale")
     doc.addPageTemplates([PageTemplate(id="p", frames=[Frame(doc.leftMargin, doc.bottomMargin, doc.width, doc.height, id="f")], onPage=page_decor)])
     doc.build(story)

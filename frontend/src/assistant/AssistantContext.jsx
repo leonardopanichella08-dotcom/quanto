@@ -1,26 +1,59 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react'
-import { AlertTriangle, Check, Loader2, Minus, Sparkles, X } from 'lucide-react'
+import { AlertTriangle, ArrowUp, Check, Loader2, Minus, Sparkles, X } from 'lucide-react'
 import { TASKS, TASK_ORDER } from './tasks'
 
-/** L'assistente guidato: prende in mano i passaggi in cui l'utente dovrebbe inserire dati o muoversi nell'app, li esegue lui (cambia pagina, salva, calcola),
- *  e quando gli serve un valore lo chiede nel pannello a destra, spiegando in parole semplici che cos'è, cosa scrivere, perché serve e dove si trova.
- *  Non inventa mai un dato: usa solo ciò che scrive l'utente o che è già nel profilo. L'app resta visibile a sinistra, ridotta, e si vede cosa succede. */
+/** L'assistente guidato: una chat. Si scrive cosa si vuole fare (o si sceglie un suggerimento) e l'assistente prende in mano i passaggi in cui l'utente dovrebbe
+ *  inserire dati o muoversi nell'app: li esegue lui (cambia pagina, salva, calcola) e, quando gli serve un valore, lo chiede nella chat spiegando in parole semplici
+ *  cos'è, cosa scrivere, perché serve e dove si trova. Non è un modello linguistico: capisce le richieste con parole chiave e non inventa mai un dato.
+ *  Mentre lavora, l'app resta visibile in una scheda ridotta a sinistra e si vede cosa succede. */
 class Cancelled extends Error {}
 const Ctx = createContext(null)
 export const useAssistant = () => useContext(Ctx) || { start: () => {}, openMenu: () => {}, open: false, busy: false }
 
+const SUGGEST = {
+  allocazione: 'Calcola il potenziale massimo',
+  budget: 'Prepara la bozza di budget',
+  deminimis: 'Dichiara gli aiuti già ricevuti',
+  profilo: 'Completa i dati dell’azienda',
+}
+// parole chiave (senza accenti) per capire cosa si chiede; vince l'attività con più corrispondenze
+const INTENTS = {
+  allocazione: ['potenziale', 'allocazion', 'massimo', 'bandi adatti', 'quanto copr', 'quanto valgono', 'piano', 'stima', 'quali bandi', 'calcola'],
+  budget: ['budget', 'bozza', 'persone', 'personale', 'candidatura', 'spese del progetto', 'controlla'],
+  deminimis: ['de minimis', 'minimis', 'aiuti', 'contributi ricevuti', 'plafond', 'tetto'],
+  profilo: ['profilo', 'dati', 'visura', 'bilancio', 'azienda', 'mancano', 'partita iva', 'ateco', 'completa'],
+}
+const plain = (s) => String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase()
+function interpret(text) {
+  const t = plain(text)
+  if (/\b(annulla|interrompi|stop|basta|ferma)\b/.test(t)) return { stop: true }
+  let best = null
+  let bestScore = 0
+  for (const [id, words] of Object.entries(INTENTS)) {
+    const score = words.reduce((n, w) => n + (t.includes(w) ? 1 : 0), 0)
+    if (score > bestScore) { best = id; bestScore = score }
+  }
+  return best ? { task: best } : { task: null }
+}
+
+let uid = 0
+const mid = () => `m${(uid += 1)}`
+const GREETING = 'Ciao, sono l’assistente di QUANTO. Faccio io al posto tuo i passaggi in cui servono dati: scrivimi cosa vuoi fare oppure scegli un suggerimento. Quando mi serve un valore te lo chiedo qui, spiegandoti cos’è e dove lo trovi.'
+
 export function AssistantProvider({ bridge, enabled, children }) {
-  const [run, setRun] = useState(null)               // null = chiuso; {id: null} = menu delle attività
+  const [chat, setChat] = useState(null)               // null = chiuso; altrimenti l'elenco dei messaggi
   const token = useRef(0)
   const waiting = useRef(null)
 
+  const addMsg = useCallback((m) => setChat((c) => (c ? [...c, { id: mid(), ...m }] : c)), [])
+  const updRun = useCallback((my, fn) => setChat((c) => (c ? c.map((m) => (m.type === 'run' && m.token === my ? fn(m) : m)) : c)), [])
+
   const makeApi = (my) => {
     const alive = () => { if (my !== token.current) throw new Cancelled() }
-    const upd = (fn) => setRun((r) => (r && r.token === my ? fn(r) : r))
-    const patch = (id, p) => upd((r) => ({ ...r, steps: r.steps.map((s) => (s.id === id ? { ...s, ...p } : s)) }))
+    const patch = (id, p) => updRun(my, (r) => ({ ...r, steps: r.steps.map((s) => (s.id === id ? { ...s, ...p } : s)) }))
     return {
       bridge: () => bridge.current,
-      begin: (id, detail = null) => { alive(); patch(id, { status: 'doing', detail }); upd((r) => ({ ...r, busy: true, prompt: null })) },
+      begin: (id, detail = null) => { alive(); patch(id, { status: 'doing', detail }); updRun(my, (r) => ({ ...r, busy: true, prompt: null })) },
       done: (id, detail = null) => { alive(); patch(id, { status: 'done', detail }) },
       skip: (id, detail = null) => { alive(); patch(id, { status: 'skipped', detail }) },
       fail: (id, detail = null) => { alive(); patch(id, { status: 'failed', detail }) },
@@ -28,8 +61,8 @@ export function AssistantProvider({ bridge, enabled, children }) {
       ask: (id, prompt) => new Promise((resolve) => {
         alive()
         patch(id, { status: 'asking' })
-        upd((r) => ({ ...r, busy: false, prompt: { ...prompt, stepId: id, nonce: Math.random() } }))
-        waiting.current = { my, resolve }
+        updRun(my, (r) => ({ ...r, busy: false, prompt: { ...prompt, stepId: id, nonce: Math.random() } }))
+        waiting.current = { my, resolve, prompt }
       }),
       /** aspetta un evento dell'app (es. il risultato dell'Allocazione); null se non arriva entro il tempo */
       waitFor: (name, ms = 90000) => new Promise((resolve) => {
@@ -39,122 +72,217 @@ export function AssistantProvider({ bridge, enabled, children }) {
         const t = setTimeout(() => end(null), ms)
         window.addEventListener(name, on)
       }).then((v) => { alive(); return v }),
-      finish: (summary) => { alive(); upd((r) => ({ ...r, finished: true, busy: false, prompt: null, summary })) },
+      finish: (summary) => { alive(); updRun(my, (r) => ({ ...r, finished: true, busy: false, prompt: null, summary })) },
     }
   }
 
+  const open = !!chat && enabled
   const start = useCallback((taskId, params = {}) => {
     const t = TASKS[taskId]
     if (!t) return
     const my = ++token.current
     waiting.current = null
-    setRun({ token: my, id: taskId, title: t.title, steps: t.steps.map((s) => ({ ...s, status: 'todo' })), prompt: null, busy: true, finished: false, summary: null, error: null, params })
+    const run = { id: mid(), type: 'run', token: my, task: taskId, title: t.title, steps: t.steps.map((s) => ({ ...s, status: 'todo' })), prompt: null, answers: [], busy: true, finished: false, summary: null, error: null, params }
+    setChat((c) => [...(c || [{ id: mid(), role: 'assistant', type: 'text', text: GREETING }]),
+      { id: mid(), role: 'user', type: 'text', text: params.userText || SUGGEST[taskId] || t.title },
+      { id: mid(), role: 'assistant', type: 'text', text: `Va bene: ${t.title.charAt(0).toLowerCase()}${t.title.slice(1)}. Ecco i passaggi.` }, run])
     const a = makeApi(my)
     Promise.resolve().then(() => t.run(a, params)).catch((e) => {
       if (e instanceof Cancelled) return
-      setRun((r) => (r && r.token === my ? { ...r, error: e?.message || String(e), busy: false, prompt: null } : r))
+      updRun(my, (r) => ({ ...r, error: e?.message || String(e), busy: false, prompt: null }))
     })
   }, [])                                                   // eslint-disable-line react-hooks/exhaustive-deps
-  const stop = useCallback(() => { token.current += 1; waiting.current = null; setRun(null) }, [])
-  const openMenu = useCallback(() => { token.current += 1; waiting.current = null; setRun({ token: token.current, id: null }) }, [])
-  const submit = (values) => { const w = waiting.current; if (!w) return; waiting.current = null; setRun((r) => (r ? { ...r, prompt: null, busy: true } : r)); w.resolve(values) }
+
+  const cancelRun = useCallback(() => {                    // ferma l'attività ma lascia aperta la chat: riprende l'utente
+    token.current += 1
+    waiting.current = null
+    setChat((c) => (c ? c.map((m) => (m.type === 'run' && !m.finished ? { ...m, busy: false, prompt: null, cancelled: true } : m)).concat([{ id: mid(), role: 'assistant', type: 'text', text: 'Mi fermo qui. Da questo punto riprendi tu: quello che avevo già fatto resta salvato.' }]) : c))
+  }, [])
+  const close = useCallback(() => { token.current += 1; waiting.current = null; setChat(null) }, [])
+  const openMenu = useCallback(() => { token.current += 1; waiting.current = null; setChat([{ id: mid(), role: 'assistant', type: 'text', text: GREETING }]) }, [])
+
+  const submit = (values) => {
+    const w = waiting.current
+    if (!w) return
+    waiting.current = null
+    const fields = w.prompt.fields || []
+    const said = values == null ? 'Salto questo passaggio' : fields.length === 0 ? 'Sì' : fields.map((f) => {
+      const v = values[f.key]
+      if (v === undefined) return null
+      const shown = f.kind === 'select' ? (f.options.find((o) => o.value === v)?.label ?? v) : f.kind === 'yesno' ? (v ? 'Sì' : 'No') : f.kind === 'money' ? `${Number(v).toLocaleString('it-IT')} €` : f.kind === 'percent' ? `${v}%` : String(v)
+      return `${f.label}: ${shown}`
+    }).filter(Boolean).join(' · ') || 'Lascio vuoto'
+    updRun(w.my, (r) => ({ ...r, prompt: null, busy: true, answers: [...r.answers, said] }))
+    w.resolve(values)
+  }
+
+  // un messaggio scritto dall'utente: si capisce con le parole chiave e si parte (o si risponde)
+  const say = useCallback((text) => {
+    const t = String(text || '').trim()
+    if (!t) return
+    const intent = interpret(t)
+    const running = (chat || []).some((m) => m.type === 'run' && !m.finished && !m.cancelled && !m.error)
+    if (intent.stop) {
+      if (running) cancelRun()
+      else addMsg({ role: 'assistant', type: 'text', text: 'Non c’è nulla in corso. Dimmi pure cosa vuoi fare.' })
+      return
+    }
+    if (running) {
+      addMsg({ role: 'user', type: 'text', text: t })
+      addMsg({ role: 'assistant', type: 'text', text: waiting.current ? 'Ho bisogno dei dati nel riquadro qui sopra: compilali, oppure scrivi «annulla» per fermarmi.' : 'Sto lavorando: appena finisco ti dico. Scrivi «annulla» se vuoi fermarmi.' })
+      return
+    }
+    if (intent.task) { start(intent.task, { userText: t }); return }
+    addMsg({ role: 'user', type: 'text', text: t })
+    addMsg({ role: 'assistant', type: 'text', text: 'Non ho capito cosa vuoi che faccia. Posso fare solo queste cose: scegline una dai suggerimenti oppure descrivila con parole come «budget», «potenziale massimo», «aiuti ricevuti» o «dati dell’azienda».' })
+  }, [chat, start, addMsg, cancelRun])
 
   useEffect(() => {
     const on = (e) => start(e.detail?.task, e.detail || {})
     window.addEventListener('quanto-assistant', on)
-    return () => window.removeEventListener('quanto-assistant', on)
-  }, [start])
-  useEffect(() => { if (!enabled) stop() }, [enabled, stop])
+    const off = () => close()
+    window.addEventListener('quanto-logout', off)
+    return () => { window.removeEventListener('quanto-assistant', on); window.removeEventListener('quanto-logout', off) }
+  }, [start, close])
+  useEffect(() => { if (!enabled) close() }, [enabled, close])
+  useEffect(() => {
+    if (!open) return undefined
+    const prev = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+    return () => { document.body.style.overflow = prev }
+  }, [open])
 
-  const open = !!run && enabled
-  const value = useMemo(() => ({ start, stop, openMenu, open, busy: !!run?.busy }), [start, stop, openMenu, open, run?.busy])
+  const lastRun = useMemo(() => [...(chat || [])].reverse().find((m) => m.type === 'run') || null, [chat])
+  const busy = !!lastRun && lastRun.busy && !lastRun.finished
+  const value = useMemo(() => ({ start, stop: close, openMenu, open, busy }), [start, close, openMenu, open, busy])
+
+  // La struttura è la stessa sia aperta sia chiusa (cambiano solo le classi): l'app non si smonta, quindi non perde nulla di ciò che l'utente aveva fatto.
   return (
     <Ctx.Provider value={value}>
-      <div className={open ? 'md:pl-3 md:pr-[412px] md:py-3 max-md:pb-[58vh] min-h-screen bg-tint-2' : ''}>
-        <div className={open ? 'relative rounded-xl border border-line-strong bg-page overflow-hidden min-h-[calc(100vh-24px)]' : ''}>
-          {children}
-          {open && run.busy && <div className="absolute inset-0 z-40 cursor-progress bg-white/20" aria-hidden="true" />}
-        </div>
+      <div className={open ? 'asst-stage' : 'contents'}>
+        <section className={open ? 'asst-left' : 'contents'}>
+          <div className={open ? 'asst-card' : 'contents'}>
+            <div id="app-scroll" className={open ? 'asst-scroll' : 'contents'}>{children}</div>
+            {open && busy && <div className="absolute inset-0 z-40 cursor-progress" aria-hidden="true" />}
+          </div>
+          {open && <Pills lastRun={lastRun} busy={busy} onStop={cancelRun} onClose={close} />}
+        </section>
+        {open && <Panel chat={chat} lastRun={lastRun} busy={busy} onClose={close} onSubmit={submit} onSay={say} onSuggest={(id) => start(id, {})} />}
       </div>
-      {open && <Panel run={run} onClose={stop} onStart={start} onSubmit={submit} />}
     </Ctx.Provider>
   )
 }
 
-const ICON = {
-  done: <span className="w-5 h-5 rounded-full bg-emerald-500/15 text-emerald-700 flex items-center justify-center"><Check className="w-3 h-3" /></span>,
-  doing: <span className="w-5 h-5 rounded-full bg-tint-2 flex items-center justify-center"><Loader2 className="w-3 h-3 animate-spin text-ink" /></span>,
-  asking: <span className="w-5 h-5 rounded-full border-2 border-ink flex items-center justify-center"><i className="w-1.5 h-1.5 rounded-full bg-ink" /></span>,
-  skipped: <span className="w-5 h-5 rounded-full bg-tint-2 text-mute flex items-center justify-center"><Minus className="w-3 h-3" /></span>,
-  failed: <span className="w-5 h-5 rounded-full bg-red-500/15 text-red-700 flex items-center justify-center"><X className="w-3 h-3" /></span>,
-  todo: <span className="w-5 h-5 rounded-full border border-line-strong" />,
-}
-
-function Panel({ run, onClose, onStart, onSubmit }) {
+// ------------------------------------------------------------------------------------------------ pillole sotto lo schermo
+function Pills({ lastRun, busy, onStop, onClose }) {
+  const r = lastRun
+  const total = r?.steps.length || 0
+  const doneN = r ? r.steps.filter((s) => s.status === 'done' || s.status === 'skipped').length : 0
+  const current = r?.steps.find((s) => s.status === 'doing' || s.status === 'asking')
+  let label = 'Pronto: scrivimi cosa vuoi fare'
+  let tone = 'idle'
+  if (r && r.cancelled) { label = 'Interrotto: riprendi tu'; tone = 'idle' }
+  else if (r && r.error) { label = 'Mi sono fermato: guarda la chat'; tone = 'error' }
+  else if (r && r.finished) { label = `Fatto · ${r.title}`; tone = 'done' }
+  else if (r && r.prompt) { label = 'Aspetto un tuo dato nella chat'; tone = 'ask' }
+  else if (r && busy) { label = current ? current.title : 'Lavoro…'; tone = 'busy' }
+  const active = r && !r.finished && !r.cancelled && !r.error
   return (
-    <aside className="fixed z-50 bg-white border-line md:border-l max-md:border-t md:right-0 md:top-0 md:h-screen md:w-[400px] max-md:left-0 max-md:right-0 max-md:bottom-0 max-md:h-[55vh] flex flex-col" aria-label="Assistente QUANTO">
-      <header className="flex items-center gap-2.5 px-4 py-3 border-b border-line">
-        <span className="w-7 h-7 rounded-lg bg-ink text-white flex items-center justify-center shrink-0"><Sparkles className="w-3.5 h-3.5" /></span>
-        <div className="min-w-0 flex-1">
-          <p className="text-sm font-semibold leading-tight">Assistente</p>
-          <p className="text-[11px] text-mute truncate">{run.id ? run.title : 'Dimmi cosa vuoi fare'}</p>
-        </div>
-        <button className="btn !px-2 !py-1.5" onClick={onClose} title={run.id && !run.finished ? 'Interrompi e riprendi tu' : 'Chiudi'} aria-label="Chiudi l’assistente"><X className="w-3.5 h-3.5" /></button>
-      </header>
-      <div className="flex-1 overflow-y-auto px-4 py-4 space-y-5">
-        {!run.id ? <Menu onStart={onStart} /> : <Running run={run} onSubmit={onSubmit} onClose={onClose} onStart={onStart} />}
+    <div className="asst-pillrow">
+      <div className="asst-pill asst-pill-wide" data-tone={tone}>
+        {tone === 'busy' ? <Loader2 className="w-3.5 h-3.5 animate-spin shrink-0" /> : tone === 'done' ? <Check className="w-3.5 h-3.5 shrink-0" /> : tone === 'error' ? <AlertTriangle className="w-3.5 h-3.5 shrink-0" /> : <i className="asst-dot" />}
+        <span className="truncate">{label}</span>
+        {r && active && total > 0 && <span className="asst-count">{Math.min(doneN + 1, total)}/{total}</span>}
+        {r && active && total > 0 && <span className="asst-bar" style={{ width: `${(doneN / total) * 100}%` }} />}
       </div>
-      <footer className="px-4 py-2.5 border-t border-line text-[11px] text-mute leading-relaxed">
-        {run.busy ? 'Sto lavorando: l’app a sinistra si muove da sola. ' : ''}Non invento mai nessun dato: uso solo quello che scrivi tu o che è già nel profilo. Puoi interrompere quando vuoi con la X.
-      </footer>
-    </aside>
-  )
-}
-
-function Menu({ onStart }) {
-  return (
-    <div className="space-y-3">
-      <p className="text-xs text-ink-2 leading-relaxed">Scegli un’attività: la faccio io al posto tuo, passo per passo. Quando mi serve un dato te lo chiedo qui, spiegandoti cos’è e dove lo trovi.</p>
-      {TASK_ORDER.map((id) => (
-        <button key={id} className="w-full text-left rounded-xl border border-line hover:border-line-strong p-3.5 space-y-1" onClick={() => onStart(id, {})}>
-          <p className="text-sm font-semibold text-ink">{TASKS[id].title}</p>
-          <p className="text-xs text-ink-2 leading-relaxed">{TASKS[id].blurb}</p>
-        </button>
-      ))}
+      {active ? <button className="asst-pill asst-pill-btn" onClick={onStop}>Interrompi</button> : <button className="asst-pill asst-pill-btn" onClick={onClose}>Chiudi</button>}
     </div>
   )
 }
 
-function Running({ run, onSubmit, onClose, onStart }) {
+// ------------------------------------------------------------------------------------------------ pannello a destra: la chat
+function Panel({ chat, lastRun, busy, onClose, onSubmit, onSay, onSuggest }) {
+  const [text, setText] = useState('')
+  const endRef = useRef(null)
+  const scroller = useRef(null)
+  useEffect(() => { scroller.current?.scrollTo({ top: scroller.current.scrollHeight, behavior: 'smooth' }) }, [chat, lastRun?.prompt])
+  const idle = !busy && !lastRun?.prompt
+  const send = (e) => { e?.preventDefault(); if (!text.trim()) return; onSay(text); setText('') }
   return (
-    <>
-      <ol className="space-y-3">
-        {run.steps.map((s) => (
-          <li key={s.id} className="flex gap-3">
-            <span className="mt-0.5 shrink-0">{ICON[s.status]}</span>
-            <div className="min-w-0">
-              <p className={`text-[13px] leading-snug ${s.status === 'todo' || s.status === 'skipped' ? 'text-mute' : 'text-ink font-medium'}`}>{s.title}</p>
-              {s.detail && <p className="text-[11px] text-ink-2 leading-relaxed mt-0.5">{s.detail}</p>}
-            </div>
-          </li>
-        ))}
-      </ol>
+    <aside className="asst-panel" aria-label="Assistente QUANTO">
+      <header className="asst-head">
+        <span className="asst-avatar"><Sparkles className="w-4 h-4" /></span>
+        <div className="min-w-0 flex-1"><p className="text-[14px] font-semibold leading-tight">Assistente</p><p className="text-[11px] text-ink-2/80 truncate">{busy ? 'Sto lavorando per te' : lastRun?.prompt ? 'Ho bisogno di un dato' : 'Pronto ad aiutarti'}</p></div>
+        <button className="asst-icon" onClick={onClose} aria-label="Chiudi l’assistente" title="Chiudi"><X className="w-4 h-4" /></button>
+      </header>
+      <div ref={scroller} className="asst-chat">
+        {chat.map((m) => (m.type === 'run'
+          ? <RunCard key={m.id} run={m} onSubmit={onSubmit} onRetry={() => onSuggest(m.task)} />
+          : <Bubble key={m.id} role={m.role}>{m.text}</Bubble>))}
+        <div ref={endRef} />
+      </div>
+      <div className="asst-composer">
+        <p className="asst-note">Non invento mai nessun dato: uso solo ciò che scrivi tu o che è già nel profilo.</p>
+        {idle && (
+          <div className="asst-suggest" aria-label="Suggerimenti">
+            {TASK_ORDER.map((id) => <button key={id} type="button" className="asst-chip" onClick={() => onSuggest(id)}>{SUGGEST[id]}</button>)}
+          </div>
+        )}
+        <form className="asst-input" onSubmit={send}>
+          <input id="asst-input" value={text} onChange={(e) => setText(e.target.value)} placeholder={busy ? 'Sto lavorando… scrivi «annulla» per fermarmi' : lastRun?.prompt ? 'Compila il riquadro, o scrivi «annulla»' : 'Scrivi cosa vuoi che faccia…'} autoComplete="off" aria-label="Scrivi all’assistente" />
+          <button type="submit" className="asst-send" disabled={!text.trim()} aria-label="Invia"><ArrowUp className="w-4 h-4" /></button>
+        </form>
+      </div>
+    </aside>
+  )
+}
+
+function Bubble({ role, children }) {
+  return <div className={`asst-row ${role === 'user' ? 'asst-row-user' : ''}`}><div className={role === 'user' ? 'asst-bubble asst-bubble-user' : 'asst-bubble'}>{children}</div></div>
+}
+
+const ICON = {
+  done: <span className="asst-st asst-st-done"><Check className="w-3 h-3" /></span>,
+  doing: <span className="asst-st"><Loader2 className="w-3 h-3 animate-spin" /></span>,
+  asking: <span className="asst-st asst-st-ask"><i /></span>,
+  skipped: <span className="asst-st asst-st-skip"><Minus className="w-3 h-3" /></span>,
+  failed: <span className="asst-st asst-st-fail"><X className="w-3 h-3" /></span>,
+  todo: <span className="asst-st asst-st-todo" />,
+}
+
+function RunCard({ run, onSubmit, onRetry }) {
+  return (
+    <div className="space-y-2.5">
+      <div className="asst-steps">
+        <p className="asst-steps-title">{run.title}</p>
+        <ol className="space-y-2.5">
+          {run.steps.map((s) => (
+            <li key={s.id} className="flex gap-2.5">
+              <span className="mt-0.5 shrink-0">{ICON[s.status]}</span>
+              <div className="min-w-0">
+                <p className={`text-[13px] leading-snug ${s.status === 'todo' || s.status === 'skipped' ? 'text-ink-2/60' : 'text-ink font-medium'}`}>{s.title}</p>
+                {s.detail && <p className="text-[11px] text-ink-2 leading-relaxed mt-0.5">{s.detail}</p>}
+              </div>
+            </li>
+          ))}
+        </ol>
+      </div>
+      {run.answers.map((a, i) => <Bubble key={i} role="user">{a}</Bubble>)}
       {run.prompt && <Prompt key={run.prompt.nonce} prompt={run.prompt} onSubmit={onSubmit} />}
       {run.error && (
-        <div className="rounded-xl border border-red-500/30 bg-red-500/5 p-3 text-xs text-red-700 space-y-2">
+        <div className="asst-alert">
           <p className="font-medium inline-flex items-center gap-1.5"><AlertTriangle className="w-3.5 h-3.5" />Mi sono fermato</p>
           <p className="leading-relaxed">{run.error}</p>
-          <div className="flex gap-2"><button className="btn !py-1" onClick={() => onStart(run.id, run.params)}>Riprova</button><button className="btn !py-1" onClick={onClose}>Chiudi</button></div>
+          <button className="asst-chip" onClick={onRetry}>Riprova</button>
         </div>
       )}
       {run.finished && (
-        <div className="rounded-xl border border-emerald-500/30 bg-emerald-500/5 p-3.5 space-y-2">
-          <p className="text-sm font-semibold text-emerald-700 inline-flex items-center gap-1.5"><Check className="w-4 h-4" />Fatto</p>
-          {run.summary && <p className="text-xs text-ink-2 leading-relaxed whitespace-pre-line">{run.summary}</p>}
-          <button className="btn-primary !py-1.5" onClick={onClose}>Chiudi e continua da solo</button>
+        <div className="asst-done">
+          <p className="text-[13px] font-semibold inline-flex items-center gap-1.5"><Check className="w-4 h-4" />Fatto</p>
+          {run.summary && <p className="text-[12px] leading-relaxed whitespace-pre-line">{run.summary}</p>}
         </div>
       )}
-    </>
+    </div>
   )
 }
 
@@ -184,32 +312,32 @@ function Prompt({ prompt, onSubmit }) {
     onSubmit(out)
   }
   return (
-    <form className="rounded-xl border border-ink/80 p-3.5 space-y-4" onSubmit={(e) => { e.preventDefault(); go() }}>
+    <form className="asst-prompt" onSubmit={(e) => { e.preventDefault(); go() }}>
       <div className="space-y-1">
-        <p className="text-sm font-semibold">{prompt.title}</p>
-        {prompt.intro && <p className="text-xs text-ink-2 leading-relaxed">{prompt.intro}</p>}
+        <p className="text-[13px] font-semibold">{prompt.title}</p>
+        {prompt.intro && <p className="text-[12px] text-ink-2 leading-relaxed">{prompt.intro}</p>}
       </div>
       {prompt.fields.map((f) => (
         <div key={f.key} className="space-y-1.5">
-          <label className="text-xs font-semibold text-ink" htmlFor={`as-${f.key}`}>{f.label}{f.optional ? ' (facoltativo)' : ''}</label>
+          <label className="text-[12px] font-semibold text-ink" htmlFor={`as-${f.key}`}>{f.label}{f.optional ? ' (facoltativo)' : ''}</label>
           {f.what && <p className="text-[11px] text-ink-2 leading-relaxed">{f.what}</p>}
           <div className="flex items-center gap-2">
             {f.kind === 'select' || f.kind === 'yesno' ? (
-              <select id={`as-${f.key}`} className="field" value={vals[f.key]} onChange={(e) => set(f.key, e.target.value)}>
+              <select id={`as-${f.key}`} className="asst-field" value={vals[f.key]} onChange={(e) => set(f.key, e.target.value)}>
                 <option value="">— scegli —</option>
                 {(f.kind === 'yesno' ? [{ value: 'yes', label: 'Sì' }, { value: 'no', label: 'No' }] : f.options).map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
               </select>
             ) : (
-              <input id={`as-${f.key}`} className="field text-right tabular-nums" type={NUMERIC.has(f.kind) ? 'number' : 'text'} step={f.step || (f.kind === 'money' ? 0.01 : 'any')} inputMode={NUMERIC.has(f.kind) ? 'decimal' : undefined}
+              <input id={`as-${f.key}`} className="asst-field text-right tabular-nums" type={NUMERIC.has(f.kind) ? 'number' : 'text'} step={f.step || (f.kind === 'money' ? 0.01 : 'any')} inputMode={NUMERIC.has(f.kind) ? 'decimal' : undefined}
                 value={vals[f.key]} placeholder={f.placeholder || ''} onChange={(e) => set(f.key, e.target.value)} />
             )}
-            {f.kind === 'money' && <span className="text-xs text-mute">€</span>}
-            {f.kind === 'percent' && <span className="text-xs text-mute">%</span>}
-            {f.suffix && <span className="text-xs text-mute whitespace-nowrap">{f.suffix}</span>}
-            {f.zeroLabel && <button type="button" className="btn !py-1 whitespace-nowrap" onClick={() => set(f.key, '0')}>{f.zeroLabel}</button>}
+            {f.kind === 'money' && <span className="text-xs text-ink-2">€</span>}
+            {f.kind === 'percent' && <span className="text-xs text-ink-2">%</span>}
+            {f.suffix && <span className="text-xs text-ink-2 whitespace-nowrap">{f.suffix}</span>}
+            {f.zeroLabel && <button type="button" className="asst-chip whitespace-nowrap" onClick={() => set(f.key, '0')}>{f.zeroLabel}</button>}
           </div>
           {(f.why || f.where || f.example) && (
-            <ul className="text-[11px] text-mute leading-relaxed space-y-0.5">
+            <ul className="text-[11px] text-ink-2/80 leading-relaxed space-y-0.5">
               {f.why && <li><span className="font-semibold text-ink-2">Perché serve:</span> {f.why}</li>}
               {f.where && <li><span className="font-semibold text-ink-2">Dove lo trovi:</span> {f.where}</li>}
               {f.example && <li><span className="font-semibold text-ink-2">Esempio:</span> {f.example}</li>}
@@ -219,8 +347,8 @@ function Prompt({ prompt, onSubmit }) {
       ))}
       {err && <p className="text-xs text-red-700">{err}</p>}
       <div className="flex flex-wrap items-center gap-2">
-        <button type="submit" className="btn-primary">{prompt.submitLabel || 'Conferma e continua'}</button>
-        {prompt.skipLabel && <button type="button" className="btn" onClick={() => onSubmit(null)}>{prompt.skipLabel}</button>}
+        <button type="submit" className="asst-go">{prompt.submitLabel || 'Conferma e continua'}</button>
+        {prompt.skipLabel && <button type="button" className="asst-chip" onClick={() => onSubmit(null)}>{prompt.skipLabel}</button>}
       </div>
     </form>
   )

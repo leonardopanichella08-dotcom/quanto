@@ -376,7 +376,7 @@ function BandoManager({ id, deletedDefaults, onList }) {
 
   if (error) return <p className="text-xs text-red-700">{error}</p>
   if (!detail || !sheet) return <p className="text-xs text-mute flex items-center gap-2"><Loader2 className="w-3.5 h-3.5 animate-spin" />Carico…</p>
-  const tabs = [['sheet', 'Scheda consulente'], ['docs', `Documenti (${detail.sources_detail.length})`], ['rules', `Regole (${detail.rules.length})`], ['reqs', `Requisiti (${detail.requirements.length})`], ['fund', 'Fondo'], ['usage', 'Utilizzo'], ['actions', 'Azioni']]
+  const tabs = [['sheet', 'Scheda di revisione'], ['docs', `Documenti (${detail.sources_detail.length})`], ['rules', `Regole (${detail.rules.length})`], ['reqs', `Requisiti (${detail.requirements.length})`], ['fund', 'Fondo'], ['usage', 'Utilizzo'], ['actions', 'Azioni']]
   return (
     <div className="card p-5 space-y-4">
       <div><h3 className="font-semibold text-lg break-words">{detail.name}</h3><p className="text-xs font-mono text-mute">{detail.bando_id} · {detail.extraction_status}</p></div>

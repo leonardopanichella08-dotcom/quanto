@@ -18,7 +18,7 @@ const FIELD_LABEL = {
   employees_avg: 'Dipendenti (media)', company_name: 'Ragione sociale', vat_number: 'Partita IVA', legal_form: 'Forma giuridica', ateco_code: 'Codice ATECO', province: 'Provincia della sede',
   founded_year: 'Anno di costituzione', employees: 'Dipendenti',
 }
-const CATS = { PERSONNEL: 'Personale', CAPITAL_ASSETS: 'Beni strumentali', CONSULTING: 'Consulenze', OVERHEAD: 'Spese generali', TRAINING: 'Formazione' }
+const CATS = { PERSONNEL: 'Personale', CAPITAL_ASSETS: 'Beni strumentali', CONSULTING: 'Consulenze', OVERHEAD: 'Spese generali', TRAINING: 'Formazione', OTHER: 'Altro (non agevolabile)' }
 // Si mostrano nella pagina solo PDF, immagini raster e testo semplice: mai HTML o SVG, che sul nostro dominio potrebbero eseguire codice.
 const VIEWABLE = /^(application\/pdf|text\/plain|image\/(png|jpeg|gif|webp))(;|$)/
 const BOM = String.fromCharCode(0xfeff)
@@ -38,7 +38,7 @@ function FieldRow({ f, doc, min, onDone }) {
       onDone(await api.fcReview(doc.id, f.id, action, action === 'CORRECT' ? value : undefined))
     } catch (e) { setErr(e.message) } finally { setBusy(false) }
   }
-  const shown = f.parsed ? (f.field_key === 'expense_line' ? `${f.parsed.description} — ${f.parsed.amount_eur} €` : `${f.parsed.codice_tributo}${f.parsed.anno ? ` / ${f.parsed.anno}` : ''} — ${f.parsed.importo_debito_eur} €`) : f.value
+  const shown = f.parsed ? (f.field_key === 'expense_line' ? `${f.parsed.description} — ${f.parsed.amount_eur} €` : `${f.parsed.codice_tributo}${f.parsed.anno ? ` / ${f.parsed.anno}` : ''} — ${f.parsed.importo_credito_eur ? `credito compensato ${f.parsed.importo_credito_eur}` : f.parsed.importo_debito_eur} €`) : f.value
   return (
     <div className="p-3 rounded-xl border border-line bg-field text-xs space-y-2">
       <div className="flex flex-wrap items-center gap-2">

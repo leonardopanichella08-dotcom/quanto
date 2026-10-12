@@ -158,7 +158,7 @@ def _validate_correction(key: str, value: str) -> str:
             amount = Decimal(str(j["amount_eur"]))
         except (ValueError, KeyError, InvalidOperation):
             raise DocumentError("Riga di costo non valida") from None
-        if j.get("category") not in COST_CATEGORIES + (None,):
+        if j.get("category") not in COST_CATEGORIES + ("OTHER", None):
             raise DocumentError("Categoria di costo non valida")
         return json.dumps({"description": str(j.get("description", ""))[:200], "amount_eur": str(abs(amount)), "category": j.get("category")}, ensure_ascii=False)
     return value[:200]
@@ -244,6 +244,8 @@ def application_draft_items(document_id: int, owner: Optional[str] = None) -> Di
             review.append({"field_id": f["id"], **p})
         elif not p.get("category"):
             unassigned.append({"field_id": f["id"], **p})
+        elif p["category"] == "OTHER":
+            continue                                                         # «Altro»: non è una voce di budget
         elif p["category"] == "PERSONNEL":
             personnel.append({"description": p["description"][:200], "amount_eur": float(p["amount_eur"])})      # il personale si inserisce persona per persona (RAL, quota di tempo)
         else:
@@ -258,7 +260,7 @@ def balance_expenses(document_id: int, owner: Optional[str] = None) -> Dict[str,
     doc = get(document_id, owner)
     if doc is None or doc["doc_type"] != "BALANCE_SHEET":
         raise KeyError(document_id)
-    lines, unassigned, review = [], [], []
+    lines, unassigned, review, other = [], [], [], []
     for f in doc["fields"]:
         if f["field_key"] != "expense_line":
             continue
@@ -267,7 +269,9 @@ def balance_expenses(document_id: int, owner: Optional[str] = None) -> Dict[str,
             review.append({"field_id": f["id"], **p})
         elif not p.get("category"):
             unassigned.append({"field_id": f["id"], **p})
+        elif p["category"] == "OTHER":                                    # altro (imposte indirette, quote associative…): è nel totale dei costi ma non è una spesa agevolabile
+            other.append({"field_id": f["id"], **p})
         else:
             lines.append({"field_id": f["id"], **p})
     year = _usable(doc, "fiscal_year")
-    return {"document_id": document_id, "fiscal_year": int(year["value"]) if year else None, "lines": lines, "needs_category": unassigned, "needs_review": review}
+    return {"document_id": document_id, "fiscal_year": int(year["value"]) if year else None, "lines": lines, "needs_category": unassigned, "needs_review": review, "other": other}

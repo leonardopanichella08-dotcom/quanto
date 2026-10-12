@@ -267,6 +267,8 @@ def sync_from_documents(owner: str, actor: Optional[str] = None) -> Dict[str, An
             if f["field_key"] != "expense_line":
                 continue
             p = f["parsed"]
+            if f["status"] in fonte_c.USABLE and p.get("category") == "OTHER":
+                continue                                       # «Altro»: già assegnata, non è una delle cinque categorie di spesa
             if f["status"] in fonte_c.USABLE and p.get("category"):
                 sums[p["category"]] = round(sums.get(p["category"], 0.0) + float(p["amount_eur"]), 2)
             else:
