@@ -1,4 +1,4 @@
-"""Testo del dossier QUANTO v4.0. Ogni affermazione di stato è verificata sul codice (10 ottobre 2026); i dati del sistema online sono quelli dell'ultima lettura (4 ottobre 2026) e sono datati."""
+"""Testo del dossier QUANTO v4.1. Ogni affermazione di stato è verificata sul codice (12 ottobre 2026); i dati online che richiedono l'accesso sono quelli dell'ultima lettura con accesso (4 ottobre 2026) e sono datati."""
 from __future__ import annotations
 
 import json
@@ -12,9 +12,9 @@ def build(m):  # noqa: C901 - un documento lungo è una sola funzione di testo
     from reportlab.platypus import PageBreak, Paragraph
 
     # ------------------------------------------------------------------------------------------------ copertina
-    story.append(Paragraph("QUANTO v4.0 — Documento Completo", m.S["title"]))
+    story.append(Paragraph("QUANTO v4.1 — Documento Completo", m.S["title"]))
     story.append(Paragraph("Il motore di calcolo per studi di commercialisti e boutique di finanza agevolata", m.S["sub"]))
-    story.append(Paragraph("Riscrittura integrale del documento v3.0, aggiornata allo stato reale del sistema al 10 ottobre 2026. Nessuna sintesi: ogni processo è spiegato nel dettaglio e ogni funzione porta il suo stato.", m.S["p"]))
+    story.append(Paragraph("Versione 4.1: riscrittura integrale della v3.0, aggiornata allo stato reale del sistema al 12 ottobre 2026, con conteggi e schema API ricontrollati uno per uno sul codice. Nessuna sintesi: ogni processo è spiegato nel dettaglio e ogni funzione porta il suo stato.", m.S["p"]))
     SP(6)
     H1("Nota di apertura — cosa contiene questo documento e cosa è cambiato")
     P("Questo documento riprende, modulo per modulo, la struttura del documento «FKOS v2.1 — Documento Completo» (22 moduli, executive summary, schema tecnico API) e la porta al presente, partendo dalla v3.0 del 4 ottobre. "
@@ -35,8 +35,7 @@ def build(m):  # noqa: C901 - un documento lungo è una sola funzione di testo
        "**Interfaccia professionale e minimale**: menu di gestione a sinistra, profilo completo dello studio (dati, sicurezza, piano e dati), nessun effetto vetro o «cartone animato».",
        "**Assistente guidato** (Modulo 26): dove l'utente dovrebbe inserire dati o muoversi nell'app, l'assistente lo fa al suo posto, passo per passo, e chiede i valori spiegando in parole semplici cosa sono e dove si trovano.",
        "**Manuale dei processi** (testo in Quartier Generale e PDF) e «I 60 criteri spiegati» (Modulo 15 e docs)."])
-    P("**Come è stato verificato.** Ogni affermazione sul codice è provata dai **499 test automatici** (tutti verdi al 10 ottobre). I dati del sistema online sono quelli dell'ultima lettura del 4 ottobre 2026 e sono indicati con la data. "
-      "Le funzioni aggiunte dopo quella data sono provate in locale, su un database temporaneo con l'azienda di prova: **la verifica online con dati reali dopo l'ultimo rilascio resta da fare** (richiede l'accesso dell'utente).")
+    P("**Come è stato verificato (12 ottobre 2026).** **Codice:** **499 test automatici** verdi; operazioni API, migrazioni, tabelle e bandi curati ricontati dal codice; lo schema API di questo documento è confrontato con le rotte reali (OpenAPI). **Online:** il sito pubblicato serve esattamente l'ultima versione del frontend (stessi file generati dal build) e il registro firmato è integro, con la stessa chiave e una registrazione. **Non verificato online:** tutto ciò che richiede l'accesso (catalogo, bandi, regole, database) resta quello dell'ultima lettura con accesso, del **4 ottobre 2026**, e porta la data, perché durante questa riscrittura non era disponibile una sessione di accesso. Le funzioni aggiunte dopo il 4 ottobre (assistente, de minimis, legenda, Confronto) sono provate in locale su un database temporaneo con l'azienda di prova: **la verifica online con i dati reali resta da fare**.")
     H2("Legenda degli stati")
     T([["Etichetta", "Significato"],
        ["[[FATTO]]", "Realizzato, coperto da test automatici e, dove ha senso, provato online con dati reali."],
@@ -70,21 +69,21 @@ def build(m):  # noqa: C901 - un documento lungo è una sola funzione di testo
        ["19 Reparto di consulenza", "[[FASE 4]]", "Non toccato; esiste solo la «scheda per il consulente» nel Quartier Generale."],
        ["20-22 Go-to-market", "[[DA FARE]]", "Nessuna attività commerciale avviata; registrazione libera e crediti simulati pronti."]], [52, 22, 96])
     H2("Numeri del sistema")
-    P("Il codice è stato contato il 10 ottobre 2026; i dati online (catalogo, bandi, regole, database) sono quelli dell'ultima lettura del sistema, il **4 ottobre 2026**.")
+    P("Il codice è stato contato il 12 ottobre 2026; i dati online che richiedono l'accesso (catalogo, bandi, regole, database) sono quelli dell'ultima lettura con accesso, il **4 ottobre 2026**.")
     T([["Dato", "Valore"],
-       ["Test automatici backend (10/10)", f"{FACTS['tests']} (tutti verdi; CI su ogni push: test su PostgreSQL 16, build, audit dipendenze)"],
-       ["Endpoint REST (10/10)", f"{FACTS['endpoints']} operazioni sotto /api/v2 (più la radice di salute)"],
-       ["Migrazioni del database (10/10)", f"{FACTS['migrations']} (init, fonte_b, fonte_c, funding_lines, users, pattern, draft_doc_type, enable_rls, requirement_figures, company_profile, catalog_meta, forecast_template, retire_demo, budget_templates, clients, user_profile)"],
-       ["Tabelle (10/10)", f"{FACTS['tables']}, tutte con Row Level Security attiva"],
+       ["Test automatici backend (12/10)", f"{FACTS['tests']} (tutti verdi; CI su ogni push: test su PostgreSQL 16, build, audit dipendenze)"],
+       ["Endpoint REST (12/10)", f"{FACTS['endpoints']} operazioni sotto /api/v2 (più la radice /)"],
+       ["Migrazioni del database (12/10)", f"{FACTS['migrations']} (init, fonte_b, fonte_c, funding_lines, users, pattern, draft_doc_type, enable_rls, requirement_figures, company_profile, catalog_meta, forecast_template, retire_demo, budget_templates, clients, user_profile)"],
+       ["Tabelle (12/10)", f"{FACTS['tables']} più la tabella delle migrazioni, tutte con Row Level Security attiva"],
        ["Criteri del motore", "60 su 60 implementati"],
-       ["Bandi curati a mano (10/10)", "8: Transizione 5.0 (iperammortamento), Nuova Sabatini, Horizon Europe, Smart&Start Italia, Investimenti Sostenibili 4.0, Fondo di Garanzia PMI, SIMEST 394/81, FVG Validazione TRL"],
+       ["Bandi curati a mano (12/10)", "8: Transizione 5.0 (iperammortamento), Nuova Sabatini, Horizon Europe, Smart&Start Italia, Investimenti Sostenibili 4.0, Fondo di Garanzia PMI, SIMEST 394/81, FVG Validazione TRL"],
        ["Catalogo nazionale (online, 4/10)", f"{FACTS['catalog_total']} voci aperte o senza data (da 5.975 prima della pulizia); {FACTS['catalog_open']} con scadenza futura certa, {FACTS['catalog_undated']} senza data; tutte con la scheda letta"],
        ["Bandi in memoria (online, 4/10)", f"{FACTS['bandi']} voci totali (comprendono il bando di prova poi eliminato); {FACTS['studied']} del catalogo già studiati con il processo standard"],
        ["Regole / requisiti letti (online, 4/10)", f"{FACTS['rules']} regole pubblicate o in revisione, {FACTS['requirements']} requisiti, {FACTS['sources']} documenti di fonte con {FACTS['files']} file originali conservati"],
        ["Fonte B pubblicata (online, 4/10)", "3 CCNL (Commercio, Metalmeccanica, Terzo settore), 2 parametri nazionali, 5 aliquote d'ammortamento, 0 benchmark"],
        ["Banca dei pattern", "5 budget da bilanci di società quotate, ciascuno con pagina e nota della fonte"],
        ["Database (online, 4/10)", f"PostgreSQL, {FACTS['db_mb']} MB, {FACTS['events']} eventi registrati, {FACTS['runs']} esecuzioni salvate"],
-       ["Registro firmato (online, 4/10)", "1 registrazione (prova della demo), catena integra, chiave di firma 4e5773cd74cfe97d"]], [48, 122])
+       ["Registro firmato (online, verificato 12/10)", "1 registrazione (prova della demo), catena integra, chiave di firma 4e5773cd74cfe97d (non di sviluppo), testa della catena 0ac85d96…"]], [48, 122])
 
     H2("Cosa è cambiato rispetto alla v2.1 — in dettaglio")
     T([["Area", "v2.1 (progetto)", "Oggi (sistema)"],
@@ -411,7 +410,7 @@ def build(m):  # noqa: C901 - un documento lungo è una sola funzione di testo
        "**Dual-Layer Output:** Layer 1 = PDF/XLSX con CEP-ID e QR; Layer 2 = Auditor Portal (pagina Verifica): verifica dell'impronta presentata, ricalcolo dai dati originali, simulazione di manomissione (+1 € sulla prima riga → «impronta diversa»).",
        "**Limite dichiarato:** il registro è gestito da QUANTO, non da un testimone terzo. Per rafforzarlo si può pubblicare periodicamente `head_hash` (PEC, repository pubblico, marca temporale qualificata). [[DA FARE]]",
        "**Non realizzato:** il «Report di Asseverazione Crittografica» in PDF come documento a sé. Esiste l'attestazione firmata in JSON e la pagina di verifica. [[DA FARE]]"])
-    P("Stato online: una registrazione di prova (n. 1, 4 ottobre 2026), catena integra, chiave 4e5773cd74cfe97d.")
+    P("Stato online verificato il 12 ottobre 2026: una registrazione di prova (n. 1, del 4 ottobre), catena integra, chiave 4e5773cd74cfe97d (non di sviluppo).")
     H2("MODULO 18 — La componente assicurativa  [[FASE 3]]")
     P("Invariato: richiede storico di pratiche reali, struttura regolamentare adeguata (licenza IVASS o partner MGA) e validazione attuariale indipendente; esclusioni esplicite; rischio sistemico da mitigare con limiti di esposizione per regola. Nessuna riga di codice, per scelta.")
     H2("MODULO 19 — Il reparto di consulenza  [[FASE 4]]")
@@ -622,7 +621,7 @@ def build(m):  # noqa: C901 - un documento lungo è una sola funzione di testo
        "**Connettori automatici** per la Fonte B; **registri IVA e piano dei conti** come tipi di documento.",
        "**Integrazioni ERP** (Zucchetti, TeamSystem): l'API è pronta (OAuth 2.0 + HMAC), le integrazioni non esistono.",
        "**Test dei processi sul campo:** nessuna pratica reale è stata presentata; per questo non esiste alcuna metrica di successo o di clawback.",
-       "**Verifica online dell'ultimo rilascio** (assistente, de minimis, legenda, Confronto) con i dati reali dello studio: richiede l'accesso dell'utente.",
+       "**Verifica online dell'ultimo rilascio:** il 12 ottobre si è potuto controllare solo ciò che non richiede l'accesso (versione del sito, registro firmato). Restano da provare online con i dati reali dello studio assistente, de minimis, legenda dei numeri e Confronto, e da rileggere i contatori del Quartier Generale.",
        "**Collegamento al Registro Nazionale degli Aiuti** per il de minimis: oggi il residuo si stima dagli aiuti dichiarati e dice su cosa si regge.",
        "**Tabelle CCNL online:** il passaggio del personale dell'assistente dipende dai contratti pubblicati in Fonte B (3 all'ultima lettura).",
        "**Bandi senza percentuale nei testi letti:** restano senza importo finché una fonte ufficiale non la dichiara; si possono far studiare di nuovo."])
@@ -645,11 +644,11 @@ def build(m):  # noqa: C901 - un documento lungo è una sola funzione di testo
       "Il Registro crittografico è stato anticipato e realizzato senza blockchain; la componente assicurativa e il reparto di consulenza restano visione a lungo termine. Per arrivare al 100% servono dati e decisioni del titolare (chiave del modello, dataset dei pattern, tabelle ufficiali, OCR, documenti legali, verifica online dell'ultimo rilascio) e alcuni sviluppi dichiarati nel Modulo 30.")
     # ================================================================================================ SCHEMA API
     H1("SCHEMA TECNICO API (reale)")
-    P("L'integrazione con ERP e gestionali avviene via REST protetta da OAuth 2.0 (client-credentials) o da firma HMAC; gli utenti dell'app usano un token a 8 ore. Non esiste alcun endpoint di generazione testuale progettuale. Tutto vive sotto `/api/v2`. Documentazione interattiva su `/docs`. Sono 145 operazioni; di seguito i gruppi con i principali.")
+    P("L'integrazione con ERP e gestionali avviene via REST protetta da OAuth 2.0 (client-credentials) o da firma HMAC; gli utenti dell'app usano un token a 8 ore. Non esiste alcun endpoint di generazione testuale progettuale. Tutto vive sotto `/api/v2`. Documentazione interattiva su `/docs`. Sono 144 operazioni sotto `/api/v2` (più la radice `/`); di seguito i gruppi con i principali.")
     T([["Gruppo", "Endpoint principali"],
        ["Salute", "GET /health, GET /health/ready"],
        ["Autenticazione", "POST /auth/register, /auth/login, /auth/token, /auth/change-password; GET /auth/me, /auth/me/activity, /auth/me/credits"],
-       ["Bandi", "GET /bandi, /bandi/{id}, /bandi/catalog (q, issuer, only_new, described, with_meta, page), /bandi/catalog/issuers, /bandi/catalog/stats, /bandi/search, /bandi/references; POST /bandi/{id}/select, /bandi/upload (solo Quartier Generale); ricerca e studio: POST /bandi/research/search, /fetch, /analyze, /confirm, /run"],
+       ["Bandi", "GET /bandi, /bandi/{id}, /bandi/catalog (q, issuer, only_new, described, with_meta, page), /bandi/catalog/issuers, /bandi/catalog/stats, /bandi/search, /bandi/references, /bandi/{id}/sources/{sha256}; POST /bandi/{id}/select, /bandi/upload (solo Quartier Generale); ricerca e studio: POST /bandi/research/search, /fetch, /analyze, /confirm, /run"],
        ["Ingestion", "GET /ingestion/catalog, /status/{id}, /review-queue, /grant-rules/{id}; POST /ingestion/catalog, /confirm/{id}, /extract, /review"],
        ["Budget", "POST /budget/validate, /budget/wp-plan (nuovo), /budget/import, /budget/export/pdf, /budget/export/xlsx; GET /budget/criteria, /budget/fields, /budget/template.xlsx"],
        ["Allocazione", "POST /allocation/optimize; GET e POST /allocation/funds, POST /allocation/funds/from-bando, DELETE /allocation/funds/{id}"],
@@ -657,10 +656,10 @@ def build(m):  # noqa: C901 - un documento lungo è una sola funzione di testo
        ["Template e Confronto", "GET /templates, /templates/meta, /templates/niches, /templates/learning; POST /templates, /templates/recommend; PATCH/DELETE /templates/{id}"],
        ["Account dello studio", "PATCH /auth/me; GET /auth/me/profile, /auth/me/export, /auth/me/activity, /auth/me/credits; POST /auth/me/sign-out-everywhere, /auth/change-password; DELETE /auth/me"],
        ["Documenti del cliente", "GET e POST /fonte-c/documents; GET e DELETE /fonte-c/documents/{id}; /file, /cost-line, /draft-items, /expenses; POST /fields/{id}/review"],
-       ["Fonte B", "GET /fonte-b/summary, /kinds, /datasets, /template/{tipo}.csv; POST /datasets (bozza), /datasets/{id}/publish; DELETE bozza"],
+       ["Fonte B", "GET /fonte-b/summary, /kinds, /datasets, /datasets/{id}, /datasets/{id}/file, /template/{tipo}.csv; POST /datasets (bozza), /datasets/{id}/publish; DELETE bozza"],
        ["Pattern", "GET /pattern/categories, /pattern/budgets; POST /pattern/match, /pattern/import"],
        ["Registro", "POST /registry/register, /verify/recompute, /verify/attestation, /merkle-lab; GET /registry/status, /public-key, /verify/{progetto}, /attestation/{progetto}"],
-       ["Quartier Generale", "GET /hq/overview, /manual, /manual.pdf, /timeline, /operations, /projects, /documents, /users, /archive e /archive/{id} (con regole, requisiti, fonti, scheda consulente, ZIP), /db/tables"],
+       ["Quartier Generale", "GET /hq/overview, /manual, /manual.pdf, /timeline, /operations, /projects, /projects/{id}, /runs/{id}, /documents, /bandi/{id}, /users (POST per creare, PATCH /users/{id}); archivio: GET /hq/archive, /archive/{id}, PATCH e DELETE /archive/{id}, POST /archive/restore-defaults, /archive/{id}/reanalyze, /requirements, PATCH e DELETE /requirements/{seq}, PUT e DELETE /rules/{chiave}, GET /consultant, /export.zip, /sources/{sha}/text e /file, DELETE /sources/{sha}; database: GET /hq/db/tables, /db/table/{tabella}, /export.csv, DELETE di una riga o della tabella"],
        ["Lavori periodici", "GET/POST /cron/catalog-refresh, /cron/catalog-lifecycle, /cron/catalog-describe (segreto del cron o manager)"]], [32, 138])
     H3("1. Validazione del budget di progetto")
     P("Differenza dalla v2.1: le regole del bando viaggiano nel campo `grant_rules` (l'insieme completo delle regole pubblicate, con `rule_version_hash`), non in un `grant_context`; i valori della voce sono campi diretti della voce, non in `raw_values`. La rinomina verso lo schema originale non è stata fatta. [[PARZIALE]]")
@@ -717,5 +716,6 @@ def build(m):  # noqa: C901 - un documento lungo è una sola funzione di testo
        ["Valore dei bandi, studio e lavori", "05-08/10/2026", "Valore in euro di ogni bando (regola, modello, tabella di intensità), RICERCA-v2, modello di previsione con la spiegazione di ogni percentuale, potenziale massimo e bilancio ricostruito, demo tolta, caricamento manuale riservato al Quartier Generale, testi per gli studi."],
        ["Confronto e interfaccia", "05-08/10/2026", "Confronto a template con due motori, lavori dello studio con salvataggio per lavoro, profilo dello studio completo, interfaccia minimale con menu laterale, manuale dei processi (PDF e Quartier Generale) e «I 60 criteri spiegati»."],
        ["Allocazione deterministica", "09/10/2026", "Piano uguale a parità di dati e sempre massimo, tutti i bandi adatti di default, 12 colori e bandi «non serve» in legenda, ipotesi de minimis dichiarata."],
-       ["Legenda, de minimis e assistente", "10/10/2026", "Legenda dei numeri, de minimis riconosciuto dalle fonti e stimato dai dati dichiarati, assistente guidato con pannello a destra, download dei PDF affidabile, 499 test, questo documento."]], [34, 28, 108])
+       ["Legenda, de minimis e assistente", "10/10/2026", "Legenda dei numeri, de minimis riconosciuto dalle fonti e stimato dai dati dichiarati, assistente guidato con pannello a destra, download dei PDF affidabile, 499 test."],
+       ["Rilettura del dossier (v4.1)", "12/10/2026", "Conteggi e schema API ricontrollati sul codice (144 operazioni, 28 tabelle più quella delle migrazioni, 16 migrazioni), verifica del rilascio online (versione del frontend, registro firmato), stato della verifica dichiarato; questo documento."]], [34, 28, 108])
     NOTE("Fine del documento. Ogni numero riportato è stato letto dal sistema o dal codice alla data indicata; dove un dato non esiste (pratiche reali, metriche di successo, benchmark) il documento lo dichiara.")
