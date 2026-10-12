@@ -14,7 +14,7 @@ const STATUS = {
 const FIELD_LABEL = {
   employee_name: 'Nome (token)', tax_code: 'Codice fiscale (token)', ccnl: 'Contratto (CCNL)', level: 'Livello', period: 'Periodo', gross_monthly_eur: 'Totale competenze del mese (€)',
   net_monthly_eur: 'Netto in busta (€)', tfr_accrual_eur: 'Quota TFR del mese (€)', mensilita: 'Mensilità', ral_annual_eur: 'RAL stimata (€)', fiscal_year: 'Anno del bilancio',
-  expense_line: 'Riga di costo', f24_row: 'Riga F24', revenue_eur: 'Ricavi (€)', net_result_eur: 'Utile / perdita dell’esercizio (€)', total_costs_eur: 'Totale costi della produzione (€)',
+  expense_line: 'Riga di costo', f24_row: 'Riga F24', revenue_eur: 'Ricavi (€)', net_result_eur: 'Utile / perdita dell’esercizio (€)', total_costs_eur: 'Totale costi della produzione (€)', de_minimis_aid_eur: 'Aiuti de minimis dell’esercizio (€)',
   employees_avg: 'Dipendenti (media)', company_name: 'Ragione sociale', vat_number: 'Partita IVA', legal_form: 'Forma giuridica', ateco_code: 'Codice ATECO', province: 'Provincia della sede',
   founded_year: 'Anno di costituzione', employees: 'Dipendenti',
 }

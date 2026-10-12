@@ -90,3 +90,11 @@ def test_the_match_returns_the_estimate_and_marks_every_bando():
     assert body["matching"]["results"] and all("applies" in x["de_minimis"] for x in body["matching"]["results"])
     simest = [x for x in body["matching"]["results"] if "394" in x["name"] and x.get("fund")]
     assert simest and all(x["fund"]["de_minimis"] and x["de_minimis"]["applies"] for x in simest)       # SIMEST: lo dice la scheda curata
+
+
+def test_a_value_written_by_hand_beats_the_one_read_from_the_balance_sheet():
+    owner = "studio-dm-test-4"
+    cp.update_financials(owner, 2026, {"de_minimis_aid_eur": 5000}, owner)
+    assert de_minimis.estimate(owner, 2027)["received_eur"] == 5000.0
+    cp.update_financials(owner, 2026, {"public_aid_eur": 9000}, owner)
+    assert de_minimis.estimate(owner, 2027)["received_eur"] == 9000.0

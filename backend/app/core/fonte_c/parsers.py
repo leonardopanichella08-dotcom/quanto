@@ -359,12 +359,45 @@ BALANCE_SPECS = [
 ]
 
 
+_AID_SECTION = re.compile(r"COMMI\s*125|124\s*/\s*2017")
+_AID_ROW = re.compile(r"(\d{2}/\d{2}/\d{4})\s+([\d.]+(?:,\d{1,2})?)\s*(?:EURO|EUR|€)?\s+DE\s+MINIMIS\b")
+
+
+def _parse_de_minimis_aid(lines: List[dict]) -> Optional[Field]:
+    """Aiuti de minimis dell'esercizio, dalla tabella della nota integrativa (art. 1, commi 125-129, L. 124/2017: «Soggetto erogante · Misura · Data · Importo · Regime»).
+
+    Si sommano le righe il cui regime è «De minimis». Se la sezione sugli aiuti c'è ma nessuna riga è in de minimis, il dato è 0 (dichiarato); se la sezione manca
+    il bilancio non dice nulla sul de minimis e non si restituisce niente: il dato resta da compilare."""
+    rows: List[tuple] = []
+    section = None
+    for ln in lines:
+        n = norm(ln["text"])
+        if section is None and _AID_SECTION.search(n):
+            section = ln
+        m = _AID_ROW.search(n)
+        if m:
+            amount = amount_units(m.group(2))
+            if amount is not None:
+                rows.append((amount, ln))
+    if rows:
+        total = sum((a for a, _ in rows), Decimal(0))
+        conf = min(ln["conf_min"] for _, ln in rows) * 0.97
+        snippet = " | ".join(_scrub(ln["text"]) for _, ln in rows)[:200]
+        return Field("de_minimis_aid_eur", str(total), round(conf, 4), rows[0][1]["page"], snippet)
+    if section is not None:
+        return Field("de_minimis_aid_eur", "0", round(0.9 * section["conf_min"], 4), section["page"], "Tabella degli aiuti pubblici (L. 124/2017): nessuna riga in regime de minimis")
+    return None
+
+
 def parse_balance(lines: List[dict]) -> List[Field]:
     out = _parse_balance_costs(lines)
     for key, labels, kind in BALANCE_SPECS:
         f = _find(lines, labels, kind, key)
         if f is not None:
             out.append(f)
+    aid = _parse_de_minimis_aid(lines)
+    if aid is not None:
+        out.append(aid)
     return out
 
 

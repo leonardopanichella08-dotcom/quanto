@@ -95,3 +95,15 @@ def test_payslips_f24_and_draft_are_read(tmp_path):
     lines = [x["parsed"] for x in draft["fields"] if x["field_key"] == "expense_line"]
     # la domanda espone gli stessi costi per voce, per pacchetto di lavoro e per persona: si leggono una volta sola
     assert len(lines) == 6 and all(x["category"] for x in lines) and sum(float(x["amount_eur"]) for x in lines) == 287900.0
+
+
+def test_de_minimis_aid_is_read_from_the_balance_sheets_notes(tmp_path):
+    """Gli aiuti de minimis stanno nella nota integrativa (L. 124/2017): QUANTO li legge da solo e ne ricava il residuo, senza che l'utente scriva nulla."""
+    docs = upload_all(tmp_path)
+    got = {y: next(f for f in docs[f"0{y - 2021}_Bilancio_{y}.pdf"]["fields"] if f["field_key"] == "de_minimis_aid_eur") for y in (2023, 2024, 2025)}
+    assert [got[y]["value"] for y in (2023, 2024, 2025)] == ["0", "10000.00", "6500.00"] and all(f["status"] == "AUTO" for f in got.values())
+    ov = client.post("/api/v2/profile/sync").json()["profile"]
+    assert {f["fiscal_year"]: f["values"].get("de_minimis_aid_eur") for f in ov["financials"]} == {2023: 0.0, 2024: 10000.0, 2025: 6500.0}
+    est = client.post("/api/v2/profile/match", json={"year": 2027}).json()["de_minimis"]
+    # triennio 2024-2026: il bilancio 2026 non c'è ancora, quindi il dato è parziale e per quell'anno non si sottrae nulla
+    assert est["basis"] == "PARZIALE" and est["received_eur"] == 16500.0 and est["residual_eur"] == 283500.0 and est["years_missing"] == [2026]

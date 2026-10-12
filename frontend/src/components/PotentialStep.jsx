@@ -28,8 +28,9 @@ function DeMinimisBox({ rows, dm, plan }) {
       <p className="text-mute leading-relaxed">{est.verify}</p>
       <div className="flex flex-wrap items-center gap-2 pt-1">
         <button className="btn !py-1" onClick={dm.onDeclare}>Dichiara gli aiuti già ricevuti</button>
-        <label className="flex items-center gap-2 text-ink-2">oppure scrivi il residuo (€)<input type="number" className="field !py-1 !w-32 text-right" value={dm.override} placeholder={String(est.residual_eur)} onChange={(e) => dm.setOverride(e.target.value)} /></label>
+        <label className="flex items-center gap-2 text-ink-2">oppure scrivi il residuo (€)<input type="text" inputMode="decimal" className="field !py-1 !w-32 text-right" value={dm.override} placeholder={String(est.residual_eur)} onChange={(e) => dm.setOverride(e.target.value)} aria-label="Residuo de minimis in euro" /></label>
         {manual && <button className="btn !py-1" onClick={() => dm.setOverride('')}>Torna alla stima</button>}
+        {dm.invalid && <span className="text-[11px] text-amber-700">Il valore scritto non è valido (serve un importo da 0 in su): uso la stima.</span>}
       </div>
     </div>
   )
@@ -137,7 +138,7 @@ export default function PotentialStep({ results, picked, onPick, dm, plan, planH
 
       {picked.length > 0 && (
         <div className={`rounded-2xl border border-brand/50 bg-brand/5 p-5 space-y-4 transition ${loading ? 'opacity-60' : ''}`}>
-          {planError && <p className="text-xs text-red-700">{planError}</p>}
+          {pickedRows.some((r) => r.fund.de_minimis) && <DeMinimisBox rows={pickedRows.filter((r) => r.fund.de_minimis)} dm={dm} plan={plan} />}
           {plan ? (
             <>
               <div>
@@ -174,7 +175,6 @@ export default function PotentialStep({ results, picked, onPick, dm, plan, planH
                 </div>
               )}
               <RebuiltBudget plan={plan} nameOf={(id) => (results.find((r) => r.fund?.fund_id === id)?.name || id)} />
-              {pickedRows.some((r) => r.fund.de_minimis) && <DeMinimisBox rows={pickedRows.filter((r) => r.fund.de_minimis)} dm={dm} plan={plan} />}
               <Legend multi={pickedRows.length > 1} />
             </>
           ) : !planError && <p className="text-xs text-mute flex items-center gap-2"><Loader2 className="w-3.5 h-3.5 animate-spin" />Calcolo il piano con tutti i bandi insieme…</p>}

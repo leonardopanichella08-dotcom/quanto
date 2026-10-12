@@ -8,6 +8,7 @@ import PipelineButton from './PipelineButton'
 import { Hint } from './Help'
 import ForecastStep from './ForecastStep'
 import PotentialStep from './PotentialStep'
+import { BandiChart, ForecastChart, PlanChart, PotentialChart, ProfileChart } from './StepCharts'
 
 const PALETTE = ['#38bdf8', '#a78bfa', '#f472b6', '#34d399', '#fbbf24', '#fb7185', '#2dd4bf', '#818cf8', '#f97316', '#84cc16', '#e879f9', '#94a3b8']
 
@@ -91,14 +92,29 @@ function CatalogCard({ it, onStudied }) {
   )
 }
 
-function Step({ n, title, sub, children, done }) {
+/** Un passo dell'allocazione a tendina: in alto il titolo, in mezzo il testo che spiega cosa c'è dentro e un grafico riassuntivo, in basso (si apre o si chiude) il dettaglio. */
+function Step({ n, title, sub, summary, chart, alert, children, done, defaultOpen = false }) {
+  const [open, setOpen] = useState(defaultOpen)
   return (
     <ChromeCard label={`quanto.app/allocazione/${n}`} bodyClassName="p-6 space-y-4">
-      <div className="pb-3 border-b border-line flex items-start gap-3">
+      <div className="flex items-start gap-3">
         <span className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-semibold shrink-0 ${done ? 'bg-emerald-500/20 text-emerald-700' : 'bg-tint-2 text-ink-2'}`}>{done ? <CheckCircle2 className="w-4 h-4" /> : n}</span>
-        <div className="min-w-0"><SectionTitle className="!text-lg">{title}</SectionTitle>{sub && <p className="text-xs text-ink-2 mt-0.5 leading-relaxed max-w-2xl">{sub}</p>}</div>
+        <div className="min-w-0 flex-1"><SectionTitle className="!text-lg">{title}</SectionTitle></div>
+        <button type="button" className="btn !py-1 shrink-0" aria-expanded={open} onClick={() => setOpen(!open)}>
+          {open ? <ChevronDown className="w-3.5 h-3.5" /> : <ChevronRight className="w-3.5 h-3.5" />}{open ? 'Chiudi' : 'Apri i dettagli'}
+        </button>
       </div>
-      {children}
+      {alert && <div className="p-3 rounded-xl border border-red-500/30 text-red-700 text-xs">{alert}</div>}
+      {(sub || summary || chart) && (
+        <div className={`grid gap-x-8 gap-y-3 pl-10 ${chart ? 'md:grid-cols-[minmax(0,1fr)_minmax(260px,420px)]' : ''}`}>
+          <div className="space-y-1.5 min-w-0">
+            {summary && <p className="text-sm font-medium text-ink leading-relaxed">{summary}</p>}
+            {sub && <p className="text-xs text-ink-2 leading-relaxed max-w-2xl">{sub}</p>}
+          </div>
+          {chart && <div className="min-w-0">{chart}</div>}
+        </div>
+      )}
+      <div className={open ? 'space-y-4 pt-4 border-t border-line' : 'hidden'}>{children}</div>
     </ChromeCard>
   )
 }
@@ -213,7 +229,7 @@ export default function AllocationView({ onGoProfile, onBudgetFrom }) {
   useEffect(() => {
     api.clientState('allocation').then((st) => {
       const v = st.value
-      if (v) { if (v.year) setYear(v.year); setGrowth(v.growth || {}); if (v.target) setTarget(v.target); setDmOverride(v.dmOverride || ''); allMode.current = v.allMode ?? false; pending.current = v.allMode ? null : (v.picked || []) }
+      if (v) { if (v.year) setYear(v.year); setGrowth(v.growth || {}); if (v.target) setTarget(v.target); setDmOverride(Number(v.dmOverride) >= 0 ? String(v.dmOverride) : ''); allMode.current = v.allMode ?? false; pending.current = v.allMode ? null : (v.picked || []) }
     }).catch(() => {}).finally(() => setRestored(true))
   }, [])
   useEffect(() => {
@@ -279,7 +295,8 @@ export default function AllocationView({ onGoProfile, onBudgetFrom }) {
   const pickedRows = (match?.matching.results || []).filter((r) => picked.includes(r.bando_id) && r.fund)
   const needsDeMinimis = pickedRows.some((r) => r.fund.de_minimis)
   const dmEstimate = match?.de_minimis || null
-  const deMinimis = dmOverride !== '' ? dmOverride : String(dmEstimate ? dmEstimate.residual_eur : 300000)      // il valore che usa il piano: la stima, salvo correzione dell'utente
+  const overrideOk = dmOverride !== '' && Number.isFinite(Number(dmOverride)) && Number(dmOverride) >= 0         // un valore scritto non valido (vuoto, negativo, non numerico) non blocca il piano: vale la stima
+  const deMinimis = overrideOk ? String(Number(dmOverride)) : String(dmEstimate ? dmEstimate.residual_eur : 300000)  // il valore che usa il piano: la stima, salvo correzione dell'utente
 
   // Il piano si ricalcola da solo a ogni scelta (bandi inclusi, obiettivo, de minimis): il calcolo è sul server.
   const run = useCallback(async () => {
@@ -347,6 +364,8 @@ export default function AllocationView({ onGoProfile, onBudgetFrom }) {
       <Guide page="allocation" />
 
       <Step n={1} title="I dati della tua azienda" done={!!hasData && ov.missing.length === 0}
+        summary={ov ? `Profilo completo al ${ov.completeness_pct}%${ov.last_year != null ? `, ultimo bilancio ${ov.last_year}` : ', nessun bilancio caricato'}.` : null}
+        chart={<ProfileChart ov={ov} />}
         sub="Il punto di partenza sono i bilanci e i documenti che hai caricato nel Profilo. Quello che manca lo completi lì: QUANTO non inventa nessun dato.">
         {!ov && !error && <p className="text-xs text-mute flex items-center gap-2"><Loader2 className="w-3.5 h-3.5 animate-spin" />Carico il profilo…</p>}
         {ov && (
@@ -372,6 +391,8 @@ export default function AllocationView({ onGoProfile, onBudgetFrom }) {
 
       {hasData && (
         <Step n={2} title="Stima dell’anno successivo" done={!!match}
+          summary={match ? `Spese stimate per il ${match.forecast.fiscal_year}: ${fmtEur(match.forecast.total_forecast_eur)} (nel bilancio ${match.forecast.base_year}: ${fmtEur(match.forecast.total_baseline_eur)}).` : (matching ? 'Calcolo la stima…' : null)}
+          chart={<ForecastChart forecast={match?.forecast} />}
           sub="Parte dall’ultimo bilancio: costi e ricavi aumentati o diminuiti di una percentuale annua. Se hai un modello di previsione (indicato dal cliente, dal suo CFO o stimato dal tuo studio) uso quello; per le voci senza modello calcolo io la variazione dai tuoi due ultimi bilanci e la inserisco già, con la spiegazione.">
           <ForecastStep forecast={match?.forecast} overrides={growth} setOverride={setOverride} year={year} setYear={setYear} matching={matching} onEstimate={estimate} onTemplateChanged={templateChanged} />
         </Step>
@@ -380,6 +401,8 @@ export default function AllocationView({ onGoProfile, onBudgetFrom }) {
 
       {match && (
         <Step n={3} title="Bandi adatti alla tua azienda" done={picked.length > 0}
+          summary={`${match.matching.summary.ADATTO} ${match.matching.summary.ADATTO === 1 ? 'bando adatto' : 'bandi adatti'}, ${match.matching.summary.DA_VERIFICARE} da verificare, ${match.matching.summary.NON_ADATTO} non adatti; ${picked.length} ${picked.length === 1 ? 'incluso' : 'inclusi'} nel piano.`}
+          chart={<BandiChart match={match} />}
           sub="Per ogni bando studiato da QUANTO: se puoi partecipare, quanto potrebbe coprire sulle tue spese, quali voci vanno ridotte per rispettare i tetti e come rientrarci.">
           <div className="flex flex-wrap items-center gap-2">
             {Object.entries(FIT).map(([k, [label, tone]]) => (
@@ -416,15 +439,21 @@ export default function AllocationView({ onGoProfile, onBudgetFrom }) {
       )}
 
       {match && (
-        <Step n={4} title="Tutti i bandi insieme: il potenziale massimo" done={picked.length > 0 && !!plan}
+        <Step n={4} title="Tutti i bandi insieme: il potenziale massimo" done={picked.length > 0 && !!plan} defaultOpen
+          alert={planError}
+          summary={plan ? `Tutti i bandi scelti insieme coprirebbero ${fmtEur(plan.covered_by_public_funds_eur)}${planHigh && planHigh.covered_by_public_funds_eur > plan.covered_by_public_funds_eur + 0.5 ? ` – ${fmtEur(planHigh.covered_by_public_funds_eur)}` : ''} su ${fmtEur(plan.total_gross_expense_eur)} di spese del ${plan.fiscal_year} (${fmtNum(plan.overall_coverage_percentage, 1)}%).${needsDeMinimis ? ` Tetto de minimis residuo usato: ${fmtEur(Number(deMinimis))}${overrideOk ? ' (scritto da te)' : ' (stimato dai bilanci)'}.` : ''}` : (picked.length === 0 ? 'Scegli i bandi da combinare per vedere il potenziale.' : (loading ? 'Calcolo il piano con tutti i bandi insieme…' : null))}
+          chart={<PotentialChart plan={plan} nameOf={(id) => results.find((r) => r.fund?.fund_id === id)?.name || id} dm={{ estimate: dmEstimate }} />}
           sub="Se l’azienda partecipasse e vincesse tutti i bandi a cui può accedere, quanto riuscirebbe a coprire in un anno? Li applico insieme rispettando cumulo, tetti e de minimis, senza pagare due volte la stessa spesa.">
-          <PotentialStep results={results} picked={picked} onPick={pick} dm={{ estimate: dmEstimate, override: dmOverride, setOverride: setDmOverride, value: Number(deMinimis), onDeclare: declareAid }} plan={plan} planHigh={planHigh} loading={loading} planError={planError} onStudyMore={studyMore} studyingMore={studyingMore} />
+          <PotentialStep results={results} picked={picked} onPick={pick} dm={{ estimate: dmEstimate, override: overrideOk ? dmOverride : '', invalid: dmOverride !== '' && !overrideOk, setOverride: (v) => setDmOverride(String(v).replace(/[^0-9.,]/g, '').replace(',', '.')), value: Number(deMinimis), onDeclare: declareAid }} plan={plan} planHigh={planHigh} loading={loading} planError={planError} onStudyMore={studyMore} studyingMore={studyingMore} />
           {studyNote && <p className="text-[11px] text-ink-2 leading-relaxed">{studyNote}</p>}
         </Step>
       )}
 
       {match && picked.length > 0 && (
         <Step n={5} title="Il piano dell’anno, voce per voce" done={!!plan}
+          alert={planError}
+          summary={plan ? `${plan.allocation_plan.length} voci di spesa assegnate ai bandi: ${fmtEur(plan.covered_by_public_funds_eur)} coperti, ${fmtEur(plan.net_cost_to_entity_eur)} restano a carico dell’ente.` : null}
+          chart={<PlanChart plan={plan} />}
           sub="Con i bandi che hai incluso, il programma prova le combinazioni possibili e sceglie la migliore, rispettando i tetti dei fondi, i limiti per categoria, i fondi non cumulabili e il de minimis.">
           <div className="flex flex-wrap items-end gap-3">
             <label className="flex items-center gap-2 text-xs text-ink-2">Obiettivo <Hint id="alloc_obiettivo" />
@@ -432,7 +461,6 @@ export default function AllocationView({ onGoProfile, onBudgetFrom }) {
             <span className="text-xs text-mute">{pickedRows.length} {pickedRows.length === 1 ? 'bando incluso' : 'bandi inclusi'}</span>
           </div>
           {needsDeMinimis && <p className="text-[11px] text-ink-2 leading-relaxed max-w-3xl">Alcuni bandi scelti sono in de minimis: il tetto residuo che il piano rispetta (<strong className="text-ink">{fmtEur(Number(deMinimis))}</strong>) e come è stato stimato sono spiegati nel punto 4.</p>}
-          {planError && <div className="p-3 rounded-xl border border-red-500/30 text-red-700 text-xs">{planError}</div>}
         </Step>
       )}
 

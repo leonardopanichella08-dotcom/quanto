@@ -53,6 +53,7 @@ FIN_FIELDS: Dict[str, Tuple[str, str]] = {
     "total_costs_eur": ("Totale costi della produzione", "money"),
     "employees_avg": ("Numero medio di dipendenti", "count"),
     "public_aid_eur": ("Contributi pubblici ricevuti nell'esercizio (anche de minimis)", "money"),
+    "de_minimis_aid_eur": ("Aiuti de minimis ricevuti nell'esercizio (dalla nota integrativa)", "money"),
     **{FIN_KEY[c]: (f"Costi: {CATEGORY_LABEL[c].lower()}", "money") for c in CATEGORIES},
 }
 FIN_REQUIRED = ["revenue_eur", *FIN_KEY.values()]
@@ -275,7 +276,7 @@ def sync_from_documents(owner: str, actor: Optional[str] = None) -> Dict[str, An
                 pending += 1
         for cat, amount in sums.items():
             put(fdata, fsrc, FIN_KEY[cat], amount, d["id"], bucket)
-        for fkey in ("revenue_eur", "net_result_eur", "total_costs_eur", "employees_avg"):
+        for fkey in ("revenue_eur", "net_result_eur", "total_costs_eur", "employees_avg", "de_minimis_aid_eur"):
             f = _usable(d, fkey)
             if f:
                 try:
