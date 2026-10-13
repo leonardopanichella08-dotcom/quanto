@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react'
-import { ArrowRight, Check, FileText, Link2, Loader2, Lock, ShieldCheck, Sparkles, Table2, X } from 'lucide-react'
+import { ArrowRight, Check, FileText, Link2, Loader2, Lock, ShieldCheck, Table2, X } from 'lucide-react'
 import gsap from 'gsap'
 import { ScrollTrigger } from 'gsap/ScrollTrigger'
 import { api, session } from '../lib/api'
@@ -366,7 +366,7 @@ export default function Landing({ onLogin, onAuditor, onVision }) {
           <a href="#come-funziona">Come funziona</a>
           <a href="#strumenti">Strumenti</a>
           <a href="#prezzi">Prezzi</a>
-          <button onClick={onVision}><Sparkles size={14} />La visione</button>
+          <button onClick={onVision}>La visione</button>
         </div>
         <div className="actions">
           <button className="btn-ghost" onClick={() => setModal('login')}>Accedi</button>
@@ -508,7 +508,7 @@ export default function Landing({ onLogin, onAuditor, onVision }) {
 
       <footer className="qt-foot"><div className="wrap row">
         <span className="copy">© 2026 QUANTO</span>
-        <button onClick={onVision}><Sparkles size={14} />La visione</button>
+        <button onClick={onVision}>La visione</button>
         <button onClick={onAuditor}><ShieldCheck size={14} />Sei un revisore?</button>
         <span className="sp" />
         <button onClick={() => setModal('login')}><Lock size={13} />Accedi</button>
