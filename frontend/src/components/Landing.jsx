@@ -1,4 +1,4 @@
-import React, { lazy, Suspense, useEffect, useRef, useState } from 'react'
+import React, { lazy, Suspense, useEffect, useMemo, useRef, useState } from 'react'
 import { ArrowRight, Check, FileText, Link2, Loader2, Lock, ShieldCheck, Sparkles, Table2, X } from 'lucide-react'
 import gsap from 'gsap'
 import { ScrollTrigger } from 'gsap/ScrollTrigger'
@@ -11,6 +11,58 @@ const LiquidHero = lazy(() => import('./LiquidHero'))
 
 const eur = (n) => n.toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
 const reducedMotion = () => typeof window !== 'undefined' && window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches
+
+const CELL_COLOR = { OK: '#10b981', ADJUSTED: '#f59e0b', REJECTED: '#ef4444', WAIT: '#38bdf8', NONE: '#F6F2E21f' }
+// esempio fisso (non è un bando reale): illustra la distribuzione tipica di un controllo a 60 criteri
+const DEMO_OUTCOMES = [
+  'OK', 'OK', 'OK', 'ADJUSTED', 'OK', 'OK', 'OK', 'REJECTED', 'OK', 'OK', 'OK', 'OK', 'WAIT', 'OK', 'OK',
+  'OK', 'OK', 'NONE', 'OK', 'OK', 'OK', 'ADJUSTED', 'OK', 'OK', 'NONE', 'OK', 'OK', 'OK', 'OK', 'OK',
+  'OK', 'ADJUSTED', 'OK', 'OK', 'OK', 'NONE', 'OK', 'REJECTED', 'OK', 'OK', 'OK', 'OK', 'OK', 'NONE', 'OK',
+  'OK', 'OK', 'OK', 'WAIT', 'OK', 'OK', 'OK', 'NONE', 'OK', 'OK', 'ADJUSTED', 'OK', 'OK', 'OK', 'OK',
+]
+const MINI_HEAT = ['OK', 'OK', 'ADJUSTED', 'OK', 'OK', 'OK', 'OK', 'REJECTED', 'OK', 'OK', 'OK', 'OK', 'OK', 'OK', 'WAIT', 'OK', 'OK', 'OK']
+
+// ------------------------------------------------------------------------------------------------ catena di blocchi (decorazione delle sezioni scure)
+function mulberry32(seed) {
+  let a = seed
+  return () => { a |= 0; a = (a + 0x6D2B79F5) | 0; let t = Math.imul(a ^ (a >>> 15), 1 | a); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296 }
+}
+const HEX = '0123456789abcdef'
+const hexStr = (rnd, n) => Array.from({ length: n }, () => HEX[Math.floor(rnd() * 16)]).join('')
+
+/** Una catena di blocchi firmati, come il registro vero di QUANTO: ogni blocco porta un'impronta e si lega al precedente. */
+function ChainField({ rows = 3, perRow = 7, seed = 7, variant = '' }) {
+  const { blocks, links, active } = useMemo(() => {
+    const rnd = mulberry32(seed)
+    const w = 1200, h = 460
+    const bx = Array.from({ length: rows }, (_, r) => {
+      const y = (h / (rows + 1)) * (r + 1) + (rnd() - 0.5) * 30
+      const offset = (rnd() - 0.5) * 60
+      return Array.from({ length: perRow }, (_, i) => ({ id: `${r}-${i}`, x: offset + (w / (perRow - 0.4)) * (i + 0.4) + (rnd() - 0.5) * 24, y: y + (rnd() - 0.5) * 18, hex: hexStr(rnd, 4) }))
+    })
+    const flat = bx.flat()
+    const lk = bx.flatMap((row) => row.slice(1).map((p, i) => [row[i], p]))
+    const act = [flat[4], flat[Math.floor(flat.length / 2)], flat[flat.length - 5]].filter(Boolean).map((p, i) => ({ ...p, color: ['#F1E21B', '#10b981', '#38bdf8'][i], delay: i * 0.7 }))
+    return { blocks: flat, links: lk, active: act }
+  }, [rows, perRow, seed])
+  return (
+    <svg className={`chain-field ${variant}`} viewBox="0 0 1200 460" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
+      {links.map(([a, b], i) => <line key={i} x1={a.x + 18} y1={a.y} x2={b.x - 18} y2={b.y} stroke="#F6F2E2" strokeOpacity="0.1" strokeWidth="1" strokeDasharray="2 3" />)}
+      {blocks.map((p) => (
+        <g key={p.id} transform={`translate(${p.x}, ${p.y})`} opacity="0.55">
+          <rect x="-17" y="-10" width="34" height="20" rx="4" fill="none" stroke="#F6F2E2" strokeOpacity="0.3" />
+          <text x="0" y="4" textAnchor="middle" fontSize="6.5" fontFamily="JetBrains Mono, monospace" fill="#F6F2E2" fillOpacity="0.45">{p.hex}</text>
+        </g>
+      ))}
+      {active.map((p, i) => (
+        <g key={i} transform={`translate(${p.x}, ${p.y})`}>
+          <rect x="-17" y="-10" width="34" height="20" rx="4" fill="none" stroke={p.color} strokeWidth="1.3" className="block-pulse" style={{ '--d': `${p.delay}s` }} />
+          <text x="0" y="4" textAnchor="middle" fontSize="6.5" fontFamily="JetBrains Mono, monospace" fill={p.color}>{p.hex}</text>
+        </g>
+      ))}
+    </svg>
+  )
+}
 
 // ------------------------------------------------------------------------------------------------ accesso
 function AuthModal({ mode, onClose, onSwitch, onDone }) {
@@ -53,77 +105,135 @@ function AuthModal({ mode, onClose, onSwitch, onDone }) {
   )
 }
 
-// ------------------------------------------------------------------------------------------------ pannelli illustrativi (dati d'esempio dell'azienda di prova)
-const Glass = ({ children, className = '' }) => <div className={`glass ${className}`}>{children}</div>
+// ------------------------------------------------------------------------------------------------ mini-finestre desktop (stile precedente)
+const Chrome = ({ url }) => <div className="chrome"><i /><i /><i />{url && <span className="url">{url}</span>}</div>
 
+function DeterministicMockup() {
+  return (
+    <div className="mini-window compact" style={{ '--tilt': '0.8deg' }}><Chrome />
+      <div className="mw-body">
+        <div className="mw-run"><span>Esecuzione di lunedì</span><span className="mono">a7f3…9c1e</span></div>
+        <div className="mw-run"><span>Esecuzione di venerdì</span><span className="mono">a7f3…9c1e</span></div>
+        <span className="ok-badge"><Check className="w-3.5 h-3.5" />Impronta identica</span>
+      </div>
+    </div>
+  )
+}
+function SourceMockup() {
+  return (
+    <div className="mini-window compact" style={{ '--tilt': '-0.6deg' }}><Chrome />
+      <div className="mw-body">
+        <div className="mw-rule-line"><span className="rule-k">Consulenze</span><span className="rule-v mono">max 20%</span></div>
+        <p className="mw-src">Fonte: Art. 25, D.L. 18 ottobre 2012, n. 179, conv. L. 17 dicembre 2012, n. 221</p>
+      </div>
+    </div>
+  )
+}
+function HashMockup() {
+  return (
+    <div className="mini-window compact" style={{ '--tilt': '1.2deg' }}><Chrome />
+      <div className="mw-body">
+        <div className="mw-hash">0x7f3a9c1e5b8d2f4a…<br />6c0e9b1d3a7f5c2e</div>
+        <span className="mw-badge"><ShieldCheck className="w-3.5 h-3.5" />Firmato e verificabile</span>
+      </div>
+    </div>
+  )
+}
+function ClientsMockup() {
+  const rows = [['Meridiana Digital Solutions', 'ATECO 62.01'], ['Officine Valtellina', 'ATECO 25.62'], ['Agritech Lomellina', 'ATECO 01.13'], ['Ferro & Figli Carpenterie', 'ATECO 25.11']]
+  return (
+    <div className="mini-window" style={{ '--tilt': '-1.2deg' }}><Chrome url="quanto.app/clienti" />
+      <div className="mw-body" style={{ minHeight: 'auto' }}>
+        {rows.map(([n, a]) => <div key={n} className="mw-line"><span className="dot" style={{ background: '#F1E21B' }} />{n}<span className="amt">{a}</span></div>)}
+      </div>
+    </div>
+  )
+}
+function HeatMockup() {
+  return (
+    <div className="mini-window" style={{ '--tilt': '1deg' }}><Chrome url="quanto.app/budget" />
+      <div className="mw-body" style={{ minHeight: 'auto' }}><div className="mw-heat">{MINI_HEAT.map((o, i) => <i key={i} style={{ background: CELL_COLOR[o] }} />)}</div></div>
+    </div>
+  )
+}
+function AllocationMockup() {
+  return (
+    <div className="mini-window" style={{ '--tilt': '-1deg' }}><Chrome url="quanto.app/allocazione" />
+      <div className="mw-body" style={{ minHeight: 'auto' }}>
+        <div className="mw-bar"><span style={{ width: '62%', background: '#F1E21B' }}>Bandi · 62%</span><span style={{ width: '38%', background: 'var(--d-line)', color: 'var(--d-ink)' }}>Ente · 38%</span></div>
+        <div className="mw-bar-labels"><span>€ 0</span><span>€ 1.991.026</span></div>
+      </div>
+    </div>
+  )
+}
+
+// ------------------------------------------------------------------------------------------------ pannelli di «come funziona» (qui sì, vetro: sono le funzioni di QUANTO)
 function PanelDocs() {
   const rows = ['Conto economico', 'Stato patrimoniale', 'F24 · versamenti e crediti', 'Visura · ATECO e sede']
   return (
-    <Glass className="panel">
+    <div className="panel">
       <div className="p-label">LETTURA AUTOMATICA</div>
       <div className="p-bar"><i style={{ width: '100%' }} /></div>
       {rows.map((r) => <div key={r} className="p-row"><span>{r}</span><span className="ok"><Check size={13} />letto</span></div>)}
-    </Glass>
+    </div>
   )
 }
 function PanelForecast() {
   const rows = [['Personale', 1.0, 0.99], ['Consulenze', 0.24, 0.23], ['Spese generali', 0.2, 0.19], ['Beni strumentali', 0.13, 0.13], ['Formazione', 0.03, 0.02]]
   return (
-    <Glass className="panel">
+    <div className="panel">
       <div className="p-label">SPESE PER CATEGORIA · BILANCIO CONTRO STIMA</div>
-      {rows.map(([l, a, b]) => (
-        <div key={l} className="p-pair"><span>{l}</span><div><i className="a" style={{ width: `${b * 100}%` }} /><i className="b" style={{ width: `${a * 100}%` }} /></div></div>
-      ))}
+      {rows.map(([l, a, b]) => <div key={l} className="p-pair"><span>{l}</span><div><i className="a" style={{ width: `${b * 100}%` }} /><i className="b" style={{ width: `${a * 100}%` }} /></div></div>)}
       <div className="p-legend"><span><i className="a" />bilancio 2025</span><span><i className="b" />stima 2027</span></div>
-    </Glass>
+    </div>
   )
 }
 function PanelBandi() {
   const rows = [['Horizon Europe', 'Adatto'], ['Investimenti Sostenibili 4.0', 'Adatto'], ['Transizione 5.0', 'Adatto'], ['Nuova Sabatini', 'Adatto'], ['Bando regionale', 'Da verificare']]
   return (
-    <Glass className="panel">
+    <div className="panel">
       <div className="p-label">BANDI ADATTI ALL'AZIENDA</div>
       {rows.map(([n, f]) => <div key={n} className="p-row"><span>{n}</span><span className={`pill ${f === 'Adatto' ? 'g' : 'a'}`}>{f}</span></div>)}
-    </Glass>
+    </div>
   )
 }
 function PanelAlloc() {
   const rows = [['Personale', 0.7], ['Consulenze', 0.7], ['Spese generali', 0], ['Beni strumentali', 1], ['Formazione', 0.14]]
   return (
-    <Glass className="panel">
+    <div className="panel">
       <div className="p-label">POTENZIALE MASSIMO · TUTTI I BANDI INSIEME</div>
       <div className="p-big">{eur(1252698.85)} €</div>
       <div className="p-sub">su 1.991.026,11 € di spese · quota coperta 62,9%</div>
       {rows.map(([l, v]) => <div key={l} className="p-cov"><span>{l}</span><div><i style={{ width: `${v * 100}%` }} /></div></div>)}
       <span className="pill v">De minimis · stimato dai bilanci</span>
-    </Glass>
+    </div>
   )
 }
 function PanelDossier() {
   return (
-    <Glass className="panel">
+    <div className="panel">
       <div className="p-label">CONSEGNA</div>
       <div className="p-out"><FileText size={20} /><div><b>Dossier</b><span>PDF con ogni numero e la sua fonte</span></div></div>
       <div className="p-out"><Table2 size={20} /><div><b>Budget</b><span>Template per bando, pronto da compilare</span></div></div>
       <div className="p-out"><Link2 size={20} /><div><b>Registro firmato</b><span>Catena di impronte verificabile</span></div></div>
       <div className="p-hash">0x7f3a9c1e5b8d2f4a…6c0e9b1d3a7f5c2e</div>
-    </Glass>
+    </div>
   )
 }
 
 const STEPS = [
-  { n: '01', title: 'Carichi i documenti del cliente', body: 'Bilanci, F24, visura, buste paga. QUANTO li legge voce per voce e compila il profilo dell’azienda: dove non è sicuro, te lo chiede.', Panel: PanelDocs },
-  { n: '02', title: 'Stima l’anno successivo', body: 'Parte dall’ultimo bilancio e applica la variazione che risulta dai tuoi dati, oppure il modello che indichi tu. Ogni percentuale ha la sua spiegazione.', Panel: PanelForecast },
-  { n: '03', title: 'Trova i bandi adatti', body: 'Confronta l’azienda con la biblioteca dei bandi: regione, dimensione, ATECO, spese ammesse. Quello che il bando non dice resta dichiarato, mai inventato.', Panel: PanelBandi },
-  { n: '04', title: 'Calcola il massimo recuperabile', body: 'Tutti i bandi insieme, senza pagare due volte la stessa spesa e rispettando tetti, cumulo e de minimis, che QUANTO stima da solo dai bilanci.', Panel: PanelAlloc },
-  { n: '05', title: 'Consegna dossier e registro', body: 'Un dossier PDF, il budget per bando e un registro firmato che prova che i numeri non sono stati toccati.', Panel: PanelDossier },
+  { n: '01', title: 'Carichi i documenti', body: 'Bilanci, F24, visura, buste paga: QUANTO li legge voce per voce e compila il profilo dell’azienda.', Panel: PanelDocs, url: 'quanto.app/documenti' },
+  { n: '02', title: 'Stima l’anno successivo', body: 'Parte dall’ultimo bilancio e applica la variazione che risulta dai tuoi dati, con la spiegazione di ogni percentuale.', Panel: PanelForecast, url: 'quanto.app/allocazione/2' },
+  { n: '03', title: 'Trova i bandi adatti', body: 'Confronta l’azienda con la biblioteca dei bandi. Quello che il bando non dice resta dichiarato, mai inventato.', Panel: PanelBandi, url: 'quanto.app/bandi' },
+  { n: '04', title: 'Calcola il massimo', body: 'Tutti i bandi insieme, senza pagare due volte la stessa spesa, con tetti, cumulo e de minimis.', Panel: PanelAlloc, url: 'quanto.app/allocazione/4' },
+  { n: '05', title: 'Consegna dossier e registro', body: 'Un dossier PDF, il budget per bando e un registro firmato che prova che i numeri non sono stati toccati.', Panel: PanelDossier, url: 'quanto.app/dossier' },
 ]
 
 const PILLARS = [
-  ['Legge i documenti', 'Bilanci, F24, visure e buste paga diventano dati, con la pagina e la riga da cui vengono.'],
-  ['Stima l’anno', 'Previsione di bilancio per categoria di spesa, con la spiegazione di ogni percentuale.'],
-  ['Trova i bandi', 'Una biblioteca di bandi studiati dalle fonti ufficiali, confrontati con l’azienda.'],
-  ['Calcola il massimo', 'Un solo risultato: quanto può recuperare l’azienda, calcolato al centesimo.'],
+  ['Legge i documenti', 'Bilanci, F24, visure e buste paga diventano dati, con la pagina da cui vengono.'],
+  ['Stima l’anno', 'Previsione di bilancio per categoria di spesa, spiegata voce per voce.'],
+  ['Trova i bandi', 'Una biblioteca di bandi studiati dalle fonti ufficiali.'],
+  ['Calcola il massimo', 'Quanto può recuperare l’azienda, al centesimo.'],
 ]
 
 const TOOLS = [
@@ -135,15 +245,13 @@ const TOOLS = [
   ['Budget per bando', 'Il template di budget del bando, costruito dalle spese dell’azienda.'],
   ['Dossier PDF', 'Il documento da consegnare al cliente, con ogni cifra e la sua fonte.'],
   ['Registro firmato', 'Ogni calcolo lascia un’impronta in una catena firmata e verificabile.'],
-  ['Assistente interno', 'Ti accompagna passo per passo e ti chiede solo i valori che mancano, spiegandoli.'],
+  ['Assistente interno', 'Ti accompagna passo per passo e ti chiede solo i valori che mancano.'],
 ]
 
-const STATEMENT = 'Nessuna stima aleatoria. Nessun testo inventato. Solo regole ufficiali, applicate in modo deterministico e verificabile.'
-const MARQUEE = ['Bilanci', 'F24', 'Visure', 'Bandi', 'De minimis', 'Budget', 'Dossier', 'Registro firmato']
+const STATEMENT = [['Nessuna', 0], ['stima', 0], ['aleatoria.', 0], ['Nessun', 0], ['testo', 0], ['inventato.', 0], ['Solo', 0], ['regole', 1], ['ufficiali,', 1], ['applicate', 0], ['in', 0], ['modo', 0], ['deterministico.', 0]]
 
 export default function Landing({ onLogin, onAuditor, onVision }) {
   const root = useRef(null)
-  const cardNum = useRef(null)
   const [modal, setModal] = useState(null)
   const [active, setActive] = useState(0)
   const reduce = reducedMotion()
@@ -153,38 +261,35 @@ export default function Landing({ onLogin, onAuditor, onVision }) {
     const ctx = gsap.context(() => {
       const nav = root.current.querySelector('.qt-nav')
       ScrollTrigger.create({ start: 24, end: 99999, onUpdate: (s) => nav.classList.toggle('solid', s.scroll() > 24) })
-
-      // il numero della scheda del hero conta fino al valore d'esempio
-      const counter = { v: 0 }
-      const setNum = () => { if (cardNum.current) cardNum.current.textContent = `${eur(counter.v)} €` }
-      if (reduce) { counter.v = 1252698.85; setNum(); return }
+      if (reduce) return
 
       const tl = gsap.timeline({ defaults: { ease: 'power4.out' } })
-      tl.from('.hero .eyebrow', { y: 18, opacity: 0, duration: 0.8 })
-        .from('.hero h1 .w > span', { yPercent: 115, duration: 1.1, stagger: 0.05 }, '-=0.5')
+      tl.from('.hero h1 .w > span', { yPercent: 115, duration: 1.1, stagger: 0.06 })
         .from('.hero .sub', { y: 22, opacity: 0, duration: 0.9 }, '-=0.7')
         .from('.hero .ctas > *', { y: 18, opacity: 0, duration: 0.8, stagger: 0.1 }, '-=0.6')
-        .from('.hero .hero-card', { y: 60, opacity: 0, rotateX: 12, duration: 1.3 }, '-=1.0')
-        .to(counter, { v: 1252698.85, duration: 2.2, ease: 'power3.out', onUpdate: setNum }, '-=0.8')
-        .from('.hero .hero-card .bar i', { scaleX: 0, transformOrigin: 'left', duration: 1.2, stagger: 0.08 }, '-=1.6')
+        .from('.hero .window', { y: 90, opacity: 0, duration: 1.4 }, '-=0.9')
+        .from('.hero .heat-cell', { scale: 0, opacity: 0, duration: 0.5, ease: 'back.out(2)', stagger: { each: 0.012, from: 'start' } }, '-=0.9')
+        .from('.hero .float', { y: 50, opacity: 0, duration: 1, stagger: 0.15 }, '-=1.2')
 
-      // la scheda del hero si muove piano con lo scroll e segue il mouse
-      gsap.to('.hero .hero-card-wrap', { yPercent: -12, ease: 'none', scrollTrigger: { trigger: '.hero', start: 'top top', end: 'bottom top', scrub: true } })
-      const wrap = root.current.querySelector('.hero-card-wrap')
+      // la finestra del hero si raddrizza scorrendo, le due finestrelle laterali si muovono a profondità diverse
+      gsap.fromTo('.hero .window', { rotateX: 9 }, { rotateX: 0, ease: 'none', scrollTrigger: { trigger: '.window-wrap', start: 'top 85%', end: 'top 20%', scrub: true } })
+      gsap.to('.hero .float.l', { yPercent: -28, ease: 'none', scrollTrigger: { trigger: '.window-wrap', start: 'top bottom', end: 'bottom top', scrub: 1 } })
+      gsap.to('.hero .float.r', { yPercent: 22, ease: 'none', scrollTrigger: { trigger: '.window-wrap', start: 'top bottom', end: 'bottom top', scrub: 1 } })
+      const win = root.current.querySelector('.window-wrap')
       const onMove = (e) => {
-        const r = wrap.getBoundingClientRect()
+        const r = win.getBoundingClientRect()
         const x = (e.clientX - (r.left + r.width / 2)) / window.innerWidth, y = (e.clientY - (r.top + r.height / 2)) / window.innerHeight
-        gsap.to('.hero .hero-card', { rotateY: x * 10, rotateX: -y * 8, duration: 0.8, ease: 'power3.out' })
+        gsap.to('.hero .window-tilt', { rotateY: x * 6, rotateX: -y * 4, duration: 0.9, ease: 'power3.out' })
       }
       window.addEventListener('pointermove', onMove, { passive: true })
       off = () => window.removeEventListener('pointermove', onMove)
 
-      // i titoli di sezione e le schede entrano scorrendo
-      gsap.utils.toArray('.reveal').forEach((el) => gsap.from(el, { y: 44, opacity: 0, filter: 'blur(10px)', duration: 1, ease: 'power3.out', scrollTrigger: { trigger: el, start: 'top 86%' } }))
-      ScrollTrigger.batch('.reveal-card', { start: 'top 88%', onEnter: (els) => gsap.from(els, { y: 50, opacity: 0, filter: 'blur(8px)', duration: 0.9, stagger: 0.09, ease: 'power3.out', overwrite: true }) })
+      gsap.utils.toArray('.reveal').forEach((el) => gsap.from(el, { y: 40, opacity: 0, duration: 0.9, ease: 'power3.out', scrollTrigger: { trigger: el, start: 'top 88%' } }))
+      ScrollTrigger.batch('.reveal-card', { start: 'top 90%', onEnter: (els) => gsap.from(els, { y: 44, opacity: 0, duration: 0.85, stagger: 0.09, ease: 'power3.out', overwrite: true }) })
 
-      // la frase che si accende parola per parola
-      gsap.fromTo('.statement .sw', { opacity: 0.14 }, { opacity: 1, stagger: 0.12, ease: 'none', scrollTrigger: { trigger: '.statement', start: 'top 70%', end: 'bottom 55%', scrub: true } })
+      // la frase si «accende» parola per parola
+      gsap.fromTo('.statement .sw', { opacity: 0.16 }, { opacity: 1, stagger: 0.1, ease: 'none', scrollTrigger: { trigger: '.statement', start: 'top 72%', end: 'bottom 55%', scrub: true } })
+      gsap.fromTo('.statement .hl', { backgroundSize: '0% 0.62em' }, { backgroundSize: '100% 0.62em', ease: 'none', scrollTrigger: { trigger: '.statement', start: 'top 45%', end: 'bottom 50%', scrub: true } })
 
       // «come funziona»: la sezione resta ferma e i cinque passi scorrono
       const mm = gsap.matchMedia()
@@ -195,17 +300,15 @@ export default function Landing({ onLogin, onAuditor, onVision }) {
         })
       })
 
-      // numeri della sezione strumenti
       gsap.utils.toArray('.count').forEach((el) => {
         const to = Number(el.dataset.to); const o = { v: 0 }
-        gsap.to(o, { v: to, duration: 1.6, ease: 'power2.out', onUpdate: () => { el.textContent = Math.round(o.v) }, scrollTrigger: { trigger: el, start: 'top 90%', once: true } })
+        gsap.to(o, { v: to, duration: 1.6, ease: 'power2.out', onUpdate: () => { el.textContent = Math.round(o.v) }, scrollTrigger: { trigger: el, start: 'top 92%', once: true } })
       })
-
     }, root)
     return () => { off(); ctx.revert() }
   }, [reduce])
 
-  const split = (text) => text.split(' ').map((w, i) => <span key={i} className="w"><span>{w}</span></span>)
+  const split = (nodes) => nodes.map((w, i) => <span key={i} className="w"><span>{w}</span></span>)
 
   return (
     <div className="qt-land" ref={root}>
@@ -226,52 +329,54 @@ export default function Landing({ onLogin, onAuditor, onVision }) {
 
       <header className="hero">
         <Suspense fallback={null}><LiquidHero reduce={reduce} /></Suspense>
-        <div className="wrap hero-grid">
-          <div className="hero-copy">
-            <span className="eyebrow"><i />Per studi di commercialisti e boutique di finanza agevolata</span>
-            <h1>{split('Il motore di calcolo per la finanza agevolata.')}</h1>
-            <p className="sub">Carichi i bilanci del cliente. QUANTO stima l’anno successivo, trova i bandi, applica le regole ufficiali e calcola il massimo recuperabile: al centesimo, con la fonte di ogni numero.</p>
-            <div className="ctas">
-              <button className="btn-solid big" onClick={() => setModal('register')}>Inizia gratis<ArrowRight size={16} /></button>
-              <a className="btn-line big" href="#come-funziona">Come funziona</a>
-            </div>
-            <p className="fineprint">Gratuito oggi. Nessuna carta di credito richiesta.</p>
+        <div className="wrap hero-inner">
+          <h1>{split(['Il', 'motore', 'di', 'calcolo', 'per', 'la', <mark key="m">finanza agevolata.</mark>])}</h1>
+          <p className="sub">Dai bilanci dei tuoi clienti al massimo recuperabile, al centesimo.</p>
+          <div className="ctas">
+            <button className="btn-solid big" onClick={() => setModal('register')}>Inizia gratis<ArrowRight size={16} /></button>
+            <a className="btn-line big" href="#come-funziona">Come funziona</a>
           </div>
-          <div className="hero-card-wrap">
-            <Glass className="hero-card">
-              <div className="hc-top"><span>ALLOCAZIONE · ESERCIZIO 2027</span><span>azienda di prova</span></div>
-              <div className="hc-label">POTENZIALE MASSIMO · TUTTI I BANDI INSIEME</div>
-              <div className="hc-num" ref={cardNum}>{eur(0)} €</div>
-              <div className="hc-sub">fino a <b>1.718.015,07 €</b> con tutte le maggiorazioni</div>
-              {[['Personale', 70], ['Consulenze', 70], ['Beni strumentali', 100], ['Formazione', 14]].map(([l, v]) => (
-                <div key={l} className="bar"><span>{l}</span><div><i style={{ width: `${v}%` }} /></div></div>
-              ))}
-              <div className="hc-foot"><span className="pill g"><Check size={12} />Regole ufficiali verificate</span><span className="pill v">De minimis stimato</span></div>
-            </Glass>
-            <p className="caption">Illustrazione: i valori sono quelli dell’azienda di prova.</p>
-          </div>
-        </div>
-        <div className="scroll-hint" aria-hidden="true"><i /></div>
-      </header>
+          <p className="fineprint">Gratuito oggi. Nessuna carta di credito richiesta.</p>
 
-      <div className="marquee" aria-hidden="true">
-        <div className="track">{[...MARQUEE, ...MARQUEE, ...MARQUEE, ...MARQUEE].map((w, i) => <span key={i}>{w}<em>◆</em></span>)}</div>
-      </div>
+          <div className="window-wrap">
+            <div className="float l"><AllocationMockup /></div>
+            <div className="float r"><DeterministicMockup /></div>
+            <div className="window-tilt">
+              <div className="window">
+                <Chrome url="quanto.app/budget" />
+                <div className="body">
+                  <div className="top"><span className="name">Beni strumentali — Nuova Sabatini</span><span className="score mono">46/60 superati</span></div>
+                  <div className="heat-grid">{DEMO_OUTCOMES.map((o, i) => <div key={i} className="heat-cell" style={{ background: CELL_COLOR[o] }} title={`#${i + 1}`} />)}</div>
+                  <div className="heat-legend">
+                    <span><i style={{ background: CELL_COLOR.OK }} />superato</span>
+                    <span><i style={{ background: CELL_COLOR.ADJUSTED }} />ridotto</span>
+                    <span><i style={{ background: CELL_COLOR.REJECTED }} />respinto</span>
+                    <span><i style={{ background: CELL_COLOR.WAIT }} />da documentare</span>
+                    <span><i style={{ background: CELL_COLOR.NONE }} />non valutato</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <p className="fineprint" style={{ marginTop: 18 }}>Illustrazione dell’interfaccia: i valori sono d’esempio.</p>
+        </div>
+      </header>
 
       <section className="sect" id="cosa-fa"><div className="wrap">
         <div className="sect-head reveal"><span className="kicker">Cosa fa</span><h2>Dal bilancio al massimo recuperabile, in un solo posto</h2></div>
         <div className="pillars">
           {PILLARS.map(([t, b], i) => (
-            <Glass key={t} className="pillar reveal-card"><span className="num">0{i + 1}</span><h3>{t}</h3><p>{b}</p></Glass>
+            <div key={t} className="pillar reveal-card"><span className="step-n">{i + 1}</span><h3>{t}</h3><p>{b}</p></div>
           ))}
         </div>
       </div></section>
 
       <section className="statement"><div className="wrap">
-        <p>{STATEMENT.split(' ').map((w, i) => <span key={i} className="sw">{w} </span>)}</p>
+        <p>{STATEMENT.map(([w, hl], i) => <span key={i} className={`sw${hl ? ' hl' : ''}`}>{w} </span>)}</p>
       </div></section>
 
-      <section className="how" id="come-funziona">
+      <section className="how dark" id="come-funziona">
+        <div className="how-glow" aria-hidden="true" />
         <div className="how-pin"><div className="wrap how-grid">
           <div className="how-left">
             <span className="kicker">Come funziona</span>
@@ -280,21 +385,29 @@ export default function Landing({ onLogin, onAuditor, onVision }) {
               {STEPS.map((s, i) => (
                 <li key={s.n} className={i === active ? 'on' : ''}>
                   <span className="n">{s.n}</span>
-                  <div><h3>{s.title}</h3><p>{s.body}</p><div className="inline-panel"><s.Panel /></div></div>
+                  <div><h3>{s.title}</h3><p>{s.body}</p><div className="inline-panel"><div className="glass win-glass"><s.Panel /></div></div></div>
                 </li>
               ))}
             </ol>
           </div>
           <div className="how-right">
-            <div className="how-stage">{STEPS.map((s, i) => <div key={s.n} className={`how-panel ${i === active ? 'on' : ''}`}><s.Panel /></div>)}</div>
+            <div className="how-stage">{STEPS.map((s, i) => (
+              <div key={s.n} className={`how-panel ${i === active ? 'on' : ''}`}>
+                <div className="how-window"><Chrome url={s.url} /><div className="glass win-glass"><s.Panel /></div></div>
+              </div>
+            ))}</div>
             <p className="caption">Illustrazioni con i dati dell’azienda di prova.</p>
           </div>
         </div></div>
       </section>
 
-      <section className="sect light" id="strumenti"><div className="wrap">
+      <section className="sect" id="strumenti"><div className="wrap">
         <div className="sect-head reveal"><span className="kicker">Gli strumenti</span><h2>Tutto quello che serve per un cliente, già collegato</h2>
           <p>Un account per lo studio, un flusso dedicato per ogni azienda cliente. <b className="count" data-to="60">60</b> controlli per bando, ognuno con la fonte da cui viene la regola.</p></div>
+        <div className="funziona-rows">
+          <div className="funziona-row"><div className="fr-text"><span className="step-n">A</span><h3>Un account, tutti i clienti</h3><p>Ogni azienda ha il suo flusso: documenti, profilo, bandi e piano restano separati e sempre aggiornati.</p></div><div className="fr-visual"><ClientsMockup /></div></div>
+          <div className="funziona-row rev"><div className="fr-text"><span className="step-n">B</span><h3>60 controlli per bando</h3><p>Vedi subito cosa passa, cosa viene ridotto e cosa va documentato, prima di presentare la domanda.</p></div><div className="fr-visual"><HeatMockup /></div></div>
+        </div>
         <div className="bento">
           {TOOLS.map(([t, b], i) => (
             <div key={t} className={`tool reveal-card t${i}`}><span className="idx">{String(i + 1).padStart(2, '0')}</span><h3>{t}</h3><p>{b}</p></div>
@@ -302,41 +415,44 @@ export default function Landing({ onLogin, onAuditor, onVision }) {
         </div>
       </div></section>
 
-      <section className="sect dark"><div className="wrap">
-        <div className="sect-head center reveal"><span className="kicker">Perché fidarsi</span><h2>Tre principi, non uno slogan</h2></div>
-        <div className="trio">
-          <Glass className="trio-item reveal-card"><ShieldCheck size={26} /><h3>Deterministico</h3><p>Stesso dato, stesso risultato. I calcoli non usano modelli generativi: solo regole tracciabili, riga per riga.</p></Glass>
-          <Glass className="trio-item reveal-card"><FileText size={26} /><h3>Fonti dichiarate</h3><p>Ogni regola cita da dove viene, un decreto o una circolare, e quanto ci si può fidare di quella lettura.</p></Glass>
-          <Glass className="trio-item reveal-card"><Link2 size={26} /><h3>Verificabile</h3><p>Un registro firmato a prova di manomissione: chiunque può controllare che un dossier non sia stato toccato.</p></Glass>
+      <section className="sect dark">
+        <ChainField rows={2} perRow={9} seed={41} variant="faint" />
+        <div className="wrap">
+          <div className="sect-head center reveal"><span className="kicker">Perché fidarsi</span><h2>Tre principi, non uno slogan</h2></div>
+          <div className="trio">
+            <div className="trio-item reveal-card"><DeterministicMockup /><h3>Deterministico</h3><p>Stesso dato, stesso risultato. I calcoli non usano modelli generativi: solo regole tracciabili.</p></div>
+            <div className="trio-item reveal-card"><SourceMockup /><h3>Fonti dichiarate</h3><p>Ogni regola cita da dove viene e quanto ci si può fidare di quella lettura.</p></div>
+            <div className="trio-item reveal-card"><HashMockup /><h3>Verificabile</h3><p>Un registro firmato a prova di manomissione: chi vuole può controllarlo.</p></div>
+          </div>
         </div>
-      </div></section>
+      </section>
 
-      <section className="sect light" id="per-chi"><div className="wrap">
+      <section className="sect" id="per-chi"><div className="wrap">
         <div className="sect-head reveal"><span className="kicker">Per chi è</span><h2>Per chi segue molti clienti e non può sbagliare un numero</h2></div>
-        <div className="who">
-          <div className="who-item reveal-card"><h3>Studi di commercialisti</h3><p>Decine di imprese clienti, un account solo. Per ognuna, il potenziale dei bandi pronto da mostrare con la fonte di ogni regola.</p></div>
-          <div className="who-item reveal-card"><h3>Boutique di finanza agevolata</h3><p>Dal bilancio al budget del bando, sapendo subito cosa verrebbe ridotto o respinto prima di presentare la domanda.</p></div>
-          <div className="who-item reveal-card"><h3>Più clienti, stesso tempo</h3><p>Le ore che andavano nella ricerca manuale e nei fogli di calcolo tornano al lavoro che solo lo studio può fare.</p></div>
+        <div className="trio">
+          <div className="trio-item reveal-card"><ClientsMockup /><h3>Studi di commercialisti</h3><p>Decine di imprese clienti, un account solo, la fonte di ogni regola pronta da mostrare.</p></div>
+          <div className="trio-item reveal-card"><HeatMockup /><h3>Boutique di finanza agevolata</h3><p>Dal bilancio al budget del bando, sapendo subito cosa verrebbe ridotto o respinto.</p></div>
+          <div className="trio-item reveal-card"><AllocationMockup /><h3>Più clienti, stesso tempo</h3><p>Le ore della ricerca manuale tornano al lavoro che solo lo studio può fare.</p></div>
         </div>
       </div></section>
 
-      <section className="sect dark" id="prezzi"><div className="wrap">
+      <section className="sect tint" id="prezzi"><div className="wrap">
         <div className="sect-head center reveal"><span className="kicker">Prezzi</span><h2>Gratuito oggi. Onesto sempre.</h2>
           <p>QUANTO è gratuito in questa fase. Più avanti arriveranno piani a pagamento per studi e team: chi si iscrive ora userà il prodotto gratuitamente più a lungo.</p></div>
         <div className="pricing">
-          <Glass className="price-card reveal-card hot">
+          <div className="price-card reveal-card hot">
             <div className="tier">Oggi</div><div className="amount">Gratis</div>
             <ul><li>Profilo azienda e lettura dei documenti</li><li>Previsione di bilancio e biblioteca dei bandi</li><li>Allocazione, de minimis e dossier</li><li>Registro firmato e verifica</li></ul>
             <button className="btn-solid big" onClick={() => setModal('register')}>Inizia gratis</button>
-          </Glass>
-          <Glass className="price-card reveal-card dim">
+          </div>
+          <div className="price-card reveal-card dim">
             <div className="tier">Presto</div><div className="amount">In arrivo</div>
             <ul><li>Piani a consumo per studi e team</li><li>Prezzi non ancora definiti</li></ul>
-          </Glass>
+          </div>
         </div>
       </div></section>
 
-      <section className="cta-final">
+      <section className="cta-final dark">
         <div className="orb" aria-hidden="true" />
         <div className="wrap reveal">
           <h2>Prima di consegnare il prossimo piano al tuo cliente, calcolalo con QUANTO.</h2>
