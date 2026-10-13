@@ -131,19 +131,21 @@ class Doc:
         self.story.append(PageBreak())
 
     # tabelle
-    def table(self, rows: List[List[str]], widths: Sequence[float], head: bool = True, align_right_from: int = 1, zebra: bool = False, bold_rows: Sequence[int] = (), font: float = 8.4,
+    def table(self, rows: List[List[str]], widths: Sequence[float], head: bool = True, align_right_from: int = 1, zebra: bool = False, bold_rows: Sequence[int] = (), font: float = 9,
               line_below: bool = True, keep: bool = False) -> None:
-        """Tabella di testo: la prima colonna a sinistra, le altre (da ``align_right_from``) allineate a destra come gli importi."""
+        """Tabella di testo: la prima colonna a sinistra, le altre (da ``align_right_from``) allineate a destra come gli importi. ``font`` in punti (9 = normale, 7-7,5 = tabelle fitte)."""
+        st_map = S if font == 9 else {k: ParagraphStyle(f"{k}{font}", parent=S[k], fontSize=font, leading=font * 1.27) for k in ("cell", "cellb", "num", "numb")}
         data = []
         for r, row in enumerate(rows):
             bold = (head and r == 0) or r in bold_rows
             cells = []
             for c, v in enumerate(row):
-                st = S["numb" if bold else "num"] if c >= align_right_from else S["cellb" if bold else "cell"]
+                st = st_map["numb" if bold else "num"] if c >= align_right_from else st_map["cellb" if bold else "cell"]
                 cells.append(Paragraph(str(v), st))
             data.append(cells)
         t = Table(data, colWidths=[w * mm for w in widths], repeatRows=1 if head else 0)
-        style = [("VALIGN", (0, 0), (-1, -1), "TOP"), ("LEFTPADDING", (0, 0), (-1, -1), 2.5), ("RIGHTPADDING", (0, 0), (-1, -1), 2.5), ("TOPPADDING", (0, 0), (-1, -1), 2.6), ("BOTTOMPADDING", (0, 0), (-1, -1), 2.6)]
+        pad = 2.6 if font == 9 else max(1.3, font * 0.26)
+        style = [("VALIGN", (0, 0), (-1, -1), "TOP"), ("LEFTPADDING", (0, 0), (-1, -1), 2.5), ("RIGHTPADDING", (0, 0), (-1, -1), 2.5), ("TOPPADDING", (0, 0), (-1, -1), pad), ("BOTTOMPADDING", (0, 0), (-1, -1), pad)]
         if line_below:
             style.append(("LINEBELOW", (0, 0), (-1, -1), 0.25, colors.HexColor("#d6d6cc")))
         if head:
@@ -154,16 +156,18 @@ class Doc:
         self.story.append(KeepTogether(t) if keep else t)
         self.story.append(Spacer(1, 6))
 
-    def statement(self, rows: List[Tuple[str, List[str], int, bool]], widths: Sequence[float], header: Optional[List[str]] = None) -> None:
+    def statement(self, rows: List[Tuple[str, List[str], int, bool]], widths: Sequence[float], header: Optional[List[str]] = None, font: float = 9) -> None:
         """Prospetto di bilancio: righe (etichetta, importi, livello di rientro 0-3, grassetto). Le etichette rientrano come nello schema civilistico."""
+        st_map = S if font == 9 else {k: ParagraphStyle(f"{k}{font}", parent=S[k], fontSize=font, leading=font * 1.27) for k in ("cell", "cellb", "num", "numb")}
         data = []
         if header:
-            data.append([Paragraph(h, S["numb"] if i else S["cellb"]) for i, h in enumerate(header)])
+            data.append([Paragraph(h, st_map["numb"] if i else st_map["cellb"]) for i, h in enumerate(header)])
         for label, vals, level, bold in rows:
-            st_l = ParagraphStyle("l", parent=S["cellb" if bold else "cell"], leftIndent=level * 9)
-            data.append([Paragraph(label, st_l)] + [Paragraph(v, S["numb" if bold else "num"]) for v in vals])
+            st_l = ParagraphStyle("l", parent=st_map["cellb" if bold else "cell"], leftIndent=level * 9)
+            data.append([Paragraph(label, st_l)] + [Paragraph(v, st_map["numb" if bold else "num"]) for v in vals])
         t = Table(data, colWidths=[w * mm for w in widths], repeatRows=1 if header else 0)
-        style = [("VALIGN", (0, 0), (-1, -1), "TOP"), ("LEFTPADDING", (0, 0), (-1, -1), 2), ("RIGHTPADDING", (0, 0), (-1, -1), 2.5), ("TOPPADDING", (0, 0), (-1, -1), 2.2), ("BOTTOMPADDING", (0, 0), (-1, -1), 2.2)]
+        pad = 2.2 if font == 9 else max(1.1, font * 0.22)
+        style = [("VALIGN", (0, 0), (-1, -1), "TOP"), ("LEFTPADDING", (0, 0), (-1, -1), 2), ("RIGHTPADDING", (0, 0), (-1, -1), 2.5), ("TOPPADDING", (0, 0), (-1, -1), pad), ("BOTTOMPADDING", (0, 0), (-1, -1), pad)]
         if header:
             style += [("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#ecece4")), ("LINEBELOW", (0, 0), (-1, 0), 0.6, LINE)]
         for k, (_, _, level, bold) in enumerate(rows, 1 if header else 0):

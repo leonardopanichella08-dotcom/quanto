@@ -17,7 +17,7 @@ from dataclasses import dataclass
 from typing import List, Optional, Protocol
 
 MIN_CHARS_PER_PAGE = 40          # sotto questa soglia la pagina è considerata una scansione
-MAX_PAGES = 60
+MAX_PAGES = 250
 
 
 @dataclass

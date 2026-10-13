@@ -5,6 +5,7 @@ from __future__ import annotations
 from pathlib import Path
 from typing import List, Tuple
 
+from . import bil_all, bil_nota, bil_rel
 from . import model as M
 from .pdfkit import Doc, cents, pct, units
 
@@ -46,8 +47,9 @@ def make_balance(path: Path, y: int) -> Path:
              ["Unità di misura", "Euro, senza cifre decimali; il conto economico analitico (Allegato A) è espresso in euro e centesimi"],
              ["Organo amministrativo", "Amministratore unico: Giulia Ferraris"], ["Approvazione", f"Assemblea ordinaria dei soci del {approved}"]], [52, W - 52], head=False, align_right_from=9, zebra=True)
     d.H1("Indice del fascicolo")
-    d.B(["Stato patrimoniale (attivo e passivo)", "Conto economico", "Rendiconto finanziario (metodo indiretto)", "Nota integrativa", "Relazione sulla gestione",
-         f"Verbale di approvazione dell'assemblea del {approved}", "Allegato A - Conto economico analitico per conti"])
+    d.B(["Stato patrimoniale (attivo e passivo)", "Conto economico", "Rendiconto finanziario (metodo indiretto)", "Nota integrativa (criteri, movimenti, composizione delle voci, imposte, personale)", "Relazione sulla gestione (riclassificazioni, indicatori, rischi)",
+         f"Verbale di approvazione dell'assemblea del {approved}", "Allegato A - Conto economico analitico per conti", "Allegato B - Stato patrimoniale analitico per conti", "Allegato C - Bilancio di verifica", "Allegato D - Partitario clienti",
+         "Allegato E - Partitario fornitori", "Allegato F - Registro dei cespiti e piano di ammortamento", "Allegato G - Andamento mensile dell'esercizio", "Allegato H - Liquidazioni IVA periodiche", "Ricevuta di deposito e dichiarazione di conformità"])
     d.P(f"Il presente fascicolo è stato predisposto dall'organo amministrativo sulla base delle scritture contabili al 31/12/{y}, regolarmente tenute, e verrà depositato presso il Registro delle Imprese di Torino nei termini di legge, "
         "in formato elettronico secondo la tassonomia XBRL in vigore.")
     d.page_break()
@@ -220,203 +222,12 @@ def make_balance(path: Path, y: int) -> Path:
         d.title_block("RENDICONTO FINANZIARIO", "Per il primo esercizio presentato il rendiconto non si redige: manca il bilancio comparativo di apertura nel presente fascicolo.")
     d.page_break()
 
-    # ------------------------------------------------------------------ nota integrativa
-    d.title_block("NOTA INTEGRATIVA", f"al bilancio chiuso il 31/12/{y}")
-    d.H1("1. Premessa e struttura del bilancio")
-    d.P(f"Il bilancio dell'esercizio chiuso al 31/12/{y}, di cui la presente nota integrativa costituisce parte integrante ai sensi dell'art. 2423 c.c., è stato redatto in conformità alle disposizioni degli articoli 2423 e seguenti del codice civile, "
-        "interpretate e integrate dai principi contabili nazionali emanati dall'Organismo Italiano di Contabilità (OIC) nella versione vigente. Lo stato patrimoniale e il conto economico sono redatti secondo gli schemi degli artt. 2424 e 2425 c.c. "
-        "e il rendiconto finanziario secondo l'art. 2425-ter c.c. e l'OIC 10. La società, pur avendo i requisiti dimensionali per redigere il bilancio in forma abbreviata ai sensi dell'art. 2435-bis c.c., ha scelto di redigerlo in forma ordinaria "
-        "per fornire un'informativa più completa ai soci e agli istituti di credito.")
-    d.P("Il bilancio è espresso in unità di euro, senza cifre decimali, ai sensi dell'art. 2423 c.c.; le differenze di arrotondamento sono state riportate nella voce di patrimonio netto «Riserva straordinaria» e, ove necessario, tra gli altri ricavi o costi. "
-        "Per ogni voce dello stato patrimoniale e del conto economico è indicato l'importo dell'esercizio precedente, perfettamente comparabile: nell'esercizio non si sono verificati casi eccezionali che abbiano reso necessaria una deroga ai sensi dell'art. 2423, comma 5, c.c.")
-    d.H1("2. Criteri di valutazione")
-    d.P("I criteri di valutazione sono ispirati ai principi generali di prudenza, competenza economica e prospettiva della continuazione dell'attività, tenendo conto della funzione economica dell'elemento dell'attivo o del passivo considerato (art. 2423-bis c.c.). "
-        "I criteri applicati non sono variati rispetto all'esercizio precedente. Si illustrano di seguito i principali.")
-    d.P("<b>Immobilizzazioni immateriali.</b> Sono iscritte al costo di acquisto o di produzione, comprensivo degli oneri accessori, e ammortizzate in quote costanti in relazione alla residua possibilità di utilizzazione. "
-        "I costi di sviluppo, relativi alla piattaforma software prodotta internamente, sono capitalizzati quando il progetto è chiaramente definito, i costi sono identificabili e misurabili, il prodotto è tecnicamente realizzabile e vi è la prospettiva di ricavi futuri; "
-        "sono ammortizzati in cinque anni a partire dal momento in cui il prodotto è commercializzabile. Il software applicativo acquistato è ammortizzato in tre anni, le licenze e i marchi in cinque anni, le migliorie su beni di terzi in base alla minore tra la durata residua del contratto di locazione e la vita utile.")
-    d.P("<b>Immobilizzazioni materiali.</b> Sono iscritte al costo di acquisto, comprensivo degli oneri accessori di diretta imputazione, e sono sistematicamente ammortizzate in ogni esercizio sulla base di aliquote economico-tecniche determinate in relazione alla residua possibilità di utilizzazione dei beni. "
-        "Le aliquote applicate sono: impianti e macchinario 15%; attrezzature industriali e commerciali (server e apparati di test) 20%; macchine d'ufficio elettroniche 20%; mobili e arredi 12%; autovetture e mezzi di trasporto interni 25%. "
-        "Nell'esercizio di entrata in funzione dei beni l'aliquota è ridotta alla metà, ritenendo che ciò approssimi adeguatamente l'utilizzo effettivo. I costi di manutenzione ordinaria sono imputati integralmente al conto economico.")
-    d.P("<b>Immobilizzazioni finanziarie.</b> Sono costituite da depositi cauzionali versati a fronte del contratto di locazione della sede, iscritti al valore nominale che coincide con il presumibile valore di realizzo.")
-    d.P("<b>Rimanenze.</b> I lavori in corso su ordinazione si riferiscono a commesse di sviluppo software di durata infrannuale non ancora ultimate alla data di bilancio e sono valutati al costo di produzione sostenuto (personale diretto, costi di terzi direttamente imputabili e quota di costi generali di produzione), "
-        "senza rilevazione di margini, in quanto le commesse hanno durata inferiore a dodici mesi.")
-    d.P("<b>Crediti.</b> Sono iscritti al presumibile valore di realizzo, ottenuto rettificando il valore nominale con un fondo svalutazione stimato sulla base dell'anzianità dei crediti e delle perdite attese. Data la scadenza inferiore a dodici mesi e l'irrilevanza degli effetti, non si è applicato il criterio del costo ammortizzato né l'attualizzazione.")
-    d.P("<b>Disponibilità liquide, ratei e risconti.</b> Le disponibilità liquide sono iscritte al valore nominale. I ratei e i risconti sono determinati secondo il principio della competenza economica e temporale, mediante la ripartizione di costi e proventi comuni a due o più esercizi.")
-    d.P("<b>Trattamento di fine rapporto.</b> Rappresenta l'effettivo debito maturato verso i dipendenti in conformità alla legge e ai contratti di lavoro vigenti, al netto degli acconti erogati e delle quote destinate alla previdenza complementare e al Fondo di Tesoreria dell'INPS.")
-    d.P("<b>Debiti.</b> Sono rilevati al valore nominale, che coincide con il valore di estinzione; i debiti scadenti oltre i dodici mesi, derivanti da un finanziamento a tasso di mercato, non sono stati attualizzati per l'irrilevanza degli effetti.")
-    d.P("<b>Ricavi e costi.</b> I ricavi per servizi e per canoni sono rilevati secondo il principio di competenza, in base al periodo di effettiva fruizione da parte del cliente; i ricavi per sviluppi su commessa sono rilevati alla consegna e accettazione del lavoro. Costi e ricavi sono esposti al netto di resi, sconti, abbuoni e premi.")
-    d.P("<b>Imposte sul reddito.</b> Sono stanziate in base alla previsione dell'onere fiscale corrente (IRES e IRAP) applicando le aliquote vigenti, tenendo conto delle esenzioni e delle agevolazioni applicabili. Non sono state rilevate imposte differite o anticipate in quanto le differenze temporanee sono irrilevanti.")
-
-    d.H1("3. Movimenti delle immobilizzazioni")
-    d.H2(f"Immobilizzazioni immateriali (esercizio {y})")
-    rows = [["Classe", "Costo storico 1/1", "Fondo amm.to 1/1", "Valore netto 1/1", "Acquisizioni", "Ammortamento", "Valore netto 31/12"]]
-    for k, r in enumerate(ia):
-        rows.append([M.INTANG_CLASSES[k][0], U(r["cost_open"]), U(r["fund_open"]), U(r["net_open"]), U(r["capex"]), U(-r["dep"]), U(r["net_close"])])
-    rows.append(["Totale", U(sum(r["cost_open"] for r in ia)), U(sum(r["fund_open"] for r in ia)), U(sum(r["net_open"] for r in ia)), U(sum(r["capex"] for r in ia)), U(-sum(r["dep"] for r in ia)), U(sum(r["net_close"] for r in ia))])
-    d.table(rows, [W - 96, 16, 16, 16, 16, 16, 16], bold_rows=[len(rows) - 1], font=7.6)
-    d.small(f"Le acquisizioni di «Costi di sviluppo» ({U(ia[0]['capex'])} euro) sono i costi sostenuti per lo sviluppo interno della piattaforma Atlas (personale dedicato e consulenze tecniche), capitalizzati con contropartita la voce A.4 del conto economico.")
-    d.H2(f"Immobilizzazioni materiali (esercizio {y})")
-    rows = [["Classe", "Costo storico 1/1", "Fondo amm.to 1/1", "Valore netto 1/1", "Acquisizioni", "Ammortamento", "Valore netto 31/12"]]
-    for k, r in enumerate(ta):
-        rows.append([M.TANG_CLASSES[k][0], U(r["cost_open"]), U(r["fund_open"]), U(r["net_open"]), U(r["capex"]), U(-r["dep"]), U(r["net_close"])])
-    rows.append(["Totale", U(sum(r["cost_open"] for r in ta)), U(sum(r["fund_open"] for r in ta)), U(sum(r["net_open"] for r in ta)), U(sum(r["capex"] for r in ta)), U(-sum(r["dep"] for r in ta)), U(sum(r["net_close"] for r in ta))])
-    d.table(rows, [W - 96, 16, 16, 16, 16, 16, 16], bold_rows=[len(rows) - 1], font=7.6)
-    d.P(f"Nell'esercizio non sono state effettuate cessioni né rivalutazioni di immobilizzazioni, né svalutazioni per perdite durevoli di valore. Le immobilizzazioni finanziarie ({U(b['deposits'])} euro) sono invariate: depositi cauzionali versati al locatore della sede di via Garibaldi.")
-
-    d.H1("4. Attivo circolante, ratei e risconti")
-    d.P(f"<b>Lavori in corso su ordinazione.</b> Ammontano a {U(b['wip'])} euro (esercizio precedente: {U(b0['wip']) if b0 else U(M.WIP[0])}) e si riferiscono a {3 + y % 3} commesse in corso di esecuzione al 31/12/{y}, tutte con consegna prevista entro il primo semestre dell'esercizio successivo.")
-    d.H2("Crediti dell'attivo circolante")
-    rows = [["Voce", f"31/12/{y}", f"31/12/{y - 1}", "Variazione", "Entro 12 mesi", "Oltre 12 mesi"]]
-    for label, key in [("Crediti verso clienti", "trade"), ("Crediti tributari", "tax_cr"), ("Crediti verso altri", "other_cr")]:
-        rows.append([label, U(b[key]), U(b0[key]) if b0 else "", U(b[key] - b0[key]) if b0 else "", U(b[key]), "-"])
-    rows.append(["Totale crediti", U(b["receivables"]), U(b0["receivables"]) if b0 else "", U(b["receivables"] - b0["receivables"]) if b0 else "", U(b["receivables"]), "-"])
-    d.table(rows, [W - 100, 20, 20, 20, 20, 20], bold_rows=[len(rows) - 1])
-    invoiced = b["trade"] - b["trade_invoices_to_issue"]
-    d.P(f"I crediti verso clienti ({U(b['trade'])} euro) sono composti da fatture emesse per {U(invoiced + round(b['trade'] * 0.0125))} euro, da fatture da emettere per {U(b['trade_invoices_to_issue'])} euro "
-        f"e sono esposti al netto di un fondo svalutazione crediti di {U(round(b['trade'] * 0.0125))} euro, movimentato nell'esercizio per l'accantonamento di {U(p['b10d'])} euro iscritto alla voce B.10.d del conto economico. "
-        "La ripartizione geografica dei crediti verso clienti è la seguente: Italia 86%, altri Paesi dell'Unione Europea 10%, extra Unione Europea 4%.")
-    d.P(f"I crediti tributari ({U(b['tax_cr'])} euro) comprendono il credito d'imposta per attività di ricerca e sviluppo maturato sugli investimenti dell'esercizio, da utilizzare in compensazione orizzontale in F24, e il credito IVA. "
-        "I crediti verso altri sono costituiti da anticipi a fornitori e da anticipi ai dipendenti per trasferte.")
-    d.P(f"<b>Disponibilità liquide.</b> Ammontano a {U(b['cash'])} euro (esercizio precedente: {U(b0['cash']) if b0 else '-'}) e sono costituite da saldi attivi di conto corrente presso due istituti di credito per {U(b['cash_bank'])} euro e da denaro in cassa per {U(b['cash_cash'])} euro. "
-        "Non vi sono vincoli sulle disponibilità liquide.")
-    d.P(f"<b>Ratei e risconti attivi.</b> Ammontano a {U(b['prepaid'])} euro e si riferiscono per il 58% a risconti su licenze software e servizi cloud con competenza dell'esercizio successivo, per il 24% a premi assicurativi e per il restante 18% a canoni di locazione operativa anticipati. "
-        "Non vi sono ratei e risconti con durata superiore a cinque anni.")
-
-    d.H1("5. Patrimonio netto")
-    prev_net = p0["net"] if p0 else None
-    div = M.DIVIDENDS.get(y, 0)
-    rows = [["", "Capitale", "Riserva legale", "Riserva straordinaria", "Utile dell'esercizio", "Totale"]]
-    if b0:
-        rows.append([f"Saldo al 31/12/{y - 1}", U(b0["pn_capital"]), U(b0["pn_legal"]), U(b0["pn_extra"]), U(b0["pn_net"]), U(b0["pn"])])
-        rows.append([f"Destinazione dell'utile {y - 1}: dividendi distribuiti", "-", "-", "-", U(-div), U(-div)])
-        rows.append([f"Destinazione dell'utile {y - 1}: a riserva straordinaria", "-", "-", U(prev_net - div), U(-(prev_net - div)), "-"])
-        rows.append([f"Utile dell'esercizio {y}", "-", "-", "-", U(p["net"]), U(p["net"])])
-    else:
-        rows.append(["Saldo al 31/12/2022", U(b["pn_capital"]), U(b["pn_legal"]), U(b["pn_extra"]), U(b["pn_net"]), U(b["pn"])])
-    rows.append([f"Saldo al 31/12/{y}", U(b["pn_capital"]), U(b["pn_legal"]), U(b["pn_extra"]), U(b["pn_net"]), U(b["pn"])])
-    d.table(rows, [W - 100, 20, 20, 20, 20, 20], bold_rows=[len(rows) - 1])
-    d.P(f"Il capitale sociale, pari a {U(b['pn_capital'])} euro, è suddiviso in due quote: Giulia Ferraris, 60% (30.000 euro), e Marco Bertolotti, 40% (20.000 euro). La riserva legale ha raggiunto il quinto del capitale sociale (art. 2430 c.c.) e non è più alimentata. "
-        "La riserva straordinaria è libera e disponibile per ogni utilizzo, inclusi aumenti di capitale e distribuzione ai soci; non sono presenti riserve di rivalutazione né riserve in sospensione d'imposta.")
-
-    d.H1("6. Trattamento di fine rapporto e debiti")
-    tfr_used = (b0["tfr"] if b0 else 0) + p["b9c"] - b["tfr"]
-    if b0:
-        d.table([["Movimentazione del fondo TFR", "Importo"], [f"Saldo al 31/12/{y - 1}", U(b0["tfr"])], ["Accantonamento dell'esercizio (B.9.c)", U(p["b9c"])],
-                 ["Utilizzi per dimissioni, anticipazioni, imposta sostitutiva e previdenza complementare", U(-tfr_used)], [f"Saldo al 31/12/{y}", U(b["tfr"])]], [W - 30, 30], bold_rows=[4])
-    d.H2("Debiti")
-    rows = [["Voce", f"31/12/{y}", f"31/12/{y - 1}", "Variazione", "Entro 12 mesi", "Oltre 12 mesi"]]
-    for label, key, short, long_ in [("Debiti verso banche", "loan", "loan_short", "loan_long"), ("Debiti verso fornitori", "suppliers", "suppliers", None), ("Debiti tributari", "tax_debt", "tax_debt", None),
-                                     ("Debiti verso istituti di previdenza", "social", "social", None), ("Altri debiti", "other_debt", "other_debt", None)]:
-        rows.append([label, U(b[key]), U(b0[key]) if b0 else "", U(b[key] - b0[key]) if b0 else "", U(b[short]), U(b[long_]) if long_ else "-"])
-    rows.append(["Totale debiti", U(b["debts"]), U(b0["debts"]) if b0 else "", U(b["debts"] - b0["debts"]) if b0 else "", U(b["debts"] - b["loan_long"]), U(b["loan_long"])])
-    d.table(rows, [W - 100, 20, 20, 20, 20, 20], bold_rows=[len(rows) - 1])
-    d.P(f"I debiti verso banche ({U(b['loan'])} euro) sono rappresentati dal residuo di un finanziamento chirografario, originariamente di 300.000 euro, concesso da un primario istituto di credito con piano di ammortamento a rate trimestrali, tasso variabile (Euribor a tre mesi più 2,10 punti) e scadenza il 31/12/2027; "
-        f"la quota esigibile entro l'esercizio successivo è di {U(b['loan_short'])} euro. Non sono presenti debiti assistiti da garanzie reali né debiti in valuta rilevanti.")
-    d.P(f"I debiti tributari ({U(b['tax_debt'])} euro) comprendono ritenute IRPEF su redditi di lavoro dipendente e autonomo per {U(b['withheld'])} euro, IVA a debito di dicembre per {U(b['vat_due'])} euro, saldo IRES per {U(b['ires_due'])} euro e saldo IRAP per {U(b['irap_due'])} euro, al netto degli acconti versati. "
-        f"I debiti verso istituti di previdenza ({U(b['social'])} euro) sono i contributi INPS e INAIL di dicembre, versati nei termini di legge. Gli altri debiti ({U(b['other_debt'])} euro) sono i debiti verso dipendenti per retribuzioni di dicembre ({U(b['employees_debt'])} euro) "
-        f"e per ferie, permessi e ratei di mensilità aggiuntive maturati e non goduti ({U(b['holidays'])} euro). I ratei passivi ({U(b['accrued'])} euro) si riferiscono a interessi passivi e utenze di competenza dell'esercizio.")
-    d.P("<b>Impegni, garanzie e passività potenziali.</b> Non vi sono impegni, garanzie o passività potenziali non risultanti dallo stato patrimoniale, salvo i canoni residui dei contratti di locazione operativa di autovetture e apparecchiature informatiche, "
-        f"pari a {U(round((M.acct('Canoni di locazione operativa autovetture', y) + M.acct('Canoni di locazione operativa apparecchiature', y)) * 2.1))} euro complessivi, di cui entro i dodici mesi successivi {U(M.acct('Canoni di locazione operativa autovetture', y) + M.acct('Canoni di locazione operativa apparecchiature', y))} euro.")
-
-    d.H1("7. Conto economico")
-    d.H2("Ricavi delle vendite e delle prestazioni per categoria di attività")
-    i = M._i(y)
-    rows = [["Categoria di attività", f"{y}", f"{y - 1}" if p0 else "", "Variazione"]]
-    tot_cur = tot_prev = 0
-    parts_cur = M._alloc(p["revenue"], [s[1][i] / 100 for s in M.REVENUE_SPLIT])
-    parts_prev = M._alloc(p0["revenue"], [s[1][i - 1] / 100 for s in M.REVENUE_SPLIT]) if p0 else [0] * len(M.REVENUE_SPLIT)
-    for k, (label, _) in enumerate(M.REVENUE_SPLIT):
-        rows.append([label, U(parts_cur[k]), U(parts_prev[k]) if p0 else "", U(parts_cur[k] - parts_prev[k]) if p0 else ""])
-    rows.append(["Totale ricavi delle vendite e delle prestazioni", U(p["revenue"]), U(p0["revenue"]) if p0 else "", U(p["revenue"] - p0["revenue"]) if p0 else ""])
-    d.table(rows, [W - 90, 30, 30, 30], bold_rows=[len(rows) - 1])
-    d.P("Per area geografica, i ricavi dell'esercizio sono realizzati per l'88% in Italia (Piemonte 54%, Lombardia 21%, altre regioni 13%), per il 9% in altri Paesi dell'Unione Europea e per il 3% extra Unione Europea. "
-        "Nessun cliente ha superato il 12% dei ricavi complessivi; i primi cinque clienti rappresentano il 31% del fatturato.")
-    d.H2("Altri ricavi e proventi e aiuti di Stato ricevuti")
-    d.P(f"Gli altri ricavi e proventi comprendono contributi in conto esercizio per {U(p['grants'])} euro, rappresentati dal credito d'imposta per attività di ricerca e sviluppo (art. 1, commi 198-206, L. 160/2019) maturato sulle spese di sviluppo della piattaforma, "
-        f"e altri proventi per {U(p['other_income'])} euro (rimborsi assicurativi, recuperi di spese e sopravvenienze attive ordinarie).")
-    aid_rows = [["Soggetto erogante", "Misura", "Data", "Importo (euro)", "Regime"], ["Agenzia delle Entrate", "Credito d'imposta ricerca e sviluppo", f"31/12/{y}", U(p["grants"]), "Credito d'imposta"]]
-    if y == 2024:
-        aid_rows.append(["Camera di Commercio di Torino", "Voucher digitalizzazione PMI", "12/04/2024", U(10000), "De minimis"])
-    if y == 2025:
-        aid_rows.append(["Regione Piemonte", "Contributo partecipazione a fiere", "03/10/2025", U(6500), "De minimis"])
-    d.P("Ai sensi dell'art. 1, commi 125-129, della legge 124/2017, si espongono i contributi e gli aiuti pubblici incassati o concessi nell'esercizio:")
-    d.table(aid_rows, [48, 56, 22, 24, W - 150], align_right_from=3)
-    d.H2("Costi della produzione")
-    d.P(f"I costi per servizi ({U(p['b7'])} euro) comprendono consulenze tecniche, legali e fiscali, compensi a collaboratori esterni, licenze e servizi cloud, utenze, assicurazioni, pubblicità, formazione e spese di rappresentanza; il dettaglio per conto è nell'Allegato A. "
-        f"I costi per godimento di beni di terzi ({U(p['b8'])} euro) sono costituiti dal canone di locazione della sede e dai canoni di locazione operativa di autovetture e apparecchiature. "
-        f"Il costo del personale ({U(p['b9a'] + p['b9b'] + p['b9c'] + p['b9e'])} euro) comprende retribuzioni, contributi previdenziali e assistenziali, TFR e ferie maturate, e include i costi del personale dedicato allo sviluppo interno, "
-        f"capitalizzati per {U(p['capitalized'])} euro tra le immobilizzazioni immateriali mediante la voce A.4. Gli oneri diversi di gestione ({U(p['b14'])} euro) sono costituiti da imposte indirette, quote associative, liberalità e sopravvenienze passive ordinarie.")
-    d.H2("Proventi e oneri finanziari")
-    d.P(f"Gli interessi e altri oneri finanziari ({U(p['int_expense'])} euro) sono quasi interamente relativi agli interessi sul finanziamento chirografario ({U(round(p['int_expense'] * 0.86))} euro) e, per il resto, a commissioni su affidamenti e interessi di mora fornitori. "
-        f"I proventi finanziari ({U(p['int_income'])} euro) sono interessi attivi di conto corrente. Le differenze di cambio nette sono di {U(p['fx'])} euro e si riferiscono a fatture in dollari e sterline non rilevanti.")
-
-    d.H1("8. Imposte sul reddito")
-    t = p["tax"]
-    rows = [["Riconciliazione tra onere fiscale teorico ed effettivo (IRES)", "Imponibile", "Imposta"], ["Risultato prima delle imposte", U(p["pre_tax"]), ""], ["Onere fiscale teorico (aliquota 24%)", "", U(t["theoretical"])]]
-    for label, amount in t["up"].items():
-        rows.append([f"Variazioni in aumento: {label}", U(amount), ""])
-    for label, amount in t["down"].items():
-        rows.append([f"Variazioni in diminuzione: {label}", U(-amount), ""])
-    rows.append(["Imponibile IRES", U(t["taxable"]), ""])
-    rows.append(["IRES corrente dell'esercizio (aliquota 24%)", "", U(t["ires"])])
-    rows.append([f"IRAP: base imponibile e imposta (aliquota 3,90%, Regione Piemonte)", U(t["irap_base"]), U(t["irap"])])
-    rows.append(["Totale imposte correnti a conto economico", "", U(p["taxes"])])
-    d.table(rows, [W - 56, 28, 28], bold_rows=[len(rows) - 1])
-    d.P("Ai fini IRAP, per effetto della deduzione integrale del costo del personale a tempo indeterminato, la base imponibile coincide con la differenza tra valore e costi della produzione. Non sono state rilevate imposte anticipate o differite per irrilevanza delle differenze temporanee.")
-
-    d.H1("9. Altre informazioni")
-    q, imp, app = M.HEADCOUNT_SPLIT[y]
-    d.table([["Numero medio dei dipendenti per categoria", f"{y}", f"{y - 1}" if y > 2022 else ""],
-             ["Quadri", str(q), str(M.HEADCOUNT_SPLIT[y - 1][0]) if y > 2022 else ""], ["Impiegati", str(imp), str(M.HEADCOUNT_SPLIT[y - 1][1]) if y > 2022 else ""],
-             ["Apprendisti", str(app), str(M.HEADCOUNT_SPLIT[y - 1][2]) if y > 2022 else ""], ["Totale dipendenti", str(M.EMPLOYEES[y]), str(M.EMPLOYEES[y - 1]) if y > 2022 else ""]], [W - 60, 30, 30], bold_rows=[4])
-    d.P(f"Numero medio dei dipendenti {M.EMPLOYEES[y]}. Ai dipendenti è applicato il CCNL Commercio, Terziario Distribuzione e Servizi. L'organo amministrativo è composto dall'amministratore unico, che non percepisce compensi in tale qualità ed è retribuito come quadro dirigente; "
-        "la società non è soggetta a revisione legale né è tenuta alla nomina di un organo di controllo, e nessun compenso è stato corrisposto a revisori o sindaci. Non sono stati concessi anticipazioni o crediti agli amministratori né sono state prestate garanzie a loro favore.")
-    d.P("<b>Operazioni con parti correlate.</b> Non sono state poste in essere operazioni con parti correlate a condizioni diverse da quelle di mercato. <b>Accordi non risultanti dallo stato patrimoniale</b>: non ve ne sono. "
-        "<b>Strumenti finanziari derivati</b>: la società non ha sottoscritto strumenti derivati. <b>Patrimoni e finanziamenti destinati a uno specifico affare</b>: non ve ne sono.")
-    nxt = {2023: "nel mese di febbraio 2024 sono stati sottoscritti due nuovi contratti di sviluppo con enti pubblici locali per complessivi 180.000 euro; ", 2024: "nei primi mesi del 2025 è stata completata l'assunzione di due sviluppatori e di un data scientist; ",
-           2025: "nei primi mesi del 2026 sono stati assunti due apprendisti e avviato il progetto di analisi predittiva dei costi per le PMI; "}.get(y, "")
-    d.P(f"<b>Fatti di rilievo avvenuti dopo la chiusura dell'esercizio.</b> Dopo il 31/12/{y} {nxt or 'non si sono verificati fatti '}che non abbiano modificato la situazione patrimoniale e finanziaria della società né il risultato economico dell'esercizio.")
-    d.H1("10. Proposta di destinazione dell'utile")
+    # ------------------------------------------------------------------ nota integrativa e relazione sulla gestione (moduli estesi)
+    bil_nota.nota(d, y)
+    d.page_break()
+    bil_rel.relazione(d, y)
+    d.page_break()
     prop = {2022: 40000, 2023: 60000, 2024: 80000, 2025: 90000}[y]
-    d.P(f"L'organo amministrativo propone di destinare l'utile dell'esercizio, pari a euro {U(p['net'])}, quanto a euro {U(prop)} a dividendo ai soci in proporzione alle quote possedute e quanto a euro {U(p['net'] - prop)} a riserva straordinaria, "
-        "la riserva legale avendo già raggiunto il limite previsto dall'art. 2430 c.c.")
-    d.P(f"Torino, {approved.replace(str(y + 1), str(y + 1))}. L'Amministratore unico: Giulia Ferraris.", left=True)
-    d.page_break()
-
-    # ------------------------------------------------------------------ relazione sulla gestione
-    d.title_block("RELAZIONE SULLA GESTIONE", f"dell'organo amministrativo al bilancio chiuso il 31/12/{y}")
-    growth = (p["revenue"] / p0["revenue"] - 1) if p0 else None
-    r = M.ratio_notes(y)
-    d.H1("Condizioni operative e sviluppo dell'attività")
-    d.P(f"Signori soci, l'esercizio {y} si chiude con un utile di {U(p['net'])} euro, dopo aver rilevato ammortamenti per {U(p['b10a'] + p['b10b'])} euro e imposte per {U(p['taxes'])} euro. "
-        f"I ricavi delle vendite e delle prestazioni sono stati pari a {U(p['revenue'])} euro" + (f", in crescita del {pct(growth)} rispetto ai {U(p0['revenue'])} euro del {y - 1}" if growth is not None else "") +
-        ". La società opera nello sviluppo di software e di piattaforme di analisi dei dati per piccole e medie imprese e per enti pubblici locali, con sede a Torino, e nell'esercizio ha proseguito il percorso di crescita sia dei ricavi ricorrenti da licenze e abbonamenti sia dell'attività di sviluppo su commessa.")
-    d.P("Il mercato di riferimento ha confermato una domanda sostenuta di digitalizzazione dei processi e di analisi dei dati da parte delle imprese di piccola dimensione, sostenuta anche dagli incentivi pubblici alla transizione digitale. "
-        "La concorrenza resta frammentata e si sta spostando verso piattaforme verticali; la società ha risposto investendo nello sviluppo di un prodotto proprietario e nella formazione del personale.")
-    d.H1("Andamento della gestione e principali indicatori")
-    d.table([["Indicatore", f"{y}", f"{y - 1}" if y > 2022 else ""],
-             ["Valore della produzione", U(p["a_total"]), U(p0["a_total"]) if p0 else ""], ["Margine operativo lordo (EBITDA)", U(r["ebitda"]), U(M.ratio_notes(y - 1)["ebitda"]) if p0 else ""],
-             ["Risultato operativo (EBIT)", U(p["ebit"]), U(p0["ebit"]) if p0 else ""], ["Utile dell'esercizio", U(p["net"]), U(p0["net"]) if p0 else ""],
-             ["ROS (EBIT / ricavi)", pct(r["ros"]), pct(M.ratio_notes(y - 1)["ros"]) if p0 else ""], ["ROE (utile / patrimonio netto iniziale)", pct(r["roe"]), pct(M.ratio_notes(y - 1)["roe"]) if p0 else ""],
-             ["ROI (EBIT / totale attivo)", pct(r["roi"]), pct(M.ratio_notes(y - 1)["roi"]) if p0 else ""],
-             ["Indice di liquidità (attivo corrente / debiti a breve)", f"{r['current_ratio']:.2f}".replace(".", ","), f"{M.ratio_notes(y - 1)['current_ratio']:.2f}".replace(".", ",") if p0 else ""],
-             ["Debiti / patrimonio netto", f"{r['debt_equity']:.2f}".replace(".", ","), f"{M.ratio_notes(y - 1)['debt_equity']:.2f}".replace(".", ",") if p0 else ""]], [W - 60, 30, 30])
-    d.H1("Investimenti, personale e attività di ricerca e sviluppo")
-    d.P(f"Nell'esercizio sono stati effettuati investimenti in immobilizzazioni immateriali per {U(sum(x['capex'] for x in ia))} euro e in immobilizzazioni materiali per {U(sum(x['capex'] for x in ta))} euro, in prevalenza macchine d'ufficio elettroniche, server e apparati di test. "
-        f"L'organico medio è passato a {M.EMPLOYEES[y]} unità" + (f" dalle {M.EMPLOYEES[y - 1]} dell'esercizio precedente" if y > 2022 else "") + ", con un costo complessivo del personale di "
-        f"{U(p['b9a'] + p['b9b'] + p['b9c'] + p['b9e'])} euro. L'attività di ricerca e sviluppo ha riguardato la piattaforma Atlas per l'analisi predittiva dei costi delle PMI; i costi sostenuti sono stati in parte capitalizzati ({U(p['capitalized'])} euro) e hanno dato diritto al credito d'imposta per ricerca e sviluppo "
-        f"di {U(p['grants'])} euro. La società non possiede azioni proprie né quote di società controllanti e non ha filiali o sedi secondarie.")
-    d.H1("Principali rischi e incertezze")
-    d.B(["<b>Rischio di credito:</b> i clienti sono prevalentemente imprese e pubbliche amministrazioni italiane; l'esposizione è frazionata e monitorata con un fondo svalutazione prudenziale.",
-         f"<b>Rischio di liquidità:</b> la società dispone di disponibilità liquide per {U(b['cash'])} euro e di un finanziamento a medio termine in ammortamento; la copertura degli impegni a breve è adeguata.",
-         "<b>Rischio di mercato e di tasso:</b> il finanziamento è a tasso variabile; una variazione di un punto percentuale del tasso inciderebbe per circa 1.000 euro sugli oneri finanziari annui. Il rischio di cambio è marginale.",
-         "<b>Rischio operativo e di dipendenza dal personale chiave:</b> la crescita è legata alla capacità di assumere e trattenere sviluppatori e analisti; la società investe in formazione e welfare aziendale."])
-    d.H1("Evoluzione prevedibile della gestione")
-    d.P("Per l'esercizio successivo si prevede una prosecuzione della crescita dei ricavi, trainata dai canoni della piattaforma e dai nuovi contratti già acquisiti, con ulteriori assunzioni nell'area sviluppo e nell'area commerciale e il completamento del progetto Atlas. "
-        "Sono allo studio la partecipazione a bandi per la ricerca e l'innovazione e un investimento in infrastruttura cloud. Non si prevedono eventi in grado di compromettere la continuità aziendale.")
-    d.P(f"Torino, {approved}. L'Amministratore unico: Giulia Ferraris.", left=True)
-    d.page_break()
 
     # ------------------------------------------------------------------ verbale di assemblea
     d.title_block("VERBALE DI ASSEMBLEA ORDINARIA DEI SOCI", f"{co['name']} - approvazione del bilancio al 31/12/{y}")
@@ -431,42 +242,35 @@ def make_balance(path: Path, y: int) -> Path:
     d.table([["Il Presidente", "Il Segretario"], ["Giulia Ferraris", "Marco Bertolotti"]], [W / 2, W / 2], align_right_from=9)
     d.page_break()
 
-    # ------------------------------------------------------------------ allegato A: conto economico analitico
-    d.title_block("ALLEGATO A - CONTO ECONOMICO ANALITICO PER CONTI", f"Dettaglio delle voci dello schema civilistico, euro e centesimi - esercizio {y} con confronto al {y - 1}")
-    d.P("Il presente allegato espone, conto per conto, le voci del conto economico riportate in forma sintetica nello schema dell'art. 2425 c.c. Gli importi coincidono con le risultanze della contabilità generale al 31/12 e con le voci di bilancio.", left=True)
-
-    def line(label, cur, prev, level=1, bold=False):
-        return (label, [cents(cur), cents(prev) if prev is not None else ""], level, bold)
-
-    rows = [("A) VALORE DELLA PRODUZIONE", ["", ""], 0, True)]
-    parts_cur = M._alloc(p["revenue"], [s[1][i] / 100 for s in M.REVENUE_SPLIT])
-    parts_prev = M._alloc(p0["revenue"], [s[1][i - 1] / 100 for s in M.REVENUE_SPLIT]) if p0 else None
-    for k, (label, _) in enumerate(M.REVENUE_SPLIT):
-        rows.append(line(f"Ricavi - {label.lower()}", parts_cur[k], parts_prev[k] if parts_prev else None))
-    rows.append(line("Totale ricavi delle vendite e delle prestazioni", p["revenue"], p0["revenue"] if p0 else None, 0, True))
-    rows.append(line("Variazione dei lavori in corso su ordinazione", p["wip_delta"], p0["wip_delta"] if p0 else None))
-    rows.append(line("Incrementi di immobilizzazioni per lavori interni (sviluppo piattaforma)", p["capitalized"], p0["capitalized"] if p0 else None))
-    rows.append(line("Contributi in conto esercizio (credito d'imposta ricerca e sviluppo)", p["grants"], p0["grants"] if p0 else None))
-    rows.append(line("Altri ricavi e proventi", p["other_income"], p0["other_income"] if p0 else None))
-    rows.append(line("Totale valore della produzione", p["a_total"], p0["a_total"] if p0 else None, 0, True))
-    d.statement(rows, [W - 60, 30, 30], ["", f"{y}", f"{y - 1}" if p0 else ""])
-    rows = [("B) COSTI DELLA PRODUZIONE", ["", ""], 0, True)]
-    for code, label in (("6", "6) per materie prime, sussidiarie, di consumo e di merci"), ("7", "7) per servizi"), ("8", "8) per godimento di beni di terzi"), ("9", "9) per il personale"),
-                        ("10", "10) ammortamenti e svalutazioni"), ("14", "14) oneri diversi di gestione")):
-        accts = [(dsc, vals) for c, dsc, vals in M.COSTS if (c == code if len(code) == 1 and code in "678" or code == "14" else c.startswith(code))]
-        rows.append((label, ["", ""], 1, True))
-        for dsc, vals in accts:
-            rows.append((dsc, [cents(vals[i]), cents(vals[i - 1]) if p0 else ""], 2, False))
-        rows.append((f"Totale voce {code})", [cents(sum(vv[i] for _, vv in accts)), cents(sum(vv[i - 1] for _, vv in accts)) if p0 else ""], 1, True))
-    rows.append(("Totale costi della produzione", [cents(p["b_total"]), cents(p0["b_total"]) if p0 else ""], 0, True))
-    rows.append(("Differenza tra valore e costi della produzione (A - B)", [cents(p["ebit"]), cents(p0["ebit"]) if p0 else ""], 0, True))
-    d.statement(rows, [W - 60, 30, 30], ["", f"{y}", f"{y - 1}" if p0 else ""])
-    rows = [("C) PROVENTI E ONERI FINANZIARI", ["", ""], 0, True), ("Interessi attivi su conti correnti", [cents(p["int_income"]), cents(p0["int_income"]) if p0 else ""], 1, False),
-            ("Interessi passivi su finanziamento chirografario", [cents(-round(p["int_expense"] * 0.86)), cents(-round(p0["int_expense"] * 0.86)) if p0 else ""], 1, False),
-            ("Altri interessi e commissioni su affidamenti", [cents(-(p["int_expense"] - round(p["int_expense"] * 0.86))), cents(-(p0["int_expense"] - round(p0["int_expense"] * 0.86))) if p0 else ""], 1, False),
-            ("Utili e perdite su cambi", [cents(p["fx"]), cents(p0["fx"]) if p0 else ""], 1, False),
-            ("Risultato prima delle imposte", [cents(p["pre_tax"]), cents(p0["pre_tax"]) if p0 else ""], 0, True),
-            ("Imposte correnti sul reddito (IRES e IRAP)", [cents(-p["taxes"]), cents(-p0["taxes"]) if p0 else ""], 1, False),
-            ("UTILE (PERDITA) DELL'ESERCIZIO", [cents(p["net"]), cents(p0["net"]) if p0 else ""], 0, True)]
-    d.statement(rows, [W - 60, 30, 30], ["", f"{y}", f"{y - 1}" if p0 else ""])
+    # ------------------------------------------------------------------ allegati
+    prop = {2022: 40000, 2023: 60000, 2024: 80000, 2025: 90000}[y]
+    d.page_break()
+    bil_all.allegato_a(d, y)
+    d.page_break()
+    bil_all.allegato_b(d, y)
+    d.page_break()
+    bil_all.allegato_c(d, y)
+    d.page_break()
+    bil_all.allegato_clienti(d, y)
+    d.page_break()
+    bil_all.allegato_fornitori(d, y)
+    d.page_break()
+    bil_all.allegato_cespiti(d, y)
+    d.page_break()
+    bil_all.allegato_mensili(d, y)
+    d.page_break()
+    bil_all.allegato_iva(d, y)
+    d.page_break()
+    deposito(d, y, W)
     return d.save()
+
+
+def deposito(d: Doc, y: int, W: float) -> None:
+    co = M.COMPANY
+    d.title_block("RICEVUTA DI DEPOSITO E DICHIARAZIONE DI CONFORMITA'", f"Bilancio d'esercizio al 31/12/{y} - deposito presso il Registro delle Imprese di Torino")
+    d.table([["Dato", "Valore"], ["Società", co["name"]], ["Esercizio", f"01/01/{y} - 31/12/{y}"], ["Formato di deposito", "XBRL con tassonomia vigente, firmato digitalmente dal legale rappresentante"],
+             ["Protocollo di deposito", f"TO-{y + 1}-00{40000 + y * 3 % 9999}"], ["Data di approvazione", f"28/04/{y + 1}"], ["Data di deposito", f"{(29 if y % 2 else 30)}/05/{y + 1}"], ["Diritti di segreteria e imposta di bollo", "Assolti con addebito sul conto Telemaco"],
+             ["Esito del controllo formale", "Accettato"]], [58, W - 58], head=False, align_right_from=9, zebra=True)
+    d.P("<b>Dichiarazione di conformità.</b> Il sottoscritto Giulia Ferraris, in qualità di amministratore unico, dichiara che il presente documento informatico è conforme ai documenti originali depositati presso la società. "
+        "Il fascicolo comprende lo stato patrimoniale, il conto economico, il rendiconto finanziario, la nota integrativa, la relazione sulla gestione, il verbale di approvazione e gli allegati analitici di supporto (non soggetti a deposito).", left=True)
+    d.small("Documento di prova: protocolli, date e importi sono inventati; nessun valore corrisponde a persone o imprese reali.")
