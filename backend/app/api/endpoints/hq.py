@@ -30,6 +30,25 @@ def hq_manual_pdf() -> Response:
     return Response(content=manual.to_pdf(), media_type="application/pdf", headers={"Content-Disposition": 'attachment; filename="QUANTO_manuale_dei_processi.pdf"'})
 
 
+DOC_FILES = {"riassunto": ("QUANTO_riassunto.pdf", "Riassunto di QUANTO (7 pagine)"), "dossier": ("QUANTO_v4_2_documento_completo.pdf", "Dossier completo v4.2")}
+
+
+@router.get("/files", dependencies=deps, summary="I documenti di presentazione di QUANTO disponibili al download")
+def hq_files() -> list:
+    return [{"key": k, "filename": f, "title": t} for k, (f, t) in DOC_FILES.items()]
+
+
+@router.get("/files/{key}.pdf", dependencies=deps, summary="Scarica il riassunto o il dossier in PDF")
+def hq_file_pdf(key: str) -> Response:
+    if key not in DOC_FILES:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Documento non trovato")
+    from pathlib import Path
+    path = Path(__file__).resolve().parents[2] / "data" / "docs" / DOC_FILES[key][0]
+    if not path.exists():
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Il file non è presente su questo server")
+    return Response(content=path.read_bytes(), media_type="application/pdf", headers={"Content-Disposition": f'attachment; filename="{DOC_FILES[key][0]}"'})
+
+
 @router.get("/operations", dependencies=deps, summary="Mappa di tutte le operazioni fattibili con le loro fasi e le statistiche")
 def hq_operations() -> list:
     return hq.operations_catalog()

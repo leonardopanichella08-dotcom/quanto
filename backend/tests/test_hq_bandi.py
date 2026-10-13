@@ -414,3 +414,12 @@ def test_the_process_manual_is_in_the_headquarters_as_text_and_pdf():
         assert needed.lower() in m["markdown"].lower(), needed
     pdf = client.get("/api/v2/hq/manual.pdf", headers=hq_headers())
     assert pdf.status_code == 200 and pdf.content[:4] == b"%PDF" and len(pdf.content) > 30_000 and "attachment" in pdf.headers["content-disposition"]
+
+
+def test_hq_serves_the_summary_and_the_dossier_as_pdf():
+    listing = client.get("/api/v2/hq/files", headers=hq_headers()).json()
+    assert [f["key"] for f in listing] == ["riassunto", "dossier"]
+    for f in listing:
+        r = client.get(f"/api/v2/hq/files/{f['key']}.pdf", headers=hq_headers())
+        assert r.status_code == 200 and r.content.startswith(b"%PDF") and f["filename"] in r.headers["content-disposition"]
+    assert client.get("/api/v2/hq/files/altro.pdf", headers=hq_headers()).status_code == 404

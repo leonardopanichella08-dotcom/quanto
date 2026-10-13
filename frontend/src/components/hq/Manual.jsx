@@ -81,11 +81,17 @@ export default function Manual() {
   const [error, setError] = useState(null)
   const [busy, setBusy] = useState(false)
   useEffect(() => { api.hqManual().then(setDoc).catch((e) => setError(e.message)) }, [])
-  const download = async () => {
+  const [files, setFiles] = useState([])
+  useEffect(() => { api.hqFiles().then(setFiles).catch(() => {}) }, [])
+  const saveManual = async () => {
     setBusy(true)
     try {
       download(await api.hqManualPdf(), 'QUANTO_manuale_dei_processi.pdf')
     } catch (e) { setError(e.message) } finally { setBusy(false) }
+  }
+  const saveFile = async (f) => {
+    setBusy(true)
+    try { download(await api.hqFilePdf(f.key), f.filename) } catch (e) { setError(e.message) } finally { setBusy(false) }
   }
   if (error) return <p className="text-xs text-red-700">{error}</p>
   if (!doc) return <p className="text-xs text-mute flex items-center gap-2"><Loader2 className="w-3.5 h-3.5 animate-spin" />Carico il manuale…</p>
@@ -93,8 +99,14 @@ export default function Manual() {
     <div className="space-y-4">
       <div className="flex flex-wrap items-center gap-3">
         <span className="text-xs text-ink-2">Versione {doc.version} · {doc.sections.length} capitoli · {doc.characters.toLocaleString('it-IT')} caratteri. Lo stesso testo si scarica in PDF.</span>
-        <button className="btn-primary ml-auto" onClick={download} disabled={busy}>{busy ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Download className="w-3.5 h-3.5" />}Scarica il PDF</button>
+        <button className="btn-primary ml-auto" onClick={saveManual} disabled={busy}>{busy ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Download className="w-3.5 h-3.5" />}Scarica il PDF</button>
       </div>
+      {files.length > 0 && (
+        <div className="rounded-xl border border-line bg-field p-4 flex flex-wrap items-center gap-3">
+          <span className="text-xs font-medium text-ink">Altri documenti di QUANTO</span>
+          {files.map((f) => <button key={f.key} className="btn !py-1" onClick={() => saveFile(f)} disabled={busy}><Download className="w-3 h-3" />{f.title}</button>)}
+        </div>
+      )}
       <div className="flex flex-wrap gap-1.5">{doc.sections.map((s) => <span key={s} className="px-2 py-0.5 rounded border border-line text-[11px] text-ink-2">{s}</span>)}</div>
       <div className="card p-6"><Render markdown={doc.markdown} /></div>
     </div>

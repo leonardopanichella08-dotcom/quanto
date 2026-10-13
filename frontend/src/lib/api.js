@@ -188,6 +188,8 @@ export const api = {
   hqOverview: () => hqGet('/overview'),
   hqManual: () => hqGet('/manual'),
   hqManualPdf: () => hqBlob('/manual.pdf'),
+  hqFiles: () => hqGet('/files'),
+  hqFilePdf: (key) => hqBlob(`/files/${key}.pdf`),
   hqOperations: () => hqGet('/operations'),
   hqTimeline: (params = {}) => hqGet(`/timeline?${new URLSearchParams(Object.entries(params).filter(([, v]) => v)).toString()}`),
   hqRun: (id) => hqGet(`/runs/${id}`),
