@@ -104,120 +104,164 @@ function AuthModal({ mode, onClose, onSwitch, onDone }) {
   )
 }
 
+// ------------------------------------------------------------------------------------------------ animazioni: si accendono quando la grafica entra in vista
+/** Vero appena l'elemento entra in vista (una volta sola). Con «riduci movimento» è subito vero. */
+function useInView(ref, threshold = 0.35) {
+  const [seen, setSeen] = useState(false)
+  useEffect(() => {
+    if (reducedMotion() || typeof IntersectionObserver === 'undefined') { setSeen(true); return undefined }
+    const el = ref.current
+    if (!el) return undefined
+    const io = new IntersectionObserver(([en]) => { if (en.isIntersecting) { setSeen(true); io.disconnect() } }, { threshold })
+    io.observe(el)
+    return () => io.disconnect()
+  }, [ref, threshold])
+  return seen
+}
+
+/** Numero che cresce fino al valore quando la grafica è «accesa»; si azzera quando si spegne, così riparte da capo. */
+function CountUp({ to, live, decimals = 2, suffix = '', duration = 1.7 }) {
+  const [v, setV] = useState(reducedMotion() ? to : 0)
+  useEffect(() => {
+    if (reducedMotion()) { setV(to); return undefined }
+    if (!live) { setV(0); return undefined }
+    const o = { v: 0 }
+    const tw = gsap.to(o, { v: to, duration, delay: 0.25, ease: 'power3.out', onUpdate: () => setV(o.v) })
+    return () => tw.kill()
+  }, [live, to, duration])
+  return <>{v.toLocaleString('it-IT', { minimumFractionDigits: decimals, maximumFractionDigits: decimals })}{suffix}</>
+}
+
 // ------------------------------------------------------------------------------------------------ mini-finestre desktop (stile precedente)
 const Chrome = ({ url }) => <div className="chrome"><i /><i /><i />{url && <span className="url">{url}</span>}</div>
 
+/** Mini-finestra: le sue righe e barre si animano quando entra in vista. */
+function MW({ tilt = '-1deg', compact, url, children }) {
+  const ref = useRef(null)
+  const live = useInView(ref)
+  return <div ref={ref} className={`mini-window${compact ? ' compact' : ''}${live ? ' live' : ''}`} style={{ '--tilt': tilt }}><Chrome url={url} />{children}</div>
+}
+const ix = (i) => ({ '--i': i })
+
 function DeterministicMockup() {
   return (
-    <div className="mini-window compact" style={{ '--tilt': '0.8deg' }}><Chrome />
+    <MW compact tilt="0.8deg">
       <div className="mw-body">
-        <div className="mw-run"><span>Esecuzione di lunedì</span><span className="mono">a7f3…9c1e</span></div>
-        <div className="mw-run"><span>Esecuzione di venerdì</span><span className="mono">a7f3…9c1e</span></div>
-        <span className="ok-badge"><Check className="w-3.5 h-3.5" />Impronta identica</span>
+        <div className="mw-run" style={ix(0)}><span>Esecuzione di lunedì</span><span className="mono">a7f3…9c1e</span></div>
+        <div className="mw-run" style={ix(1)}><span>Esecuzione di venerdì</span><span className="mono">a7f3…9c1e</span></div>
+        <span className="ok-badge" style={ix(2)}><Check className="w-3.5 h-3.5" />Impronta identica</span>
       </div>
-    </div>
+    </MW>
   )
 }
 function SourceMockup() {
   return (
-    <div className="mini-window compact" style={{ '--tilt': '-0.6deg' }}><Chrome />
+    <MW compact tilt="-0.6deg">
       <div className="mw-body">
-        <div className="mw-rule-line"><span className="rule-k">Consulenze</span><span className="rule-v mono">max 20%</span></div>
-        <p className="mw-src">Fonte: Art. 25, D.L. 18 ottobre 2012, n. 179, conv. L. 17 dicembre 2012, n. 221</p>
+        <div className="mw-rule-line" style={ix(0)}><span className="rule-k">Consulenze</span><span className="rule-v mono">max 20%</span></div>
+        <p className="mw-src" style={ix(1)}>Fonte: Art. 25, D.L. 18 ottobre 2012, n. 179, conv. L. 17 dicembre 2012, n. 221</p>
       </div>
-    </div>
+    </MW>
   )
 }
 function HashMockup() {
   return (
-    <div className="mini-window compact" style={{ '--tilt': '1.2deg' }}><Chrome />
+    <MW compact tilt="1.2deg">
       <div className="mw-body">
-        <div className="mw-hash">0x7f3a9c1e5b8d2f4a…<br />6c0e9b1d3a7f5c2e</div>
-        <span className="mw-badge"><ShieldCheck className="w-3.5 h-3.5" />Firmato e verificabile</span>
+        <div className="mw-hash" style={ix(0)}>0x7f3a9c1e5b8d2f4a…<br />6c0e9b1d3a7f5c2e</div>
+        <span className="mw-badge" style={ix(2)}><ShieldCheck className="w-3.5 h-3.5" />Firmato e verificabile</span>
       </div>
-    </div>
+    </MW>
   )
 }
 function ClientsMockup() {
   const rows = [['Meridiana Digital Solutions', 'ATECO 62.01'], ['Officine Valtellina', 'ATECO 25.62'], ['Agritech Lomellina', 'ATECO 01.13'], ['Ferro & Figli Carpenterie', 'ATECO 25.11']]
   return (
-    <div className="mini-window" style={{ '--tilt': '-1.2deg' }}><Chrome url="quanto.app/clienti" />
+    <MW tilt="-1.2deg" url="quanto.app/clienti">
       <div className="mw-body" style={{ minHeight: 'auto' }}>
-        {rows.map(([n, a]) => <div key={n} className="mw-line"><span className="dot" style={{ background: '#F1E21B' }} />{n}<span className="amt">{a}</span></div>)}
+        {rows.map(([n, a], i) => <div key={n} className="mw-line" style={ix(i)}><span className="dot" style={{ background: '#F1E21B' }} />{n}<span className="amt">{a}</span></div>)}
       </div>
-    </div>
+    </MW>
   )
 }
 function HeatMockup() {
   return (
-    <div className="mini-window" style={{ '--tilt': '1deg' }}><Chrome url="quanto.app/budget" />
-      <div className="mw-body" style={{ minHeight: 'auto' }}><div className="mw-heat">{MINI_HEAT.map((o, i) => <i key={i} style={{ background: CELL_COLOR[o] }} />)}</div></div>
-    </div>
+    <MW tilt="1deg" url="quanto.app/budget">
+      <div className="mw-body" style={{ minHeight: 'auto' }}><div className="mw-heat">{MINI_HEAT.map((o, i) => <i key={i} style={{ background: CELL_COLOR[o], '--i': i }} />)}</div></div>
+    </MW>
   )
 }
 function AllocationMockup() {
   return (
-    <div className="mini-window" style={{ '--tilt': '-1deg' }}><Chrome url="quanto.app/allocazione" />
+    <MW tilt="-1deg" url="quanto.app/allocazione">
       <div className="mw-body" style={{ minHeight: 'auto' }}>
-        <div className="mw-bar"><span style={{ width: '62%', background: '#F1E21B' }}>Bandi · 62%</span><span style={{ width: '38%', background: 'var(--d-line)', color: 'var(--d-ink)' }}>Ente · 38%</span></div>
+        <div className="mw-bar"><span style={{ width: '62%', background: '#F1E21B', '--i': 0 }}>Bandi · 62%</span><span style={{ width: '38%', background: 'var(--d-line)', color: 'var(--d-ink)', '--i': 1 }}>Ente · 38%</span></div>
         <div className="mw-bar-labels"><span>€ 0</span><span>€ 1.991.026</span></div>
       </div>
-    </div>
+    </MW>
   )
 }
 
 // ------------------------------------------------------------------------------------------------ pannelli di «come funziona» (qui sì, vetro: sono le funzioni di QUANTO)
-function PanelDocs() {
+// Ogni pannello riceve `live`: quando diventa vero le barre si riempiono, le righe compaiono una dopo l'altra e i numeri crescono.
+function PanelDocs({ live }) {
   const rows = ['Conto economico', 'Stato patrimoniale', 'F24 · versamenti e crediti', 'Visura · ATECO e sede']
   return (
-    <div className="panel">
+    <div className={`panel${live ? ' live' : ''}`}>
       <div className="p-label">LETTURA AUTOMATICA</div>
-      <div className="p-bar"><i style={{ width: '100%' }} /></div>
-      {rows.map((r) => <div key={r} className="p-row"><span>{r}</span><span className="ok"><Check size={13} />letto</span></div>)}
+      <div className="p-bar"><i style={ix(0)} /></div>
+      {rows.map((r, i) => <div key={r} className="p-row" style={ix(i + 1)}><span>{r}</span><span className="ok"><Check size={13} />letto</span></div>)}
     </div>
   )
 }
-function PanelForecast() {
+function PanelForecast({ live }) {
   const rows = [['Personale', 1.0, 0.99], ['Consulenze', 0.24, 0.23], ['Spese generali', 0.2, 0.19], ['Beni strumentali', 0.13, 0.13], ['Formazione', 0.03, 0.02]]
   return (
-    <div className="panel">
+    <div className={`panel${live ? ' live' : ''}`}>
       <div className="p-label">SPESE PER CATEGORIA · BILANCIO CONTRO STIMA</div>
-      {rows.map(([l, a, b]) => <div key={l} className="p-pair"><span>{l}</span><div><i className="a" style={{ width: `${b * 100}%` }} /><i className="b" style={{ width: `${a * 100}%` }} /></div></div>)}
-      <div className="p-legend"><span><i className="a" />bilancio 2025</span><span><i className="b" />stima 2027</span></div>
+      {rows.map(([l, a, b], i) => <div key={l} className="p-pair" style={ix(i)}><span>{l}</span><div><i className="a" style={{ width: `${b * 100}%` }} /><i className="b" style={{ width: `${a * 100}%` }} /></div></div>)}
+      <div className="p-legend p-late"><span><i className="a" />bilancio 2025</span><span><i className="b" />stima 2027</span></div>
     </div>
   )
 }
-function PanelBandi() {
+function PanelBandi({ live }) {
   const rows = [['Horizon Europe', 'Adatto'], ['Investimenti Sostenibili 4.0', 'Adatto'], ['Transizione 5.0', 'Adatto'], ['Nuova Sabatini', 'Adatto'], ['Bando regionale', 'Da verificare']]
   return (
-    <div className="panel">
+    <div className={`panel${live ? ' live' : ''}`}>
       <div className="p-label">BANDI ADATTI ALL'AZIENDA</div>
-      {rows.map(([n, f]) => <div key={n} className="p-row"><span>{n}</span><span className={`pill ${f === 'Adatto' ? 'g' : 'a'}`}>{f}</span></div>)}
+      {rows.map(([n, f], i) => <div key={n} className="p-row" style={ix(i)}><span>{n}</span><span className={`pill ${f === 'Adatto' ? 'g' : 'a'}`}>{f}</span></div>)}
     </div>
   )
 }
-function PanelAlloc() {
+function PanelAlloc({ live }) {
   const rows = [['Personale', 0.7], ['Consulenze', 0.7], ['Spese generali', 0], ['Beni strumentali', 1], ['Formazione', 0.14]]
   return (
-    <div className="panel">
+    <div className={`panel${live ? ' live' : ''}`}>
       <div className="p-label">POTENZIALE MASSIMO · TUTTI I BANDI INSIEME</div>
-      <div className="p-big">{eur(1252698.85)} €</div>
-      <div className="p-sub">su 1.991.026,11 € di spese · quota coperta 62,9%</div>
-      {rows.map(([l, v]) => <div key={l} className="p-cov"><span>{l}</span><div><i style={{ width: `${v * 100}%` }} /></div></div>)}
-      <span className="pill v">De minimis · stimato dai bilanci</span>
+      <div className="p-big"><CountUp to={1252698.85} live={live} suffix=" €" /></div>
+      <div className="p-sub">su 1.991.026,11 € di spese · quota coperta <CountUp to={62.9} live={live} decimals={1} suffix="%" /></div>
+      {rows.map(([l, v], i) => <div key={l} className="p-cov" style={ix(i + 1)}><span>{l}</span><div><i style={{ width: `${v * 100}%` }} /></div></div>)}
+      <span className="pill v p-late">De minimis · stimato dai bilanci</span>
     </div>
   )
 }
-function PanelDossier() {
+function PanelDossier({ live }) {
   return (
-    <div className="panel">
+    <div className={`panel${live ? ' live' : ''}`}>
       <div className="p-label">CONSEGNA</div>
-      <div className="p-out"><FileText size={20} /><div><b>Dossier</b><span>PDF con ogni numero e la sua fonte</span></div></div>
-      <div className="p-out"><Table2 size={20} /><div><b>Budget</b><span>Template per bando, pronto da compilare</span></div></div>
-      <div className="p-out"><Link2 size={20} /><div><b>Registro firmato</b><span>Catena di impronte verificabile</span></div></div>
-      <div className="p-hash">0x7f3a9c1e5b8d2f4a…6c0e9b1d3a7f5c2e</div>
+      <div className="p-out" style={ix(0)}><FileText size={20} /><div><b>Dossier</b><span>PDF con ogni numero e la sua fonte</span></div></div>
+      <div className="p-out" style={ix(1)}><Table2 size={20} /><div><b>Budget</b><span>Template per bando, pronto da compilare</span></div></div>
+      <div className="p-out" style={ix(2)}><Link2 size={20} /><div><b>Registro firmato</b><span>Catena di impronte verificabile</span></div></div>
+      <div className="p-hash p-late">0x7f3a9c1e5b8d2f4a…6c0e9b1d3a7f5c2e</div>
     </div>
   )
+}
+
+/** Pannello nella versione per schermi stretti: si accende quando scorrendo entra in vista. */
+function InlinePanel({ Panel }) {
+  const ref = useRef(null)
+  const live = useInView(ref, 0.4)
+  return <div ref={ref}><Panel live={live} /></div>
 }
 
 const STEPS = [
@@ -259,6 +303,7 @@ export default function Landing({ onLogin, onAuditor, onVision }) {
         .from('.hero .window', { y: 90, opacity: 0, duration: 1.4 }, '-=0.9')
         .from('.hero .heat-cell', { scale: 0, opacity: 0, duration: 0.5, ease: 'back.out(2)', stagger: { each: 0.012, from: 'start' } }, '-=0.9')
         .from('.hero .float', { y: 50, opacity: 0, duration: 1, stagger: 0.15 }, '-=1.2')
+        .add(() => { const o = { v: 0 }; const el = root.current.querySelector('.n46'); gsap.to(o, { v: 46, duration: 1.8, ease: 'power3.out', onUpdate: () => { if (el) el.textContent = Math.round(o.v) } }) }, '-=1.4')
 
       // la finestra del hero oscilla piano nello spazio e segue il mouse; le finestrelle laterali scorrono a profondità diverse
       gsap.set('.hero .window-tilt', { rotateX: 6, rotateY: -6 })
@@ -287,7 +332,7 @@ export default function Landing({ onLogin, onAuditor, onVision }) {
       } })
 
       gsap.utils.toArray('.reveal').forEach((el) => gsap.from(el, { y: 40, opacity: 0, duration: 0.9, ease: 'power3.out', scrollTrigger: { trigger: el, start: 'top 88%' } }))
-      ScrollTrigger.batch('.reveal-card', { start: 'top 90%', onEnter: (els) => gsap.from(els, { y: 44, opacity: 0, duration: 0.85, stagger: 0.09, ease: 'power3.out', overwrite: true }) })
+      ScrollTrigger.batch('.reveal-card', { start: 'top 90%', onEnter: (els) => { els.forEach((e) => e.classList.add('in')); gsap.from(els, { y: 44, opacity: 0, duration: 0.85, stagger: 0.09, ease: 'power3.out', overwrite: true }) } })
 
       // la frase si «accende» parola per parola
       gsap.fromTo('.statement .sw', { opacity: 0.16 }, { opacity: 1, stagger: 0.1, ease: 'none', scrollTrigger: { trigger: '.statement', start: 'top 72%', end: 'bottom 55%', scrub: true } })
@@ -348,7 +393,7 @@ export default function Landing({ onLogin, onAuditor, onVision }) {
               <div className="window">
                 <Chrome url="quanto.app/budget" />
                 <div className="body">
-                  <div className="top"><span className="name">Beni strumentali — Nuova Sabatini</span><span className="score mono">46/60 superati</span></div>
+                  <div className="top"><span className="name">Beni strumentali — Nuova Sabatini</span><span className="score mono"><b className="n46">46</b>/60 superati</span></div>
                   <div className="heat-grid">{DEMO_OUTCOMES.map((o, i) => <div key={i} className="heat-cell" style={{ background: CELL_COLOR[o], '--d': `${((Math.floor(i / 15) + (i % 15)) * 0.11).toFixed(2)}s` }} title={`#${i + 1}`} />)}</div>
                   <div className="heat-legend">
                     <span><i style={{ background: CELL_COLOR.OK }} />superato</span>
@@ -361,7 +406,6 @@ export default function Landing({ onLogin, onAuditor, onVision }) {
               </div>
             </div></div>
           </div>
-          <p className="fineprint" style={{ marginTop: 40 }}>Illustrazione dell’interfaccia: i valori sono d’esempio.</p>
         </div>
       </header>
 
@@ -392,7 +436,7 @@ export default function Landing({ onLogin, onAuditor, onVision }) {
               {STEPS.map((s, i) => (
                 <li key={s.n} className={i === active ? 'on' : ''}>
                   <span className="n">{s.n}</span>
-                  <div><h3>{s.title}</h3><p>{s.body}</p><div className="inline-panel"><div className="glass win-glass"><s.Panel /></div></div></div>
+                  <div><h3>{s.title}</h3><p>{s.body}</p><div className="inline-panel"><div className="glass win-glass"><InlinePanel Panel={s.Panel} /></div></div></div>
                 </li>
               ))}
             </ol>
@@ -400,10 +444,9 @@ export default function Landing({ onLogin, onAuditor, onVision }) {
           <div className="how-right">
             <div className="how-stage">{STEPS.map((s, i) => (
               <div key={s.n} className={`how-panel ${i === active ? 'on' : ''}`}>
-                <div className="how-window"><div className="depth" /><Chrome url={s.url} /><div className="glass win-glass"><s.Panel /></div></div>
+                <div className="how-window"><div className="depth" /><Chrome url={s.url} /><div className="glass win-glass"><s.Panel live={i === active} /></div></div>
               </div>
             ))}</div>
-            <p className="caption">Illustrazioni con i dati dell’azienda di prova.</p>
           </div>
         </div></div>
       </section>

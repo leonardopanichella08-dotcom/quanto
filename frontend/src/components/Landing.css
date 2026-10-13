@@ -317,3 +317,44 @@
   .qt-land .scroll-hint i, .qt-land .cta-final .orb, .qt-land .block-pulse { animation: none; }
   .qt-land .statement .sw { opacity: 1; }
 }
+
+
+/* ------------------------------------------------------------------ animazioni delle grafiche (si accendono quando entrano in vista)
+   Barre che si riempiono, righe che compaiono una dopo l'altra, caselle che spuntano: tutto parte da `.live`. */
+@keyframes qtGrow { from { transform: scaleX(0); } to { transform: scaleX(1); } }
+@keyframes qtFade { from { opacity: 0; } to { opacity: 1; } }
+@keyframes qtPop { from { transform: scale(0); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+
+.qt-land .panel .p-bar i, .qt-land .panel .p-pair i, .qt-land .panel .p-cov i { transform: scaleX(0); transform-origin: left; }
+.qt-land .panel .p-row, .qt-land .panel .p-out, .qt-land .panel .p-pair, .qt-land .panel .p-cov, .qt-land .panel .p-late, .qt-land .panel .p-big, .qt-land .panel .p-sub { opacity: 0; }
+.qt-land .panel .p-row .ok { opacity: 0; }
+.qt-land .panel.live .p-bar i { animation: qtGrow 1.5s cubic-bezier(.3, .7, .2, 1) .3s both; }
+.qt-land .panel.live .p-pair i, .qt-land .panel.live .p-cov i { animation: qtGrow 1.2s cubic-bezier(.3, .7, .2, 1) both; animation-delay: calc(.4s + var(--i, 0) * .11s); }
+.qt-land .panel.live .p-pair i.b { animation-delay: calc(.55s + var(--i, 0) * .11s); }
+.qt-land .panel.live .p-row, .qt-land .panel.live .p-out, .qt-land .panel.live .p-pair, .qt-land .panel.live .p-cov { animation: qtFade .6s ease both; animation-delay: calc(.2s + var(--i, 0) * .13s); }
+.qt-land .panel.live .p-big, .qt-land .panel.live .p-sub { animation: qtFade .5s ease .1s both; }
+.qt-land .panel.live .p-row .ok { animation: qtPop .45s cubic-bezier(.2, .9, .3, 1.4) both; animation-delay: calc(.75s + var(--i, 0) * .22s); }
+.qt-land .panel.live .p-late { animation: qtFade .7s ease 1.6s both; }
+
+.qt-land .mini-window .mw-bar span { transform: scaleX(0); transform-origin: left; }
+.qt-land .mini-window .mw-line, .qt-land .mini-window .mw-run, .qt-land .mini-window .mw-rule-line, .qt-land .mini-window .mw-src, .qt-land .mini-window .mw-hash, .qt-land .mini-window .ok-badge, .qt-land .mini-window .mw-badge { opacity: 0; }
+.qt-land .mini-window .mw-heat i { transform: scale(0); opacity: 0; }
+.qt-land .mini-window.live .mw-bar span { animation: qtGrow 1.3s cubic-bezier(.3, .7, .2, 1) both; animation-delay: calc(.25s + var(--i, 0) * .2s); }
+.qt-land .mini-window.live .mw-line, .qt-land .mini-window.live .mw-run, .qt-land .mini-window.live .mw-rule-line, .qt-land .mini-window.live .mw-src, .qt-land .mini-window.live .mw-hash { animation: qtFade .6s ease both; animation-delay: calc(.2s + var(--i, 0) * .14s); }
+.qt-land .mini-window.live .ok-badge, .qt-land .mini-window.live .mw-badge { animation: qtFade .6s ease both; animation-delay: calc(.2s + var(--i, 0) * .3s); }
+.qt-land .mini-window.live .mw-heat i { animation: qtPop .45s cubic-bezier(.2, .9, .3, 1.4) both; animation-delay: calc(.1s + var(--i, 0) * 38ms); }
+
+/* schede «cosa fa»: la linea gialla in alto si disegna quando entrano */
+.qt-land .pillar { position: relative; }
+.qt-land .pillar::before { content: ''; position: absolute; top: -1px; left: 0; right: 0; height: 2px; background: var(--yellow); transform: scaleX(0); transform-origin: left; transition: transform 1.1s cubic-bezier(.3, .7, .2, 1); }
+.qt-land .pillar.in::before { transform: scaleX(1); }
+.qt-land .pillar:nth-child(2)::before { transition-delay: .12s; }
+.qt-land .pillar:nth-child(3)::before { transition-delay: .24s; }
+.qt-land .pillar:nth-child(4)::before { transition-delay: .36s; }
+
+@media (prefers-reduced-motion: reduce) {
+  .qt-land .panel .p-bar i, .qt-land .panel .p-pair i, .qt-land .panel .p-cov i, .qt-land .mini-window .mw-bar span, .qt-land .mini-window .mw-heat i { transform: none; opacity: 1; animation: none !important; }
+  .qt-land .panel .p-row, .qt-land .panel .p-out, .qt-land .panel .p-pair, .qt-land .panel .p-cov, .qt-land .panel .p-late, .qt-land .panel .p-big, .qt-land .panel .p-sub, .qt-land .panel .p-row .ok,
+  .qt-land .mini-window .mw-line, .qt-land .mini-window .mw-run, .qt-land .mini-window .mw-rule-line, .qt-land .mini-window .mw-src, .qt-land .mini-window .mw-hash, .qt-land .mini-window .ok-badge, .qt-land .mini-window .mw-badge { opacity: 1; animation: none !important; }
+  .qt-land .pillar::before { transform: scaleX(1); transition: none; }
+}
