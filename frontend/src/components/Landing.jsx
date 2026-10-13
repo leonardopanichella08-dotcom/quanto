@@ -1,69 +1,18 @@
-import React, { useMemo, useState } from 'react'
-import { ArrowRight, Check, Loader2, Lock, Search, ShieldCheck, Sparkles, X } from 'lucide-react'
+import React, { lazy, Suspense, useEffect, useRef, useState } from 'react'
+import { ArrowRight, Check, FileText, Link2, Loader2, Lock, ShieldCheck, Sparkles, Table2, X } from 'lucide-react'
+import gsap from 'gsap'
+import { ScrollTrigger } from 'gsap/ScrollTrigger'
 import { api, session } from '../lib/api'
 import { Mark, Wordmark } from './ui'
 import './Landing.css'
 
-const CELL_COLOR = { OK: '#10b981', ADJUSTED: '#f59e0b', REJECTED: '#ef4444', WAIT: '#38bdf8', NONE: '#F6F2E21f' }
-// esempio fisso (non è un bando reale): illustra la distribuzione tipica di un controllo a 60 criteri
-const DEMO_OUTCOMES = [
-  'OK', 'OK', 'OK', 'ADJUSTED', 'OK', 'OK', 'OK', 'REJECTED', 'OK', 'OK', 'OK', 'OK', 'WAIT', 'OK', 'OK',
-  'OK', 'OK', 'NONE', 'OK', 'OK', 'OK', 'ADJUSTED', 'OK', 'OK', 'NONE', 'OK', 'OK', 'OK', 'OK', 'OK',
-  'OK', 'ADJUSTED', 'OK', 'OK', 'OK', 'NONE', 'OK', 'REJECTED', 'OK', 'OK', 'OK', 'OK', 'OK', 'NONE', 'OK',
-  'OK', 'OK', 'OK', 'WAIT', 'OK', 'OK', 'OK', 'NONE', 'OK', 'OK', 'ADJUSTED', 'OK', 'OK', 'OK', 'OK',
-]
-const BLOCKS = [
-  { from: 1, to: 15, label: 'Personale' }, { from: 16, to: 30, label: 'Beni strumentali' },
-  { from: 31, to: 45, label: 'Consulenze e spese generali' }, { from: 46, to: 60, label: 'Date, cumulo, tracciabilità' },
-]
+gsap.registerPlugin(ScrollTrigger)
+const LiquidHero = lazy(() => import('./LiquidHero'))
 
-// PRNG deterministico (nessuna libreria): un campo di nodi stabile, non casuale ad ogni render.
-function mulberry32(seed) {
-  let a = seed
-  return () => { a |= 0; a = (a + 0x6D2B79F5) | 0; let t = Math.imul(a ^ (a >>> 15), 1 | a); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296 }
-}
+const eur = (n) => n.toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+const reducedMotion = () => typeof window !== 'undefined' && window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches
 
-const HEX = '0123456789abcdef'
-function hexStr(rnd, n) { let s = ''; for (let i = 0; i < n; i++) s += HEX[Math.floor(rnd() * 16)]; return s }
-
-/** Non punti a caso: una catena di blocchi firmati, come il registro vero di QUANTO — ogni blocco porta un'impronta
- * e si lega al precedente. Disposta in righe larghe così resta leggibile come "catena" anche a distanza. */
-function ChainField({ rows = 3, perRow = 7, seed = 7, variant = '' }) {
-  const { blocks, links, active } = useMemo(() => {
-    const rnd = mulberry32(seed)
-    const w = 1200, h = 460
-    const bx = Array.from({ length: rows }, (_, r) => {
-      const y = (h / (rows + 1)) * (r + 1) + (rnd() - 0.5) * 30
-      const offset = (rnd() - 0.5) * 60
-      return Array.from({ length: perRow }, (_, i) => ({
-        id: `${r}-${i}`, x: offset + (w / (perRow - 0.4)) * (i + 0.4) + (rnd() - 0.5) * 24, y: y + (rnd() - 0.5) * 18, hex: hexStr(rnd, 4),
-      }))
-    })
-    const flat = bx.flat()
-    const lk = bx.flatMap((row) => row.slice(1).map((p, i) => [row[i], p]))
-    const activeColors = ['#10b981', '#f59e0b', '#38bdf8']
-    const act = [flat[4], flat[Math.floor(flat.length / 2)], flat[flat.length - 5]].filter(Boolean).map((p, i) => ({ ...p, color: activeColors[i], delay: i * 0.7 }))
-    return { blocks: flat, links: lk, active: act }
-  }, [rows, perRow, seed])
-  return (
-    <svg className={`chain-field ${variant}`} viewBox="0 0 1200 460" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
-      {links.map(([a, b], i) => <line key={i} x1={a.x + 18} y1={a.y} x2={b.x - 18} y2={b.y} stroke="#F6F2E2" strokeOpacity="0.08" strokeWidth="1" strokeDasharray="2 3" />)}
-      {blocks.map((p) => (
-        <g key={p.id} transform={`translate(${p.x}, ${p.y})`} opacity="0.5">
-          <rect x="-17" y="-10" width="34" height="20" rx="4" fill="none" stroke="#F6F2E2" strokeOpacity="0.28" />
-          <text x="0" y="4" textAnchor="middle" fontSize="6.5" fontFamily="JetBrains Mono, monospace" fill="#F6F2E2" fillOpacity="0.4">{p.hex}</text>
-        </g>
-      ))}
-      {active.map((p, i) => (
-        <g key={i} transform={`translate(${p.x}, ${p.y})`}>
-          <rect x="-17" y="-10" width="34" height="20" rx="4" fill="none" stroke={p.color} strokeWidth="1.3" className="block-pulse" style={{ '--d': `${p.delay}s` }} />
-          <text x="0" y="4" textAnchor="middle" fontSize="6.5" fontFamily="JetBrains Mono, monospace" fill={p.color}>{p.hex}</text>
-        </g>
-      ))}
-    </svg>
-  )
-}
-
+// ------------------------------------------------------------------------------------------------ accesso
 function AuthModal({ mode, onClose, onSwitch, onDone }) {
   const isRegister = mode === 'register'
   const [email, setEmail] = useState('')
@@ -86,14 +35,12 @@ function AuthModal({ mode, onClose, onSwitch, onDone }) {
         <button type="button" className="close" onClick={onClose} aria-label="Chiudi"><X className="w-4 h-4" /></button>
         <h3>{isRegister ? 'Inizia gratis' : 'Accedi'}</h3>
         <p className="sub">{isRegister ? 'Un account, nessuna carta di credito. Puoi cominciare subito.' : 'Bentornato: usa le tue credenziali.'}</p>
-        {isRegister && (
-          <><label htmlFor="ln-name">Nome</label><input id="ln-name" required autoFocus value={name} onChange={(e) => setName(e.target.value)} /></>
-        )}
+        {isRegister && (<><label htmlFor="ln-name">Nome</label><input id="ln-name" required autoFocus value={name} onChange={(e) => setName(e.target.value)} /></>)}
         <label htmlFor="ln-email">E-mail</label>
         <input id="ln-email" type="email" required autoFocus={!isRegister} autoComplete="username" value={email} onChange={(e) => setEmail(e.target.value)} />
         <label htmlFor="ln-pw">Password</label>
         <input id="ln-pw" type="password" required minLength={isRegister ? 12 : 1} autoComplete={isRegister ? 'new-password' : 'current-password'} value={password} onChange={(e) => setPassword(e.target.value)} />
-        {isRegister && <p style={{ fontSize: 11.5, color: 'var(--l-mute)', marginTop: 6 }}>Almeno 12 caratteri, lettere e almeno un numero o simbolo.</p>}
+        {isRegister && <p className="hint">Almeno 12 caratteri, lettere e almeno un numero o simbolo.</p>}
         {error && <p className="error">{error}</p>}
         <button disabled={busy || !email || !password || (isRegister && !name)} className="btn-solid submit">
           {busy ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <ArrowRight className="w-3.5 h-3.5" />}{isRegister ? 'Crea account' : 'Entra'}
@@ -106,286 +53,305 @@ function AuthModal({ mode, onClose, onSwitch, onDone }) {
   )
 }
 
-const CAT_COLOR = { p: '#38bdf8', b: '#f59e0b', c: '#10b981' }
-const MINI_HEAT = ['OK', 'OK', 'ADJUSTED', 'OK', 'OK', 'OK', 'OK', 'REJECTED', 'OK', 'OK', 'OK', 'OK', 'OK', 'OK', 'WAIT', 'OK', 'OK', 'OK']
+// ------------------------------------------------------------------------------------------------ pannelli illustrativi (dati d'esempio dell'azienda di prova)
+const Glass = ({ children, className = '' }) => <div className={`glass ${className}`}>{children}</div>
 
-function SearchMockup() {
+function PanelDocs() {
+  const rows = ['Conto economico', 'Stato patrimoniale', 'F24 · versamenti e crediti', 'Visura · ATECO e sede']
   return (
-    <div className="mini-window" style={{ '--tilt': '-1.4deg' }}>
-      <div className="chrome"><i /><i /><i /></div>
-      <div className="mw-body">
-        <div className="mw-search"><Search className="w-3.5 h-3.5" style={{ opacity: 0.6 }} />Resto al Sud</div>
-        <div className="mw-result">✓ Trovato — Invitalia, decreto ufficiale</div>
-        <div className="mw-result muted">Scarico 3 PDF ufficiali…</div>
-      </div>
-    </div>
+    <Glass className="panel">
+      <div className="p-label">LETTURA AUTOMATICA</div>
+      <div className="p-bar"><i style={{ width: '100%' }} /></div>
+      {rows.map((r) => <div key={r} className="p-row"><span>{r}</span><span className="ok"><Check size={13} />letto</span></div>)}
+    </Glass>
   )
 }
-function BudgetMockup() {
-  const rows = [['Project manager', 'p', '42.000 €'], ['Macchinario CNC', 'b', '68.500 €'], ['Consulenza audit', 'c', '12.000 €']]
+function PanelForecast() {
+  const rows = [['Personale', 1.0, 0.99], ['Consulenze', 0.24, 0.23], ['Spese generali', 0.2, 0.19], ['Beni strumentali', 0.13, 0.13], ['Formazione', 0.03, 0.02]]
   return (
-    <div className="mini-window" style={{ '--tilt': '1.2deg' }}>
-      <div className="chrome"><i /><i /><i /></div>
-      <div className="mw-body" style={{ minHeight: 'auto', padding: '18px 20px' }}>
-        {rows.map(([label, cat, amt]) => <div key={label} className="mw-line"><span className="dot" style={{ background: CAT_COLOR[cat] }} />{label}<span className="amt">{amt}</span></div>)}
-      </div>
-    </div>
+    <Glass className="panel">
+      <div className="p-label">SPESE PER CATEGORIA · BILANCIO CONTRO STIMA</div>
+      {rows.map(([l, a, b]) => (
+        <div key={l} className="p-pair"><span>{l}</span><div><i className="a" style={{ width: `${b * 100}%` }} /><i className="b" style={{ width: `${a * 100}%` }} /></div></div>
+      ))}
+      <div className="p-legend"><span><i className="a" />bilancio 2025</span><span><i className="b" />stima 2027</span></div>
+    </Glass>
   )
 }
-function HeatMockup() {
+function PanelBandi() {
+  const rows = [['Horizon Europe', 'Adatto'], ['Investimenti Sostenibili 4.0', 'Adatto'], ['Transizione 5.0', 'Adatto'], ['Nuova Sabatini', 'Adatto'], ['Bando regionale', 'Da verificare']]
   return (
-    <div className="mini-window" style={{ '--tilt': '-1deg' }}>
-      <div className="chrome"><i /><i /><i /></div>
-      <div className="mw-body" style={{ minHeight: 'auto' }}>
-        <div className="mw-heat">{MINI_HEAT.map((o, i) => <i key={i} style={{ background: CELL_COLOR[o] }} />)}</div>
-      </div>
-    </div>
+    <Glass className="panel">
+      <div className="p-label">BANDI ADATTI ALL'AZIENDA</div>
+      {rows.map(([n, f]) => <div key={n} className="p-row"><span>{n}</span><span className={`pill ${f === 'Adatto' ? 'g' : 'a'}`}>{f}</span></div>)}
+    </Glass>
   )
 }
-function HashMockup() {
+function PanelAlloc() {
+  const rows = [['Personale', 0.7], ['Consulenze', 0.7], ['Spese generali', 0], ['Beni strumentali', 1], ['Formazione', 0.14]]
   return (
-    <div className="mini-window" style={{ '--tilt': '1.6deg' }}>
-      <div className="chrome"><i /><i /><i /></div>
-      <div className="mw-body">
-        <div className="mw-hash">0x7f3a9c1e5b8d2f4a…<br />6c0e9b1d3a7f5c2e</div>
-        <span className="mw-badge"><ShieldCheck className="w-3.5 h-3.5" />Firmato e verificabile</span>
-      </div>
-    </div>
+    <Glass className="panel">
+      <div className="p-label">POTENZIALE MASSIMO · TUTTI I BANDI INSIEME</div>
+      <div className="p-big">{eur(1252698.85)} €</div>
+      <div className="p-sub">su 1.991.026,11 € di spese · quota coperta 62,9%</div>
+      {rows.map(([l, v]) => <div key={l} className="p-cov"><span>{l}</span><div><i style={{ width: `${v * 100}%` }} /></div></div>)}
+      <span className="pill v">De minimis · stimato dai bilanci</span>
+    </Glass>
   )
 }
-function AllocationMockup() {
+function PanelDossier() {
   return (
-    <div className="mini-window" style={{ '--tilt': '-1.3deg' }}>
-      <div className="chrome"><i /><i /><i /></div>
-      <div className="mw-body" style={{ minHeight: 'auto' }}>
-        <div className="mw-bar"><span style={{ width: '62%', background: '#10b981' }}>Fondo · 62%</span><span style={{ width: '38%', background: 'var(--d-line)', color: 'var(--d-ink)' }}>Ente · 38%</span></div>
-        <div className="mw-bar-labels"><span>€ 0</span><span>€ 100.000</span></div>
-      </div>
-    </div>
-  )
-}
-
-function DeterministicMockup() {
-  return (
-    <div className="mini-window compact" style={{ '--tilt': '0.8deg' }}>
-      <div className="chrome"><i /><i /><i /></div>
-      <div className="mw-body">
-        <div className="mw-run"><span>Esecuzione di lunedì</span><span className="mono">a7f3…9c1e</span></div>
-        <div className="mw-run"><span>Esecuzione di venerdì</span><span className="mono">a7f3…9c1e</span></div>
-        <span className="ok-badge"><Check className="w-3.5 h-3.5" />Impronta identica</span>
-      </div>
-    </div>
-  )
-}
-function SourceMockup() {
-  return (
-    <div className="mini-window compact" style={{ '--tilt': '-0.6deg' }}>
-      <div className="chrome"><i /><i /><i /></div>
-      <div className="mw-body">
-        <div className="mw-rule-line"><span className="rule-k">Consulenze</span><span className="rule-v mono">max 20%</span></div>
-        <p className="mw-src">Fonte: Art. 25, D.L. 18 ottobre 2012, n. 179, conv. L. 17 dicembre 2012, n. 221</p>
-      </div>
-    </div>
-  )
-}
-function ApprovalMockup() {
-  return (
-    <div className="mini-window compact" style={{ '--tilt': '1deg' }}>
-      <div className="chrome"><i /><i /><i /></div>
-      <div className="mw-body">
-        {['Personale', 'Beni strumentali', 'Consulenze', 'Documenti'].map((t) => <div key={t} className="mw-check"><Check className="w-3 h-3" />{t}</div>)}
-        <span className="ok-badge"><ShieldCheck className="w-3.5 h-3.5" />Pronto da firmare</span>
-      </div>
-    </div>
+    <Glass className="panel">
+      <div className="p-label">CONSEGNA</div>
+      <div className="p-out"><FileText size={20} /><div><b>Dossier</b><span>PDF con ogni numero e la sua fonte</span></div></div>
+      <div className="p-out"><Table2 size={20} /><div><b>Budget</b><span>Template per bando, pronto da compilare</span></div></div>
+      <div className="p-out"><Link2 size={20} /><div><b>Registro firmato</b><span>Catena di impronte verificabile</span></div></div>
+      <div className="p-hash">0x7f3a9c1e5b8d2f4a…6c0e9b1d3a7f5c2e</div>
+    </Glass>
   )
 }
 
 const STEPS = [
-  { n: '01', title: 'Scegli il bando', body: "Cercalo per nome: QUANTO naviga le pagine ufficiali e scarica i documenti da solo.", Visual: SearchMockup },
-  { n: '02', title: 'Costruisci il budget', body: 'Il budget del progetto del cliente: voci a mano, dalla bozza dei suoi bilanci o importate da Excel.', Visual: BudgetMockup },
-  { n: '03', title: 'QUANTO controlla', body: 'Fino a 60 criteri, ognuno con la fonte da cui viene la regola.', Visual: HeatMockup },
-  { n: '04', title: "Registra l'impronta", body: "Un'impronta digitale firmata, a prova di manomissione.", Visual: HashMockup },
-  { n: '05', title: 'Alloca ai fondi', body: 'Decide quale fondo paga quale spesa nell\'anno, così mostri al cliente quanto resta a suo carico.', Visual: AllocationMockup },
+  { n: '01', title: 'Carichi i documenti del cliente', body: 'Bilanci, F24, visura, buste paga. QUANTO li legge voce per voce e compila il profilo dell’azienda: dove non è sicuro, te lo chiede.', Panel: PanelDocs },
+  { n: '02', title: 'Stima l’anno successivo', body: 'Parte dall’ultimo bilancio e applica la variazione che risulta dai tuoi dati, oppure il modello che indichi tu. Ogni percentuale ha la sua spiegazione.', Panel: PanelForecast },
+  { n: '03', title: 'Trova i bandi adatti', body: 'Confronta l’azienda con la biblioteca dei bandi: regione, dimensione, ATECO, spese ammesse. Quello che il bando non dice resta dichiarato, mai inventato.', Panel: PanelBandi },
+  { n: '04', title: 'Calcola il massimo recuperabile', body: 'Tutti i bandi insieme, senza pagare due volte la stessa spesa e rispettando tetti, cumulo e de minimis, che QUANTO stima da solo dai bilanci.', Panel: PanelAlloc },
+  { n: '05', title: 'Consegna dossier e registro', body: 'Un dossier PDF, il budget per bando e un registro firmato che prova che i numeri non sono stati toccati.', Panel: PanelDossier },
 ]
 
+const PILLARS = [
+  ['Legge i documenti', 'Bilanci, F24, visure e buste paga diventano dati, con la pagina e la riga da cui vengono.'],
+  ['Stima l’anno', 'Previsione di bilancio per categoria di spesa, con la spiegazione di ogni percentuale.'],
+  ['Trova i bandi', 'Una biblioteca di bandi studiati dalle fonti ufficiali, confrontati con l’azienda.'],
+  ['Calcola il massimo', 'Un solo risultato: quanto può recuperare l’azienda, calcolato al centesimo.'],
+]
+
+const TOOLS = [
+  ['Profilo azienda', 'Dati e bilanci in un posto solo, ognuno con il documento da cui arriva.'],
+  ['Previsione di bilancio', 'Spese e ricavi dell’anno successivo, con modello tuo o variazione dai bilanci.'],
+  ['Biblioteca dei bandi', 'Bandi studiati dalle fonti ufficiali, con regole, tetti e scadenze.'],
+  ['Allocazione ottimale', 'Quale bando paga quale spesa: il piano migliore, sempre lo stesso a parità di dati.'],
+  ['De minimis automatico', 'Il tetto residuo stimato dagli aiuti dichiarati nei bilanci, con la sua base dichiarata.'],
+  ['Budget per bando', 'Il template di budget del bando, costruito dalle spese dell’azienda.'],
+  ['Dossier PDF', 'Il documento da consegnare al cliente, con ogni cifra e la sua fonte.'],
+  ['Registro firmato', 'Ogni calcolo lascia un’impronta in una catena firmata e verificabile.'],
+  ['Assistente interno', 'Ti accompagna passo per passo e ti chiede solo i valori che mancano, spiegandoli.'],
+]
+
+const STATEMENT = 'Nessuna stima aleatoria. Nessun testo inventato. Solo regole ufficiali, applicate in modo deterministico e verificabile.'
+const MARQUEE = ['Bilanci', 'F24', 'Visure', 'Bandi', 'De minimis', 'Budget', 'Dossier', 'Registro firmato']
+
 export default function Landing({ onLogin, onAuditor, onVision }) {
-  const [modal, setModal] = useState(null) // null | 'login' | 'register'
+  const root = useRef(null)
+  const cardNum = useRef(null)
+  const [modal, setModal] = useState(null)
+  const [active, setActive] = useState(0)
+  const reduce = reducedMotion()
+
+  useEffect(() => {
+    let off = () => {}
+    const ctx = gsap.context(() => {
+      const nav = root.current.querySelector('.qt-nav')
+      ScrollTrigger.create({ start: 24, end: 99999, onUpdate: (s) => nav.classList.toggle('solid', s.scroll() > 24) })
+
+      // il numero della scheda del hero conta fino al valore d'esempio
+      const counter = { v: 0 }
+      const setNum = () => { if (cardNum.current) cardNum.current.textContent = `${eur(counter.v)} €` }
+      if (reduce) { counter.v = 1252698.85; setNum(); return }
+
+      const tl = gsap.timeline({ defaults: { ease: 'power4.out' } })
+      tl.from('.hero .eyebrow', { y: 18, opacity: 0, duration: 0.8 })
+        .from('.hero h1 .w > span', { yPercent: 115, duration: 1.1, stagger: 0.05 }, '-=0.5')
+        .from('.hero .sub', { y: 22, opacity: 0, duration: 0.9 }, '-=0.7')
+        .from('.hero .ctas > *', { y: 18, opacity: 0, duration: 0.8, stagger: 0.1 }, '-=0.6')
+        .from('.hero .hero-card', { y: 60, opacity: 0, rotateX: 12, duration: 1.3 }, '-=1.0')
+        .to(counter, { v: 1252698.85, duration: 2.2, ease: 'power3.out', onUpdate: setNum }, '-=0.8')
+        .from('.hero .hero-card .bar i', { scaleX: 0, transformOrigin: 'left', duration: 1.2, stagger: 0.08 }, '-=1.6')
+
+      // la scheda del hero si muove piano con lo scroll e segue il mouse
+      gsap.to('.hero .hero-card-wrap', { yPercent: -12, ease: 'none', scrollTrigger: { trigger: '.hero', start: 'top top', end: 'bottom top', scrub: true } })
+      const wrap = root.current.querySelector('.hero-card-wrap')
+      const onMove = (e) => {
+        const r = wrap.getBoundingClientRect()
+        const x = (e.clientX - (r.left + r.width / 2)) / window.innerWidth, y = (e.clientY - (r.top + r.height / 2)) / window.innerHeight
+        gsap.to('.hero .hero-card', { rotateY: x * 10, rotateX: -y * 8, duration: 0.8, ease: 'power3.out' })
+      }
+      window.addEventListener('pointermove', onMove, { passive: true })
+      off = () => window.removeEventListener('pointermove', onMove)
+
+      // i titoli di sezione e le schede entrano scorrendo
+      gsap.utils.toArray('.reveal').forEach((el) => gsap.from(el, { y: 44, opacity: 0, filter: 'blur(10px)', duration: 1, ease: 'power3.out', scrollTrigger: { trigger: el, start: 'top 86%' } }))
+      ScrollTrigger.batch('.reveal-card', { start: 'top 88%', onEnter: (els) => gsap.from(els, { y: 50, opacity: 0, filter: 'blur(8px)', duration: 0.9, stagger: 0.09, ease: 'power3.out', overwrite: true }) })
+
+      // la frase che si accende parola per parola
+      gsap.fromTo('.statement .sw', { opacity: 0.14 }, { opacity: 1, stagger: 0.12, ease: 'none', scrollTrigger: { trigger: '.statement', start: 'top 70%', end: 'bottom 55%', scrub: true } })
+
+      // «come funziona»: la sezione resta ferma e i cinque passi scorrono
+      const mm = gsap.matchMedia()
+      mm.add('(min-width: 900px)', () => {
+        ScrollTrigger.create({
+          trigger: '.how', start: 'top top', end: () => `+=${window.innerHeight * 0.65 * STEPS.length}`, pin: '.how-pin', scrub: true,
+          onUpdate: (s) => setActive(Math.min(STEPS.length - 1, Math.floor(s.progress * STEPS.length))),
+        })
+      })
+
+      // numeri della sezione strumenti
+      gsap.utils.toArray('.count').forEach((el) => {
+        const to = Number(el.dataset.to); const o = { v: 0 }
+        gsap.to(o, { v: to, duration: 1.6, ease: 'power2.out', onUpdate: () => { el.textContent = Math.round(o.v) }, scrollTrigger: { trigger: el, start: 'top 90%', once: true } })
+      })
+
+    }, root)
+    return () => { off(); ctx.revert() }
+  }, [reduce])
+
+  const split = (text) => text.split(' ').map((w, i) => <span key={i} className="w"><span>{w}</span></span>)
+
   return (
-    <div className="qt-land">
-      <div className="dark-zone">
-        <div className="glow-yellow" style={{ width: 520, height: 520, top: -160, left: '50%', transform: 'translateX(-50%)' }} />
-        <ChainField variant="clear-center" />
-        <svg className="grain" width="100%" height="100%"><filter id="n"><feTurbulence type="fractalNoise" baseFrequency="0.85" numOctaves="2" stitchTiles="stitch" /></filter><rect width="100%" height="100%" filter="url(#n)" /></svg>
+    <div className="qt-land" ref={root}>
+      <nav className="qt-nav"><div className="wrap row">
+        <div className="brand"><Mark size={30} /><Wordmark height={17} className="wordmark-mask" /></div>
+        <div className="links">
+          <a href="#cosa-fa">Cosa fa</a>
+          <a href="#come-funziona">Come funziona</a>
+          <a href="#strumenti">Strumenti</a>
+          <a href="#prezzi">Prezzi</a>
+          <button onClick={onVision}><Sparkles size={14} />La visione</button>
+        </div>
+        <div className="actions">
+          <button className="btn-ghost" onClick={() => setModal('login')}>Accedi</button>
+          <button className="btn-solid" onClick={() => setModal('register')}>Inizia gratis</button>
+        </div>
+      </div></nav>
 
-        <nav className="qt-nav"><div className="wrap row">
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}><Mark size={30} /><Wordmark height={17} className="wordmark-mask" /></div>
-          <div className="links">
-            <a href="#come-funziona">Come funziona</a>
-            <a href="#controlli">I 60 controlli</a>
-            <a href="#prezzi">Prezzi</a>
-            <button onClick={onVision}><Sparkles className="w-3.5 h-3.5" style={{ marginRight: 5 }} />La visione</button>
-          </div>
-          <div className="actions">
-            <button className="btn-ghost" onClick={() => setModal('login')}>Accedi</button>
-            <button className="btn-solid" onClick={() => setModal('register')}>Inizia gratis</button>
-          </div>
-        </div></nav>
-
-        <header className="hero"><div className="wrap hero-inner">
-          <span className="eyebrow"><span className="dot" />Per studi commercialistici e consulenti</span>
-          <h1 style={{ fontSize: 'clamp(28px, 4.3vw, 52px)', maxWidth: '24ch', lineHeight: 1.08 }}>La piattaforma di Finanza Agevolata ed Allocazione di Bilancio per <mark>Studi Commercialistici e Consulenti d’Impresa</mark></h1>
-          <p className="sub">Potenzia il tuo studio con il motore deterministico che trasforma i dati di bilancio dei tuoi clienti in piani d’allocazione finanziaria e contributi pubblici. Elimina le ore di ricerca manuale e genera nuovi ricavi ad alto margine.</p>
-          <div className="ctas">
-            <button className="btn-solid" onClick={() => setModal('register')}>Inizia gratis<ArrowRight className="w-3.5 h-3.5" /></button>
-          </div>
-          <p className="fineprint">Gratuito oggi. Nessuna carta di credito richiesta.</p>
-
-          <div className="window-wrap"><div className="window">
-            <div className="chrome"><i /><i /><i /><span className="url">quanto.app/budget</span></div>
-            <div className="body">
-              <div className="top"><span className="name">Beni strumentali — Nuova Sabatini</span><span className="score mono">46/60 superati</span></div>
-              <div className="heat-grid">{DEMO_OUTCOMES.map((o, i) => <div key={i} className="heat-cell" style={{ background: CELL_COLOR[o] }} title={`#${i + 1}`} />)}</div>
-              <div className="heat-legend">
-                <span><i style={{ background: CELL_COLOR.OK }} />superato</span>
-                <span><i style={{ background: CELL_COLOR.ADJUSTED }} />ridotto</span>
-                <span><i style={{ background: CELL_COLOR.REJECTED }} />respinto</span>
-                <span><i style={{ background: CELL_COLOR.WAIT }} />da documentare</span>
-                <span><i style={{ background: CELL_COLOR.NONE }} />non valutato</span>
-              </div>
+      <header className="hero">
+        <Suspense fallback={null}><LiquidHero reduce={reduce} /></Suspense>
+        <div className="wrap hero-grid">
+          <div className="hero-copy">
+            <span className="eyebrow"><i />Per studi di commercialisti e boutique di finanza agevolata</span>
+            <h1>{split('Il motore di calcolo per la finanza agevolata.')}</h1>
+            <p className="sub">Carichi i bilanci del cliente. QUANTO stima l’anno successivo, trova i bandi, applica le regole ufficiali e calcola il massimo recuperabile: al centesimo, con la fonte di ogni numero.</p>
+            <div className="ctas">
+              <button className="btn-solid big" onClick={() => setModal('register')}>Inizia gratis<ArrowRight size={16} /></button>
+              <a className="btn-line big" href="#come-funziona">Come funziona</a>
             </div>
-          </div></div>
-          <p className="fineprint" style={{ marginTop: 14 }}>Illustrazione dell’interfaccia: i valori sono d’esempio.</p>
-        </div></header>
+            <p className="fineprint">Gratuito oggi. Nessuna carta di credito richiesta.</p>
+          </div>
+          <div className="hero-card-wrap">
+            <Glass className="hero-card">
+              <div className="hc-top"><span>ALLOCAZIONE · ESERCIZIO 2027</span><span>azienda di prova</span></div>
+              <div className="hc-label">POTENZIALE MASSIMO · TUTTI I BANDI INSIEME</div>
+              <div className="hc-num" ref={cardNum}>{eur(0)} €</div>
+              <div className="hc-sub">fino a <b>1.718.015,07 €</b> con tutte le maggiorazioni</div>
+              {[['Personale', 70], ['Consulenze', 70], ['Beni strumentali', 100], ['Formazione', 14]].map(([l, v]) => (
+                <div key={l} className="bar"><span>{l}</span><div><i style={{ width: `${v}%` }} /></div></div>
+              ))}
+              <div className="hc-foot"><span className="pill g"><Check size={12} />Regole ufficiali verificate</span><span className="pill v">De minimis stimato</span></div>
+            </Glass>
+            <p className="caption">Illustrazione: i valori sono quelli dell’azienda di prova.</p>
+          </div>
+        </div>
+        <div className="scroll-hint" aria-hidden="true"><i /></div>
+      </header>
 
-        <svg className="curve-divider" viewBox="0 0 1200 64" preserveAspectRatio="none"><path d="M0,64 C300,0 900,0 1200,64 L1200,64 L0,64 Z" fill="var(--l-bg)" /></svg>
+      <div className="marquee" aria-hidden="true">
+        <div className="track">{[...MARQUEE, ...MARQUEE, ...MARQUEE, ...MARQUEE].map((w, i) => <span key={i}>{w}<em>◆</em></span>)}</div>
       </div>
 
-      <section className="sect tight" id="vantaggi"><div className="wrap">
-        <div className="sect-head">
-          <span className="kicker">Vantaggi per lo studio</span>
-          <h2>Più clienti seguiti, senza un analista in più</h2>
-        </div>
-        <div className="blocks" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))' }}>
-          <div className="block-card"><div className="range mono">01</div><h4>Zero ore analista</h4><p style={{ fontSize: 13.5, lineHeight: 1.6, color: 'var(--l-ink-2)' }}>Analisi immediata dei bilanci civilistici del cliente e abbinamento deterministico ai bandi del catalogo nazionale: giorni di ricerca manuale ridotti a pochi minuti.</p></div>
-          <div className="block-card"><div className="range mono">02</div><h4>Modello a consumo</h4><p style={{ fontSize: 13.5, lineHeight: 1.6, color: 'var(--l-ink-2)' }}>Ogni diagnosi di allocazione è un report che puoi riaddebitare direttamente al cliente o re-impacchettare come servizio di consulenza continuativa.</p></div>
-          <div className="block-card"><div className="range mono">03</div><h4>Precisione deterministica a 60 criteri</h4><p style={{ fontSize: 13.5, lineHeight: 1.6, color: 'var(--l-ink-2)' }}>Nessuna IA generica e nessun testo inventato: calcoli esatti al centesimo, ogni regola con la sua fonte ufficiale dichiarata.</p></div>
-        </div>
-      </div></section>
-
-      <section className="sect" id="come-funziona"><div className="wrap">
-        <div className="sect-head">
-          <span className="kicker">Come funziona</span>
-          <h2>Dal bando al budget certificato</h2>
-        </div>
-        <p className="tool-note" style={{ marginBottom: 20 }}>Le immagini sono illustrazioni dell’interfaccia: i valori che vi compaiono non sono dati reali.</p>
-        <div className="funziona-rows">
-          {STEPS.map((s, i) => (
-            <div key={s.n} className={`funziona-row ${i % 2 ? 'rev' : ''}`}>
-              <div className="fr-text"><span className="step-n">{s.n}</span><h3>{s.title}</h3><p>{s.body}</p></div>
-              <div className="fr-visual"><s.Visual /></div>
-            </div>
+      <section className="sect" id="cosa-fa"><div className="wrap">
+        <div className="sect-head reveal"><span className="kicker">Cosa fa</span><h2>Dal bilancio al massimo recuperabile, in un solo posto</h2></div>
+        <div className="pillars">
+          {PILLARS.map(([t, b], i) => (
+            <Glass key={t} className="pillar reveal-card"><span className="num">0{i + 1}</span><h3>{t}</h3><p>{b}</p></Glass>
           ))}
         </div>
       </div></section>
 
-      <section className="sect" id="controlli">
-        <div className="pattern-grid" aria-hidden="true" />
-        <div className="wrap">
-          <div className="sect-head">
-            <span className="kicker">Il motore</span>
-            <h2>60 criteri, in quattro gruppi</h2>
-            <p>Ogni criterio è attivo solo se il bando dice qualcosa in merito: quello che i documenti non dicono resta dichiarato, mai inventato.</p>
-          </div>
-          <div className="blocks">
-            {BLOCKS.map((b) => (
-              <div key={b.label} className="block-card">
-                <div className="range mono">#{b.from}–{b.to}</div>
-                <h4>{b.label}</h4>
-                <div className="block-mini">{Array.from({ length: 15 }).map((_, i) => <i key={i} />)}</div>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
+      <section className="statement"><div className="wrap">
+        <p>{STATEMENT.split(' ').map((w, i) => <span key={i} className="sw">{w} </span>)}</p>
+      </div></section>
 
-      <section className="sect dark-sect">
-        <ChainField rows={2} perRow={9} seed={23} variant="faint" />
-        <div className="wrap">
-          <div className="sect-head center">
-            <span className="kicker">Perché fidarsi</span>
-            <h2>Tre principi, non uno slogan</h2>
+      <section className="how" id="come-funziona">
+        <div className="how-pin"><div className="wrap how-grid">
+          <div className="how-left">
+            <span className="kicker">Come funziona</span>
+            <h2>Cinque passi, nessun foglio Excel in mezzo</h2>
+            <ol className="how-steps">
+              {STEPS.map((s, i) => (
+                <li key={s.n} className={i === active ? 'on' : ''}>
+                  <span className="n">{s.n}</span>
+                  <div><h3>{s.title}</h3><p>{s.body}</p><div className="inline-panel"><s.Panel /></div></div>
+                </li>
+              ))}
+            </ol>
           </div>
-          <div className="trio">
-            <div className="trio-item"><DeterministicMockup /><h3>Deterministico</h3><p>Stesso budget, stesso risultato. Nessuna generazione: solo calcolo e regole tracciabili, riga per riga.</p></div>
-            <div className="trio-item"><SourceMockup /><h3>Fonti dichiarate</h3><p>Ogni regola cita da dove viene — un decreto, una circolare — e quanto ci si può fidare di quella lettura.</p></div>
-            <div className="trio-item"><HashMockup /><h3>Verificabile</h3><p>Registro firmato, a prova di manomissione: chiunque può controllare che un budget certificato non sia stato toccato.</p></div>
+          <div className="how-right">
+            <div className="how-stage">{STEPS.map((s, i) => <div key={s.n} className={`how-panel ${i === active ? 'on' : ''}`}><s.Panel /></div>)}</div>
+            <p className="caption">Illustrazioni con i dati dell’azienda di prova.</p>
           </div>
-        </div>
-      </section>
-
-      <section className="sect dark-sect">
-        <div className="glow-warm" style={{ width: 700, height: 500, top: '10%', left: '50%', transform: 'translateX(-50%)' }} aria-hidden="true" />
-        <div className="wrap">
-          <div className="sect-head">
-            <span className="kicker">Per chi è</span>
-            <h2>Pensato per chi segue molti clienti</h2>
-          </div>
-          <div className="trio">
-            <div className="trio-item"><ApprovalMockup /><h3>Studi commercialistici strutturati</h3><p>Con reparto consulenza o finanza straordinaria: uno studio segue decine di imprese clienti, con la fonte di ogni regola pronta da mostrare.</p></div>
-            <div className="trio-item"><HeatMockup /><h3>Boutique di finanza agevolata</h3><p>Costruiscono il budget del progetto e sanno subito cosa verrebbe respinto, prima di presentare la candidatura per il cliente.</p></div>
-            <div className="trio-item"><AllocationMockup /><h3>Fractional CFO e consulenti di direzione</h3><p>Pianificano più fondi insieme per l'impresa che seguono e sanno chi paga cosa lungo tutto l'anno.</p></div>
-          </div>
-        </div>
-      </section>
-
-      <section className="sect dark-sect" id="prezzi">
-        <ChainField rows={2} perRow={8} seed={41} variant="low" />
-        <div className="wrap">
-          <div className="sect-head">
-            <span className="kicker">Prezzi</span>
-            <h2>Gratuito oggi. Onesto sempre.</h2>
-            <p>QUANTO è gratuito in questa fase. Più avanti arriveranno piani a pagamento per team ed enti — chi si iscrive ora userà il prodotto gratuitamente più a lungo.</p>
-          </div>
-          <div className="pricing">
-            <div className="price-card dark-card">
-              <div className="tier">Oggi</div>
-              <div className="amount">Gratis</div>
-              <ul>
-                <li>Bandi, ricerca e controllo del budget</li>
-                <li>Fino a 60 criteri per bando</li>
-                <li>Registro firmato e verifica</li>
-                <li>Documenti privati e allocazione dei fondi</li>
-              </ul>
-              <button className="btn-solid" style={{ width: '100%', justifyContent: 'center' }} onClick={() => setModal('register')}>Inizia gratis</button>
-            </div>
-            <div className="price-card dark-card dim">
-              <div className="tier">Presto</div>
-              <div className="amount">In arrivo</div>
-              <ul>
-                <li>Piani a consumo per studi e team di consulenza</li>
-                <li>Prezzi non ancora definiti</li>
-              </ul>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <div className="dark-zone">
-        <div className="glow-yellow" style={{ width: 460, height: 460, bottom: -200, left: '50%', transform: 'translateX(-50%)' }} />
-        <div className="cta-final"><div className="wrap">
-          <h2>Prima di inviare il prossimo budget del tuo cliente, controllalo.</h2>
-          <p>Gratis in questa fase, senza carta di credito, pronto in un minuto.</p>
-          <button className="btn-solid" onClick={() => setModal('register')}>Inizia gratis<ArrowRight className="w-3.5 h-3.5" /></button>
         </div></div>
+      </section>
 
-        <footer className="qt-foot"><div className="wrap" style={{ display: 'flex', alignItems: 'center', gap: 14, width: '100%', flexWrap: 'wrap' }}>
-          <span className="copy">© 2026 QUANTO</span>
-          <button onClick={onVision}><Sparkles className="w-3.5 h-3.5" style={{ marginRight: 4 }} />La visione</button>
-          <button onClick={onAuditor}><ShieldCheck className="w-3.5 h-3.5" style={{ marginRight: 4 }} />Sei un revisore?</button>
-          <span className="sp" />
-          <button onClick={() => setModal('login')}><Lock className="w-3 h-3" style={{ marginRight: 4 }} />Accedi</button>
-        </div></footer>
-      </div>
+      <section className="sect light" id="strumenti"><div className="wrap">
+        <div className="sect-head reveal"><span className="kicker">Gli strumenti</span><h2>Tutto quello che serve per un cliente, già collegato</h2>
+          <p>Un account per lo studio, un flusso dedicato per ogni azienda cliente. <b className="count" data-to="60">60</b> controlli per bando, ognuno con la fonte da cui viene la regola.</p></div>
+        <div className="bento">
+          {TOOLS.map(([t, b], i) => (
+            <div key={t} className={`tool reveal-card t${i}`}><span className="idx">{String(i + 1).padStart(2, '0')}</span><h3>{t}</h3><p>{b}</p></div>
+          ))}
+        </div>
+      </div></section>
+
+      <section className="sect dark"><div className="wrap">
+        <div className="sect-head center reveal"><span className="kicker">Perché fidarsi</span><h2>Tre principi, non uno slogan</h2></div>
+        <div className="trio">
+          <Glass className="trio-item reveal-card"><ShieldCheck size={26} /><h3>Deterministico</h3><p>Stesso dato, stesso risultato. I calcoli non usano modelli generativi: solo regole tracciabili, riga per riga.</p></Glass>
+          <Glass className="trio-item reveal-card"><FileText size={26} /><h3>Fonti dichiarate</h3><p>Ogni regola cita da dove viene, un decreto o una circolare, e quanto ci si può fidare di quella lettura.</p></Glass>
+          <Glass className="trio-item reveal-card"><Link2 size={26} /><h3>Verificabile</h3><p>Un registro firmato a prova di manomissione: chiunque può controllare che un dossier non sia stato toccato.</p></Glass>
+        </div>
+      </div></section>
+
+      <section className="sect light" id="per-chi"><div className="wrap">
+        <div className="sect-head reveal"><span className="kicker">Per chi è</span><h2>Per chi segue molti clienti e non può sbagliare un numero</h2></div>
+        <div className="who">
+          <div className="who-item reveal-card"><h3>Studi di commercialisti</h3><p>Decine di imprese clienti, un account solo. Per ognuna, il potenziale dei bandi pronto da mostrare con la fonte di ogni regola.</p></div>
+          <div className="who-item reveal-card"><h3>Boutique di finanza agevolata</h3><p>Dal bilancio al budget del bando, sapendo subito cosa verrebbe ridotto o respinto prima di presentare la domanda.</p></div>
+          <div className="who-item reveal-card"><h3>Più clienti, stesso tempo</h3><p>Le ore che andavano nella ricerca manuale e nei fogli di calcolo tornano al lavoro che solo lo studio può fare.</p></div>
+        </div>
+      </div></section>
+
+      <section className="sect dark" id="prezzi"><div className="wrap">
+        <div className="sect-head center reveal"><span className="kicker">Prezzi</span><h2>Gratuito oggi. Onesto sempre.</h2>
+          <p>QUANTO è gratuito in questa fase. Più avanti arriveranno piani a pagamento per studi e team: chi si iscrive ora userà il prodotto gratuitamente più a lungo.</p></div>
+        <div className="pricing">
+          <Glass className="price-card reveal-card hot">
+            <div className="tier">Oggi</div><div className="amount">Gratis</div>
+            <ul><li>Profilo azienda e lettura dei documenti</li><li>Previsione di bilancio e biblioteca dei bandi</li><li>Allocazione, de minimis e dossier</li><li>Registro firmato e verifica</li></ul>
+            <button className="btn-solid big" onClick={() => setModal('register')}>Inizia gratis</button>
+          </Glass>
+          <Glass className="price-card reveal-card dim">
+            <div className="tier">Presto</div><div className="amount">In arrivo</div>
+            <ul><li>Piani a consumo per studi e team</li><li>Prezzi non ancora definiti</li></ul>
+          </Glass>
+        </div>
+      </div></section>
+
+      <section className="cta-final">
+        <div className="orb" aria-hidden="true" />
+        <div className="wrap reveal">
+          <h2>Prima di consegnare il prossimo piano al tuo cliente, calcolalo con QUANTO.</h2>
+          <p>Gratis in questa fase, senza carta di credito, pronto in un minuto.</p>
+          <button className="btn-solid big" onClick={() => setModal('register')}>Inizia gratis<ArrowRight size={16} /></button>
+        </div>
+      </section>
+
+      <footer className="qt-foot"><div className="wrap row">
+        <span className="copy">© 2026 QUANTO</span>
+        <button onClick={onVision}><Sparkles size={14} />La visione</button>
+        <button onClick={onAuditor}><ShieldCheck size={14} />Sei un revisore?</button>
+        <span className="sp" />
+        <button onClick={() => setModal('login')}><Lock size={13} />Accedi</button>
+      </div></footer>
 
       {modal && <AuthModal mode={modal} onClose={() => setModal(null)} onSwitch={setModal} onDone={onLogin} />}
     </div>
