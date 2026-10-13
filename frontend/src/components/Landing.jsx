@@ -1,4 +1,4 @@
-import React, { lazy, Suspense, useEffect, useMemo, useRef, useState } from 'react'
+import React, { useEffect, useMemo, useRef, useState } from 'react'
 import { ArrowRight, Check, FileText, Link2, Loader2, Lock, ShieldCheck, Sparkles, Table2, X } from 'lucide-react'
 import gsap from 'gsap'
 import { ScrollTrigger } from 'gsap/ScrollTrigger'
@@ -7,7 +7,6 @@ import { Mark, Wordmark } from './ui'
 import './Landing.css'
 
 gsap.registerPlugin(ScrollTrigger)
-const LiquidHero = lazy(() => import('./LiquidHero'))
 
 const eur = (n) => n.toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
 const reducedMotion = () => typeof window !== 'undefined' && window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches
@@ -236,17 +235,7 @@ const PILLARS = [
   ['Calcola il massimo', 'Quanto può recuperare l’azienda, al centesimo.'],
 ]
 
-const TOOLS = [
-  ['Profilo azienda', 'Dati e bilanci in un posto solo, ognuno con il documento da cui arriva.'],
-  ['Previsione di bilancio', 'Spese e ricavi dell’anno successivo, con modello tuo o variazione dai bilanci.'],
-  ['Biblioteca dei bandi', 'Bandi studiati dalle fonti ufficiali, con regole, tetti e scadenze.'],
-  ['Allocazione ottimale', 'Quale bando paga quale spesa: il piano migliore, sempre lo stesso a parità di dati.'],
-  ['De minimis automatico', 'Il tetto residuo stimato dagli aiuti dichiarati nei bilanci, con la sua base dichiarata.'],
-  ['Budget per bando', 'Il template di budget del bando, costruito dalle spese dell’azienda.'],
-  ['Dossier PDF', 'Il documento da consegnare al cliente, con ogni cifra e la sua fonte.'],
-  ['Registro firmato', 'Ogni calcolo lascia un’impronta in una catena firmata e verificabile.'],
-  ['Assistente interno', 'Ti accompagna passo per passo e ti chiede solo i valori che mancano.'],
-]
+const FUNCS = ['Lettura dei documenti', 'Profilo azienda', 'Previsione di bilancio', 'Biblioteca dei bandi', 'Allocazione ottimale', 'De minimis automatico', 'Budget per bando', 'Dossier PDF', 'Registro firmato', 'Assistente interno']
 
 const STATEMENT = [['Nessuna', 0], ['stima', 0], ['aleatoria.', 0], ['Nessun', 0], ['testo', 0], ['inventato.', 0], ['Solo', 0], ['regole', 1], ['ufficiali,', 1], ['applicate', 0], ['in', 0], ['modo', 0], ['deterministico.', 0]]
 
@@ -271,18 +260,31 @@ export default function Landing({ onLogin, onAuditor, onVision }) {
         .from('.hero .heat-cell', { scale: 0, opacity: 0, duration: 0.5, ease: 'back.out(2)', stagger: { each: 0.012, from: 'start' } }, '-=0.9')
         .from('.hero .float', { y: 50, opacity: 0, duration: 1, stagger: 0.15 }, '-=1.2')
 
-      // la finestra del hero si raddrizza scorrendo, le due finestrelle laterali si muovono a profondità diverse
-      gsap.fromTo('.hero .window', { rotateX: 9 }, { rotateX: 0, ease: 'none', scrollTrigger: { trigger: '.window-wrap', start: 'top 85%', end: 'top 20%', scrub: true } })
+      // la finestra del hero oscilla piano nello spazio e segue il mouse; le finestrelle laterali scorrono a profondità diverse
+      gsap.set('.hero .window-tilt', { rotateX: 6, rotateY: -6 })
+      gsap.to('.hero .window-tilt', { rotateY: 6, rotateX: 3, duration: 6, ease: 'sine.inOut', yoyo: true, repeat: -1 })
       gsap.to('.hero .float.l', { yPercent: -28, ease: 'none', scrollTrigger: { trigger: '.window-wrap', start: 'top bottom', end: 'bottom top', scrub: 1 } })
       gsap.to('.hero .float.r', { yPercent: 22, ease: 'none', scrollTrigger: { trigger: '.window-wrap', start: 'top bottom', end: 'bottom top', scrub: 1 } })
+      const hero = root.current.querySelector('.hero')
       const win = root.current.querySelector('.window-wrap')
+      const spotX = gsap.quickTo('.hero .spot', 'x', { duration: 0.9, ease: 'power3.out' })
+      const spotY = gsap.quickTo('.hero .spot', 'y', { duration: 0.9, ease: 'power3.out' })
       const onMove = (e) => {
+        const hr = hero.getBoundingClientRect()
+        spotX(e.clientX - hr.left); spotY(e.clientY - hr.top)
         const r = win.getBoundingClientRect()
         const x = (e.clientX - (r.left + r.width / 2)) / window.innerWidth, y = (e.clientY - (r.top + r.height / 2)) / window.innerHeight
-        gsap.to('.hero .window-tilt', { rotateY: x * 6, rotateX: -y * 4, duration: 0.9, ease: 'power3.out' })
+        gsap.to('.hero .window-mouse', { rotateY: x * 14, rotateX: -y * 8, duration: 0.9, ease: 'power3.out' })
       }
       window.addEventListener('pointermove', onMove, { passive: true })
       off = () => window.removeEventListener('pointermove', onMove)
+
+      // striscia delle funzioni: scorre piano e accelera un poco con lo scroll
+      const track = gsap.to('.ticker-track', { xPercent: -50, duration: 70, ease: 'none', repeat: -1 })
+      ScrollTrigger.create({ start: 0, end: 'max', onUpdate: (s) => {
+        const boost = Math.min(5, 1 + Math.abs(s.getVelocity()) / 700)
+        gsap.to(track, { timeScale: boost, duration: 0.25, overwrite: true, onComplete: () => gsap.to(track, { timeScale: 1, duration: 1.4 }) })
+      } })
 
       gsap.utils.toArray('.reveal').forEach((el) => gsap.from(el, { y: 40, opacity: 0, duration: 0.9, ease: 'power3.out', scrollTrigger: { trigger: el, start: 'top 88%' } }))
       ScrollTrigger.batch('.reveal-card', { start: 'top 90%', onEnter: (els) => gsap.from(els, { y: 44, opacity: 0, duration: 0.85, stagger: 0.09, ease: 'power3.out', overwrite: true }) })
@@ -328,7 +330,7 @@ export default function Landing({ onLogin, onAuditor, onVision }) {
       </div></nav>
 
       <header className="hero">
-        <Suspense fallback={null}><LiquidHero reduce={reduce} /></Suspense>
+        <div className="hero-bg" aria-hidden="true"><i className="grid" /><i className="glow" /><i className="spot" /></div>
         <div className="wrap hero-inner">
           <h1>{split(['Il', 'motore', 'di', 'calcolo', 'per', 'la', <mark key="m">finanza agevolata.</mark>])}</h1>
           <p className="sub">Dai bilanci dei tuoi clienti al massimo recuperabile, al centesimo.</p>
@@ -341,12 +343,13 @@ export default function Landing({ onLogin, onAuditor, onVision }) {
           <div className="window-wrap">
             <div className="float l"><AllocationMockup /></div>
             <div className="float r"><DeterministicMockup /></div>
-            <div className="window-tilt">
+            <div className="window-mouse"><div className="window-tilt">
+              <div className="depth" />
               <div className="window">
                 <Chrome url="quanto.app/budget" />
                 <div className="body">
                   <div className="top"><span className="name">Beni strumentali — Nuova Sabatini</span><span className="score mono">46/60 superati</span></div>
-                  <div className="heat-grid">{DEMO_OUTCOMES.map((o, i) => <div key={i} className="heat-cell" style={{ background: CELL_COLOR[o] }} title={`#${i + 1}`} />)}</div>
+                  <div className="heat-grid">{DEMO_OUTCOMES.map((o, i) => <div key={i} className="heat-cell" style={{ background: CELL_COLOR[o], '--d': `${((Math.floor(i / 15) + (i % 15)) * 0.11).toFixed(2)}s` }} title={`#${i + 1}`} />)}</div>
                   <div className="heat-legend">
                     <span><i style={{ background: CELL_COLOR.OK }} />superato</span>
                     <span><i style={{ background: CELL_COLOR.ADJUSTED }} />ridotto</span>
@@ -356,11 +359,15 @@ export default function Landing({ onLogin, onAuditor, onVision }) {
                   </div>
                 </div>
               </div>
-            </div>
+            </div></div>
           </div>
-          <p className="fineprint" style={{ marginTop: 18 }}>Illustrazione dell’interfaccia: i valori sono d’esempio.</p>
+          <p className="fineprint" style={{ marginTop: 40 }}>Illustrazione dell’interfaccia: i valori sono d’esempio.</p>
         </div>
       </header>
+
+      <div className="ticker" aria-label="Le funzioni di QUANTO">
+        <div className="ticker-track">{[0, 1].map((k) => <div key={k} className="ticker-set" aria-hidden={k === 1}>{FUNCS.map((f) => <span key={f} className="ticker-item"><i />{f}</span>)}</div>)}</div>
+      </div>
 
       <section className="sect" id="cosa-fa"><div className="wrap">
         <div className="sect-head reveal"><span className="kicker">Cosa fa</span><h2>Dal bilancio al massimo recuperabile, in un solo posto</h2></div>
@@ -393,7 +400,7 @@ export default function Landing({ onLogin, onAuditor, onVision }) {
           <div className="how-right">
             <div className="how-stage">{STEPS.map((s, i) => (
               <div key={s.n} className={`how-panel ${i === active ? 'on' : ''}`}>
-                <div className="how-window"><Chrome url={s.url} /><div className="glass win-glass"><s.Panel /></div></div>
+                <div className="how-window"><div className="depth" /><Chrome url={s.url} /><div className="glass win-glass"><s.Panel /></div></div>
               </div>
             ))}</div>
             <p className="caption">Illustrazioni con i dati dell’azienda di prova.</p>
@@ -404,14 +411,9 @@ export default function Landing({ onLogin, onAuditor, onVision }) {
       <section className="sect" id="strumenti"><div className="wrap">
         <div className="sect-head reveal"><span className="kicker">Gli strumenti</span><h2>Tutto quello che serve per un cliente, già collegato</h2>
           <p>Un account per lo studio, un flusso dedicato per ogni azienda cliente. <b className="count" data-to="60">60</b> controlli per bando, ognuno con la fonte da cui viene la regola.</p></div>
-        <div className="funziona-rows">
+        <div className="funziona-rows last">
           <div className="funziona-row"><div className="fr-text"><span className="step-n">A</span><h3>Un account, tutti i clienti</h3><p>Ogni azienda ha il suo flusso: documenti, profilo, bandi e piano restano separati e sempre aggiornati.</p></div><div className="fr-visual"><ClientsMockup /></div></div>
           <div className="funziona-row rev"><div className="fr-text"><span className="step-n">B</span><h3>60 controlli per bando</h3><p>Vedi subito cosa passa, cosa viene ridotto e cosa va documentato, prima di presentare la domanda.</p></div><div className="fr-visual"><HeatMockup /></div></div>
-        </div>
-        <div className="bento">
-          {TOOLS.map(([t, b], i) => (
-            <div key={t} className={`tool reveal-card t${i}`}><span className="idx">{String(i + 1).padStart(2, '0')}</span><h3>{t}</h3><p>{b}</p></div>
-          ))}
         </div>
       </div></section>
 
