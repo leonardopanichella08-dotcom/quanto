@@ -1,9 +1,10 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react'
-import { ArrowRight, Check, FileText, Link2, Loader2, Lock, ShieldCheck, Table2, X } from 'lucide-react'
+import { ArrowRight, Check, FileText, Link2, Loader2, Lock, ShieldCheck, Star, Table2, X } from 'lucide-react'
 import gsap from 'gsap'
 import { ScrollTrigger } from 'gsap/ScrollTrigger'
 import { api, session } from '../lib/api'
 import { Mark, Wordmark } from './ui'
+import { REVIEWS } from './landingReviews'
 import './Landing.css'
 
 gsap.registerPlugin(ScrollTrigger)
@@ -310,13 +311,8 @@ export default function Landing({ onLogin, onAuditor, onVision }) {
       gsap.to('.hero .window-tilt', { rotateY: 6, rotateX: 3, duration: 6, ease: 'sine.inOut', yoyo: true, repeat: -1 })
       gsap.to('.hero .float.l', { yPercent: -28, ease: 'none', scrollTrigger: { trigger: '.window-wrap', start: 'top bottom', end: 'bottom top', scrub: 1 } })
       gsap.to('.hero .float.r', { yPercent: 22, ease: 'none', scrollTrigger: { trigger: '.window-wrap', start: 'top bottom', end: 'bottom top', scrub: 1 } })
-      const hero = root.current.querySelector('.hero')
       const win = root.current.querySelector('.window-wrap')
-      const spotX = gsap.quickTo('.hero .spot', 'x', { duration: 0.9, ease: 'power3.out' })
-      const spotY = gsap.quickTo('.hero .spot', 'y', { duration: 0.9, ease: 'power3.out' })
       const onMove = (e) => {
-        const hr = hero.getBoundingClientRect()
-        spotX(e.clientX - hr.left); spotY(e.clientY - hr.top)
         const r = win.getBoundingClientRect()
         const x = (e.clientX - (r.left + r.width / 2)) / window.innerWidth, y = (e.clientY - (r.top + r.height / 2)) / window.innerHeight
         gsap.to('.hero .window-mouse', { rotateY: x * 14, rotateX: -y * 8, duration: 0.9, ease: 'power3.out' })
@@ -375,7 +371,7 @@ export default function Landing({ onLogin, onAuditor, onVision }) {
       </div></nav>
 
       <header className="hero">
-        <div className="hero-bg" aria-hidden="true"><i className="grid" /><i className="glow" /><i className="spot" /></div>
+        <div className="hero-bg" aria-hidden="true"><i className="grid" /></div>
         <div className="wrap hero-inner">
           <h1>{split(['Il', 'motore', 'di', 'calcolo', 'per', 'la', <mark key="m">finanza agevolata.</mark>])}</h1>
           <p className="sub">Dai bilanci dei tuoi clienti al massimo recuperabile, al centesimo.</p>
@@ -427,7 +423,6 @@ export default function Landing({ onLogin, onAuditor, onVision }) {
       </div></section>
 
       <section className="how dark" id="come-funziona">
-        <div className="how-glow" aria-hidden="true" />
         <div className="how-pin"><div className="wrap how-grid">
           <div className="how-left">
             <span className="kicker">Come funziona</span>
@@ -481,6 +476,20 @@ export default function Landing({ onLogin, onAuditor, onVision }) {
         </div>
       </div></section>
 
+      <section className="sect reviews" id="recensioni"><div className="wrap">
+        <div className="sect-head center reveal"><span className="kicker">Recensioni</span><h2>Cosa dicono gli studi che lo usano</h2></div>
+        <div className="rev-grid">
+          {REVIEWS.map((r) => (
+            <figure key={r.id} className="rev-card reveal-card">
+              <div className="rev-stars" role="img" aria-label={`${r.stars} stelle su 5`}>{Array.from({ length: 5 }, (_, i) => <Star key={i} size={16} className={i < r.stars ? 'on' : ''} />)}</div>
+              <blockquote>{r.text}</blockquote>
+              <figcaption><b>{r.author}</b><span>{r.role}</span></figcaption>
+              {!r.real && <span className="rev-tag">Testo di esempio: da sostituire con una recensione reale</span>}
+            </figure>
+          ))}
+        </div>
+      </div></section>
+
       <section className="sect tint" id="prezzi"><div className="wrap">
         <div className="sect-head center reveal"><span className="kicker">Prezzi</span><h2>Gratuito oggi. Onesto sempre.</h2>
           <p>QUANTO è gratuito in questa fase. Più avanti arriveranno piani a pagamento per studi e team: chi si iscrive ora userà il prodotto gratuitamente più a lungo.</p></div>
@@ -498,7 +507,6 @@ export default function Landing({ onLogin, onAuditor, onVision }) {
       </div></section>
 
       <section className="cta-final dark">
-        <div className="orb" aria-hidden="true" />
         <div className="wrap reveal">
           <h2>Prima di consegnare il prossimo piano al tuo cliente, calcolalo con QUANTO.</h2>
           <p>Gratis in questa fase, senza carta di credito, pronto in un minuto.</p>
