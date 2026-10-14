@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react'
-import { ArrowRight, Check, FileText, Link2, Loader2, Lock, ShieldCheck, Star, Table2, X } from 'lucide-react'
+import { ArrowRight, Check, FileText, Link2, Loader2, Lock, ShieldCheck, Table2, X } from 'lucide-react'
 import gsap from 'gsap'
 import { ScrollTrigger } from 'gsap/ScrollTrigger'
 import { api, session } from '../lib/api'
@@ -379,7 +379,6 @@ export default function Landing({ onLogin, onAuditor, onVision }) {
             <button className="btn-solid big" onClick={() => setModal('register')}>Inizia gratis<ArrowRight size={16} /></button>
             <a className="btn-line big" href="#come-funziona">Come funziona</a>
           </div>
-          <p className="fineprint">Gratuito oggi. Nessuna carta di credito richiesta.</p>
 
           <div className="window-wrap">
             <div className="float l"><AllocationMockup /></div>
@@ -403,11 +402,10 @@ export default function Landing({ onLogin, onAuditor, onVision }) {
             </div></div>
           </div>
         </div>
-      </header>
-
       <div className="ticker" aria-label="Le funzioni di QUANTO">
-        <div className="ticker-track">{[0, 1].map((k) => <div key={k} className="ticker-set" aria-hidden={k === 1}>{FUNCS.map((f) => <span key={f} className="ticker-item"><i />{f}</span>)}</div>)}</div>
+        <div className="ticker-track">{[0, 1].map((k) => <div key={k} className="ticker-set" aria-hidden={k === 1}>{FUNCS.map((f) => <span key={f} className="ticker-item">{f}</span>)}</div>)}</div>
       </div>
+      </header>
 
       <section className="sect" id="cosa-fa"><div className="wrap">
         <div className="sect-head reveal"><span className="kicker">Cosa fa</span><h2>Dal bilancio al massimo recuperabile, in un solo posto</h2></div>
@@ -477,14 +475,11 @@ export default function Landing({ onLogin, onAuditor, onVision }) {
       </div></section>
 
       <section className="sect reviews" id="recensioni"><div className="wrap">
-        <div className="sect-head center reveal"><span className="kicker">Recensioni</span><h2>Cosa dicono gli studi che lo usano</h2></div>
         <div className="rev-grid">
           {REVIEWS.map((r) => (
-            <figure key={r.id} className="rev-card reveal-card">
-              <div className="rev-stars" role="img" aria-label={`${r.stars} stelle su 5`}>{Array.from({ length: 5 }, (_, i) => <Star key={i} size={16} className={i < r.stars ? 'on' : ''} />)}</div>
+            <figure key={r.id} className="review reveal-card">
               <blockquote>{r.text}</blockquote>
-              <figcaption><b>{r.author}</b><span>{r.role}</span></figcaption>
-              {!r.real && <span className="rev-tag">Testo di esempio: da sostituire con una recensione reale</span>}
+              <figcaption>{r.role}</figcaption>
             </figure>
           ))}
         </div>
