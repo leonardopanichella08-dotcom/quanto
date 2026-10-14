@@ -212,7 +212,7 @@ def build() -> Path:
        "<b>Boutique di finanza agevolata</b> che costruiscono budget e piani di allocazione e hanno bisogno di ripetibilità e di una fonte per ogni cifra.",
        "<b>Direttori finanziari e consulenti d'impresa</b> che pianificano più fondi insieme per l'azienda che seguono e vogliono sapere chi paga cosa lungo l'anno."])
     SP(4)
-    kpis([("60", "regole applicate a ogni voce di budget"), ("8", "bandi con un modello di calcolo curato a mano"), ("780+", "bandi aperti nel catalogo nazionale, aggiornati ogni notte"), ("506", "test automatici sul motore")])
+    kpis([("60", "regole applicate a ogni voce di budget"), ("8", "bandi con un modello di calcolo curato a mano"), ("780+", "bandi aperti nel catalogo nazionale, aggiornati ogni notte"), ("509", "test automatici sul motore")])
     story.append(PageBreak())
 
     # ------------------------------------------------------------------ 2. come lavora
@@ -308,8 +308,7 @@ def build() -> Path:
 
     # ------------------------------------------------------------------ 7. un caso
     H1("Un caso di prova")
-    P("Azienda fittizia di prova: <b>Meridiana Digital Solutions S.r.l.</b> (software, Torino, 15 dipendenti, ricavi 2025 di 1.583.200 euro). Si caricano 15 documenti: visura, tre bilanci completi, due cedolini, due F24, la bozza di candidatura, il DURC, "
-      "la dichiarazione de minimis, il business plan e tre fogli Excel. QUANTO li legge e compila il profilo (100% dopo una sola risposta: se è una start-up innovativa).")
+    P("Azienda fittizia di prova: <b>Meridiana Digital Solutions S.r.l.</b> (software, Torino, 15 dipendenti, ricavi 2025 di 1.583.200 euro). Si caricano 35 documenti: visura, tre bilanci completi di 58-63 pagine, due cedolini, nove F24, la bozza di candidatura, il DURC, la dichiarazione de minimis, il business plan di 46 pagine, le dichiarazioni fiscali, i registri delle fatture, il contratto di locazione, l'estratto conto e otto fogli Excel con centinaia di righe. QUANTO li legge e compila il profilo (100% dopo una sola risposta: se è una start-up innovativa).")
     table([["Passo", "Cosa produce QUANTO"], ["Bilanci 2023-2025", "Ricavi, costi per categoria (personale 890.700 €, consulenze 172.500 €, spese generali 194.650 €, beni strumentali 119.100 € nel 2025), utile, dipendenti medi"],
            ["Stima 2027", "Spesa prevista di 1.991.026 euro, con la variazione di ogni voce spiegata dai due ultimi bilanci"],
            ["Bandi adatti", "6 bandi adatti all'azienda, 5 con un importo calcolabile e un'etichetta «de minimis» dove la fonte lo dichiara"],

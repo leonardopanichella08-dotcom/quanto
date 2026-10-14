@@ -21,7 +21,7 @@ from typing import List, Tuple
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
-from sample_company import bilancio, docs, model  # noqa: E402
+from sample_company import bilancio, docs, docs_long, docs_more, model, xlsx_pack  # noqa: E402
 from sample_company.model import ALL_YEARS, COMPANY, YEARS  # noqa: E402,F401
 
 
@@ -44,6 +44,32 @@ def build(dest: Path) -> List[Tuple[str, Path]]:
     files.append(("OTHER", docs.make_xlsx_aiuti(dest / "13_Registro_aiuti_ricevuti.xlsx")))
     files.append(("OTHER", docs.make_xlsx_organico(dest / "14_Organico_e_livelli_CCNL.xlsx")))
     files.append(("OTHER", docs.make_xlsx_cespiti(dest / "15_Libro_cespiti_2025.xlsx")))
+    # F24 dei mesi precedenti del 2026 (i versamenti del 16 di ogni mese)
+    import random
+    r = random.Random("f24-2026")
+    for k, pay_mm in enumerate((7, 6, 5, 4, 3, 2, 1), 16):
+        ref_m = pay_mm - 1 or 12
+        ref_y = 2026 if pay_mm > 1 else 2025
+        names = ["gennaio", "febbraio", "marzo", "aprile", "maggio", "giugno", "luglio", "agosto", "settembre", "ottobre", "novembre", "dicembre"]
+        rows = [("1001", f"{ref_m:04d}", str(ref_y), round(20200 + r.uniform(-600, 700), 2), 0), ("1040", f"{ref_m:04d}", str(ref_y), round(2800 + r.uniform(-150, 260), 2), 0),
+                (f"60{ref_m:02d}", f"{ref_m:04d}", str(ref_y), round(7100 + r.uniform(-500, 500), 2), 0)]
+        if pay_mm == 7:
+            rows.append(("6938", "0000", "2025", 0, 3500.00))
+        files.append(("F24", docs.make_f24(dest / f"{k}_F24_pagamento_16-{pay_mm:02d}-2026.pdf", f"16/{pay_mm:02d}/2026", f"{names[ref_m - 1]} {ref_y}", f"{ref_m:02d}/{ref_y}", rows,
+                                           round(14400 + r.uniform(-400, 500), 2), round(300 + r.uniform(-8, 12), 2), round(112 + r.uniform(-4, 6), 2))))
+    files.append(("OTHER", docs_long.redditi(dest / "23_Dichiarazione_Redditi_SC_2025.pdf")))
+    files.append(("OTHER", docs_long.irap(dest / "24_Dichiarazione_IRAP_2025.pdf")))
+    files.append(("OTHER", docs_long.iva(dest / "25_Dichiarazione_IVA_2026.pdf")))
+    files.append(("OTHER", docs_long.ammortamento(dest / "26_Piano_ammortamento_finanziamento.pdf")))
+    files.append(("OTHER", docs_long.estratto_conto(dest / "27_Estratto_conto_agosto_2026.pdf")))
+    files.append(("OTHER", docs_long.contratto(dest / "28_Contratto_locazione_sede.pdf")))
+    files.append(("OTHER", docs_long.libro_soci(dest / "29_Libro_soci.pdf")))
+    files.append(("OTHER", docs_long.relazione_rs(dest / "30_Relazione_tecnica_credito_RS_2025.pdf")))
+    files.append(("OTHER", xlsx_pack.verifica(dest / "31_Bilancio_di_verifica_e_CE_mensile.xlsx")))
+    files.append(("OTHER", xlsx_pack.fatture_emesse(dest / "32_Registro_fatture_emesse_2023-2025.xlsx")))
+    files.append(("OTHER", xlsx_pack.fatture_ricevute(dest / "33_Registro_fatture_ricevute_2024-2025.xlsx")))
+    files.append(("OTHER", xlsx_pack.commesse(dest / "34_Controllo_commesse_e_budget_2026.xlsx")))
+    files.append(("OTHER", xlsx_pack.modello_bp(dest / "35_Business_plan_modello_finanziario.xlsx")))
     return files
 
 

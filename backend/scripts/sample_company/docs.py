@@ -5,6 +5,8 @@ from datetime import date
 from pathlib import Path
 from typing import Dict, List
 
+from . import docs_more as DM
+from . import docs_ext as EXT
 from . import long_docs as L
 from . import model as M
 from . import people as P
@@ -73,6 +75,8 @@ def make_registry(path: Path) -> Path:
              ["01/09/2021", "Apertura dell'unità locale di corso Francia 114"], ["29/04/2022", "Rinnovo della nomina dell'amministratore unico"]], [28, W - 28], align_right_from=9)
     d.small("Documento di prova: gli estremi dell'atto, del notaio e dei protocolli sono inventati.")
     L.extend_registry(d)
+    DM.registry_more(d)
+    EXT.registry_ext(d)
     return d.save()
 
 
@@ -235,6 +239,8 @@ def make_draft(path: Path) -> Path:
     d.P("Il legale rappresentante dichiara che i dati contenuti nella presente bozza sono veritieri, che l'impresa non è in difficoltà ai sensi della normativa europea sugli aiuti di Stato e che non ha ricevuto altri contributi per le stesse spese. La versione definitiva sarà firmata digitalmente.", left=True)
     L.extend_draft(d)
     L.more_draft(d)
+    DM.draft_more(d)
+    EXT.draft_ext(d)
     return d.save()
 
 
@@ -256,6 +262,8 @@ def make_durc(path: Path) -> Path:
     d.B(["Il presente documento ha validità di 120 giorni dalla data di emissione e può essere utilizzato per le finalità indicate nella richiesta.", "L'esito è riferito alla data della verifica; il datore di lavoro è tenuto a comunicare variazioni successive.",
          "La verifica è stata effettuata sulla base dei dati dichiarati e dei versamenti registrati dagli enti previdenziali; non sostituisce i controlli di competenza delle amministrazioni procedenti."])
     L.extend_durc(d)
+    DM.durc_more(d)
+    EXT.durc_ext(d)
     return d.save()
 
 
@@ -282,142 +290,28 @@ def make_de_minimis(path: Path) -> Path:
         "ogni ulteriore aiuto «de minimis» ricevuto fino alla data di concessione dell'agevolazione richiesta, e autorizza il trattamento dei dati personali ai sensi del regolamento (UE) 2016/679 per le finalità del procedimento.", left=True)
     d.P("Luogo e data: Torino, 02/10/2026. Il legale rappresentante: Giulia Ferraris (firma digitale apposta sul file originale).", left=True)
     L.extend_de_minimis(d)
+    DM.deminimis_more(d)
+    EXT.deminimis_ext(d)
     return d.save()
 
 
 # ================================================================================================ business plan
 def make_business_plan(path: Path) -> Path:
-    d = Doc(path, "Business plan 2026-2028", f"{CO['name']}", "Business plan 2026-2028")
-    W = _width(d)
-    rev = (1860000, 2150000, 2480000)
-    dip = (19, 22, 25)
-    rd = (210000, 260000, 300000)
-    d.title_block("BUSINESS PLAN 2026-2028", f"{CO['name']} - documento per finanziatori, bandi e partner (versione di settembre 2026)")
-    d.H1("1. SINTESI")
-    d.P("Meridiana Digital Solutions sviluppa software e piattaforme di analisi dei dati per le piccole e medie imprese e per gli enti pubblici locali. Fondata a Torino nel 2016, chiude il 2025 con ricavi di 1,58 milioni di euro e 15 dipendenti. "
-        "Il piano 2026-2028 prevede una crescita dei ricavi a 2,48 milioni di euro, trainata dai canoni della piattaforma Atlas, e investimenti in ricerca e sviluppo per 770.000 euro nel triennio, coperti da autofinanziamento, contributi pubblici e un nuovo finanziamento bancario.")
-    d.H1("2. L'AZIENDA")
-    d.P("La società è una S.r.l. con capitale di 50.000 euro, controllata dai due soci fondatori (60% e 40%). Opera in uffici di via Garibaldi 28 e in un laboratorio dati di corso Francia 114. Dispone delle certificazioni ISO 9001 e ISO/IEC 27001. "
-        "L'organico è composto da 15 dipendenti, di cui 1 quadro, 11 impiegati e 3 apprendisti, e da due soci lavoratori.")
-    d.table([["Dati storici", "2022", "2023", "2024", "2025"], ["Ricavi delle vendite e delle prestazioni (euro)"] + [U(x) for x in M.REVENUE], ["Margine operativo lordo (euro)"] + [U(M.ratio_notes(y)["ebitda"]) for y in M.ALL_YEARS],
-             ["Utile dell'esercizio (euro)"] + [U(M.pl(y)["net"]) for y in M.ALL_YEARS], ["Dipendenti medi"] + [str(M.EMPLOYEES[y]) for y in M.ALL_YEARS]], [W - 112, 28, 28, 28, 28])
-    d.H1("3. MERCATO E CLIENTI")
-    d.P("La domanda di strumenti di analisi dei dati da parte delle piccole imprese cresce stabilmente, sostenuta dagli incentivi alla transizione digitale. I clienti della società sono per il 62% imprese manifatturiere e di servizi del Nord Ovest, per il 24% enti pubblici locali e per il 14% studi professionali. "
-        "I concorrenti sono software house generaliste e portali di aggregazione dei bandi, che non quantificano l'effetto delle agevolazioni sul bilancio dell'impresa.")
-    d.H1("4. PRODOTTO E STRATEGIA")
-    d.B(["Piattaforma Atlas: previsione dei costi dell'anno successivo e abbinamento ai bandi aperti, con calcolo riproducibile.", "Canoni annuali per le imprese e licenze per gli studi professionali, con servizi di formazione e assistenza.",
-         "Sviluppo su commessa per enti pubblici, con riuso dei componenti della piattaforma.", "Partecipazione a bandi per la ricerca e l'innovazione per finanziare lo sviluppo di nuove funzioni."])
-    d.H1("5. ORGANIZZAZIONE E PIANO DEL PERSONALE")
-    d.table([["Area", "2026", "2027", "2028"], ["Sviluppo e dati", "11", "13", "15"], ["Progetto e design", "3", "3", "4"], ["Commerciale e clienti", "3", "4", "4"], ["Amministrazione", "2", "2", "2"], ["Totale dipendenti a fine anno"] + [str(x) for x in dip]], [W - 90, 30, 30, 30], bold_rows=[5])
-    d.H1("6. PIANO DEGLI INVESTIMENTI")
-    d.table([["Investimento (euro)", "2026", "2027", "2028"], ["Sviluppo piattaforma Atlas (costi interni capitalizzati)", U(rd[0] - 40000), U(rd[1] - 50000), U(rd[2] - 60000)],
-             ["Attività di ricerca e sviluppo con collaborazioni esterne", U(40000), U(50000), U(60000)], ["Infrastruttura cloud e apparati di test", U(52000), U(48000), U(55000)],
-             ["Macchine d'ufficio e arredi", U(24000), U(26000), U(22000)], ["Formazione specialistica del team", U(21000), U(24000), U(27000)]], [W - 90, 30, 30, 30])
-    d.H1("7. CONTO ECONOMICO PREVISIONALE")
-    cost_pct = (0.846, 0.835, 0.826)
-    rows = [["Voce (euro)", "2026", "2027", "2028"], ["Ricavi delle vendite e delle prestazioni"] + [U(x) for x in rev], ["Altri ricavi e contributi"] + [U(x) for x in (68000, 74000, 80000)],
-            ["Costi del personale"] + [U(round(x * 0.57)) for x in rev], ["Costi per servizi e godimento beni di terzi"] + [U(round(x * 0.235)) for x in rev], ["Ammortamenti"] + [U(x) for x in (72000, 84000, 96000)],
-            ["Altri costi"] + [U(round(x * 0.02)) for x in rev]]
-    ebit = [rev[k] + (68000, 74000, 80000)[k] - round(rev[k] * 0.57) - round(rev[k] * 0.235) - (72000, 84000, 96000)[k] - round(rev[k] * 0.02) for k in range(3)]
-    rows += [["Risultato operativo"] + [U(x) for x in ebit], ["Oneri finanziari netti"] + [U(x) for x in (7500, 9500, 8200)], ["Imposte sul reddito"] + [U(round((ebit[k] - (7500, 9500, 8200)[k]) * 0.27)) for k in range(3)],
-             ["Utile netto previsto"] + [U(ebit[k] - (7500, 9500, 8200)[k] - round((ebit[k] - (7500, 9500, 8200)[k]) * 0.27)) for k in range(3)]]
-    d.table(rows, [W - 90, 30, 30, 30], bold_rows=[7, 10])
-    d.H1("8. FONTI DI COPERTURA DEL PIANO")
-    d.table([["Fonte (euro)", "2026", "2027", "2028"], ["Autofinanziamento (flussi della gestione)", U(210000), U(262000), U(298000)], ["Contributi pubblici a fondo perduto richiesti", U(95000), U(110000), U(120000)],
-             ["Nuovo finanziamento bancario a medio termine", U(150000), U(0), U(0)], ["Totale", U(455000), U(372000), U(418000)]], [W - 90, 30, 30, 30], bold_rows=[4])
-    d.H1("9. RISCHI E ANALISI DI SENSIBILITA'")
-    d.P("Con ricavi inferiori del 10% rispetto al piano, il risultato operativo resterebbe positivo in tutti gli anni, pur con un margine ridotto di circa tre punti percentuali; la società può contenere gli investimenti discrezionali per circa 80.000 euro l'anno. "
-        "I rischi principali sono la dipendenza dal personale chiave, il ritardo nell'incasso dei crediti verso enti pubblici e la variazione delle regole dei bandi su cui si basa il finanziamento di parte degli investimenti.")
-    L.extend_business_plan(d)
-    L.more_business_plan(d)
-    return d.save()
+    from . import bp_build
+    return bp_build.make_business_plan(path)
 
 
 # ================================================================================================ fogli Excel
 def make_xlsx_aiuti(path: Path) -> Path:
-    from openpyxl import Workbook
-    from openpyxl.styles import Font
-    wb = Workbook()
-    ws = wb.active
-    ws.title = "Registro aiuti"
-    head = ["Ente concedente", "Misura", "Base normativa", "Data concessione", "Data incasso/fruizione", "Importo (EUR)", "Regime", "Codice COR (prova)", "Impresa unica", "Note"]
-    ws.append(head)
-    ws.append(["Camera di Commercio di Torino", "Voucher digitalizzazione PMI", "Reg. UE 2023/2831", "2024-04-12", "2024-09-30", 10000, "de minimis", "COR-0000001", "Meridiana Digital Solutions S.r.l.", "Spese di consulenza e licenze 2024"])
-    ws.append(["Regione Piemonte", "Contributo partecipazione fiere", "Reg. UE 2023/2831", "2025-10-03", "2025-12-15", 6500, "de minimis", "COR-0000002", "Meridiana Digital Solutions S.r.l.", "Fiera di settore a Milano, 2025"])
-    for y in (2023, 2024, 2025):
-        ws.append(["Agenzia delle Entrate", f"Credito d'imposta ricerca e sviluppo {y}", "Art. 1 c. 198 L. 160/2019", f"{y + 1}-06-30", f"{y + 1}-07-16", M.GRANTS[y - 2022], "credito d'imposta (esenzione)", "-", "Meridiana Digital Solutions S.r.l.", "Compensazione in F24, codice tributo 6938"])
-    ws.append([])
-    ws.append(["Totale de minimis nel triennio", "", "", "", "", "=SUM(F2:F3)", "", "", "", "Massimale 300.000 EUR"])
-    ws.append(["Margine residuo", "", "", "", "", "=300000-F7", "", "", "", ""])
-    for c in ws[1]:
-        c.font = Font(bold=True)
-    ws2 = wb.create_sheet("Domande presentate")
-    ws2.append(["Data", "Ente", "Bando", "Importo richiesto (EUR)", "Esito", "Note"])
-    ws2.append(["2026-03-10", "Camera di Commercio di Torino", "Voucher digitalizzazione 2026", 12000, "In istruttoria", "Presentata via PEC"])
-    ws2.append(["2026-05-22", "Regione Piemonte", "Bando SWIch 2026", 140000, "Non presentata", "Verifica dei requisiti in corso"])
-    ws2.append(["2026-07-01", "Invitalia", "Smart&Start Italia", 0, "Non ammissibile", "L'impresa ha più di 5 anni dall'iscrizione"])
-    wb.save(path)
-    return path
+    from . import xlsx_pack
+    return xlsx_pack.aiuti(path)
 
 
 def make_xlsx_organico(path: Path) -> Path:
-    from openpyxl import Workbook
-    from openpyxl.styles import Font
-    wb = Workbook()
-    ws = wb.active
-    ws.title = "Organico"
-    ws.append(["Matricola", "Cognome", "Nome", "Codice fiscale", "Ruolo", "Livello CCNL", "Tipo contratto", "Data assunzione", "Ore settimanali", "Mensilità", "RAL (EUR)", "Costo azienda annuo stimato (EUR)", "Centro di costo", "Note"])
-    for e in P.EMPLOYEES:
-        ral = round(e["cost"] / 1.38 / 100) * 100
-        ws.append([e["id"], e["surname"], e["name"], e["cf"], e["role"], e["level"], e["contract"], e["hired"], e["hours"], 14, ral, e["cost"],
-                   "Sviluppo" if "viluppatore" in e["role"] or "analyst" in e["role"] or "scientist" in e["role"] or "UX" in e["role"] else "Direzione e staff",
-                   "Part time 75%" if e["hours"] == 30 else ("Apprendistato professionalizzante" if e["contract"] == "Apprendistato" else "")])
-    for c in ws[1]:
-        c.font = Font(bold=True)
-    ws2 = wb.create_sheet("Costo del lavoro 2025")
-    ws2.append(["Mese", "Retribuzioni lorde (EUR)", "Contributi azienda (EUR)", "TFR (EUR)", "Altri costi (EUR)", "Totale (EUR)"])
-    wages, soc, tfr, oth = M.acct("Salari e stipendi", 2025), M.acct("Oneri sociali", 2025), M.acct("Trattamento di fine rapporto", 2025), M.acct("Altri costi del personale", 2025)
-    weights = [0.0735, 0.0735, 0.0735, 0.0735, 0.0735, 0.0735, 0.1170, 0.0735, 0.0735, 0.0735, 0.0735, 0.1480]
-    weights[-1] = 1 - sum(weights[:-1])
-    for k, w in enumerate(weights, 1):
-        a, b, c, e = round(wages * w), round(soc * w), round(tfr * w), round(oth * w)
-        ws2.append([f"2025-{k:02d}", a, b, c, e, a + b + c + e])
-    ws2.append(["Totale", "=SUM(B2:B13)", "=SUM(C2:C13)", "=SUM(D2:D13)", "=SUM(E2:E13)", "=SUM(F2:F13)"])
-    ws3 = wb.create_sheet("Assunzioni e cessazioni")
-    ws3.append(["Data", "Matricola", "Evento", "Note"])
-    for e in P.EMPLOYEES:
-        if e["hired"] >= "2023-01-01":
-            ws3.append([e["hired"], e["id"], "Assunzione", e["role"]])
-    ws3.append(["2024-12-31", "M009", "Trasformazione", "Conferma al termine del periodo di prova"])
-    wb.save(path)
-    return path
+    from . import xlsx_pack
+    return xlsx_pack.organico(path)
 
 
 def make_xlsx_cespiti(path: Path) -> Path:
-    """Libro dei cespiti al 31/12/2025: ogni bene con data di acquisto, costo, aliquota, fondo e valore residuo; i totali per classe tornano con il bilancio."""
-    from openpyxl import Workbook
-    from openpyxl.styles import Font
-    wb = Workbook()
-    ws = wb.active
-    ws.title = "Libro cespiti 2025"
-    ws.append(["Classe", "Codice bene", "Descrizione", "Fornitore", "Data acquisto", "Costo storico (EUR)", "Aliquota", "Fondo ammortamento al 31/12/2025 (EUR)", "Valore residuo (EUR)"])
-    suppliers = ["Tecnoservizi Prova S.r.l.", "Hardware Piemonte S.p.A.", "Ufficio Moderno S.r.l.", "Network Solutions Prova S.r.l.", "Cloud Italia Prova S.r.l."]
-    descs = {0: ["Cablaggio strutturato uffici", "Impianto di condizionamento", "Impianto di videosorveglianza"], 1: ["Server di produzione", "Server di test", "Apparati di rete e firewall", "Sistema di storage"],
-             2: ["Workstation sviluppo", "Notebook sviluppo", "Monitor 27 pollici", "Stazione di lavoro grafica"], 3: ["Scrivanie operative", "Sedie ergonomiche", "Armadi e arredi sala riunioni"], 4: ["Autovettura aziendale ibrida"]}
-    rows_by_class = M.fixed_assets("tang")[2025]
-    row_no = 2
-    for k, cls in enumerate(M.TANG_CLASSES):
-        cost, fund = rows_by_class[k]["cost_close"], rows_by_class[k]["fund_close"]
-        items = descs[k]
-        parts = M._alloc(cost, [1 / len(items)] * len(items))
-        fparts = M._alloc(fund, [p / cost for p in parts])
-        for n, (desc, c, f) in enumerate(zip(items, parts, fparts), 1):
-            year = 2018 + (k + n) % 8
-            ws.append([cls[0], f"TNG-{k + 1}{n:02d}", desc, suppliers[(k + n) % len(suppliers)], f"{year}-{(k * 3 + n) % 12 + 1:02d}-15", c, cls[5], f, c - f])
-            row_no += 1
-    ws.append([])
-    ws.append(["Totale immobilizzazioni materiali", "", "", "", "", f"=SUM(F2:F{row_no - 1})", "", f"=SUM(H2:H{row_no - 1})", f"=SUM(I2:I{row_no - 1})"])
-    for c in ws[1]:
-        c.font = Font(bold=True)
-    wb.save(path)
-    return path
+    from . import xlsx_pack
+    return xlsx_pack.cespiti(path)
