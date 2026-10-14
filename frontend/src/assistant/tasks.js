@@ -184,7 +184,7 @@ export const TASKS = {
       { id: 'dati', title: 'Controllo i dati dell’azienda' },
       { id: 'bando', title: 'Scelgo il bando' },
       { id: 'quota', title: 'Decido quanta spesa va nel progetto' },
-      { id: 'bozza', title: 'Creo la bozza dal bilancio' },
+      { id: 'bozza', title: 'Creo la bozza dall’azienda' },
       { id: 'personale', title: 'Aggiungo le persone del progetto' },
       { id: 'controllo', title: 'Controllo il budget con i 60 criteri' },
     ],
@@ -219,8 +219,8 @@ export const TASKS = {
       let scale = Number(p.scale) || null
       if (!scale) {
         const vals = await a.ask('quota', {
-          title: 'Quanta della spesa annua va nel progetto?', intro: 'La bozza prende le spese dell’ultimo bilancio e le moltiplica per la quota che indichi.',
-          fields: [{ key: 'scale', label: 'Quota del progetto sui costi annui', kind: 'percent', default: 100, min: 1, max: 100,
+          title: 'Quanta della spesa annua va nel progetto?', intro: 'La bozza prende le spese previste dell’azienda e il tempo di lavoro di ogni persona e li moltiplica per la quota che indichi.',
+          fields: [{ key: 'scale', label: 'Quota del progetto (spese e tempo di lavoro)', kind: 'percent', default: 100, min: 1, max: 100,
             what: 'La parte delle spese dell’azienda che serve al progetto finanziato.', why: 'Un progetto raramente assorbe tutta l’attività: se il progetto vale metà delle spese di un anno, scrivi 50.', example: '100 se il progetto è tutta l’attività; 50 se è metà' }],
           submitLabel: 'Usa questa quota',
         })
@@ -229,7 +229,7 @@ export const TASKS = {
       a.done('quota', `${scale}% delle spese annue.`)
 
       // 3. la bozza
-      a.begin('bozza', 'Leggo il bilancio e applico i tetti del bando…')
+      a.begin('bozza', 'Leggo l’organico, il budget e il bilancio dell’azienda e applico le regole del bando…')
       let res
       for (;;) {
         try { res = await api.profileTemplate(bandoId, scale, true); break } catch (e) {
@@ -240,7 +240,8 @@ export const TASKS = {
         }
       }
       await b.applyTemplate(res)
-      a.done('bozza', `${res.cost_items.length} voci per ${money(res.total_eur)} (bilancio ${res.base_year}).${res.adjustments.length ? ` Ridotte ${res.adjustments.length} categorie per i tetti del bando.` : ''}`)
+      const nPeople = (res.personnel || []).length
+      a.done('bozza', `${res.cost_items.length} voci${nPeople ? ` (${nPeople} persone con livello, contratto e RAL, ${res.cost_items.length - nPeople} voci di spesa)` : ''} per l’anno ${res.year}.${res.adjustments.length ? ` Ridotte ${res.adjustments.length} categorie per i tetti del bando.` : ''}${(res.excluded_types || []).length ? ` Escluse per nome dal bando: ${res.excluded_types.map((t) => t.label.toLowerCase()).join(', ')}.` : ''}`)
 
       // 4. il personale
       if (res.needs_personnel) {
@@ -278,7 +279,7 @@ export const TASKS = {
         }
         if (!codes.length) a.skip('personale', 'Nel sistema non ci sono ancora le tabelle dei contratti collettivi (CCNL): senza non posso controllare il costo di una persona e non ne scelgo uno al posto tuo. Le pubblica il Quartier Generale; appena ci sono, rifai questo passaggio.')
         else if (items.length) { await b.addItems(items); a.done('personale', `${items.length} ${items.length === 1 ? 'persona aggiunta' : 'persone aggiunte'} al budget.`) } else a.skip('personale', 'Nessuna persona aggiunta: la voce personale resta da inserire.')
-      } else a.skip('personale', 'Il bilancio non ha costi di personale da dettagliare.')
+      } else a.skip('personale', (res.personnel || []).length ? `Le ${res.personnel.length} persone sono già nel budget, con il loro livello, contratto e RAL dai documenti.` : 'Nessun costo di personale da dettagliare per questo bando.')
 
       // 5. il controllo
       a.begin('controllo', 'Applico i 60 criteri a ogni voce…')
@@ -286,7 +287,7 @@ export const TASKS = {
       if (v) {
         const by = (s) => v.items.filter((i) => i.status === s).length
         a.done('controllo', `${by('APPROVED')} voci ammesse, ${by('CAP_EXCEEDED_ADJUSTED')} ridotte, ${by('REJECTED')} respinte, ${by('MISSING_DOCUMENTS')} in attesa di documento.`)
-        a.finish(`Budget controllato per «${detail.name}»: ${money(v.items.reduce((s, i) => s + (i.computed_cost_eur || 0), 0))} ammessi su ${money(v.items.reduce((s, i) => s + (i.original_cost_eur || 0), 0))} richiesti.\nGli importi della bozza vengono dal bilancio e sono una base: sostituisci le voci di ammortamento con gli acquisti che prevedi, e allega i documenti alle voci in attesa.`)
+        a.finish(`Budget controllato per «${detail.name}»: ${money(v.items.reduce((s, i) => s + (i.computed_cost_eur || 0), 0))} ammessi su ${money(v.items.reduce((s, i) => s + (i.original_cost_eur || 0), 0))} richiesti.\nGli importi vengono dal budget dell’azienda, dal piano degli investimenti o dalla previsione del bilancio (la fonte è su ogni voce): sono una base da adattare al progetto.${(res.needs_input || []).length ? `\nCosa manca: ${res.needs_input.join(' ')}` : ''}`)
       } else { a.done('controllo', 'Non ho potuto avviare il controllo: guarda i messaggi nella pagina Budget.'); a.finish('Bozza creata. Il controllo non è partito: apri «Controlla il budget» nella pagina.') }
     },
   },

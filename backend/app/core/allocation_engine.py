@@ -60,6 +60,7 @@ class _SubLine:
     category: CostCategory
     month: int
     cents: int
+    expense_type: Optional[str] = None
 
 
 @dataclass
@@ -124,11 +125,11 @@ class AllocationOptimizerEngine:
         for e in req.historical_expenses:
             total = _cents(e.amount_eur)
             if e.month is not None:
-                subs.append(_SubLine(e.item_id, e.category, e.month, total))
+                subs.append(_SubLine(e.item_id, e.category, e.month, total, e.expense_type))
             elif windowed:
-                subs.extend(_SubLine(e.item_id, e.category, m, c) for m, c in enumerate(_spread(total), 1))
+                subs.extend(_SubLine(e.item_id, e.category, m, c, e.expense_type) for m, c in enumerate(_spread(total), 1))
             else:
-                subs.append(_SubLine(e.item_id, e.category, 0, total))
+                subs.append(_SubLine(e.item_id, e.category, 0, total, e.expense_type))
 
         # ---- coppie ammissibili (voce, fondo)
         pairs: List[_Pair] = []
@@ -137,6 +138,8 @@ class AllocationOptimizerEngine:
                 continue
             for j, f in enumerate(funds):
                 if sub.category not in f.allowed_categories or (sub.month and not f.active_from_month <= sub.month <= f.active_to_month):
+                    continue
+                if sub.expense_type and sub.expense_type in f.excluded_expense_types:        # la voce è esclusa per nome da questo bando
                     continue
                 cov = f.category_coverage_pct.get(sub.category, f.coverage_pct)
                 pairs.append(_Pair(s, j, int((Decimal(str(cov)) * sub.cents).to_integral_value(rounding=ROUND_DOWN)), cov))
@@ -173,6 +176,12 @@ class AllocationOptimizerEngine:
                     continue
                 coeffs = {x[i]: amt[i] * ((1.0 if subs[pairs[i].s].category == cat else 0.0) - share) for i in idxs}
                 m.con(coeffs, hi=0.0)
+        # aiuto cumulato massimo sulla stessa voce (criterio 48): se il fondo j copre la voce, la somma dei contributi di tutti i fondi non supera il suo tetto
+        for idxs in by_sub.values():
+            for i in idxs:
+                cap = funds[pairs[i].j].max_cumulated_pct
+                if cap is not None and cap < 1 and len(idxs) > 1:
+                    m.con({**{x[k]: 1.0 for k in idxs}, z[i]: 1.0 - cap}, hi=1.0)         # z=1: somma dei contributi <= cap; z=0: <= 100%
         # non cumulabilità a livello di voce
         idx_of = {(p.s, p.j): i for i, p in enumerate(pairs)}
         position = {f.fund_id: j for j, f in enumerate(funds)}
@@ -276,6 +285,15 @@ class AllocationOptimizerEngine:
         if dm:
             trim(dm, sum(covered.get(i, 0) for i in dm) - _cents(dm_residual or 0.0))
 
+        for s_, idxs in by_sub.items():                      # aiuto cumulato massimo sulla stessa voce (criterio 48), in interi
+            for i in idxs:
+                cap = funds[pairs[i].j].max_cumulated_pct
+                if cap is not None and covered.get(i, 0) > 0:
+                    limit = int(Fraction(str(cap)) * subs[s_].cents)
+                    total_s = sum(covered.get(k, 0) for k in idxs)
+                    if total_s > limit:
+                        trim(idxs, total_s - limit)
+
         changed = True
         while changed:  # i massimali % si influenzano a vicenda: iterare fino a stabilità
             changed = False
@@ -322,7 +340,7 @@ class AllocationOptimizerEngine:
             total_cov = sum(per_fund.values())
             main = max(per_fund, key=lambda k: (per_fund[k], k)) if per_fund else "CARICO_ENTE_DIRETTO"
             plan.append(AllocationLine(
-                item_id=e.item_id, category=e.category, cost_category=e.category.value, amount_eur=_eur(gross), covered_by=main, gross_amount_eur=_eur(gross), covered_amount_eur=_eur(total_cov),
+                item_id=e.item_id, category=e.category, expense_type=e.expense_type, label=e.label, cost_category=e.category.value, amount_eur=_eur(gross), covered_by=main, gross_amount_eur=_eur(gross), covered_amount_eur=_eur(total_cov),
                 net_cost_to_entity_eur=_eur(gross - total_cov), coverage_percentage=pct(total_cov, gross), assigned_fund=main,
                 coverage=[FundCoverage(fund_id=k, covered_amount_eur=_eur(v), coverage_percentage=pct(v, gross)) for k, v in sorted(per_fund.items())],
             ))

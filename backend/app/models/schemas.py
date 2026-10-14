@@ -122,6 +122,7 @@ class CostItemInput(BaseModel):
     # --- NON-PERSONNEL
     amount_eur: Optional[float] = Field(default=None, gt=0, description="Imponibile della voce (categorie diverse da PERSONNEL)")
     expense_subtype: Optional[ExpenseSubtype] = None
+    expense_type: Optional[str] = Field(default=None, max_length=24, description="Voce di spesa (codice di core/expense_types.py), più fine della categoria: serve per le voci che un bando esclude per nome")
     vat_eur: Optional[float] = Field(default=None, ge=0, description="IVA sulla voce (criteri 25, 53, 54)")
     vat_recoverable: Optional[bool] = None
     reverse_charge_applied: Optional[bool] = None
@@ -201,6 +202,7 @@ class GrantRuleSet(BaseModel):
     max_consulting_percentage: Optional[float] = Field(default=None, ge=0, le=1)
     max_overhead_percentage: Optional[float] = Field(default=None, ge=0, le=1)
     eligible_categories: Optional[List[CostCategory]] = Field(default=None, description="Categorie di spesa ammesse dal bando (None = tutte)")
+    excluded_expense_types: List[str] = Field(default_factory=list, description="Voci di spesa che il bando esclude per nome (codici di core/expense_types.py), anche dentro una categoria ammessa")
     rule_version_hash: str = Field(..., min_length=8, examples=["a8f3b129c9e840134012480a2"])
 
     # personale

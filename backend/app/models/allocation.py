@@ -20,6 +20,8 @@ class ExpenseLine(BaseModel):
     category: CostCategory
     amount_eur: float = Field(..., gt=0)
     month: Optional[int] = Field(default=None, ge=1, le=12, description="Mese di competenza; se assente la spesa è ripartita su 12 mesi")
+    expense_type: Optional[str] = Field(default=None, max_length=24, description="Voce di spesa (core/expense_types.py): un fondo che la esclude per nome non la copre")
+    label: Optional[str] = Field(default=None, max_length=200, description="Descrizione leggibile della voce")
 
 
 class FundingLine(BaseModel):
@@ -32,6 +34,8 @@ class FundingLine(BaseModel):
     category_max_share: Dict[CostCategory, float] = Field(default_factory=dict, description="Quota massima per categoria sul totale coperto dal fondo (criteri 31/36)")
     de_minimis: bool = Field(default=False, description="Se true, il fondo consuma il plafond de minimis (criterio 49)")
     excludes: List[str] = Field(default_factory=list, description="Fondi non cumulabili sulla stessa voce (criterio 47)")
+    excluded_expense_types: List[str] = Field(default_factory=list, description="Voci di spesa che il bando esclude per nome, anche dentro una categoria ammessa (criterio 16)")
+    max_cumulated_pct: Optional[float] = Field(default=None, gt=0, le=1, description="Aiuto totale massimo sulla stessa voce, sommando tutti i fondi che la coprono (criterio 48)")
     active_from_month: int = Field(default=1, ge=1, le=12)
     active_to_month: int = Field(default=12, ge=1, le=12)
 
@@ -82,6 +86,8 @@ class FundCoverage(BaseModel):
 class AllocationLine(BaseModel):
     item_id: str
     category: CostCategory
+    expense_type: Optional[str] = None
+    label: Optional[str] = None
     cost_category: Optional[str] = Field(default=None, description="Nome dello schema API: come category")
     amount_eur: Optional[float] = Field(default=None, description="Nome dello schema API: come gross_amount_eur")
     covered_by: Optional[str] = Field(default=None, description="Nome dello schema API: come assigned_fund")

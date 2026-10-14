@@ -121,13 +121,14 @@ function Requirements({ items }) {
   )
 }
 
-const TAB_HINT = { rules: 'bando_scheda_regole', reqs: 'bando_scheda_req', cov: 'bando_scheda_cov', src: 'bando_scheda_fonti' }
+const TAB_HINT = { rules: 'bando_scheda_regole', reqs: 'bando_scheda_req', spese: 'bando_scheda_req', cov: 'bando_scheda_cov', src: 'bando_scheda_fonti' }
 
 function Detail({ bando, onUse, using, onStudied }) {
   const [tab, setTab] = useState('rules')
   const rules = bando.rules.filter((r) => r.status === 'PUBLISHED')        // le regole in disaccordo le vede solo il Quartier Generale
   const requirements = bando.requirements.filter((r) => r.kind !== 'DA_REVISIONARE')
-  const tabs = [['rules', `Regole (${rules.length})`], ['reqs', `Requisiti (${requirements.length})`], ['cov', 'Controlli attivati'], ['src', 'Fonti']]
+  const scope = bando.expense_scope || { excluded: [], eligible: [] }
+  const tabs = [['rules', `Regole (${rules.length})`], ['reqs', `Requisiti (${requirements.length})`], ['spese', `Voci di spesa (${scope.excluded.length + scope.eligible.length})`], ['cov', 'Controlli attivati'], ['src', 'Fonti']]
   return (
     <ChromeCard label={`quanto.app/bandi/${bando.bando_id}`} bodyClassName="p-5 space-y-4">
       <div className="flex flex-wrap items-start justify-between gap-3">
@@ -179,6 +180,23 @@ function Detail({ bando, onUse, using, onStudied }) {
       )}
 
       {tab === 'reqs' && <Requirements items={requirements} />}
+      {tab === 'spese' && (
+        <div className="space-y-4 text-xs">
+          <p className="text-ink-2 leading-relaxed">Le voci di spesa che il testo del bando nomina, oltre alle cinque categorie: quelle escluse non entrano nel budget né nel contributo stimato. Ogni voce porta la frase del bando che la riguarda; se un bando non le nomina non le invento.</p>
+          {[['excluded', 'Escluse per nome', 'text-red-700 border-red-500/30'], ['eligible', 'Nominate come ammesse', 'text-emerald-700 border-emerald-500/30']].map(([k, title, tone]) => (
+            <div key={k} className="space-y-2">
+              <p className="font-medium text-ink">{title} · {scope[k].length}</p>
+              {scope[k].length === 0 && <p className="text-mute">Nessuna voce nominata in questo senso nei testi letti.</p>}
+              {scope[k].map((v) => (
+                <div key={v.code} className="p-3 bg-field border border-line rounded-xl space-y-1">
+                  <div className="flex flex-wrap items-center gap-2"><span className="font-medium text-ink">{v.label}</span><span className={`px-1.5 py-0.5 rounded border text-[10px] ${tone}`}>{k === 'excluded' ? 'non ammessa' : 'ammessa'}</span></div>
+                  {v.evidence.map((e, i) => <p key={i} className="text-mute leading-relaxed">«{e}»</p>)}
+                </div>
+              ))}
+            </div>
+          ))}
+        </div>
+      )}
 
       {tab === 'cov' && (
         <div className="space-y-3">

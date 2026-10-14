@@ -483,6 +483,12 @@ ALTER TABLE users ADD COLUMN phone TEXT NOT NULL DEFAULT '';
 ALTER TABLE users ADD COLUMN job_title TEXT NOT NULL DEFAULT '';
 """
 
+_FUNDS_TYPES = """
+-- Le linee di finanziamento ricordano le voci di spesa che il bando esclude per nome e l'aiuto massimo cumulato sulla stessa spesa.
+ALTER TABLE funding_lines ADD COLUMN excluded_expense_types TEXT;
+ALTER TABLE funding_lines ADD COLUMN max_cumulated_pct NUMERIC(7, 4);
+"""
+
 MIGRATIONS: List[Tuple[int, str, str]] = [
     (1, "init", _INIT),
     (2, "fonte_b", _FONTE_B),
@@ -500,4 +506,5 @@ MIGRATIONS: List[Tuple[int, str, str]] = [
     (14, "budget_templates", _BUDGET_TEMPLATES),
     (15, "clients", _CLIENTS),
     (16, "user_profile", _USER_PROFILE),
+    (17, "funds_expense_types", _FUNDS_TYPES),
 ]

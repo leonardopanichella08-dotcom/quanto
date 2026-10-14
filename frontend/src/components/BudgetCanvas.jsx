@@ -120,7 +120,7 @@ function Inspector({ item, steps }) {
 export default function BudgetCanvas({
   bandi, bando, request, fields, validation, loading, error, busy, importInfo, criteriaTitles,
   onSelectBando, onProjectId, onItemsChange, onImport, onValidate, onRegister, onExport, onOpenLab, onDismissImport, onGoBandi,
-  onUsePayslip, onUseBalance, onUseDraft, onUseTemplate, onGoProfile, templateOpen, incompleteItems = [], notice, onDismissNotice,
+  onUsePayslip, onUseBalance, onUseDraft, onUseTemplate, onGoProfile, templateOpen, incompleteItems = [], notice, onDismissNotice, budgetSet, onSwitchBudget, onCloseBudgetSet,
 }) {
   const [selectedId, setSelectedId] = useState(null)
   const [panel, setPanel] = useState('inspect')
@@ -156,6 +156,20 @@ export default function BudgetCanvas({
   return (
     <div className="space-y-6">
       <Guide page="budget" />
+
+      {budgetSet && (
+        <div className="card p-4 space-y-2.5">
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="label shrink-0">Budget dell’allocazione {budgetSet.fiscal_year}</span>
+            {budgetSet.budgets.map((b) => (
+              <button key={b.fund_id} onClick={() => onSwitchBudget(b.fund_id)} disabled={busy} aria-pressed={budgetSet.active === b.fund_id}
+                className={`px-3 py-1.5 rounded-lg text-xs font-medium border transition ${budgetSet.active === b.fund_id ? 'bg-brand/25 text-brand-ink border-brand/60' : 'border-line text-ink-2 hover:border-line-strong'}`}>{b.name}</button>
+            ))}
+            <button className="btn !py-1 ml-auto" onClick={onCloseBudgetSet}>Chiudi il gruppo</button>
+          </div>
+          <p className="text-[11px] text-ink-2 leading-relaxed">{budgetSet.ok ? 'Questi budget sono stati verificati insieme: nessuna spesa coperta due volte oltre il consentito, nessuna persona oltre il 100% del tempo, nessun cumulo vietato.' : 'Tra questi budget ci sono incompatibilità: vedi l’elenco nella pagina Allocazione.'} Ogni budget è controllato con i 60 criteri del suo bando; se cambi le voci ricorda che gli altri budget dipendono da quelle spese.</p>
+        </div>
+      )}
 
       {/* barra del bando */}
       <ChromeCard label={`quanto.app/budget${bando ? `/${bando.bando_id}` : ''}`} bodyClassName="p-4 flex flex-wrap items-center gap-3">

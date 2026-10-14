@@ -212,7 +212,7 @@ def build() -> Path:
        "<b>Boutique di finanza agevolata</b> che costruiscono budget e piani di allocazione e hanno bisogno di ripetibilità e di una fonte per ogni cifra.",
        "<b>Direttori finanziari e consulenti d'impresa</b> che pianificano più fondi insieme per l'azienda che seguono e vogliono sapere chi paga cosa lungo l'anno."])
     SP(4)
-    kpis([("60", "regole applicate a ogni voce di budget"), ("8", "bandi con un modello di calcolo curato a mano"), ("780+", "bandi aperti nel catalogo nazionale, aggiornati ogni notte"), ("509", "test automatici sul motore")])
+    kpis([("60", "regole applicate a ogni voce di budget"), ("8", "bandi con un modello di calcolo curato a mano"), ("780+", "bandi aperti nel catalogo nazionale, aggiornati ogni notte"), ("523", "test automatici sul motore")])
     story.append(PageBreak())
 
     # ------------------------------------------------------------------ 2. come lavora
@@ -223,7 +223,7 @@ def build() -> Path:
                        ("Stima dell'anno", "Dall'ultimo bilancio si stimano spese e ricavi dell'anno da pianificare."),
                        ("Bandi adatti", "Per ogni bando: può partecipare? quanto vale in euro? cosa va adeguato?"),
                        ("Piano e potenziale", "Tutti i bandi insieme, senza doppioni: il massimo teorico e il piano voce per voce."),
-                       ("Budget e controllo", "La bozza di budget dal bilancio, controllata voce per voce con 60 regole."),
+                       ("Budget e controllo", "Il budget costruito sull'azienda (persone, spese per voce, investimenti), controllato voce per voce con 60 regole e ricavato anche dall'allocazione, bando per bando."),
                        ("Impronta firmata", "Il risultato lascia un'impronta verificabile da chi controlla.")], W))
     SP(8)
     H2("In concreto")
@@ -246,7 +246,7 @@ def build() -> Path:
     cards([("Lavori e profilo", "Un lavoro per ogni azienda cliente, con profilo, bilanci per anno, documenti e modello di previsione. Ogni dato ricorda da dove viene.", "dati ordinati per cliente, mai mescolati, con la provenienza di ogni valore"),
            ("Catalogo e studio dei bandi", "L'elenco nazionale dei bandi aperti, con la scheda ufficiale di ciascuno. Con un clic QUANTO studia un bando: cerca i documenti ufficiali, li legge e ne ricava regole, requisiti e percentuale.", "un bando letto per intero, con la fonte di ogni regola"),
            ("Allocazione e potenziale massimo", "Stima l'anno successivo, trova i bandi adatti, li combina e mostra quanto potrebbe coprire l'azienda se li ottenesse tutti, con il bilancio ricostruito e un grafico per ogni bando.", "il massimo teorico e il piano voce per voce, con ogni numero spiegato"),
-           ("Budget e 60 criteri", "Crea la bozza di budget dal bilancio e controlla ogni voce con 60 regole su personale, beni strumentali, consulenze, spese generali e coerenza.", "un budget controllato, con il motivo di ogni riduzione"),
+           ("Budget e 60 criteri", "Crea la bozza di budget dall'azienda (ogni persona con livello, contratto e RAL; spese per voce con la fonte) e controlla ogni voce con 60 regole su personale, beni strumentali, consulenze, spese generali e coerenza; dall'allocazione ricava il budget di ogni bando, verificati insieme.", "un budget controllato, con il motivo di ogni riduzione"),
            ("Pacchetti di lavoro", "Divide il budget ammesso tra i pacchetti di lavoro del bando, rispettando le quote minime e massime e i tetti per categoria.", "la ripartizione per WP già calcolata, o il motivo per cui non esiste"),
            ("Confronto", "Ogni budget salvato diventa un template, con nicchia, bando ed esito. Il consiglio per un nuovo cliente nasce dai budget simili, pesando di più quelli che hanno vinto, e migliora a ogni dato nuovo.", "una ripartizione di partenza basata sui casi reali dello studio"),
            ("Verifica e registro firmato", "Ogni budget controllato può lasciare un'impronta in un registro che non si può riscrivere. Un revisore la verifica con una chiave pubblica, senza accedere a nulla.", "una prova che il budget non è stato modificato"),
@@ -262,7 +262,7 @@ def build() -> Path:
            ["Cercare i bandi giusti su più siti, uno per uno", "Una lista ordinata per affinità con l'azienda, con descrizione ufficiale, motivi e ciò che resta da verificare"],
            ["Stimare quanto vale un bando «a occhio»", "Un importo con intervallo prudente-massimo e le ipotesi scritte accanto"],
            ["Mettere insieme più bandi con il rischio di contare due volte la stessa spesa", "Un piano che rispetta cumulo, tetti e de minimis e dice quali bandi non servono"],
-           ["Partire da un foglio vuoto per il budget", "Una bozza costruita dal bilancio del cliente, controllata voce per voce"],
+           ["Partire da un foglio vuoto per il budget", "Una bozza costruita sui documenti del cliente (organico, budget, investimenti, bilancio), controllata voce per voce"],
            ["Rispondere al cliente «me l'ha detto il bando»", "Ogni numero con la frase del testo ufficiale e il link al documento"],
            ["File sparsi per ogni cliente", "Un lavoro per cliente, dati separati, scelte salvate"],
            ["La memoria dei budget passati resta nella testa di qualcuno", "Template con esito e un consiglio che migliora a ogni budget salvato"],
@@ -308,12 +308,12 @@ def build() -> Path:
 
     # ------------------------------------------------------------------ 7. un caso
     H1("Un caso di prova")
-    P("Azienda fittizia di prova: <b>Meridiana Digital Solutions S.r.l.</b> (software, Torino, 15 dipendenti, ricavi 2025 di 1.583.200 euro). Si caricano 35 documenti: visura, tre bilanci completi di 58-63 pagine, due cedolini, nove F24, la bozza di candidatura, il DURC, la dichiarazione de minimis, il business plan di 46 pagine, le dichiarazioni fiscali, i registri delle fatture, il contratto di locazione, l'estratto conto e otto fogli Excel con centinaia di righe. QUANTO li legge e compila il profilo (100% dopo una sola risposta: se è una start-up innovativa).")
+    P("Azienda fittizia di prova: <b>Meridiana Digital Solutions S.r.l.</b> (software, Torino, 15 dipendenti, ricavi 2025 di 1.583.200 euro). Si caricano 50 documenti (anche con il pulsante «Carica l'azienda di prova»): visura, tre bilanci completi di 58-63 pagine, diciassette cedolini, nove F24, la bozza di candidatura, il DURC, la dichiarazione de minimis, il business plan di 46 pagine, le dichiarazioni fiscali, i registri delle fatture, il contratto di locazione, l'estratto conto e otto fogli Excel con centinaia di righe (organico, cespiti, fatture, budget, investimenti: QUANTO li legge tutti). Compila il profilo (100% dopo una sola risposta: se è una start-up innovativa).")
     table([["Passo", "Cosa produce QUANTO"], ["Bilanci 2023-2025", "Ricavi, costi per categoria (personale 890.700 €, consulenze 172.500 €, spese generali 194.650 €, beni strumentali 119.100 € nel 2025), utile, dipendenti medi"],
            ["Stima 2027", "Spesa prevista di 1.991.026 euro, con la variazione di ogni voce spiegata dai due ultimi bilanci"],
            ["Bandi adatti", "6 bandi adatti all'azienda, 5 con un importo calcolabile e un'etichetta «de minimis» dove la fonte lo dichiara"],
            ["Potenziale massimo", "Dal valore prudente di 1.252.699 € a 1.718.015 € con tutte le maggiorazioni: il 62,9% della spesa prevista; restano a carico 738.327 €"],
-           ["Budget", "Bozza dal bilancio per il bando scelto, persone del progetto aggiunte dall'assistente e controllo dei 60 criteri"]], [W * 0.26, W * 0.74])
+           ["Budget", "Bozza dall'azienda per il bando scelto (persone, spese per voce, investimenti), budget di ogni bando ricavati dall'allocazione e controllo dei 60 criteri"]], [W * 0.26, W * 0.74])
     P("I numeri del potenziale sono quelli calcolati sul catalogo di prova con i dati fittizi: servono a mostrare il percorso. Sul catalogo reale e su un'azienda vera il risultato è diverso.", "small")
     H2("Come si comincia")
     B(["Si apre un lavoro per il cliente e si carica visura e ultimo bilancio (anche con l'assistente: «Completa i dati dell'azienda»).", "Si sceglie l'anno da pianificare e si legge la stima.",

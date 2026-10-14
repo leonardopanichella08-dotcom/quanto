@@ -6,7 +6,7 @@ from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request,
 from pydantic import BaseModel, Field
 
 from app.api.deps import actor_of, scope_of, require_hq
-from app.core import company_profile, events, funds, llm, webhooks
+from app.core import allocation_budgets, budget_basis, company_profile, events, funds, llm, webhooks
 from app.core.renderer import render_with_grounding
 from app.core.fonte_c import service as fonte_c
 from app.core.allocation_engine import AllocationOptimizerEngine
@@ -35,16 +35,16 @@ def optimize_allocation_plan(request: AllocationOptimizationRequest, background:
         years = max(1, request.fiscal_year - ex["fiscal_year"]) if ex["fiscal_year"] else 1       # anni da proiettare: la variazione si compone
         growth = {k.value: v for k, v in request.growth_pct.items()}
         request.historical_expenses = [ExpenseLine(item_id=f"EXP-{ln['field_id']}", category=ln["category"],
-                                                    amount_eur=round(float(ln["amount_eur"]) * (1 + growth.get(ln["category"], 0.0)) ** years, 2)) for ln in ex["lines"]]
+                                                    amount_eur=round(float(ln["amount_eur"]) * (1 + growth.get(ln["category"], 0.0)) ** years, 2), expense_type=ln.get("expense_type"), label=ln.get("description")) for ln in ex["lines"]]
         request.historical_expenses = [e for e in request.historical_expenses if e.amount_eur > 0]
         source = f"bilancio {request.historical_balance_ref}" + (" con variazioni" if growth else "")
-    elif request.use_profile_forecast:                      # spese dell'anno da pianificare = ultimo bilancio del profilo + le variazioni scelte dall'utente
+    elif request.use_profile_forecast:                      # spese dell'anno da pianificare, voce per voce: budget dell'azienda, piano degli investimenti o previsione dal bilancio
         try:
-            fc = company_profile.forecast(scope_of(http), request.fiscal_year, {k.value: v for k, v in request.growth_pct.items()})
+            al = budget_basis.allocation_lines(scope_of(http), request.fiscal_year, {k.value: v for k, v in request.growth_pct.items()})
         except company_profile.ProfileError as exc:
             raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(exc)) from exc
-        request.historical_expenses = [ExpenseLine(item_id=f"STIMA-{r['category']}", category=r["category"], amount_eur=r["forecast_eur"]) for r in fc["categories"] if r["forecast_eur"] > 0]
-        source = f"stima dal profilo aziendale (base {fc['base_year']})"
+        request.historical_expenses = [ExpenseLine(item_id=ln["item_id"], category=ln["category"], amount_eur=ln["amount_eur"], expense_type=ln["expense_type"], label=ln["label"]) for ln in al["lines"]]
+        source = f"stima dal profilo aziendale (base {al['base_year']})"
     if not request.historical_expenses:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Elenco spese storiche vuoto.")
     if not request.available_funding_lines:                # fondi dalle linee attive (ricavate dai bandi), mai dal codice
@@ -127,3 +127,24 @@ def delete_fund(fund_id: str, request: Request) -> dict:
     if not funds.delete_fund(fund_id, actor_of(request)):
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Linea non trovata")
     return {"deleted": fund_id}
+
+
+class BudgetsBody(BaseModel):
+    allocation: dict = Field(..., description="Il risultato dell'allocazione (la risposta di /optimize)")
+    fiscal_year: int = Field(..., ge=2020, le=2100)
+    validate_budgets: bool = Field(default=True, description="Controlla ogni budget con i 60 criteri del suo bando")
+    funding_lines: List[dict] = Field(default_factory=list, description="Le linee di finanziamento usate per l'allocazione (con il bando di ognuna)")
+
+
+@router.post("/budgets", summary="Dall'allocazione ai budget: uno per bando, controllati e verificati insieme (ammissibili da soli e tra loro)")
+def budgets_from_allocation(body: BudgetsBody, request: Request) -> dict:
+    owner = scope_of(request)
+    if not body.allocation.get("allocation_plan"):
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="L'allocazione non ha spese: eseguila prima di creare i budget")
+    try:
+        out = allocation_budgets.build(owner, body.allocation, body.fiscal_year, body.validate_budgets, body.funding_lines or None)
+    except company_profile.ProfileError as exc:
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(exc)) from exc
+    events.record("allocation.budgets", f"Budget dall'allocazione {body.fiscal_year}: {out['summary']['funds']} bandi, {'tutti compatibili' if out['ok'] else 'ci sono incompatibilità'}", actor=actor_of(request),
+                  details={"ok": out["ok"], "funds": [b["fund_id"] for b in out["budgets"]]})
+    return out

@@ -43,6 +43,9 @@ RULE_INFO: Dict[str, Dict[str, Any]] = {
         "label": "Categorie di spesa ammesse", "meaning": "Quali tipi di spesa il bando finanzia (personale, beni, consulenze, spese generali, formazione).",
         "search": ["spese ammissibili", "sono ammissibili", "esclusivamente", "eligible costs", "eligible expenses"], "where": "Articolo «Spese ammissibili» e, subito dopo, «Spese non ammissibili».",
         "verify": "Leggi entrambi gli elenchi: se il bando elenca solo alcune categorie le altre sono escluse. Attenzione alle voci ammesse solo a condizioni."},
+    "excluded_expense_types": {
+        "label": "Voci di spesa escluse per nome", "meaning": "Spese che il bando non rimborsa pur ammettendo la loro categoria (es. spese di rappresentanza, fideiussioni, affitti, trasferte).",
+        "search": ["non ammissibil", "spese escluse", "non sono ammesse", "spese non ammissibili", "ineligible costs"], "where": "Articolo «Spese non ammissibili».", "verify": "Controlla che la frase riguardi proprio quella voce e non una condizione («ammesse solo se…»)."},
     "excluded_asset_natures": {
         "label": "Beni esclusi (es. immobili)", "meaning": "Tipi di bene che non si finanziano (terreni, fabbricati, software, servizi…).",
         "search": ["terreni", "fabbricati", "immobili", "non ammissibil", "land", "buildings"], "where": "Elenco delle spese non ammissibili.", "verify": "Controlla eccezioni (es. opere murarie strettamente funzionali)."},

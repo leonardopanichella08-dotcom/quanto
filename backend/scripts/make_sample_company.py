@@ -16,6 +16,7 @@ Uso:  python scripts/make_sample_company.py [cartella di destinazione]
 from __future__ import annotations
 
 import sys
+import unicodedata
 from pathlib import Path
 from typing import List, Tuple
 
@@ -25,14 +26,28 @@ from sample_company import bilancio, docs, docs_long, docs_more, model, xlsx_pac
 from sample_company.model import ALL_YEARS, COMPANY, YEARS  # noqa: E402,F401
 
 
+def payslips(dest: Path) -> List[Tuple[str, Path]]:
+    """Il cedolino di agosto 2026 di ogni persona dell'organico (17): competenze lorde = RAL / 14, così il cedolino e il registro del personale dicono la stessa cosa."""
+    from sample_company import people as P
+    out = []
+    others = [x["id"] for x in P.EMPLOYEES if x["id"] not in ("M003", "M006")]
+    for e in P.EMPLOYEES:
+        n = {"M003": "05", "M006": "06"}.get(e["id"]) or str(36 + others.index(e["id"]))
+        role = e["role"][:1].upper() + e["role"][1:]
+        qualifica = f"{'Quadro' if e['level'] == 'Quadro' else 'Impiegato/a'} - {role.lower()}" + (" (apprendista)" if e["contract"] == "Apprendistato" else "")
+        fname = unicodedata.normalize("NFKD", f"{e['surname']}_{e['name']}").encode("ascii", "ignore").decode().replace(" ", "_")
+        out.append(("PAYSLIP", docs.make_payslip(dest / f"{n}_Busta_paga_agosto_2026_{fname}.pdf", e["id"], P.gross_monthly(e), qualifica)))
+    return out
+
+
 def build(dest: Path) -> List[Tuple[str, Path]]:
     dest.mkdir(parents=True, exist_ok=True)
     files: List[Tuple[str, Path]] = []
     files.append(("COMPANY_REGISTRY", docs.make_registry(dest / "01_Visura_camerale_Meridiana_Digital_Solutions.pdf")))
     for n, y in enumerate(YEARS, 2):
         files.append(("BALANCE_SHEET", bilancio.make_balance(dest / f"0{n}_Bilancio_{y}.pdf", y)))
-    files.append(("PAYSLIP", docs.make_payslip(dest / "05_Busta_paga_agosto_2026_Bertone_Andrea.pdf", "M003", 2980.77, "Impiegato - sviluppatore software senior")))
-    files.append(("PAYSLIP", docs.make_payslip(dest / "06_Busta_paga_agosto_2026_Rinaldi_Sara.pdf", "M006", 2564.10, "Impiegata - analista dei dati")))
+    for kind, path in payslips(dest):
+        files.append((kind, path))
     files.append(("F24", docs.make_f24(dest / "07_F24_pagamento_16-09-2026.pdf", "16/09/2026", "agosto 2026", "08/2026",
                                        [("1001", "0008", "2026", 21486.30, 0), ("1040", "0008", "2026", 3120.00, 0), ("6008", "0008", "2026", 7845.20, 0), ("6938", "0000", "2025", 0, 3500.00)], 15284.55, 310.20, 118.40)))
     files.append(("F24", docs.make_f24(dest / "08_F24_pagamento_16-08-2026.pdf", "16/08/2026", "luglio 2026", "07/2026",

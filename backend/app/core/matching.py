@@ -124,12 +124,27 @@ BENEFIT_EXPLANATION = {
 }
 
 
-def evaluate(bando_id: str, profile: Dict[str, Any], by_cat: Dict[str, float], year: int, today: Optional[date] = None) -> Optional[Dict[str, Any]]:
+def _without_excluded_types(rules: Dict[str, Any], by_cat: Dict[str, float], by_type: Optional[Dict[str, Dict[str, Any]]]):
+    """Le spese per categoria senza le voci che il bando esclude per nome (affitti, rappresentanza…): non fanno parte della base su cui si calcola il contributo."""
+    excluded = [c for c in (rules.get("excluded_expense_types") or []) if by_type and c in by_type]
+    if not excluded:
+        return by_cat, []
+    eff = dict(by_cat)
+    out = []
+    for code in excluded:
+        t = by_type[code]
+        eff[t["category"]] = max(0.0, eff.get(t["category"], 0.0) - t["amount_eur"])
+        out.append({"code": code, "label": t["label"], "category": t["category"], "amount_eur": round(t["amount_eur"], 2)})
+    return eff, out
+
+
+def evaluate(bando_id: str, profile: Dict[str, Any], by_cat: Dict[str, float], year: int, today: Optional[date] = None, by_type: Optional[Dict[str, Dict[str, Any]]] = None) -> Optional[Dict[str, Any]]:
     today = today or date.today()
     detail = bandi.get_bando_detail(bando_id)
     if detail is None:
         return None
     rules = _rules(detail)
+    by_cat, excluded_types = _without_excluded_types(rules, by_cat, by_type)
     row = Ingestion.get_bando(bando_id) or {}
     checks: List[Dict[str, Any]] = []
     missing: List[str] = []
@@ -139,6 +154,9 @@ def evaluate(bando_id: str, profile: Dict[str, Any], by_cat: Dict[str, float], y
 
     allowed = [c for c in (rules.get("eligible_categories") or list(CATEGORIES)) if c in CATEGORIES]
     usable = [c for c in allowed if by_cat.get(c, 0) > 0]
+    if excluded_types:
+        checks.append({"id": "expense_types", "label": "Voci escluse per nome", "decisive": False, "result": "OK",
+                       "detail": "Il bando non ammette: " + ", ".join(f"{t['label'].lower()} ({_it_eur(t['amount_eur'])})" for t in excluded_types) + ". Non contano nel contributo."})
     if usable:
         checks.append({"id": "categories", "label": "Spese ammesse", "decisive": True, "result": "OK",
                        "detail": "Ammette: " + ", ".join(CATEGORY_LABEL[c].lower() for c in usable) + "."})
@@ -232,17 +250,17 @@ def evaluate(bando_id: str, profile: Dict[str, Any], by_cat: Dict[str, float], y
         fit = "ADATTO"
     return {"bando_id": bando_id, "name": detail["name"], "issuer": detail.get("issuer"), "status": detail.get("status"), "fit": fit, "checks": checks, "estimate": estimate,
             "fund": fund, "de_minimis": dm, "guarantee": guarantee, "guarantee_info": ({"kind_label": valuation.KIND_LABEL["GARANZIA"], "assumptions": val.get("assumptions", []), "evidence": val.get("evidence", [])} if guarantee else None),
-            "benefit": benefit, "notes": notes, "missing_profile": sorted(set(missing)), "requirements_count": len(detail.get("requirements", [])),
+            "excluded_types": excluded_types, "benefit": benefit, "notes": notes, "missing_profile": sorted(set(missing)), "requirements_count": len(detail.get("requirements", [])),
             "rules_count": len(rules)}
 
 
-def match_all(profile: Dict[str, Any], by_cat: Dict[str, float], year: int) -> Dict[str, Any]:
+def match_all(profile: Dict[str, Any], by_cat: Dict[str, float], year: int, by_type: Optional[Dict[str, Dict[str, Any]]] = None) -> Dict[str, Any]:
     """Tutti i bandi studiati (curati o con regole/requisiti letti), dal più utile al meno utile."""
     out = []
     for b in bandi.list_bandi():
         if not (b["curated"] or b["rules_count"] or b["requirements_count"]):
             continue
-        r = evaluate(b["bando_id"], profile, by_cat, year)
+        r = evaluate(b["bando_id"], profile, by_cat, year, by_type=by_type)
         if r:
             out.append(r)
     order = {"ADATTO": 0, "DA_VERIFICARE": 1, "NON_ADATTO": 2}
@@ -257,11 +275,42 @@ def match_all(profile: Dict[str, Any], by_cat: Dict[str, float], year: int) -> D
 
 
 # ------------------------------------------------------------------------------------------------ bozza di budget dal profilo
-def budget_template(owner: str, bando_id: str, scale_pct: float, fit: bool = True) -> Dict[str, Any]:
-    """Voci di costo di partenza, prese dall'ultimo bilancio dell'azienda: solo le categorie ammesse dal bando, per la quota di progetto indicata
-    e (se ``fit``) con le voci sopra i tetti del bando ridotte alla parte ammissibile. È una base da modificare, non un budget pronto."""
-    from app.core import company_profile as cp
-    from app.core.fonte_c import service as fonte_c
+def _project_year(rules: Dict[str, Any], base_year: int) -> int:
+    """L'anno su cui si costruisce il budget: quello dopo l'ultimo bilancio, riportato dentro la finestra di ammissibilità del bando se questa lo esclude."""
+    year = base_year + 1
+    start, end = _as_date(rules.get("eligibility_start")), _as_date(rules.get("eligibility_end"))
+    if start and start.year > year:
+        year = start.year
+    if end and base_year < end.year < year:
+        year = end.year
+    return year
+
+
+_CONTRACT = (("INDETERMINATO", "PERMANENT"), ("DETERMINATO", "FIXED_TERM"), ("APPRENDIST", "FIXED_TERM"), ("OCCASIONAL", "OCCASIONAL"))
+
+
+def _contract_type(text: Optional[str]) -> Optional[str]:
+    from app.core.expense_types import norm
+    n = norm(text or "")
+    for key, val in _CONTRACT:
+        if key in n:
+            return val
+    return None
+
+
+def _it_eur(x: float) -> str:
+    return f"{x:,.2f}".replace(",", "§").replace(".", ",").replace("§", ".") + " €"
+
+
+def budget_template(owner: str, bando_id: str, scale_pct: float, fit: bool = True, year: Optional[int] = None) -> Dict[str, Any]:
+    """Una bozza di budget per il bando, costruita sui dati dell'azienda e sulle regole del bando.
+
+    - **Il personale è persona per persona**, dall'organico dei documenti (registro del personale, buste paga): livello, contratto, RAL, ore e quota di tempo sul progetto.
+    - **Le altre spese sono voci di spesa** (affitti, energia, licenze, trasferte…), non categorie: ognuna con l'importo previsto per l'anno del progetto, da dove viene
+      (budget dell'azienda, piano degli investimenti o previsione dal bilancio) e il documento che lo giustifica.
+    - **Le voci che il bando esclude per nome** non entrano, e quelle sopra i tetti del bando si riducono alla parte ammissibile.
+    È una base da modificare, non un budget pronto: la controlla poi la pagina Budget con i 60 criteri."""
+    from app.core import budget_basis, company_facts, company_profile as cp, expense_types
 
     if not 0 < scale_pct <= 100:
         raise cp.ProfileError("La quota del progetto sul totale annuale va da 0 a 100%")
@@ -273,69 +322,100 @@ def budget_template(owner: str, bando_id: str, scale_pct: float, fit: bool = Tru
     years = [y for y in sorted(fin) if any(fin[y][0].get(cp.FIN_KEY[c]) is not None for c in CATEGORIES)]
     if not years:
         raise cp.ProfileError("Mancano i dati di bilancio: carica un bilancio nel profilo o inserisci i costi dell'ultimo esercizio")
-    year = years[-1]
-    fdata, fsrc = fin[year]
+    base_year = years[-1]
+    target = year or _project_year(rules, base_year)
+    plan = budget_basis.plan_for_year(owner, target)
     factor = scale_pct / 100.0
     allowed = [c for c in (rules.get("eligible_categories") or list(CATEGORIES)) if c in CATEGORIES]
+    excluded_types = set(rules.get("excluded_expense_types") or [])
 
-    lines: List[Dict[str, Any]] = []
-    doc_ids = {s.get("document_id") for k, s in fsrc.items() if not k.startswith("_") and s.get("origin") == "DOCUMENT"}
-    pending = 0
-    for did in sorted(d for d in doc_ids if d):
-        try:
-            ex = fonte_c.balance_expenses(did, owner)
-        except (KeyError, fonte_c.DocumentError):
-            continue
-        if ex["fiscal_year"] == year:
-            lines += [{"description": ln["description"], "category": ln["category"], "amount": float(ln["amount_eur"]), "ref": f"DOC-FC-{did}"} for ln in ex["lines"]]
-            pending += len(ex["needs_review"]) + len(ex["needs_category"])
-    covered_cats = {ln["category"] for ln in lines}
-    for c in CATEGORIES:                                    # categorie inserite a mano o senza righe di dettaglio: una voce sola con il totale
-        if c not in covered_cats and fdata.get(cp.FIN_KEY[c]):
-            lines.append({"description": f"{CATEGORY_LABEL[c]} (totale annuo)", "category": c, "amount": float(fdata[cp.FIN_KEY[c]]), "ref": f"PROFILO-{year}"})
-
-    excluded = sorted({ln["category"] for ln in lines if ln["category"] not in allowed})
-    kept = sorted((ln for ln in lines if ln["category"] in allowed), key=lambda ln: -ln["amount"])
-    head, tail = kept[:15], kept[15:]
-    for c in sorted({ln["category"] for ln in tail}):       # le voci più piccole si raggruppano per categoria
-        rest = [ln for ln in tail if ln["category"] == c]
-        head.append({"description": f"Altre voci di {CATEGORY_LABEL[c].lower()} ({len(rest)} righe)", "category": c, "amount": sum(ln["amount"] for ln in rest), "ref": rest[0]["ref"]})
+    usable = [r for r in plan["types"] if r["category"] in allowed]
+    dropped_cat = sorted({r["category"] for r in plan["types"] if r["category"] not in allowed})
+    dropped_types = [r for r in usable if r["code"] in excluded_types]
+    kept = [r for r in usable if r["code"] not in excluded_types]
 
     by_cat: Dict[str, float] = {}
-    for ln in head:
-        by_cat[ln["category"]] = by_cat.get(ln["category"], 0.0) + ln["amount"] * factor
+    for r in kept:
+        by_cat[r["category"]] = by_cat.get(r["category"], 0.0) + r["amount_eur"] * factor
+    if "PERSONNEL" in allowed:
+        by_cat["PERSONNEL"] = plan["personnel_base_eur"] * factor            # il personale conta nei tetti; le voci le fanno le persone
     adjustments = _adjustments(rules, by_cat, allowed) if fit else []
     reduce = {a["category"]: a["eligible_eur"] / a["forecast_eur"] for a in adjustments}
 
-    items = []
-    personnel_total = 0.0                                   # il personale conta nei tetti ma non diventa una voce: il motore vuole persona per persona (RAL, quota di tempo)
-    for n, ln in enumerate(head, 1):
-        ratio = reduce.get(ln["category"], 1.0)
-        amount = round(ln["amount"] * factor * ratio, 2)
+    items: List[Dict[str, Any]] = []
+    basis_rows: List[Dict[str, Any]] = []
+    for n, r in enumerate(kept, 1):
+        ratio = reduce.get(r["category"], 1.0)
+        amount = round(r["amount_eur"] * factor * ratio, 2)
         if amount <= 0:
             continue
-        if ln["category"] == "PERSONNEL":
-            personnel_total += amount
-            continue
+        spec = expense_types.TYPES[r["code"]]
+        src = (r["sources"] or [{}])[0]
+        ref = f"DOC-FC-{src['document_id']}" if src.get("document_id") else f"PROFILO-{plan['base_year']}"
         note = f" · ridotta al {ratio * 100:.0f}% per il tetto del bando" if ratio < 1 else ""
-        items.append({"item_id": f"TPL-{n:02d}", "description": f"{ln['description']} — da bilancio {year}, quota progetto {scale_pct:g}%{note}"[:200], "category": ln["category"],
-                      "amount_eur": amount, "source_c_ref": ln["ref"]})
-    notes = [f"Importi del bilancio {year} moltiplicati per la quota di progetto ({scale_pct:g}%): sono una base da adattare al tuo progetto, non un budget pronto."]
-    if pending:
-        notes.append(f"{pending} righe del bilancio non sono ancora verificate e non sono incluse.")
-    if any(i["source_c_ref"].startswith("PROFILO-") for i in items):
-        notes.append("Alcune voci vengono da totali inseriti a mano nel profilo: allega il documento che le giustifica prima di controllare il budget.")
+        item = {"item_id": f"TPL-{n:02d}", "description": f"{r['label']} — {r['detail']}, quota progetto {scale_pct:g}%{note}"[:200], "category": r["category"], "expense_type": r["code"],
+                "amount_eur": amount, "source_c_ref": ref}
+        if spec["subtype"]:
+            item["expense_subtype"] = spec["subtype"]
+        if spec["asset_nature"] and r["category"] == "CAPITAL_ASSETS":
+            item["asset_nature"] = spec["asset_nature"]
+        items.append(item)
+        basis_rows.append({"item_id": item["item_id"], "code": r["code"], "label": r["label"], "category": r["category"], "basis": r["basis"], "forecast_eur": round(r["amount_eur"] * factor, 2),
+                           "amount_eur": amount, "detail": r["detail"], "sources": r["sources"]})
+
+    people_info: List[Dict[str, Any]] = []
     needs_personnel = None
-    if personnel_total > 0:
-        needs_personnel = {"amount_eur": round(personnel_total, 2),
-                           "message": "Il costo del personale non entra nella bozza come voce unica: il controllo vuole persona per persona livello, CCNL, RAL e quota di tempo. "
-                                      "Aggiungile dalle buste paga nel Profilo («Aggiungi al budget come voce di personale»)."}
-    if any("mmortament" in i["description"] for i in items):
-        notes.append("Le voci «Ammortamento» sono il costo di beni già acquistati: sostituiscile con gli acquisti che prevedi di fare per il progetto.")
+    needs_input: List[str] = list(plan["missing"])
+    if "PERSONNEL" in allowed:
+        from app.core import fonte_b
+        staff = company_facts.staff(owner)
+        fb = fonte_b.load()
+        no_table: Dict[Any, int] = {}
+        for k, p in enumerate(staff["people"], 1):
+            if p["ral_eur"] is None and p.get("payslip_ral_eur") is None:
+                needs_input.append(f"La RAL di {p.get('role') or 'una persona'} ({p.get('ref') or p['token'][:8]}) non è nei documenti: la persona non è nel budget.")
+                continue
+            hours = p.get("hours_week") or 40.0
+            fte = round(min(1.0, max(0.01, factor)), 4)                      # quota del PROPRIO tempo: la RAL di chi è part-time è già quella del part-time
+            src = p["sources"][0]
+            ral = p["ral_eur"] if p["ral_eur"] is not None else p["payslip_ral_eur"]
+            item = {"item_id": f"TPL-P{k:02d}", "description": f"{p.get('role') or 'Persona'} ({p.get('ref') or p['token'][:8]}) — quota progetto {scale_pct:g}% del tempo di lavoro"[:200], "category": "PERSONNEL",
+                    "source_c_ref": f"DOC-FC-{src['id']}", "employee_token": p["token"], "ral_eur": ral, "fte_allocation": fte, "duration_months": 12}
+            if p.get("level"):
+                item["employee_level"] = str(p["level"])
+            if p.get("ccnl_code"):
+                item["ccnl_code"] = p["ccnl_code"]
+                if p.get("level") and fb.ccnl(p["ccnl_code"], str(p["level"])) is None:
+                    no_table[(p["ccnl_code"], str(p["level"]))] = no_table.get((p["ccnl_code"], str(p["level"])), 0) + 1
+            else:
+                needs_input.append(f"Il contratto collettivo di {p.get('role') or 'una persona'} ({p.get('ref') or p['token'][:8]}) non è tra quelli di Fonte B: il controllo del costo orario resta in attesa.")
+            ct = _contract_type(p.get("contract"))
+            if ct:
+                item["contract_type"] = ct
+            if p.get("payslip_ral_eur") and p["ral_eur"] is not None:
+                item["payslip_ral_eur"] = p["payslip_ral_eur"]
+            items.append(item)
+            people_info.append({"item_id": item["item_id"], "ref": p.get("ref"), "role": p.get("role"), "level": p.get("level"), "ccnl_code": p.get("ccnl_code"), "ral_eur": ral, "hours_week": hours,
+                                "fte_allocation": fte, "has_payslip": bool(p.get("payslip_document_id")), "contract": p.get("contract")})
+        for (code, level), n in sorted(no_table.items()):
+            needs_input.append(f"In Fonte B manca la tabella del contratto {code} per il livello {level} ({n} {'persona' if n == 1 else 'persone'}): il costo orario di chi è a quel livello non si può controllare "
+                               "finché un manager non la pubblica (Quartier Generale → Fonte B).")
+        if not staff["people"] and plan["personnel_base_eur"] > 0:
+            needs_personnel = {"amount_eur": round(plan["personnel_base_eur"] * factor, 2),
+                               "message": "Nei documenti non ci sono persone: carica il registro del personale (Excel) o le buste paga. Il controllo vuole persona per persona livello, CCNL, RAL e quota di tempo."}
+
+    notes = list(plan["notes"])
+    notes.append(f"Anno del progetto: {target}. Le spese vengono dal budget dell'azienda, dal piano degli investimenti o dalla previsione del bilancio {plan['base_year']} (la fonte è scritta su ogni voce); sono una base da adattare al progetto.")
+    if scale_pct < 100:
+        notes.append(f"Quota di progetto: {scale_pct:g}% delle spese annue e del tempo di lavoro di ogni persona.")
+    if dropped_types:
+        notes.append("Escluse perché il bando le dichiara non ammissibili: " + ", ".join(f"{r['label'].lower()} ({_it_eur(r['amount_eur'] * factor)})" for r in dropped_types) + ".")
     if rules.get("requires_cup"):
         notes.append("Il bando richiede il CUP su ogni spesa: finché manca il controllo #50 mette la voce «in attesa». Inseriscilo in «Modifica voce».")
     if rules.get("requires_milestones"):
         notes.append("Il bando chiede di assegnare ogni voce a una milestone/SAL di rendicontazione (controllo #57): indicala in «Modifica voce».")
-    return {"bando_id": bando_id, "base_year": year, "scale_pct": scale_pct, "fit": fit, "cost_items": items, "needs_personnel": needs_personnel, "needs_category": [], "needs_review": [],
-            "adjustments": adjustments, "excluded_categories": [{"category": c, "label": CATEGORY_LABEL[c]} for c in excluded], "notes": notes,
-            "total_eur": round(sum(i["amount_eur"] for i in items), 2)}
+    return {"bando_id": bando_id, "base_year": plan["base_year"], "year": target, "scale_pct": scale_pct, "fit": fit, "cost_items": items, "needs_personnel": needs_personnel, "needs_category": [], "needs_review": [],
+            "adjustments": adjustments, "excluded_categories": [{"category": c, "label": CATEGORY_LABEL[c]} for c in dropped_cat],
+            "excluded_types": [{"code": r["code"], "label": r["label"], "amount_eur": round(r["amount_eur"] * factor, 2)} for r in dropped_types],
+            "basis": basis_rows, "personnel": people_info, "needs_input": needs_input, "notes": notes,
+            "total_eur": round(sum(i.get("amount_eur") or 0 for i in items), 2), "personnel_base_eur": round(plan["personnel_base_eur"] * factor, 2)}

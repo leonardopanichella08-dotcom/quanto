@@ -24,9 +24,9 @@ class FundError(ValueError):
 
 def _row(r) -> Dict[str, Any]:
     d = dict(r)
-    for k in ("allowed_categories", "category_coverage_pct", "category_max_share", "excludes"):
-        d[k] = json.loads(d[k]) if d.get(k) else ([] if k in ("allowed_categories", "excludes") else {})
-    for k in ("coverage_pct", "max_total_eur"):
+    for k in ("allowed_categories", "category_coverage_pct", "category_max_share", "excludes", "excluded_expense_types"):
+        d[k] = json.loads(d[k]) if d.get(k) else ([] if k in ("allowed_categories", "excludes", "excluded_expense_types") else {})
+    for k in ("coverage_pct", "max_total_eur", "max_cumulated_pct"):
         d[k] = float(d[k]) if d.get(k) is not None else None
     return d
 
@@ -48,15 +48,15 @@ def upsert_fund(fund: Dict[str, Any], actor: str) -> Dict[str, Any]:
     with connect() as conn:
         conn.execute(
             "INSERT INTO funding_lines (fund_id, name, bando_id, allowed_categories, coverage_pct, category_coverage_pct, max_total_eur, category_max_share, de_minimis, "
-            "excludes, active_from_month, active_to_month, source_ref, active, updated_by, updated_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?) "
+            "excludes, active_from_month, active_to_month, source_ref, active, updated_by, updated_at, excluded_expense_types, max_cumulated_pct) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?) "
             "ON CONFLICT (fund_id) DO UPDATE SET name=excluded.name, bando_id=excluded.bando_id, allowed_categories=excluded.allowed_categories, coverage_pct=excluded.coverage_pct, "
             "category_coverage_pct=excluded.category_coverage_pct, max_total_eur=excluded.max_total_eur, category_max_share=excluded.category_max_share, de_minimis=excluded.de_minimis, "
             "excludes=excluded.excludes, active_from_month=excluded.active_from_month, active_to_month=excluded.active_to_month, source_ref=excluded.source_ref, "
-            "active=excluded.active, updated_by=excluded.updated_by, updated_at=excluded.updated_at",
+            "active=excluded.active, updated_by=excluded.updated_by, updated_at=excluded.updated_at, excluded_expense_types=excluded.excluded_expense_types, max_cumulated_pct=excluded.max_cumulated_pct",
             (line.fund_id, line.name or line.fund_id, fund.get("bando_id"), json.dumps([c.value for c in line.allowed_categories]), line.coverage_pct,
              json.dumps({k.value: v for k, v in line.category_coverage_pct.items()}), line.max_total_eur, json.dumps({k.value: v for k, v in line.category_max_share.items()}),
              line.de_minimis, json.dumps(line.excludes), line.active_from_month, line.active_to_month, fund.get("source_ref"), bool(fund.get("active", True)),
-             actor, events.now_iso()))
+             actor, events.now_iso(), json.dumps(line.excluded_expense_types), line.max_cumulated_pct))
         out = _row(conn.execute("SELECT * FROM funding_lines WHERE fund_id=?", (line.fund_id,)).fetchone())
     events.record("funds.upsert", f"Linea di finanziamento {line.fund_id} salvata", actor=actor, bando_id=fund.get("bando_id"))
     return out
@@ -114,6 +114,7 @@ def build_fund(bando_id: str, fiscal_year: int, max_total_eur: Optional[float] =
                                   "eligible_categories": vals.get("eligible_categories"), "eligibility_start": vals.get("eligibility_start"),
                                   "eligibility_end": vals.get("eligibility_end"), "max_consulting_percentage": vals.get("max_consulting_percentage"),
                                   "max_overhead_percentage": vals.get("max_overhead_percentage"), "non_cumulable_funding_ids": vals.get("non_cumulable_funding_ids") or [],
+                                  "excluded_expense_types": vals.get("excluded_expense_types") or [], "max_aid_intensity_pct": vals.get("max_aid_intensity_pct"),
                                   "rule_version_hash": hashlib.sha256(json.dumps({r["rule_key"]: r["value"] for r in rows}, sort_keys=True).encode()).hexdigest()})()
     cats = [CostCategory(c) for c in rule_set.eligible_categories] if rule_set.eligible_categories else list(CostCategory)
     first, last = _months(rule_set.eligibility_start, rule_set.eligibility_end, fiscal_year)
@@ -125,7 +126,7 @@ def build_fund(bando_id: str, fiscal_year: int, max_total_eur: Optional[float] =
     if rule_set.max_overhead_percentage is not None:
         share[CostCategory.OVERHEAD] = rule_set.max_overhead_percentage
     fund = {"fund_id": fund_id or bando_id, "name": rule_set.bando_name, "bando_id": bando_id, "allowed_categories": cats, "coverage_pct": rule_set.contribution_rate_pct,
-            "category_max_share": share, "excludes": list(rule_set.non_cumulable_funding_ids), "active_from_month": first, "active_to_month": last,
+            "category_max_share": share, "excludes": list(rule_set.non_cumulable_funding_ids), "excluded_expense_types": list(rule_set.excluded_expense_types), "max_cumulated_pct": rule_set.max_aid_intensity_pct, "active_from_month": first, "active_to_month": last,
             "max_total_eur": max_total_eur, "de_minimis": de_minimis, "source_ref": f"regole pubblicate del bando {bando_id} (versione {rule_set.rule_version_hash[:12]})"}
     return fund
 
@@ -136,5 +137,6 @@ def funding_lines_for_allocation() -> List[FundingLine]:
     for d in list_funds(active_only=True):
         out.append(FundingLine(fund_id=d["fund_id"], name=d["name"], allowed_categories=d["allowed_categories"], coverage_pct=d["coverage_pct"],
                                category_coverage_pct=d["category_coverage_pct"], max_total_eur=d["max_total_eur"], category_max_share=d["category_max_share"],
-                               de_minimis=d["de_minimis"], excludes=d["excludes"], active_from_month=d["active_from_month"], active_to_month=d["active_to_month"]))
+                               de_minimis=d["de_minimis"], excludes=d["excludes"], active_from_month=d["active_from_month"], active_to_month=d["active_to_month"],
+                               excluded_expense_types=d.get("excluded_expense_types") or [], max_cumulated_pct=d.get("max_cumulated_pct")))
     return out

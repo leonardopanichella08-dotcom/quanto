@@ -17,7 +17,7 @@ from app.data.bandi_catalog import BANDI, REFERENCES
 
 # Quali criteri attiva ciascuna regola del bando.
 RULE_CRITERIA: Dict[str, List[int]] = {
-    "max_hourly_rate_personnel": [7], "max_consulting_percentage": [31], "max_overhead_percentage": [36], "eligible_categories": [16],
+    "max_hourly_rate_personnel": [7], "max_consulting_percentage": [31], "max_overhead_percentage": [36], "eligible_categories": [16], "excluded_expense_types": [16],
     "excluded_asset_natures": [16], "requires_eu_origin": [16], "equipment_depreciation_only": [17, 18], "requires_new_asset": [19],
     "requires_iot": [20], "min_energy_saving_pct": [21], "max_price_deviation_pct": [22], "max_installation_pct": [23],
     "vat_never_eligible": [54], "max_immaterial_pct": [26], "requires_dnsh": [28], "appraisal_threshold_eur": [30],
@@ -181,6 +181,22 @@ def list_bandi() -> List[Dict[str, Any]]:
     return out
 
 
+def _expense_scope(texts: List[str]) -> Dict[str, List[Dict[str, Any]]]:
+    """Le voci di spesa che il testo del bando esclude o ammette per nome, ognuna con la frase che lo dice."""
+    from app.core import expense_types
+    merged: Dict[str, Dict[str, List[str]]] = {"excluded": {}, "eligible": {}}
+    for t in texts:
+        sc = expense_types.type_scope(t or "")
+        for kind in merged:
+            for code, ev in sc[kind].items():
+                merged[kind].setdefault(code, []).extend(ev)
+    for code in set(merged["excluded"]) & set(merged["eligible"]):          # detto in un senso e nell'altro: non si decide
+        merged["excluded"].pop(code)
+        merged["eligible"].pop(code)
+    return {kind: [{"code": c, "label": expense_types.label(c), "category": expense_types.CATEGORY_OF[c], "evidence": list(dict.fromkeys(ev))[:2]} for c, ev in sorted(d.items())]
+            for kind, d in merged.items()}
+
+
 def get_bando_detail(bando_id: str) -> Optional[Dict[str, Any]]:
     ensure_seeded()
     with connect() as conn:
@@ -207,6 +223,7 @@ def get_bando_detail(bando_id: str) -> Optional[Dict[str, Any]]:
     cov = coverage(published_keys)
     rule_set, _ = Ingestion.build_rule_set(bando_id)
     return {
+        "expense_scope": _expense_scope([r["text"] for r in req_rows]),
         "bando_id": bando_id, "name": b["name"], "issuer": b["issuer"], "status": meta.get("status"), "period": meta.get("period"),
         "curated": bool(meta.get("curated")), "extraction_status": b["extraction_status"], "legal_refs": legal_refs,
         "catalog": {"summary": b["summary"], "meta": json.loads(b["catalog_meta"]) if b["catalog_meta"] else None, "read_at": b["meta_at"], "source_url": b["source_url"], "deadline": b["deadline"]},

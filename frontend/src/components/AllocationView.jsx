@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react'
 import { api } from '../lib/api'
-import { fmtEur, fmtNum, CATEGORY_LABEL } from '../lib/format'
-import { AlertTriangle, CheckCircle2, ChevronDown, ChevronRight, CircleHelp, ExternalLink, Loader2, Sparkles, XCircle } from 'lucide-react'
+import { fmtEur, fmtNum, CATEGORY_LABEL, STATUS_LABEL, STATUS_STYLE } from '../lib/format'
+import { AlertTriangle, CheckCircle2, ChevronDown, ChevronRight, CircleHelp, ExternalLink, FolderOpen, Loader2, Sparkles, XCircle } from 'lucide-react'
 import { ChromeCard, SectionTitle } from './ui'
 import Guide from './Guide'
 import PipelineButton from './PipelineButton'
@@ -18,7 +18,7 @@ function Sankey({ plan }) {
   const allFunds = plan.fund_usage.map((f) => f.fund_id)
   const funds = plan.fund_usage.filter((f) => f.used_eur > 0)
   const gross = items.reduce((s, i) => s + i.gross_amount_eur, 0) || 1
-  const W = 700, H = Math.max(240, items.length * 46), gap = 10, X0 = 150, X1 = W - 170
+  const W = 760, H = Math.max(240, items.length * 30), gap = 6, X0 = 200, X1 = W - 170
   const scale = (H - gap * Math.max(items.length, funds.length + 1)) / gross
   const leftY = {}
   let y = 0
@@ -37,13 +37,13 @@ function Sankey({ plan }) {
       const y0 = leftY[i.item_id] + (offL[i.item_id] || 0), y1 = rightY[p.to] + (offR[p.to] || 0)
       offL[i.item_id] = (offL[i.item_id] || 0) + h; offR[p.to] = (offR[p.to] || 0) + h
       const node = rightNodes.find((n) => n.id === p.to)
-      links.push(<path key={`${i.item_id}-${p.to}`} d={`M${X0},${y0 + h / 2} C${(X0 + X1) / 2},${y0 + h / 2} ${(X0 + X1) / 2},${y1 + h / 2} ${X1},${y1 + h / 2}`} stroke={node?.color || '#a3a39a'} strokeOpacity="0.45" strokeWidth={Math.max(1, h)} fill="none"><title>{`${i.item_id} → ${p.to}: ${fmtEur(p.amount)}`}</title></path>)
+      links.push(<path key={`${i.item_id}-${p.to}`} d={`M${X0},${y0 + h / 2} C${(X0 + X1) / 2},${y0 + h / 2} ${(X0 + X1) / 2},${y1 + h / 2} ${X1},${y1 + h / 2}`} stroke={node?.color || '#a3a39a'} strokeOpacity="0.45" strokeWidth={Math.max(1, h)} fill="none"><title>{`${i.label || i.item_id} → ${p.to}: ${fmtEur(p.amount)}`}</title></path>)
     })
   })
   return (
     <div className="overflow-x-auto"><svg width={W} height={H + 10} role="img" aria-label="Flusso delle spese verso i fondi">
       {links}
-      {items.map((i) => <g key={i.item_id}><rect x={X0 - 6} y={leftY[i.item_id]} width="6" height={Math.max(2, i.gross_amount_eur * scale)} fill="#8a8a80" /><text x={X0 - 12} y={leftY[i.item_id] + Math.max(2, i.gross_amount_eur * scale) / 2 + 3} fontSize="11" fontFamily="Now, Outfit, sans-serif" textAnchor="end" fill="#45453d">{i.item_id}</text></g>)}
+      {items.map((i) => <g key={i.item_id}><rect x={X0 - 6} y={leftY[i.item_id]} width="6" height={Math.max(2, i.gross_amount_eur * scale)} fill="#8a8a80" /><text x={X0 - 12} y={leftY[i.item_id] + Math.max(2, i.gross_amount_eur * scale) / 2 + 3} fontSize="11" fontFamily="Now, Outfit, sans-serif" textAnchor="end" fill="#45453d">{(i.label || i.item_id).length > 24 ? `${(i.label || i.item_id).slice(0, 23)}…` : (i.label || i.item_id)}</text></g>)}
       {rightNodes.map((n) => <g key={n.id}><rect x={X1} y={rightY[n.id]} width="6" height={Math.max(2, n.total * scale)} fill={n.color} /><text x={X1 + 12} y={rightY[n.id] + Math.max(2, n.total * scale) / 2 + 3} fontSize="11" fontFamily="Now, Outfit, sans-serif" fill="#45453d">{n.id.length > 22 ? `${n.id.slice(0, 21)}…` : n.id}</text></g>)}
     </svg></div>
   )
@@ -116,6 +116,63 @@ function Step({ n, title, sub, summary, chart, alert, children, done, defaultOpe
       )}
       <div className={open ? 'space-y-4 pt-4 border-t border-line' : 'hidden'}>{children}</div>
     </ChromeCard>
+  )
+}
+
+
+const CROSS = { PASS: [CheckCircle2, 'text-emerald-700'], FAIL: [XCircle, 'text-red-700'], WARN: [AlertTriangle, 'text-amber-700'] }
+
+/** Dall'allocazione ai budget: un budget per ogni bando che copre una parte delle spese, controllato con i 60 criteri del suo bando e verificato insieme agli altri. */
+function BudgetsFromPlan({ plan, lines, onOpen }) {
+  const [res, setRes] = useState(null)
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState(null)
+  useEffect(() => { setRes(null); setError(null) }, [plan])
+  const build = async () => {
+    setBusy(true); setError(null)
+    try { setRes(await api.allocationBudgets({ allocation: plan, fiscal_year: plan.fiscal_year, funding_lines: lines })) } catch (e) { setError(e.message); setRes(null) } finally { setBusy(false) }
+  }
+  return (
+    <div className="space-y-4">
+      <div className="flex flex-wrap items-center gap-3">
+        <button className="btn-primary" disabled={busy} onClick={build}>{busy ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <FolderOpen className="w-3.5 h-3.5" />}{res ? 'Ricrea i budget' : 'Crea i budget dei bandi'}</button>
+        {res && res.budgets.length > 0 && <button className="btn" onClick={() => onOpen(res, res.budgets[0].fund_id)}>Apri i budget nella pagina Budget</button>}
+      </div>
+      {error && <p className="text-xs text-red-700">{error}</p>}
+      {res && (
+        <>
+          <div className="space-y-2">
+            <p className="text-sm font-medium text-ink">{res.ok ? 'I budget stanno bene insieme.' : 'Attenzione: ci sono incompatibilità tra i budget.'}</p>
+            <ul className="space-y-1.5">
+              {res.cross_checks.map((c) => { const [Icon, color] = CROSS[c.status] || CROSS.WARN; return <li key={c.key} className="flex gap-2 text-xs"><Icon className={`w-3.5 h-3.5 mt-0.5 shrink-0 ${color}`} /><span className="text-ink-2"><span className="font-medium text-ink">{c.label}.</span> {c.detail}</span></li> })}
+            </ul>
+          </div>
+          <div className="grid lg:grid-cols-2 gap-4">
+            {res.budgets.map((b) => {
+              const v = b.validation
+              const people = b.cost_items.filter((i) => i.category === 'PERSONNEL').length
+              return (
+                <div key={b.fund_id} className="rounded-2xl border border-line bg-field p-4 space-y-2.5 text-xs">
+                  <div className="flex items-start gap-2"><div className="min-w-0 flex-1"><p className="text-sm font-semibold text-ink break-words">{b.name}</p><p className="text-[11px] text-mute">{b.bando_id} · intensità {fmtNum(b.rate_pct, 1)}%</p></div></div>
+                  <div className="flex flex-wrap gap-x-6 gap-y-1.5">
+                    <div><span className="label">Contributo previsto</span><div className="text-base font-semibold text-emerald-700 tabular-nums">{fmtEur(b.contribution_planned_eur)}</div></div>
+                    <div><span className="label">Costi nel budget</span><div className="text-sm font-semibold tabular-nums">{fmtEur(v?.requested_eur ?? b.cost_items.reduce((s, i) => s + (i.amount_eur || 0), 0))}</div></div>
+                    {v && !v.error && <div><span className="label">Ammessi dal motore</span><div className="text-sm font-semibold tabular-nums">{fmtEur(v.approved_eur)}</div></div>}
+                  </div>
+                  <p className="text-ink-2">{b.cost_items.length} voci{people ? `, di cui ${people} persone con il loro tempo` : ''}.</p>
+                  {v?.error && <p className="text-amber-700">{v.error}</p>}
+                  {v && !v.error && <div className="flex flex-wrap gap-1.5">{Object.entries(v.by_status).map(([k, n]) => <span key={k} className={`px-1.5 py-0.5 rounded border ${STATUS_STYLE[k]}`}>{n} {STATUS_LABEL[k]?.toLowerCase()}</span>)}</div>}
+                  {v && !v.error && v.problems.length > 0 && (
+                    <ul className="text-[11px] text-amber-700 space-y-0.5">{v.problems.slice(0, 3).map((p) => <li key={p.item_id}>• {p.description.slice(0, 60)}: {p.reason || STATUS_LABEL[p.status]}</li>)}{v.problems.length > 3 && <li className="text-mute">…e altre {v.problems.length - 3}: aprile nella pagina Budget.</li>}</ul>
+                  )}
+                  <button className="btn !py-1" onClick={() => onOpen(res, b.fund_id)}><FolderOpen className="w-3 h-3" />Apri questo budget</button>
+                </div>
+              )
+            })}
+          </div>
+        </>
+      )}
+    </div>
   )
 }
 
@@ -200,7 +257,7 @@ function BandoCard({ r, picked, onToggle, onBudget }) {
   )
 }
 
-export default function AllocationView({ onGoProfile, onBudgetFrom }) {
+export default function AllocationView({ onGoProfile, onBudgetFrom, onOpenBudgets }) {
   const [ov, setOv] = useState(null)
   const [year, setYear] = useState(new Date().getFullYear() + 1)
   const [growth, setGrowth] = useState({})                 // percentuali che l'utente ha scritto a mano in questa schermata (le altre arrivano dal modello o dai bilanci)
@@ -219,6 +276,7 @@ export default function AllocationView({ onGoProfile, onBudgetFrom }) {
   const [dmOverride, setDmOverride] = useState('')                    // vuoto = vale la stima di QUANTO (dagli aiuti dichiarati nei bilanci); pieno = il valore scritto dall'utente
   const [plan, setPlan] = useState(null)
   const [planHigh, setPlanHigh] = useState(null)
+  const [planLines, setPlanLines] = useState([])                      // le linee di finanziamento con cui è stato calcolato il piano (servono per i budget)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(null)
   const [planError, setPlanError] = useState(null)
@@ -317,7 +375,7 @@ export default function AllocationView({ onGoProfile, onBudgetFrom }) {
       const res = await api.optimizeAllocation(body(false))
       const hasRange = pickedRows.some((r) => r.estimate?.rate_high_pct > r.estimate?.rate_pct)
       const resHigh = hasRange ? await api.optimizeAllocation(body(true)) : null
-      if (mine === seq.current) { setPlan(res); setPlanHigh(resHigh) }
+      if (mine === seq.current) { setPlan(res); setPlanHigh(resHigh); setPlanLines(body(false).available_funding_lines) }
     } catch (e) { if (mine === seq.current) { setPlanError(e.message); setPlan(null); setPlanHigh(null) } } finally { if (mine === seq.current) setLoading(false) }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [match, picked, target, deMinimis])
@@ -464,6 +522,15 @@ export default function AllocationView({ onGoProfile, onBudgetFrom }) {
         </Step>
       )}
 
+
+      {plan && onOpenBudgets && (
+        <Step n={6} title="Dall’allocazione ai budget dei bandi" done={false}
+          summary={`Il piano usa ${plan.fund_usage.filter((u) => u.used_eur > 0).length} ${plan.fund_usage.filter((u) => u.used_eur > 0).length === 1 ? 'bando' : 'bandi'}: da qui ricavi il budget di ognuno, già controllato con i suoi 60 criteri e verificato insieme agli altri.`}
+          sub="Ogni bando riceve solo le spese che finanzia, con l’importo su cui calcola il suo contributo. Il personale è diviso tra i progetti senza sovrapporsi (la stessa ora non si rendiconta a due bandi), le spese finanziate da due bandi dichiarano l’altro contributo e i bandi non cumulabili non si toccano mai. Apri ogni budget per modificarlo: il controllo dei 60 criteri gira sul suo bando.">
+          <BudgetsFromPlan plan={plan} lines={planLines} onOpen={onOpenBudgets} />
+        </Step>
+      )}
+
       {plan && (
         <>
           <div className={`grid grid-cols-2 md:grid-cols-4 gap-4 transition ${loading ? 'opacity-50' : ''}`}>
@@ -482,7 +549,7 @@ export default function AllocationView({ onGoProfile, onBudgetFrom }) {
               <span className="label">Il piano, voce per voce</span>
               {plan.allocation_plan.map((l) => (
                 <div key={l.item_id} className="p-4 bg-field border border-line rounded-xl text-xs space-y-2">
-                  <div className="flex justify-between gap-3 font-mono"><span className="font-medium text-sm font-sans min-w-0 break-words">{CATEGORY_LABEL[l.category] || l.category} <span className="text-mute">· {l.item_id}</span></span><span>{fmtEur(l.gross_amount_eur)}</span></div>
+                  <div className="flex justify-between gap-3 font-mono"><span className="font-medium text-sm font-sans min-w-0 break-words">{l.label || CATEGORY_LABEL[l.category] || l.category} <span className="text-mute">· {CATEGORY_LABEL[l.category] || l.category}</span></span><span>{fmtEur(l.gross_amount_eur)}</span></div>
                   {l.coverage.length ? l.coverage.map((c) => (
                     <div key={c.fund_id} className="flex justify-between gap-3 text-emerald-700 font-mono"><span className="min-w-0 break-words">{c.fund_id}</span><span className="shrink-0">{fmtEur(c.covered_amount_eur)} ({fmtNum(c.coverage_percentage, 1)}%)</span></div>
                   )) : <div className="text-mute">Nessun bando adatto: la paga direttamente l’ente</div>}

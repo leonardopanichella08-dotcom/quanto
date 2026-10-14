@@ -20,7 +20,7 @@ from itertools import product
 from typing import Dict, List, Optional, Sequence, Tuple
 
 from app.core.criteria_catalog import CRITERIA_TITLES, applicable_criteria
-from app.core import fonte_b
+from app.core import expense_types, fonte_b
 from app.models.schemas import (
     ActivityType, AssetNature, BudgetCheck, ContractType, CostBreakdown, CostCategory, CostItemInput,
     CostItemValidated, ExpenseSubtype, FlatBase, GrantRuleSet, ItemValidationStatus as S, MerkleView, PipelineStage, TraceStep,
@@ -548,7 +548,10 @@ class DeterministicEngine:
     @classmethod
     def _general(cls, line: _Line, rules: GrantRuleSet) -> None:
         it = line.item
-        if rules.eligible_categories is not None:                                         # criterio 16: categoria ammessa dal bando
+        if rules.excluded_expense_types and it.expense_type in rules.excluded_expense_types:   # criterio 16: voce di spesa esclusa per nome dal bando
+            line.reject(16, f"La voce «{expense_types.label(it.expense_type)}» è esclusa da questo bando (spese non ammissibili).",
+                        f"CRITERION_16_EXPENSE_TYPE_EXCLUDED:{it.expense_type}")
+        elif rules.eligible_categories is not None:                                       # criterio 16: categoria ammessa dal bando
             if it.category in rules.eligible_categories:
                 line.ok(16, f"CRITERION_16_CATEGORY_ELIGIBLE:{it.category.value}")
             else:

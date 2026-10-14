@@ -15,6 +15,11 @@ from main import app  # noqa: E402
 client = TestClient(app)
 
 
+READ_SHEETS = {"10_DURC_regolare_2026.pdf", "26_Piano_ammortamento_finanziamento.pdf", "28_Contratto_locazione_sede.pdf", "30_Relazione_tecnica_credito_RS_2025.pdf",
+               "13_Registro_aiuti_ricevuti.xlsx", "14_Organico_e_livelli_CCNL.xlsx", "15_Libro_cespiti_2025.xlsx", "33_Registro_fatture_ricevute_2024-2025.xlsx",
+               "34_Controllo_commesse_e_budget_2026.xlsx", "35_Business_plan_modello_finanziario.xlsx"}
+
+
 def upload_all(tmp_path):
     docs = {}
     for kind, path in sample.build(tmp_path):
@@ -48,7 +53,11 @@ def test_sample_documents_fill_the_profile_without_manual_review(tmp_path):
     # nessuna riga ambigua nei documenti letti: il profilo si compila senza interventi (la RAL dei cedolini è una stima e resta da confermare)
     for name, d in docs.items():
         if d["doc_type"] == "OTHER":
-            assert d["status"] == "STORED"
+            # i fogli Excel che QUANTO riconosce (organico, cespiti, fatture, budget, investimenti, aiuti) e i PDF che dicono dati precisi con la loro etichetta (DURC, canone di locazione,
+            # credito di ricerca e sviluppo, finanziamento) si leggono; gli altri (dichiarazioni fiscali, estratto conto…) si archiviano
+            assert d["status"] == ("PARSED" if name in READ_SHEETS else "STORED"), name
+            if name in READ_SHEETS:
+                assert d["method"] and d["fields"] and all(f["status"] == "AUTO" for f in d["fields"]), name
             continue
         review = [f for f in d["fields"] if f["status"] == "NEEDS_REVIEW" and f["field_key"] not in ("ral_annual_eur",)]
         assert not review, (name, [(f["field_key"], f["value"], f.get("parsed"), f["confidence"], f.get("snippet")) for f in review])
@@ -83,8 +92,8 @@ def test_payslips_f24_and_draft_are_read(tmp_path):
     docs = upload_all(tmp_path)
     pay = docs["05_Busta_paga_agosto_2026_Bertone_Andrea.pdf"]
     f = {x["field_key"]: x for x in pay["fields"]}
-    assert f["gross_monthly_eur"]["value"] == "2980.77" and f["mensilita"]["value"] == "14" and f["level"]["value"] == "3" and f["period"]["value"] == "08/2026"
-    assert f["employee_name"]["value"].startswith("TOK-") and "BERTONE" not in str(pay) and f["net_monthly_eur"]["value"] == "1990.68"
+    assert f["gross_monthly_eur"]["value"] == "2950.00" and f["mensilita"]["value"] == "14" and f["level"]["value"] == "3" and f["period"]["value"] == "08/2026"
+    assert f["employee_name"]["value"].startswith("TOK-") and "BERTONE" not in str(pay) and f["net_monthly_eur"]["value"] == "1975.81"
     assert f["ccnl"]["value"].startswith("COMMERCIO")
     f24 = docs["07_F24_pagamento_16-09-2026.pdf"]
     rows = [x["parsed"] for x in f24["fields"] if x["field_key"] == "f24_row"]

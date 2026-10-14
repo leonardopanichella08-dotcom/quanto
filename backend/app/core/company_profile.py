@@ -16,7 +16,7 @@ import re
 from datetime import date
 from typing import Any, Dict, List, Optional, Tuple
 
-from app.core import events
+from app.core import events, expense_types
 from app.core.db import connect
 from app.core.fonte_c import service as fonte_c
 
@@ -294,6 +294,52 @@ def sync_from_documents(owner: str, actor: Optional[str] = None) -> Dict[str, An
 
 
 # ------------------------------------------------------------------------------------------------ dimensione dell'impresa
+def year_lines(owner: str, year: int) -> Dict[str, Any]:
+    """Le righe di costo dell'esercizio ``year`` come stanno nei bilanci caricati (una per voce), con categoria e voce di spesa; più quelle categorie che nel profilo
+    hanno solo un totale inserito a mano. ``pending`` = righe ancora da verificare, escluse. Serve a tutto ciò che deve ragionare per voce e non per categoria."""
+    fin = _load_financials(owner)
+    if year not in fin:
+        return {"year": year, "lines": [], "pending": 0, "documents": []}
+    fdata, fsrc = fin[year]
+    lines: List[Dict[str, Any]] = []
+    docs: List[int] = []
+    pending = 0
+    for did in sorted({s.get("document_id") for k, s in fsrc.items() if not k.startswith("_") and s.get("origin") == "DOCUMENT" and s.get("document_id")}):
+        try:
+            ex = fonte_c.balance_expenses(did, owner)
+        except (KeyError, fonte_c.DocumentError):
+            continue
+        if ex["fiscal_year"] != year:
+            continue
+        docs.append(did)
+        pending += len(ex["needs_review"]) + len(ex["needs_category"])
+        lines += [{"description": ln["description"], "category": ln["category"], "expense_type": ln.get("expense_type") or expense_types.classify_type(ln["description"], ln["category"]),
+                   "amount": float(ln["amount_eur"]), "ref": f"DOC-FC-{did}"} for ln in ex["lines"]]
+    covered = {ln["category"] for ln in lines}
+    for c in CATEGORIES:                                    # totali inseriti a mano, senza righe di dettaglio: una voce sola per categoria
+        if c not in covered and fdata.get(FIN_KEY[c]):
+            lines.append({"description": f"{CATEGORY_LABEL[c]} (totale annuo)", "category": c, "expense_type": expense_types.GENERIC[c], "amount": float(fdata[FIN_KEY[c]]), "ref": f"PROFILO-{year}"})
+    return {"year": year, "lines": lines, "pending": pending, "documents": docs}
+
+
+def expense_breakdown(owner: str, year: Optional[int] = None) -> Dict[str, Any]:
+    """Le spese dell'ultimo esercizio (o di ``year``) per voce di spesa: quanto, da quante righe, da quali documenti. Somma per categoria = il totale della categoria nel profilo."""
+    fin = _load_financials(owner)
+    years = [y for y in sorted(fin) if any(fin[y][0].get(FIN_KEY[c]) is not None for c in CATEGORIES)]
+    if year is None and not years:
+        raise ProfileError("Mancano i dati di bilancio: carica un bilancio nel profilo o inserisci i costi dell'ultimo esercizio")
+    y = year if year is not None else years[-1]
+    data = year_lines(owner, y)
+    by_type: Dict[str, Dict[str, Any]] = {}
+    for ln in data["lines"]:
+        t = by_type.setdefault(ln["expense_type"], {"code": ln["expense_type"], "label": expense_types.label(ln["expense_type"]), "category": ln["category"], "amount_eur": 0.0, "lines": 0})
+        t["amount_eur"] = round(t["amount_eur"] + ln["amount"], 2)
+        t["lines"] += 1
+    rows = sorted(by_type.values(), key=lambda r: -r["amount_eur"])
+    return {"year": y, "types": rows, "pending_lines": data["pending"], "documents": data["documents"],
+            "by_category": {c: round(sum(r["amount_eur"] for r in rows if r["category"] == c), 2) for c in CATEGORIES}}
+
+
 def size_class(employees: Optional[int], revenue_eur: Optional[float]) -> Optional[Dict[str, Any]]:
     """Micro / piccola / media / grande secondo la raccomandazione UE 2003/361 (soglie di dipendenti e fatturato). Senza il totale di bilancio e senza
     guardare le imprese collegate: per questo è una classificazione indicativa."""

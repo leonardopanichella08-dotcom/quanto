@@ -168,3 +168,22 @@ def test_the_plan_uses_the_fund_with_the_higher_intensity_and_prefers_no_de_mini
     b = {"fund_id": "B-LIBERO", "name": "senza", "allowed_categories": ["PERSONNEL"], "coverage_pct": 0.5}
     r = AllocationOptimizerEngine.optimize_annual_allocation(AllocationOptimizationRequest(fiscal_year=2027, historical_expenses=exp, available_funding_lines=[a, b], de_minimis_residual_eur=300000.0))
     assert {u.fund_id: u.used_eur for u in r.fund_usage} == {"B-LIBERO": 50000.0, "A-DM": 0.0}    # a parità sceglie quello che lascia libero il plafond de minimis
+
+
+def test_a_fund_never_covers_an_expense_type_it_excludes_by_name():
+    """Un bando può ammettere la categoria «spese generali» ed escludere per nome gli affitti: la voce «affitti» non riceve nulla, le altre sì."""
+    expenses = [{**exp("RENT", "OVERHEAD", 60000), "expense_type": "OH_AFFITTI"}, {**exp("ENERGY", "OVERHEAD", 20000), "expense_type": "OH_ENERGIA"}]
+    r = A.optimize_annual_allocation(req(expenses, [fund("A", ["OVERHEAD"], 0.8, excluded_expense_types=["OH_AFFITTI"])]))
+    by = {line.item_id: line for line in r.allocation_plan}
+    assert by["RENT"].covered_amount_eur == 0.0 and by["RENT"].net_cost_to_entity_eur == 60000.0
+    assert by["ENERGY"].covered_amount_eur == 16000.0 and by["ENERGY"].expense_type == "OH_ENERGIA"
+
+
+def test_the_cumulated_aid_limit_caps_the_sum_of_all_funds_on_the_same_item():
+    """Due fondi al 50% possono cumularsi fino al 100%, ma se uno ammette al massimo il 60% di aiuto totale la somma sulla stessa spesa non lo supera."""
+    free = A.optimize_annual_allocation(req([exp("E1", "PERSONNEL", 100000)], [fund("A", ["PERSONNEL"], 0.5), fund("B", ["PERSONNEL"], 0.5)]))
+    assert free.covered_by_public_funds_eur == 100000.0
+    capped = A.optimize_annual_allocation(req([exp("E1", "PERSONNEL", 100000)], [fund("A", ["PERSONNEL"], 0.5, max_cumulated_pct=0.6), fund("B", ["PERSONNEL"], 0.5)]))
+    assert capped.covered_by_public_funds_eur <= 60000.0 + 0.01
+    line = capped.allocation_plan[0]
+    assert sum(c.covered_amount_eur for c in line.coverage) <= 60000.0 + 0.01

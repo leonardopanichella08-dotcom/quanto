@@ -57,4 +57,14 @@ EMPLOYEES: List[Dict] = [
 for e in EMPLOYEES:
     e["cf"] = fiscal_code(e["surname"], e["name"], e["birth"], e["male"], e["town"])
 BY_ID = {e["id"]: e for e in EMPLOYEES}
+
+
+def ral(e: Dict) -> int:
+    """RAL (retribuzione annua lorda) di una persona: la stessa nel registro del personale, nei cedolini e nel business plan."""
+    return int(round(e["cost"] / 1.38 / 100) * 100)
+
+
+def gross_monthly(e: Dict) -> float:
+    """Competenze lorde mensili su 14 mensilità: RAL / 14, così la RAL stimata dal cedolino coincide con quella dichiarata."""
+    return round(ral(e) / 14, 2)
 SHAREHOLDERS = [("FERRARIS GIULIA", "FRRGLI81B58L219X", 60, 30000), ("BERTOLOTTI MARCO", "BRTMRC79C14L219P", 40, 20000)]

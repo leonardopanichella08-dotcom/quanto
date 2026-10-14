@@ -12,9 +12,9 @@ import re
 from decimal import Decimal, InvalidOperation
 from typing import Any, Dict, List, Optional
 
-from app.core import crypto_store, events, fonte_b
+from app.core import crypto_store, events, expense_types, fonte_b
 from app.core.db import connect
-from app.core.fonte_c import ocr, parsers
+from app.core.fonte_c import ocr, other_pdf, parsers, sheets
 
 DOC_TYPES = {"PAYSLIP": "Busta paga", "BALANCE_SHEET": "Bilancio", "F24": "Modello F24", "APPLICATION_DRAFT": "Bozza di candidatura",
              "COMPANY_REGISTRY": "Visura camerale", "OTHER": "Altro documento aziendale"}
@@ -27,6 +27,13 @@ class DocumentError(ValueError):
     pass
 
 
+class _SheetRead:
+    """Esito della lettura di un foglio Excel, con la stessa forma di quello di un PDF (metodo, pagine = fogli, nessuna confidenza di lettura da sfumare)."""
+
+    def __init__(self, summary: str, sheets_read: int) -> None:
+        self.method, self.pages, self.mean_confidence, self.summary = "xlsx", sheets_read, 0.97, summary
+
+
 def _public_doc(r) -> Dict[str, Any]:
     d = {k: r[k] for k in r.keys() if k != "data_enc"}
     d["mean_confidence"] = float(d["mean_confidence"]) if d.get("mean_confidence") is not None else None
@@ -37,8 +44,12 @@ def _public_doc(r) -> Dict[str, Any]:
 def _public_field(r) -> Dict[str, Any]:
     d = dict(r)
     d["confidence"] = float(d["confidence"])
+    if d["field_key"] in sheets.FACT_KEYS and d["value"]:
+        d["parsed"] = json.loads(d["value"])
     if d["field_key"] in ("expense_line", "f24_row") and d["value"]:
         d["parsed"] = json.loads(d["value"])
+        if d["field_key"] == "expense_line":                  # la voce di spesa (più fine della categoria) si ricava dalla descrizione: non si salva, così segue sempre l'elenco aggiornato
+            d["parsed"]["expense_type"] = expense_types.classify_type(d["parsed"].get("description", ""), d["parsed"].get("category"))
     return d
 
 
@@ -58,8 +69,20 @@ def upload(doc_type: str, filename: str, data: bytes, owner: str) -> Dict[str, A
     error: Optional[str] = None
     read = None
     fields: List[parsers.Field] = []
-    if doc_type == "OTHER":                       # un documento di cui non si leggono i campi (contratto, DURC…): si conserva cifrato nel profilo
-        pass
+    if doc_type == "OTHER":                       # un documento di cui non si leggono i campi (contratto, DURC…): si conserva cifrato nel profilo; un foglio Excel riconosciuto si legge
+        if data[:2] == b"PK":
+            summary, fields, _seen = sheets.read_workbook(data)
+            if fields:
+                read = _SheetRead(summary, len(_seen))
+        elif data.startswith(b"%PDF"):                # un PDF ufficiale (DURC, contratto di locazione…): si leggono i pochi dati che dice con la loro etichetta, il resto resta archiviato
+            try:
+                pdf = ocr.read_pdf(data)
+                text = chr(10).join(ln["text"] for ln in ocr.group_lines(pdf.words))
+                fields = other_pdf.read(text)
+                if fields:
+                    read = pdf
+            except Exception:
+                fields = []
     else:
         try:
             read = ocr.read_pdf(data)
@@ -72,7 +95,7 @@ def upload(doc_type: str, filename: str, data: bytes, owner: str) -> Dict[str, A
             error = str(exc)
         except Exception as exc:  # PDF corrotto o protetto
             error = f"Il PDF non si legge ({type(exc).__name__})"
-    status = "STORED" if doc_type == "OTHER" else "FAILED" if error else ("NEEDS_REVIEW" if any(f.status == "NEEDS_REVIEW" for f in fields) else "PARSED")
+    status = "STORED" if doc_type == "OTHER" and not fields else "PARSED" if doc_type == "OTHER" else "FAILED" if error else ("NEEDS_REVIEW" if any(f.status == "NEEDS_REVIEW" for f in fields) else "PARSED")
     with connect() as conn:
         did = conn.execute(
             "INSERT INTO client_documents (doc_type, filename, content_type, size_bytes, sha256, data_enc, status, method, pages, mean_confidence, error, owner, created_at) "

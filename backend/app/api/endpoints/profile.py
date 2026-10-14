@@ -6,7 +6,7 @@ from pydantic import BaseModel, Field
 
 from app.api.deps import actor_of, scope_of
 from app.core import company_profile as cp
-from app.core import de_minimis, events, matching
+from app.core import budget_basis, company_facts, de_minimis, events, expense_types, matching
 
 router = APIRouter()
 
@@ -41,6 +41,7 @@ class TemplateBody(BaseModel):
     bando_id: str = Field(..., max_length=64)
     scale_pct: float = Field(default=100, gt=0, le=100, description="Quota del totale annuale da dedicare al progetto")
     fit: bool = Field(default=True, description="Riduci le voci sopra i tetti del bando alla parte ammissibile")
+    year: Optional[int] = Field(default=None, ge=2020, le=2100, description="Anno del progetto (default: quello dopo l'ultimo bilancio, dentro la finestra del bando)")
 
 
 @router.get("", summary="Il profilo aziendale: dati, bilanci per esercizio, cosa manca e quanto è completo")
@@ -97,7 +98,15 @@ def match(body: ForecastBody, request: Request) -> dict:
     owner = scope_of(request)
     fc = _guard(cp.forecast, owner, body.year, body.growth)
     by_cat = {r["category"]: r["forecast_eur"] for r in fc["categories"]}
-    result = matching.match_all(cp.profile_values(owner), by_cat, body.year)
+    try:                                                       # le spese per voce (affitti, energia…) servono a togliere ciò che un bando esclude per nome
+        plan = budget_basis.plan_for_year(owner, body.year, body.growth)
+        by_type: Dict[str, Dict[str, Any]] = {}
+        for r in plan["types"]:
+            t = by_type.setdefault(r["code"], {"category": r["category"], "label": r["label"], "amount_eur": 0.0})
+            t["amount_eur"] += r["amount_eur"]
+    except cp.ProfileError:
+        by_type = {}
+    result = matching.match_all(cp.profile_values(owner), by_cat, body.year, by_type)
     events.record("profile.match", f"Bandi per l'esercizio {body.year}: {result['summary']['ADATTO']} adatti, {result['summary']['DA_VERIFICARE']} da verificare, "
                   f"{result['summary']['NON_ADATTO']} non adatti", actor=owner, details={"summary": result["summary"]})
     return {"forecast": fc, "matching": result, "de_minimis": de_minimis.estimate(owner, body.year)}
@@ -107,8 +116,34 @@ def match(body: ForecastBody, request: Request) -> dict:
 def template(body: TemplateBody, request: Request) -> dict:
     owner = scope_of(request)
     try:
-        out = _guard(matching.budget_template, owner, body.bando_id, body.scale_pct, body.fit)
+        out = _guard(matching.budget_template, owner, body.bando_id, body.scale_pct, body.fit, body.year)
     except KeyError:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Bando non trovato") from None
     events.record("profile.template", f"Bozza di budget per {body.bando_id}: {len(out['cost_items'])} voci, {out['total_eur']:,.2f} €", actor=owner, bando_id=body.bando_id)
     return out
+
+
+# ------------------------------------------------------------------------------------------------ cosa si è letto dai documenti
+@router.get("/expenses", summary="Le spese dell'ultimo esercizio per voce di spesa (affitti, energia, licenze…), con la categoria generale")
+def expenses(request: Request, year: Optional[int] = None) -> dict:
+    return _guard(cp.expense_breakdown, scope_of(request), year)
+
+
+@router.get("/staff", summary="L'organico persona per persona, dal registro del personale e dalle buste paga")
+def staff(request: Request) -> dict:
+    return company_facts.staff(scope_of(request))
+
+
+@router.get("/assets", summary="Il libro cespiti e il piano di ammortamento")
+def assets(request: Request) -> dict:
+    return company_facts.assets(scope_of(request))
+
+
+@router.get("/facts", summary="Quanti fatti sono stati letti dai documenti, per tipo")
+def facts_overview(request: Request) -> dict:
+    return company_facts.overview(scope_of(request))
+
+
+@router.get("/expense-types", summary="L'elenco delle voci di spesa riconosciute")
+def expense_type_list() -> dict:
+    return {"types": expense_types.catalog()}

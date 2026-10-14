@@ -418,6 +418,11 @@ def extract_more_rules(text: str) -> Dict[str, str]:
     scope = category_scope(text)
     if scope is not None:
         rules["eligible_categories"] = json.dumps(scope)
+    from app.core import expense_types
+    excluded = sorted(c for c in expense_types.type_scope(text)["excluded"] if expense_types.CATEGORY_OF[c] not in (expense_types.OTHER, "PERSONNEL")      # il personale lo regola la categoria, persona per persona
+                      and (scope is None or expense_types.CATEGORY_OF[c] in scope))      # le voci di una categoria già esclusa per intero non servono
+    if excluded:
+        rules["excluded_expense_types"] = json.dumps(excluded)
     return rules
 
 

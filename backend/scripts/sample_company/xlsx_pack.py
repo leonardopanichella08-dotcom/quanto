@@ -103,14 +103,14 @@ def _monthly_gross(y: int) -> Dict[str, List[int]]:
 def organico(path: Path) -> Path:
     wb = new_book()
     head = ["Matricola", "Cognome", "Nome", "Codice fiscale", "Sesso", "Data di nascita", "Ruolo", "Livello CCNL", "Tipo contratto", "Data assunzione", "Ore settimanali", "Mensilità", "RAL (EUR)", "Retribuzione mensile lorda (EUR)",
-            "Costo azienda annuo stimato (EUR)", "Centro di costo", "Sede", "Note"]
+            "Costo azienda annuo stimato (EUR)", "Centro di costo", "Sede", "Note", "CCNL applicato"]
     rows = []
     for e in P.EMPLOYEES:
-        ral = round(e["cost"] / 1.38 / 100) * 100
+        ral = P.ral(e)
         cc = "Sviluppo" if any(k in e["role"] for k in ("viluppatore", "analyst", "scientist", "UX")) else ("Commerciale" if "Commerciale" in e["role"] else "Direzione e staff")
         rows.append([e["id"], e["surname"], e["name"], e["cf"], "M" if e["male"] else "F", e["birth"], e["role"], e["level"], e["contract"], date.fromisoformat(e["hired"]), e["hours"], 14, ral, f"=M{len(rows) + 2}/L{len(rows) + 2}", e["cost"], cc,
-                     "Via Garibaldi 28" if e["id"] < "M008" else "Via Garibaldi 28 / Corso Francia 114", "Part time 75%" if e["hours"] == 30 else ("Apprendistato professionalizzante" if e["contract"] == "Apprendistato" else "")])
-    add_sheet(wb, "Organico", head, rows, [10, 14, 12, 20, 6, 14, 32, 10, 16, 14, 10, 10, 14, 18, 20, 18, 30, 30], {5: DATE, 9: DATE, 12: INT, 13: MONEY, 14: INT}, total_cols=[12, 14], total_label="Totale")
+                     "Via Garibaldi 28" if e["id"] < "M008" else "Via Garibaldi 28 / Corso Francia 114", "Part time 75%" if e["hours"] == 30 else ("Apprendistato professionalizzante" if e["contract"] == "Apprendistato" else ""), "CCNL Commercio, Terziario Distribuzione e Servizi (Confcommercio)"])
+    add_sheet(wb, "Organico", head, rows, [10, 14, 12, 20, 6, 14, 32, 10, 16, 14, 10, 10, 14, 18, 20, 18, 30, 30, 48], {5: DATE, 9: DATE, 12: INT, 13: MONEY, 14: INT}, total_cols=[12, 14], total_label="Totale")
     gross = _monthly_gross(2025)
     rows = [[e["id"], f"{e['surname']} {e['name']}"] + [euro(v) for v in gross[e["id"]]] + [f"=SUM(C{k + 2}:N{k + 2})"] for k, e in enumerate(P.EMPLOYEES)]
     add_sheet(wb, "Retribuzioni lorde 2025", ["Matricola", "Dipendente"] + MESI + ["Totale anno"], rows, [10, 26] + [13] * 12 + [16], {k: MONEY for k in range(2, 15)}, total_cols=list(range(2, 15)), freeze="C2")
@@ -126,7 +126,7 @@ def organico(path: Path) -> Path:
     from .docs import _irpef
     rows = []
     for k, e in enumerate(P.EMPLOYEES):
-        base = {"M003": 2980.77, "M006": 2564.10}.get(e["id"], round(e["cost"] / 1.38 / 14 * 1.012, 2))
+        base = P.gross_monthly(e)
         hired = date.fromisoformat(e["hired"])
         row = [e["id"], f"{e['surname']} {e['name']}"]
         for m in range(8):

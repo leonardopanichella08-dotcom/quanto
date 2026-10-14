@@ -57,6 +57,7 @@ function AppInner({ bridge }) {
   const [tab, setTab] = useState(TABS.some(([id]) => id === params.get('tab')) ? params.get('tab') : 'bandi')
   const [bandi, setBandi] = useState([])
   const [bando, setBando] = useState(null)
+  const [budgetSet, setBudgetSet] = useState(null)       // i budget dei bandi ricavati dall'allocazione: {fiscal_year, budgets:[…], ok, active}
   const [request, setRequest] = useState(EMPTY_REQUEST)
   const [fields, setFields] = useState(null)
   const [criteriaTitles, setCriteriaTitles] = useState({})
@@ -98,7 +99,7 @@ function AppInner({ bridge }) {
     api.criteria().then((c) => setCriteriaTitles(Object.fromEntries(c.criteria.map((x) => [x.number, x.title])))).catch(() => {})
   }, [user, loadBandi, loadRegistry])
 
-  const resetBudget = () => { setRequest(EMPTY_REQUEST); setBando(null); setValidation(null); setAttestation(null); setImportInfo(null); setNotice(null); setError(null) }
+  const resetBudget = () => { setRequest(EMPTY_REQUEST); setBando(null); setBudgetSet(null); setValidation(null); setAttestation(null); setImportInfo(null); setNotice(null); setError(null) }
   const restoreBudget = async () => {
     budgetLoaded.current = false
     try {
@@ -108,6 +109,7 @@ function AppInner({ bridge }) {
         setRequest(v.request); setValidation(v.validation || null)
         if (v.bandoId) { try { setBando(await api.bandoDetail(v.bandoId)) } catch { /* il bando potrebbe non esserci più */ } }
       }
+      try { const bs = await api.clientState('budget-set'); if (bs.value?.budgets?.length) setBudgetSet(bs.value) } catch { /* nessun gruppo di budget salvato */ }
     } catch { /* nessun salvataggio: si parte da zero */ } finally { budgetLoaded.current = true }
   }
   const chooseClient = async (id) => {
@@ -136,6 +138,16 @@ function AppInner({ bridge }) {
     }, 1200)
     return () => clearTimeout(t)
   }, [clientId, request, validation, bando])
+
+  // il gruppo di budget dell'allocazione si salva da solo, con le voci del budget aperto aggiornate
+  useEffect(() => {
+    if (!clientId || !budgetLoaded.current || !budgetSet) return undefined
+    const t = setTimeout(() => {
+      const value = { ...budgetSet, budgets: budgetSet.budgets.map((b) => (b.fund_id === budgetSet.active ? { ...b, cost_items: request.cost_items } : b)) }
+      api.saveClientState('budget-set', value).catch(() => {})
+    }, 1200)
+    return () => clearTimeout(t)
+  }, [clientId, budgetSet, request.cost_items])
 
   // Una voce di personale senza RAL non si può controllare (il motore la pretende persona per persona): resta nell'elenco, segnalata, e non blocca il resto.
   const isIncomplete = (it) => it.category === 'PERSONNEL' && !(Number(it.ral_eur) > 0)
@@ -236,6 +248,33 @@ function AppInner({ bridge }) {
     },
     validate: () => validate(requestRef.current),
   }
+
+  // I budget ricavati dall'allocazione: ognuno è il budget di un bando, con le sue voci; si aprono uno alla volta nella pagina Budget.
+  const loadSetBudget = async (set, b) => {
+    const detail = await api.bandoDetail(b.bando_id)
+    if (!detail.grant_rules) throw new Error('Questo bando non ha ancora regole pubblicate')
+    setBando(detail)
+    const next = { ...EMPTY_REQUEST, project_id: `PRJ-${set.fiscal_year}-${b.fund_id}`.slice(0, 64), grant_rules: detail.grant_rules, cost_items: b.cost_items }
+    requestRef.current = next; setRequest(next); setValidation(null); setAttestation(null); setImportInfo(null); setNotice(null)
+    validate(next)
+  }
+  const openBudgetSet = async (set, fundId) => {
+    const first = set.budgets.find((b) => b.fund_id === fundId) || set.budgets[0]
+    if (!first?.bando_id) { setError('Questo budget non è legato a un bando: non si può aprire'); return }
+    setBusy(true); setError(null)
+    try {
+      const s = { ...set, active: first.fund_id }
+      await loadSetBudget(s, first)
+      setBudgetSet(s); setTab('canvas'); scrollTop()
+    } catch (e) { setError(e.message) } finally { setBusy(false) }
+  }
+  const switchBudget = async (fundId) => {
+    if (!budgetSet || fundId === budgetSet.active) return
+    const saved = { ...budgetSet, active: fundId, budgets: budgetSet.budgets.map((b) => (b.fund_id === budgetSet.active ? { ...b, cost_items: requestRef.current.cost_items } : b)) }
+    setBusy(true); setError(null)
+    try { await loadSetBudget(saved, saved.budgets.find((b) => b.fund_id === fundId)); setBudgetSet(saved) } catch (e) { setError(e.message) } finally { setBusy(false) }
+  }
+  const closeBudgetSet = () => { setBudgetSet(null); api.saveClientState('budget-set', null).catch(() => {}) }
   const budgetFrom = async (bandoId) => {
     try { await selectBando(bandoId); setTemplateOpen(true); nav.go('canvas'); scrollTop() } catch { nav.go('canvas') }          // l'errore (es. bando senza regole pubblicate) lo mostra la pagina Budget
   }
@@ -292,7 +331,7 @@ function AppInner({ bridge }) {
             onValidate={() => validate(request)} onRegister={() => setModalOpen(true)} onExport={exportAs}
             onOpenLab={() => { setReplay(null); setLabFrom('canvas'); setTab('lab') }} onDismissImport={() => setImportInfo(null)} onGoBandi={() => setTab('bandi')}
             onUsePayslip={addPayslipItem} onUseBalance={() => nav.go('allocation')} onUseDraft={addDraftItems}
-            onUseTemplate={applyTemplate} onGoProfile={() => nav.go('profilo')} templateOpen={templateOpen}
+            onUseTemplate={applyTemplate} onGoProfile={() => nav.go('profilo')} templateOpen={templateOpen} budgetSet={budgetSet} onSwitchBudget={switchBudget} onCloseBudgetSet={closeBudgetSet}
             incompleteItems={request.cost_items.filter(isIncomplete)} notice={notice} onDismissNotice={() => setNotice(null)} />
         </Keep>
         {tab === 'lab' && (
@@ -304,7 +343,7 @@ function AppInner({ bridge }) {
             <AlgorithmLab validation={labData} title={labData?.project_id} criteriaTitles={criteriaTitles} />
           </div>
         )}
-        <Keep id="allocation" tab={tab} visited={visited}>{clientId ? <AllocationView key={clientId} onGoProfile={() => nav.go('profilo')} onBudgetFrom={budgetFrom} /> : gate ? <NeedClient onGo={() => nav.go('profilo')} /> : null}</Keep>
+        <Keep id="allocation" tab={tab} visited={visited}>{clientId ? <AllocationView key={clientId} onGoProfile={() => nav.go('profilo')} onBudgetFrom={budgetFrom} onOpenBudgets={openBudgetSet} /> : gate ? <NeedClient onGo={() => nav.go('profilo')} /> : null}</Keep>
         <Keep id="pattern" tab={tab} visited={visited}>{clientId ? <Confronto key={clientId} validation={validation} client={activeClient} /> : gate ? <NeedClient onGo={() => nav.go('profilo')} /> : null}</Keep>
         {tab === 'auditor' && (
           <AuditorPortal request={request} defaultProject={params.get('project') || validation?.project_id || request.project_id}

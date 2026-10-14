@@ -27,6 +27,58 @@ const csvCell = (v) => `"${String(v ?? '').replace(/"/g, '""')}"`
 const pct = (c) => `${Math.round(c * 100)}%`
 const tone = (c, min) => (c >= min ? 'bg-emerald-500' : c >= 0.6 ? 'bg-amber-500' : 'bg-red-500')
 
+
+const FACT_TITLE = {
+  staff_member: 'Organico (persona per persona)', asset_line: 'Libro cespiti', dep_plan_line: 'Piano di ammortamento', supplier_spend: 'Spese dalle fatture ricevute (per voce)', aid_received: 'Aiuti ricevuti',
+  capex_plan: 'Investimenti previsti', hiring_plan: 'Piano delle assunzioni', budget_line: 'Budget dell’azienda (per conto)',
+  durc: 'DURC', lease: 'Contratto di locazione', rd_credit: 'Credito d’imposta ricerca e sviluppo', loan: 'Finanziamento',
+}
+const eurTxt = (n) => (n == null ? '—' : Number(n).toLocaleString('it-IT', { style: 'currency', currency: 'EUR' }))
+const TYPE_LABEL = {}                                    // codice della voce di spesa → etichetta, caricata una volta
+function factRow(key, p) {
+  const t = (c) => TYPE_LABEL[c] || (c ? c : 'da classificare')
+  switch (key) {
+    case 'staff_member': return [`${p.role || 'Persona'}${p.ref ? ` (${p.ref})` : ''}`, `livello ${p.level} · ${(p.contract || '').toLowerCase()} · ${p.hours_week || '—'} ore`, eurTxt(p.ral_eur)]
+    case 'asset_line': return [`${p.description}`, `${p.class} · acquisto ${p.purchase_year || '—'} · residuo ${eurTxt(p.net_eur)}`, eurTxt(p.cost_eur)]
+    case 'dep_plan_line': return [p.description, Object.entries(p.plan || {}).filter(([, v]) => v).map(([y, v]) => `${y}: ${eurTxt(v)}`).join(' · ') || 'già ammortizzato', eurTxt(p.net_eur)]
+    case 'supplier_spend': return [`${p.year} · ${t(p.expense_type)}`, `${p.invoices} fatture`, eurTxt(p.amount_eur)]
+    case 'aid_received': return [`${p.measure}`, `${p.granted} · ${p.entity} · ${p.regime}`, eurTxt(p.amount_eur)]
+    case 'capex_plan': return [p.description, `anno ${p.year} · ${t(p.expense_type)}`, eurTxt(p.amount_eur)]
+    case 'hiring_plan': return [`${p.role} (${p.position})`, `ingresso ${p.start} · livello ${p.level} · ${p.area}`, eurTxt(p.annual_cost_eur)]
+    case 'durc': return [`DURC ${p.outcome}`, `emesso ${p.issued || '—'} · scade ${p.expires}`, p.protocol || '']
+    case 'lease': return ['Canone annuo', `dal ${p.from || '—'} al ${p.to || '—'}`, eurTxt(p.annual_rent_eur)]
+    case 'rd_credit': return [`Credito ${p.year || ''} (${p.rate_pct}%)`, `costi ammissibili ${eurTxt(p.eligible_costs_eur)}`, eurTxt(p.credit_eur)]
+    case 'loan': return ['Finanziamento', `erogato il ${p.disbursed} · ${p.installments} rate`, eurTxt(p.original_eur)]
+    case 'budget_line': return [p.description, `${p.year} · conto ${p.code} · ${t(p.expense_type)}`, eurTxt(p.amount_eur)]
+    default: return [key, '', '']
+  }
+}
+
+/** I dati letti da un foglio Excel, per tipo: ogni riga dice cosa è stato letto e da quale foglio e riga; sono ciò che QUANTO usa per il personale, gli investimenti e le spese per voce. */
+function SheetFacts({ fields }) {
+  const [more, setMore] = useState({})
+  const [, force] = useState(0)
+  useEffect(() => { if (!Object.keys(TYPE_LABEL).length) api.expenseTypes().then((r) => { r.types.forEach((t) => { TYPE_LABEL[t.code] = t.label }); force((x) => x + 1) }).catch(() => {}) }, [])
+  const groups = {}
+  fields.forEach((f) => { if (f.parsed) (groups[f.field_key] = groups[f.field_key] || []).push(f) })
+  return (
+    <div className="space-y-4">
+      {Object.entries(groups).map(([key, list]) => {
+        const shown = more[key] ? list : list.slice(0, 10)
+        return (
+          <div key={key} className="space-y-1.5">
+            <p className="text-xs font-medium text-ink">{FACT_TITLE[key] || key} <span className="text-mute font-normal">· {list.length} {list.length === 1 ? 'riga letta' : 'righe lette'} da «{list[0].snippet.split(',')[0]}»</span></p>
+            <div className="overflow-x-auto"><table className="w-full text-xs"><tbody>
+              {shown.map((f) => { const [a, b, c] = factRow(key, f.parsed); return <tr key={f.id} className="border-t border-line" title={f.snippet}><td className="py-1 pr-3 text-ink-2">{a}</td><td className="pr-3 text-mute">{b}</td><td className="text-right tabular-nums">{c}</td></tr> })}
+            </tbody></table></div>
+            {list.length > 10 && <button className="text-[11px] underline text-ink-2" onClick={() => setMore({ ...more, [key]: !more[key] })}>{more[key] ? 'Mostra meno' : `Mostra tutte le ${list.length} righe`}</button>}
+          </div>
+        )
+      })}
+    </div>
+  )
+}
+
 function FieldRow({ f, doc, min, onDone }) {
   const [val, setVal] = useState(f.parsed ? f.parsed.category || '' : f.value || '')
   const [busy, setBusy] = useState(false)
@@ -94,11 +146,13 @@ function Detail({ id, onChanged, onUsePayslip, onUseBalance, onUseDraft }) {
         <span className={`px-1.5 py-0.5 rounded border text-xs ${STATUS[doc.status][1]}`}>{STATUS[doc.status][0]}</span>
         {doc.status === 'STORED'
           ? <span className="text-xs text-mute">Conservato cifrato; QUANTO non lo legge, resta nel tuo archivio aziendale.</span>
+          : doc.method === 'xlsx' ? <span className="text-xs text-mute">Foglio Excel letto · {doc.pages} fogli · {doc.fields.length} dati letti</span>
+          : doc.doc_type === 'OTHER' ? <span className="text-xs text-mute">Documento letto · {doc.fields.length} dati letti</span>
           : <span className="text-xs text-mute">{doc.method} · {doc.pages} pag. · lettura media {doc.mean_confidence != null ? pct(doc.mean_confidence) : '—'} · soglia {pct(doc.confidence_min)}</span>}
         <button className="btn ml-auto !py-1" onClick={async () => download(await api.fcFile(id), doc.filename)}><Download className="w-3 h-3" />Originale</button>
       </div>
       {doc.error && <p className="text-xs text-red-700 flex gap-2"><AlertTriangle className="w-4 h-4 shrink-0" />{doc.error}</p>}
-      <div className="space-y-2">{doc.fields.map((f) => <FieldRow key={f.id} f={f} doc={doc} min={doc.confidence_min} onDone={done} />)}</div>
+      {doc.fields.length > 0 && doc.fields.every((f) => f.parsed && FACT_TITLE[f.field_key]) ? <SheetFacts fields={doc.fields} /> : <div className="space-y-2">{doc.fields.map((f) => <FieldRow key={f.id} f={f} doc={doc} min={doc.confidence_min} onDone={done} />)}</div>}
       <div className="flex flex-wrap items-center gap-2 pt-1">
         {doc.doc_type === 'PAYSLIP' && doc.status !== 'FAILED' && <button className="btn-primary" onClick={usePayslip}>Aggiungi al budget come voce di personale</button>}
         {doc.doc_type === 'BALANCE_SHEET' && doc.status !== 'FAILED' && <button className="btn-primary" onClick={() => onUseBalance(id)}>Usa per l’allocazione annuale</button>}
@@ -190,7 +244,7 @@ export default function Documents({ onUsePayslip, onUseBalance, onUseDraft, onPr
       <Guide page="documents" />
       <div className="card p-5 space-y-3">
         <SectionTitle icon={FileUp}>Carica un documento</SectionTitle>
-        <p className="text-xs text-ink-2 leading-relaxed">Visura camerale, bilanci, buste paga, F24 o una bozza di candidatura già scritta in PDF (anche scansionati, se il server ha il lettore OCR); qualunque altro documento aziendale (DURC, contratti, fogli Excel…) si archivia senza essere letto. Ogni campo letto ha una percentuale di sicurezza: sotto la soglia lo controlli tu prima di usarlo. Nomi e codici fiscali diventano codici anonimi; il file è conservato cifrato.</p>
+        <p className="text-xs text-ink-2 leading-relaxed">Visura camerale, bilanci, buste paga, F24 o una bozza di candidatura già scritta in PDF (anche scansionati, se il server ha il lettore OCR); i fogli Excel che QUANTO riconosce (registro del personale, libro cespiti, registro delle fatture, budget, piano degli investimenti e delle assunzioni, registro degli aiuti) vengono letti e usati; qualunque altro documento aziendale (DURC, contratti…) si archivia senza essere letto. Ogni campo letto ha una percentuale di sicurezza: sotto la soglia lo controlli tu prima di usarlo. Nomi e codici fiscali diventano codici anonimi; il file è conservato cifrato.</p>
         <div className="flex flex-wrap items-center gap-3">
           <select className="field !w-auto" value={type} onChange={(e) => setType(e.target.value)}>{Object.entries(TYPES).map(([k, l]) => <option key={k} value={k}>{l}</option>)}</select>
           <input ref={file} type="file" accept={type === 'OTHER' ? undefined : '.pdf'} className="hidden" onChange={(e) => upload(e.target.files?.[0])} />
@@ -198,7 +252,7 @@ export default function Documents({ onUsePayslip, onUseBalance, onUseDraft, onPr
         </div>
         {error && <p className="text-xs text-red-700">{error}</p>}
         <div className="pt-3 border-t border-line flex flex-wrap items-center gap-3">
-          <button className="btn" disabled={busy || (demo && demo.done < demo.total) || demo?.total === 0} onClick={loadDemo} title="Carica i 35 documenti di Meridiana Digital Solutions; quelli con lo stesso nome già presenti vengono sostituiti con l'ultima versione">
+          <button className="btn" disabled={busy || (demo && demo.done < demo.total) || demo?.total === 0} onClick={loadDemo} title="Carica tutti i documenti di Meridiana Digital Solutions (organico, buste paga, bilanci, fogli Excel…); quelli con lo stesso nome già presenti vengono sostituiti con l'ultima versione">
             {demo && demo.done < demo.total ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <FlaskConical className="w-3.5 h-3.5" />}Carica l’azienda di prova
           </button>
           <span className="text-xs text-mute">{demo && demo.total === 0 ? 'Preparo l’elenco…' : demo && demo.done < demo.total ? `Carico ${demo.done + 1} di ${demo.total}: ${demo.name}` : demo ? `Fatto: ${demo.total} documenti aggiornati all’ultima versione.` : 'Meridiana Digital Solutions: visura, bilanci, business plan, fogli Excel… sempre l’ultima versione.'}</span>

@@ -7,6 +7,7 @@ from __future__ import annotations
 
 from typing import Any, Dict, List, Optional, Tuple
 
+from app.core import expense_types
 from app.models.schemas import CostItemInput
 
 ALL = None  # tutte le categorie
@@ -60,6 +61,8 @@ FIELDS: List[Dict[str, Any]] = [
     _f("expense_subtype", "Sotto-tipo di spesa", "select", "Importo, IVA e valuta", NONPERS, (27, 37, 38, 39, 41, 42, 43, 44),
        options=["COMMUNICATION", "GUARANTEE", "AUDIT", "PENALTY", "LEGAL_DISPUTE", "REPRESENTATION", "RENT", "UTILITIES",
                 "MAINTENANCE_ORDINARY", "MAINTENANCE_EXTRAORDINARY", "FINANCIAL_CHARGES"]),
+    _f("expense_type", "Voce di spesa", "select", "Importo, IVA e valuta", NONPERS, (16,), "La voce precisa (affitti, energia, licenze software…): un bando può escluderla per nome",
+       options=[c for c in expense_types.TYPES if expense_types.CATEGORY_OF[c] != "PERSONNEL"]),
     _f("vat_eur", "IVA (€)", "number", "Importo, IVA e valuta", NONPERS, (25, 53, 54), step="0.01"),
     _f("vat_recoverable", "IVA recuperabile", "bool", "Importo, IVA e valuta", NONPERS, (53, 54)),
     _f("reverse_charge_applied", "Reverse charge", "bool", "Importo, IVA e valuta", ASSET, (25,)),
