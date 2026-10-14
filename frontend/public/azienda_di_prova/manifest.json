@@ -1,0 +1,215 @@
+{
+ "company": "MERIDIANA DIGITAL SOLUTIONS S.R.L.",
+ "files": [
+  {
+   "file": "01_Visura_camerale_Meridiana_Digital_Solutions.pdf",
+   "doc_type": "COMPANY_REGISTRY",
+   "size": 27905,
+   "sha256": "a69fc809e1e21f1f840eb7fa6b0f2a945b61bc269d1192d43ce81187250d783d"
+  },
+  {
+   "file": "02_Bilancio_2023.pdf",
+   "doc_type": "BALANCE_SHEET",
+   "size": 242142,
+   "sha256": "1695cd1f29b2acf037d0d3b47fce8f453d79558926c95845b77df5695af2625f"
+  },
+  {
+   "file": "03_Bilancio_2024.pdf",
+   "doc_type": "BALANCE_SHEET",
+   "size": 248680,
+   "sha256": "b3d9910e2840f9dc73e1b86811233c680ebd1d498a211f3783ef3559798cfa8f"
+  },
+  {
+   "file": "04_Bilancio_2025.pdf",
+   "doc_type": "BALANCE_SHEET",
+   "size": 265696,
+   "sha256": "ebccf4d05ae402d61958b51ab85d1de8a638c8cad8f1e618dbb6683bb959f6d9"
+  },
+  {
+   "file": "05_Busta_paga_agosto_2026_Bertone_Andrea.pdf",
+   "doc_type": "PAYSLIP",
+   "size": 7455,
+   "sha256": "3b13d7c16117ef3a249daace7569fa5b51153f3f25fcdde1742c245a0c780c22"
+  },
+  {
+   "file": "06_Busta_paga_agosto_2026_Rinaldi_Sara.pdf",
+   "doc_type": "PAYSLIP",
+   "size": 7449,
+   "sha256": "8911ec50e7accba11cc67644e87c5bfb69281220149ea31ec18921a1a4018cde"
+  },
+  {
+   "file": "07_F24_pagamento_16-09-2026.pdf",
+   "doc_type": "F24",
+   "size": 5255,
+   "sha256": "76699b384be9d24f46428892626b295a63053f42841f78e0e691fe5f8837d114"
+  },
+  {
+   "file": "08_F24_pagamento_16-08-2026.pdf",
+   "doc_type": "F24",
+   "size": 5269,
+   "sha256": "6ba4617c3251bcb733c450f763eb3591baa1ea2ff43546b5ebea5e0eb0a0c36d"
+  },
+  {
+   "file": "09_Bozza_candidatura_Progetto_Atlas.pdf",
+   "doc_type": "APPLICATION_DRAFT",
+   "size": 56296,
+   "sha256": "0c95dfc337d4a3b96add723a3148f952999af9e01f6f2008bd202bd570be3d42"
+  },
+  {
+   "file": "10_DURC_regolare_2026.pdf",
+   "doc_type": "OTHER",
+   "size": 11893,
+   "sha256": "0d1874ccd4e09c1a8535f7b5867aef0b79b4d8caea72471cd2e780556cdc2363"
+  },
+  {
+   "file": "11_Dichiarazione_de_minimis_2024-2026.pdf",
+   "doc_type": "OTHER",
+   "size": 13173,
+   "sha256": "e14e6f8b4543b71a884a4af78390092ce9ca22e96774b449512f9df1e7bfc5da"
+  },
+  {
+   "file": "12_Business_plan_2026-2028.pdf",
+   "doc_type": "OTHER",
+   "size": 167396,
+   "sha256": "1dfa038ebae74aa95b70b03366a0e637d060676148f086095514711ee19c6837"
+  },
+  {
+   "file": "13_Registro_aiuti_ricevuti.xlsx",
+   "doc_type": "OTHER",
+   "size": 12361,
+   "sha256": "7f79acdf99e57e005c6409c49361cc35ecbb8da04df9f11342ecce2d89424ab2"
+  },
+  {
+   "file": "14_Organico_e_livelli_CCNL.xlsx",
+   "doc_type": "OTHER",
+   "size": 18945,
+   "sha256": "bfa29e68708dbf047eb4d1b9d49616ee677ee7cfbe7c94349d08af4c800afa66"
+  },
+  {
+   "file": "15_Libro_cespiti_2025.xlsx",
+   "doc_type": "OTHER",
+   "size": 38121,
+   "sha256": "38d06c8081362ab1987a41eb17774c3b05b386a18b2d56a213458eddf2592506"
+  },
+  {
+   "file": "16_F24_pagamento_16-07-2026.pdf",
+   "doc_type": "F24",
+   "size": 5267,
+   "sha256": "17aa7fd9f6d935b043f79c8d219490788f8f39a2ca17ea1a1b4c58bbd1ed46ca"
+  },
+  {
+   "file": "17_F24_pagamento_16-06-2026.pdf",
+   "doc_type": "F24",
+   "size": 4370,
+   "sha256": "9066d1befe55f9ebff6ba9fa66a0d68459e9bb5b06669782214022e742dfc984"
+  },
+  {
+   "file": "18_F24_pagamento_16-05-2026.pdf",
+   "doc_type": "F24",
+   "size": 4366,
+   "sha256": "3418a9bae199a917a43e84104a0d4f5646b75c981068aa96f6500968f3814583"
+  },
+  {
+   "file": "19_F24_pagamento_16-04-2026.pdf",
+   "doc_type": "F24",
+   "size": 4365,
+   "sha256": "cbc1f9f7bde26bcc105d1c1c82ecc9fed0477b4f2b1172546900ba97f7a567bf"
+  },
+  {
+   "file": "20_F24_pagamento_16-03-2026.pdf",
+   "doc_type": "F24",
+   "size": 4386,
+   "sha256": "2723952045f39fbfd0a68975a72f1f530880465020ea11d07fb8dd8e5c4abb29"
+  },
+  {
+   "file": "21_F24_pagamento_16-02-2026.pdf",
+   "doc_type": "F24",
+   "size": 4382,
+   "sha256": "37386ad0507b04f04613bdeadfe560f9e5c38599b5982860dfa0d13584b4f778"
+  },
+  {
+   "file": "22_F24_pagamento_16-01-2026.pdf",
+   "doc_type": "F24",
+   "size": 4370,
+   "sha256": "0772155819df3504ca08744ea25f2ff14496ad3dda0764af9ba0fa940919d4e4"
+  },
+  {
+   "file": "23_Dichiarazione_Redditi_SC_2025.pdf",
+   "doc_type": "OTHER",
+   "size": 16237,
+   "sha256": "106082ce62176e5d9abf659292c8a9ceb2879f5ec31ac6cd3cac5e58fa2cafba"
+  },
+  {
+   "file": "24_Dichiarazione_IRAP_2025.pdf",
+   "doc_type": "OTHER",
+   "size": 8803,
+   "sha256": "2101094c920dd3ee923ad8d513e2becddf5da46a332ef347bc1aae5e01bbfd4a"
+  },
+  {
+   "file": "25_Dichiarazione_IVA_2026.pdf",
+   "doc_type": "OTHER",
+   "size": 13366,
+   "sha256": "3205a4f859b4effefc943115b843f9c47a9fb05c23f22ccc978bc111ae533edb"
+  },
+  {
+   "file": "26_Piano_ammortamento_finanziamento.pdf",
+   "doc_type": "OTHER",
+   "size": 9509,
+   "sha256": "ac53561674ecef12bc5778497e1fee759823c82e8b44637101b0d1452829b7a6"
+  },
+  {
+   "file": "27_Estratto_conto_agosto_2026.pdf",
+   "doc_type": "OTHER",
+   "size": 20555,
+   "sha256": "be32d1f3614e40c4eb3ac220422ded69bcd04cf596e2cd0fa38a74daf7bafcb2"
+  },
+  {
+   "file": "28_Contratto_locazione_sede.pdf",
+   "doc_type": "OTHER",
+   "size": 14841,
+   "sha256": "0ca69788ff7b849932218c763bd9f4513131276147e22a747ceab42d6df2378b"
+  },
+  {
+   "file": "29_Libro_soci.pdf",
+   "doc_type": "OTHER",
+   "size": 6115,
+   "sha256": "7d87951eca57cd40d1e99cebee6af5b18516d5b043c88c61a6bd203d2ba57ea0"
+  },
+  {
+   "file": "30_Relazione_tecnica_credito_RS_2025.pdf",
+   "doc_type": "OTHER",
+   "size": 14806,
+   "sha256": "dfaf7c913970b21828c0ea11f70cee2c5e026cbce9dd38c585cfc477d20f7e76"
+  },
+  {
+   "file": "31_Bilancio_di_verifica_e_CE_mensile.xlsx",
+   "doc_type": "OTHER",
+   "size": 99253,
+   "sha256": "f292bc9724eb0c347c3d46c8e13391725816f9f0b8fc077804de0fc1c685ac8a"
+  },
+  {
+   "file": "32_Registro_fatture_emesse_2023-2025.xlsx",
+   "doc_type": "OTHER",
+   "size": 98878,
+   "sha256": "1559044e7bcdc31c852d68223b8183b1f5b5208ae596dc6470fb1d195eecc000"
+  },
+  {
+   "file": "33_Registro_fatture_ricevute_2024-2025.xlsx",
+   "doc_type": "OTHER",
+   "size": 227419,
+   "sha256": "4d274fbb357f311ec605531f543d0c0b85739d5c39775aab14d5c401d52e5a02"
+  },
+  {
+   "file": "34_Controllo_commesse_e_budget_2026.xlsx",
+   "doc_type": "OTHER",
+   "size": 39611,
+   "sha256": "322c42448fc08fd7ef9f173a058af7aec79038629e5e122c6860c425ed780d5e"
+  },
+  {
+   "file": "35_Business_plan_modello_finanziario.xlsx",
+   "doc_type": "OTHER",
+   "size": 32333,
+   "sha256": "de7285eec050317ff3c208fdc10c735090fc5c30a64dc54fc8d1f062b563eaf9"
+  }
+ ]
+}

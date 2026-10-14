@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react'
-import { AlertTriangle, CheckCircle2, Download, Eye, FileUp, Loader2, PackageOpen, Trash2, X } from 'lucide-react'
+import { AlertTriangle, CheckCircle2, Download, Eye, FileUp, FlaskConical, Loader2, PackageOpen, Trash2, X } from 'lucide-react'
 import { api, download, fileToBase64 } from '../lib/api'
 import { createZip, uniqueName } from '../lib/zip'
 import { SectionTitle } from './ui'
@@ -161,6 +161,25 @@ export default function Documents({ onUsePayslip, onUseBalance, onUseDraft, onPr
     if (!window.confirm(`Eliminare «${d.filename}»? I dati che ne derivano escono dal profilo.`)) return
     await api.fcDelete(d.id); if (open === d.id) setOpen(null); refresh()
   }
+  // L'azienda di prova (Meridiana): sostituisce i file con lo stesso nome già presenti con l'ultima versione e carica gli altri, uno alla volta.
+  const [demo, setDemo] = useState(null)                              // { done, total, name }
+  const loadDemo = async () => {
+    setError(null); setDemo({ done: 0, total: 0, name: 'elenco dei file' })
+    try {
+      const man = await (await fetch('/azienda_di_prova/manifest.json', { cache: 'no-store' })).json()
+      const total = man.files.length
+      let existing = await api.fcDocuments()
+      for (let i = 0; i < total; i++) {
+        const m = man.files[i]
+        setDemo({ done: i, total, name: m.file })
+        for (const d of existing.filter((x) => x.filename === m.file)) await api.fcDelete(d.id)
+        const blob = await (await fetch(`/azienda_di_prova/${encodeURIComponent(m.file)}`, { cache: 'no-store' })).blob()
+        await api.fcUpload({ doc_type: m.doc_type, filename: m.file, content_base64: await fileToBase64(blob) })
+      }
+      await refresh()
+      setDemo({ done: total, total, name: '' })
+    } catch (e) { setError(`Caricamento dell'azienda di prova interrotto: ${e.message}`); setDemo(null) }
+  }
   const upload = async (f) => {
     if (!f) return
     setBusy(true); setError(null)
@@ -178,6 +197,12 @@ export default function Documents({ onUsePayslip, onUseBalance, onUseDraft, onPr
           <button className="btn-primary" disabled={busy} onClick={() => file.current?.click()}>{busy ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <FileUp className="w-3.5 h-3.5" />}{type === 'OTHER' ? 'Scegli il file' : 'Scegli il PDF'}</button>
         </div>
         {error && <p className="text-xs text-red-700">{error}</p>}
+        <div className="pt-3 border-t border-line flex flex-wrap items-center gap-3">
+          <button className="btn" disabled={busy || (demo && demo.done < demo.total) || demo?.total === 0} onClick={loadDemo} title="Carica i 35 documenti di Meridiana Digital Solutions; quelli con lo stesso nome già presenti vengono sostituiti con l'ultima versione">
+            {demo && demo.done < demo.total ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <FlaskConical className="w-3.5 h-3.5" />}Carica l’azienda di prova
+          </button>
+          <span className="text-xs text-mute">{demo && demo.total === 0 ? 'Preparo l’elenco…' : demo && demo.done < demo.total ? `Carico ${demo.done + 1} di ${demo.total}: ${demo.name}` : demo ? `Fatto: ${demo.total} documenti aggiornati all’ultima versione.` : 'Meridiana Digital Solutions: visura, bilanci, business plan, fogli Excel… sempre l’ultima versione.'}</span>
+        </div>
       </div>
       <div className="card p-5 space-y-2">
         <div className="flex flex-wrap items-center gap-2">

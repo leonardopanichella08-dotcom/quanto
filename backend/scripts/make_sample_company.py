@@ -73,10 +73,30 @@ def build(dest: Path) -> List[Tuple[str, Path]]:
     return files
 
 
+def publish(files: List[Tuple[str, Path]], public: Path) -> Path:
+    """Copia i documenti anche in ``frontend/public/azienda_di_prova`` con un elenco (manifest.json): è la copia che l'app offre con «Carica l'azienda di prova».
+    Ogni rigenerazione la riallinea, così l'app e la cartella ``documenti_di_prova`` non possono più divergere."""
+    import hashlib
+    import json
+    import shutil
+    if public.exists():
+        shutil.rmtree(public)
+    public.mkdir(parents=True)
+    manifest = []
+    for kind, path in files:
+        shutil.copy2(path, public / path.name)
+        manifest.append({"file": path.name, "doc_type": kind, "size": path.stat().st_size, "sha256": hashlib.sha256(path.read_bytes()).hexdigest()})
+    (public / "manifest.json").write_text(json.dumps({"company": COMPANY["name"], "files": manifest}, ensure_ascii=False, indent=1), encoding="utf-8")
+    return public
+
+
 if __name__ == "__main__":
     out = Path(sys.argv[1]) if len(sys.argv) > 1 else Path(__file__).resolve().parents[2] / "documenti_di_prova" / "meridiana_digital_solutions"
-    for kind, p in build(out):
+    built = build(out)
+    for kind, p in built:
         print(f"{kind:18} {p.name:60} {p.stat().st_size / 1024:8.1f} KB")
+    if len(sys.argv) <= 1:                                      # destinazione standard: si aggiorna anche la copia offerta dall'app
+        print("copia per l'app:", publish(built, Path(__file__).resolve().parents[2] / "frontend" / "public" / "azienda_di_prova"))
     for y in ALL_YEARS:
         p = model.pl(y)
         print(y, "ricavi", p["revenue"], "costi", p["b_total"], "utile", p["net"])

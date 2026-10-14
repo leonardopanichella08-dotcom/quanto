@@ -27,8 +27,9 @@ def upload_all(tmp_path):
 def test_the_sample_documents_are_long_and_complete_like_real_ones(tmp_path):
     from pypdf import PdfReader
     pages = {p.name: len(PdfReader(str(p)).pages) for _, p in sample.build(tmp_path) if p.suffix == ".pdf"}
-    assert all(pages[f"0{n}_Bilancio_{y}.pdf"] >= 14 for n, y in enumerate(M.YEARS, 2))          # stato patrimoniale, conto economico, rendiconto, nota integrativa, relazione, verbale, allegato
-    assert pages["01_Visura_camerale_Meridiana_Digital_Solutions.pdf"] >= 5 and pages["09_Bozza_candidatura_Progetto_Atlas.pdf"] >= 6 and pages["12_Business_plan_2026-2028.pdf"] >= 6
+    assert all(pages[f"0{n}_Bilancio_{y}.pdf"] >= 50 for n, y in enumerate(M.YEARS, 2))          # come un bilancio depositato: nota integrativa voce per voce, registri, allegati
+    assert pages["01_Visura_camerale_Meridiana_Digital_Solutions.pdf"] >= 8 and pages["09_Bozza_candidatura_Progetto_Atlas.pdf"] >= 14 and pages["12_Business_plan_2026-2028.pdf"] >= 40
+    assert len(pages) >= 25 and sum(1 for n in pages if n[:2].isdigit()) == len(pages)
     assert (tmp_path / "15_Libro_cespiti_2025.xlsx").exists()
 
 
@@ -107,3 +108,19 @@ def test_de_minimis_aid_is_read_from_the_balance_sheets_notes(tmp_path):
     est = client.post("/api/v2/profile/match", json={"year": 2027}).json()["de_minimis"]
     # triennio 2024-2026: il bilancio 2026 non c'è ancora, quindi il dato è parziale e per quell'anno non si sottrae nulla
     assert est["basis"] == "PARZIALE" and est["received_eur"] == 16500.0 and est["residual_eur"] == 283500.0 and est["years_missing"] == [2026]
+
+
+def test_the_copy_offered_by_the_app_is_the_latest_one():
+    """«Carica l'azienda di prova» scarica frontend/public/azienda_di_prova: deve coincidere con documenti_di_prova (si rigenera con scripts/make_sample_company.py)."""
+    import hashlib
+    import json
+    root = pathlib.Path(__file__).resolve().parents[2]
+    man = json.loads((root / "frontend" / "public" / "azienda_di_prova" / "manifest.json").read_text(encoding="utf-8"))
+    src = root / "documenti_di_prova" / "meridiana_digital_solutions"
+    names = sorted(p.name for p in src.iterdir())
+    assert sorted(f["file"] for f in man["files"]) == names and len(names) >= 35
+    for f in man["files"]:
+        pub = (root / "frontend" / "public" / "azienda_di_prova" / f["file"]).read_bytes()
+        assert hashlib.sha256(pub).hexdigest() == f["sha256"] == hashlib.sha256((src / f["file"]).read_bytes()).hexdigest(), f["file"]
+    big = {f["file"]: f["size"] for f in man["files"]}
+    assert all(big[f"0{n}_Bilancio_{y}.pdf"] > 200_000 for n, y in enumerate(M.YEARS, 2))
