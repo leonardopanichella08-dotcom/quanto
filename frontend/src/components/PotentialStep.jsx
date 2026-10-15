@@ -6,6 +6,7 @@ const BASIS = {
   DICHIARATI: ['Dato dichiarato', 'tutti e tre gli ultimi esercizi hanno i contributi pubblici dichiarati nel profilo'],
   PARZIALE: ['Dato parziale', 'alcuni esercizi non hanno la voce compilata: per quelli non si sottrae nulla'],
   IPOTESI: ['Ipotesi', 'nessun contributo pubblico dichiarato: si assume che non ne siano stati ricevuti'],
+  RNA: ['Verificato sul registro', 'impresa unica e visura aiuti dell’RNA verificate e recenti'],
 }
 
 /** Il tetto de minimis (300.000 € in tre anni): quali bandi lo toccano, quanto ne resta all'azienda (stima di QUANTO, con la sua base) e quanto ne usa il piano. */
@@ -20,11 +21,19 @@ function DeMinimisBox({ rows, dm, plan }) {
       <p className="font-medium text-ink">De minimis: il tetto agli aiuti «piccoli» (300.000 € in tre anni per impresa)</p>
       <p className="text-ink-2 leading-relaxed">Bandi del piano che ci rientrano: {rows.map((r) => r.name).join('; ')}. Questi aiuti si sommano a quelli già ricevuti dall’azienda, e insieme non possono superare il tetto: il piano lo rispetta.</p>
       <div className="flex flex-wrap items-end gap-x-8 gap-y-2">
-        <div><span className="label">Ancora disponibile (stima)</span><div className="text-base font-semibold tabular-nums">{fmtEur(dm.value)}</div></div>
+        <div><span className="label">{est.basis === 'RNA' ? 'Ancora disponibile (verificato)' : 'Ancora disponibile (stima prudente)'}</span><div className="text-base font-semibold tabular-nums">{fmtEur(dm.value)}</div></div>
         {needed != null && <div><span className="label">Usato da questo piano</span><div className="text-base font-semibold tabular-nums">{fmtEur(needed)}</div></div>}
         <span className={`px-2 py-0.5 rounded border text-[11px] font-medium ${est.basis === 'DICHIARATI' ? 'border-emerald-500/30 text-emerald-700' : 'border-amber-500/30 text-amber-700'}`} title={basisText}>{manual ? 'Valore scritto da te' : basisLabel}</span>
       </div>
       <p className="text-ink-2 leading-relaxed">{manual ? 'Stai usando un valore scritto da te al posto della stima.' : est.note}{needed != null && !manual && est.basis !== 'DICHIARATI' && dm.value >= needed ? ` Il piano usa solo ${fmtEur(needed)}: resta valido anche se l’azienda ha già ricevuto fino a ${fmtEur(300000 - needed)} di aiuti de minimis negli ultimi tre anni.` : ''}</p>
+      {est.verification && (
+        <div className={`p-2.5 rounded-lg border space-y-1 ${est.verification.status === 'VERIFICATO' ? 'border-emerald-500/30 bg-emerald-500/5' : 'border-amber-500/30 bg-amber-500/5'}`}>
+          <p className={`font-medium ${est.verification.status === 'VERIFICATO' ? 'text-emerald-700' : 'text-amber-700'}`}>{est.verification.status === 'VERIFICATO' ? 'Verifica sul registro nazionale degli aiuti: completa' : 'Non verificato sul registro nazionale degli aiuti'}</p>
+          <p className="text-ink-2 leading-relaxed">{est.verification.message}{est.safe_residual_eur != null && est.basis !== 'RNA' ? ` Il piano usa ${fmtEur(est.safe_residual_eur)}: la stima ridotta del 10% del tetto.` : ''}</p>
+          {est.verification.problems.map((p) => <p key={p} className="text-ink-2">• {p}</p>)}
+          <button className="underline text-ink-2" onClick={dm.onVerify}>Completa la verifica (impresa unica e visura aiuti)</button>
+        </div>
+      )}
       <p className="text-mute leading-relaxed">{est.verify}</p>
       <div className="flex flex-wrap items-center gap-2 pt-1">
         <button className="btn !py-1" onClick={dm.onDeclare}>Dichiara gli aiuti già ricevuti</button>

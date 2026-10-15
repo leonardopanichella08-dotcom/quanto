@@ -221,6 +221,24 @@ Il valore è un massimo teorico: parte dalla spesa prevista come se fosse tutta 
 
 **Dall'allocazione ai budget dei bandi**: dopo l'allocazione su più bandi, «Crea i budget dei bandi» ricava il budget di ognuno, controllato con i suoi 60 criteri e verificato insieme agli altri (nessuna persona oltre il 100% del tempo, nessun cumulo vietato, de minimis rispettato). Si aprono nella pagina Budget uno alla volta.
 
+**Come si accede a un bando (non tutti chiedono un progetto)**: nella scheda di ogni bando, «Progetti e voci di spesa», QUANTO dice con quale modalità si accede, con un esempio e la frase del testo che lo prova.
+
+| Modalità | Esempio | Su cosa si calcola | Le spese correnti sono una base valida? |
+|---|---|---|---|
+| Progetto o investimento | ricerca e sviluppo, Smart&Start | le spese nuove del progetto | solo per forma (spese generali a forfait, personale realmente dedicato) |
+| Credito d'imposta automatico | iperammortamento, Transizione 5.0 | gli acquisti qualificati dell'anno | no: contano i beni acquistati |
+| Garanzia e liquidità | Fondo di garanzia PMI | il finanziamento bancario da garantire | sì: serve il fabbisogno di cassa |
+| Occupazione | incentivi alle assunzioni | le persone assunte e i loro requisiti | no: contano le assunzioni |
+| Spese commerciali | SIMEST: fiere, e-commerce, export | le spese commerciali del programma | sì, se sostenute per il programma e dopo la domanda |
+| Ristoro | caro energia, crisi | i dati storici di bilancio | sì: si calcola sui bilanci |
+
+Esempio semplice: un'azienda spende ogni anno 20.000 € di fiere. Con SIMEST sono una base valida; con un bando di ricerca no (serve un progetto nuovo); con il Fondo di garanzia non conta nessuna delle due.
+
+**Idee di progetto**: nell'Allocazione, il passo «Idee di progetto e misure senza progetto» è facoltativo (senza, il piano parte dalle spese annuali dell'azienda). Propone progetti ricavati dai documenti: investimenti già in programma, beni a fine vita, assunzioni previste, formazione, promozione. Ogni spesa è **nuova** (la causa il progetto), **corrente** (l'azienda la sostiene già: valida o no a seconda del bando) o **da quantificare** (serve un preventivo). Sono ipotesi da validare con l'imprenditore. Esempio: il piano delle assunzioni prevede un data engineer a settembre: l'idea dice che mancano RAL e livello e propone i bandi per l'occupazione, che chiedono contratto e DURC, non un progetto. Il costo del personale si rendiconta sulle ore realmente dedicate e alla retribuzione vera: il controllo 15 la confronta con la busta paga.
+
+**De minimis e impresa unica**: nel Profilo, «Aiuti ricevuti, impresa unica e registro nazionale». Si rispondono cinque domande sui legami con altre imprese, si elencano le imprese collegate, e per ognuna (la tua azienda e le collegate) si riportano le concessioni della visura aiuti ufficiale dell'RNA con la data di consultazione. QUANTO le confronta con i documenti, calcola il residuo del triennio sommando tutte le imprese e, finché la verifica non è completa e recente (30 giorni), usa nel piano un residuo ridotto del 10% del tetto. La verifica si attesta; non sostituisce la dichiarazione firmata dal legale rappresentante. Esempio: l'azienda risulta aver ricevuto 16.500 €, ma la visura mostra anche 40.000 € di una controllata: l'impresa unica ne ha già usati 56.500, e finché la visura non è caricata e recente il piano usa 270.000 € invece di 283.500.
+
+
 **I pacchetti di lavoro (WP)**: se il bando divide il lavoro in WP, QUANTO assegna ogni voce ammessa a un WP rispettando le quote minime e massime di ogni WP, le categorie ammesse e i tetti per categoria dentro ogni WP, e si avvicina alle quote desiderate. È un programma lineare misto-intero. Esempio: 100.000 euro di voci con WP al 50/30/20%: a voci intere lo scostamento è di 10, 5 e 5 punti; dividendo una sola voce scende a zero. I vincoli dei WP li dichiara chi sa come il bando divide il lavoro: non si leggono dal testo.
 
 ## 12. Il budget e i 60 criteri

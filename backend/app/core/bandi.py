@@ -181,6 +181,23 @@ def list_bandi() -> List[Dict[str, Any]]:
     return out
 
 
+def _bando_texts(b, meta: Dict[str, Any], req_texts: List[str]) -> List[str]:
+    notes = [n.get("source", "") for n in (meta.get("rule_notes") or {}).values() if isinstance(n, dict)]
+    return [t for t in [b["name"] or "", b["summary"] or "", ((meta.get("benefit") or {}).get("summary")) or "", *notes, *req_texts] if t]
+
+
+def _project_types(b, meta: Dict[str, Any], req_texts: List[str]) -> List[Dict[str, Any]]:
+    """Che tipo di progetto finanzia il bando, dalle frasi del suo testo (nome, scheda, aiuto, requisiti): ogni tipologia porta la frase che la nomina."""
+    from app.core import project_types
+    return project_types.for_texts(_bando_texts(b, meta, req_texts))
+
+
+def _funding_modes(b, meta: Dict[str, Any], req_texts: List[str]) -> Dict[str, Any]:
+    """Come si accede: a progetto, credito automatico, garanzia, occupazione, spese commerciali, ristoro. Non tutti i bandi chiedono un progetto."""
+    from app.core import funding_modes
+    return funding_modes.classify((meta.get("benefit") or {}).get("type"), _bando_texts(b, meta, req_texts))
+
+
 def _expense_scope(texts: List[str]) -> Dict[str, List[Dict[str, Any]]]:
     """Le voci di spesa che il testo del bando esclude o ammette per nome, ognuna con la frase che lo dice."""
     from app.core import expense_types
@@ -224,6 +241,8 @@ def get_bando_detail(bando_id: str) -> Optional[Dict[str, Any]]:
     rule_set, _ = Ingestion.build_rule_set(bando_id)
     return {
         "expense_scope": _expense_scope([r["text"] for r in req_rows]),
+        "project_types": _project_types(b, meta, [r["text"] for r in req_rows]),
+        "funding_modes": _funding_modes(b, meta, [r["text"] for r in req_rows]),
         "bando_id": bando_id, "name": b["name"], "issuer": b["issuer"], "status": meta.get("status"), "period": meta.get("period"),
         "curated": bool(meta.get("curated")), "extraction_status": b["extraction_status"], "legal_refs": legal_refs,
         "catalog": {"summary": b["summary"], "meta": json.loads(b["catalog_meta"]) if b["catalog_meta"] else None, "read_at": b["meta_at"], "source_url": b["source_url"], "deadline": b["deadline"]},

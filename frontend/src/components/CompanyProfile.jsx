@@ -4,6 +4,7 @@ import { api } from '../lib/api'
 import { fmtEur } from '../lib/format'
 import { ChromeCard, SectionTitle } from './ui'
 import DocumentFacts from './DocumentFacts'
+import AidsPanel from './AidsPanel'
 
 const ORIGIN = {
   DOCUMENT: ['da documento', 'text-emerald-700 border-emerald-500/30'],
@@ -163,6 +164,7 @@ export default function CompanyProfile({ version = 0, onChanged }) {
         {ov.last_year && <p className="text-[11px] text-mute mt-2">Ultimo esercizio: {ov.last_year}. Costi complessivi per categoria: {fmtEur(ov.financials.find((f) => f.fiscal_year === ov.last_year)?.values && Object.entries(ov.financials.find((f) => f.fiscal_year === ov.last_year).values).filter(([k]) => /^(personnel|capital_assets|consulting|overhead|training)_eur$/.test(k)).reduce((s, [, v]) => s + Number(v || 0), 0))}.</p>}
       </div>
       <DocumentFacts version={version} />
+      <AidsPanel />
     </ChromeCard>
   )
 }

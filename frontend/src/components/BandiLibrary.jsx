@@ -128,7 +128,7 @@ function Detail({ bando, onUse, using, onStudied }) {
   const rules = bando.rules.filter((r) => r.status === 'PUBLISHED')        // le regole in disaccordo le vede solo il Quartier Generale
   const requirements = bando.requirements.filter((r) => r.kind !== 'DA_REVISIONARE')
   const scope = bando.expense_scope || { excluded: [], eligible: [] }
-  const tabs = [['rules', `Regole (${rules.length})`], ['reqs', `Requisiti (${requirements.length})`], ['spese', `Voci di spesa (${scope.excluded.length + scope.eligible.length})`], ['cov', 'Controlli attivati'], ['src', 'Fonti']]
+  const tabs = [['rules', `Regole (${rules.length})`], ['reqs', `Requisiti (${requirements.length})`], ['spese', `Progetti e voci di spesa (${(bando.project_types || []).length + scope.excluded.length + scope.eligible.length})`], ['cov', 'Controlli attivati'], ['src', 'Fonti']]
   return (
     <ChromeCard label={`quanto.app/bandi/${bando.bando_id}`} bodyClassName="p-5 space-y-4">
       <div className="flex flex-wrap items-start justify-between gap-3">
@@ -182,6 +182,28 @@ function Detail({ bando, onUse, using, onStudied }) {
       {tab === 'reqs' && <Requirements items={requirements} />}
       {tab === 'spese' && (
         <div className="space-y-4 text-xs">
+          <div className="space-y-2">
+            <p className="font-medium text-ink">Come si accede · non tutti i bandi chiedono un progetto</p>
+            {(bando.funding_modes?.modes || []).length === 0 && <p className="text-mute">Dai testi letti non si capisce con che modalità si accede: non la indovino.</p>}
+            {(bando.funding_modes?.modes || []).slice(0, 3).map((m, i) => (
+              <div key={m.code} className="p-3 bg-field border border-line rounded-xl space-y-1">
+                <div className="flex flex-wrap items-center gap-2"><span className="font-medium text-ink">{m.label}</span>{i === 0 && <span className="px-1.5 py-0.5 rounded border text-[10px] border-brand/50 text-brand-ink">principale</span>}<span className="text-mute">{m.needs_project ? 'chiede un progetto' : 'non chiede un progetto'}</span></div>
+                <p className="text-ink-2">Si calcola su {m.base}.</p>
+                <p className="text-mute">Esempio: {m.example}</p>
+                {m.evidence.map((e, j) => <p key={j} className="text-mute leading-relaxed">«{e}»</p>)}
+              </div>
+            ))}
+          </div>
+          <div className="space-y-2">
+            <p className="font-medium text-ink">Che tipo di progetto finanzia · {(bando.project_types || []).length}</p>
+            {(bando.project_types || []).length === 0 && <p className="text-mute">Nei testi letti non compaiono tipologie di progetto riconoscibili: non le indovino.</p>}
+            {(bando.project_types || []).map((t) => (
+              <div key={t.code} className="p-3 bg-field border border-line rounded-xl space-y-1">
+                <div className="flex flex-wrap items-center gap-2"><span className="font-medium text-ink">{t.label}</span><span className="text-mute">{t.mentions} {t.mentions === 1 ? 'frase' : 'frasi'}</span></div>
+                {t.evidence.map((e, i) => <p key={i} className="text-mute leading-relaxed">«{e}»</p>)}
+              </div>
+            ))}
+          </div>
           <p className="text-ink-2 leading-relaxed">Le voci di spesa che il testo del bando nomina, oltre alle cinque categorie: quelle escluse non entrano nel budget né nel contributo stimato. Ogni voce porta la frase del bando che la riguarda; se un bando non le nomina non le invento.</p>
           {[['excluded', 'Escluse per nome', 'text-red-700 border-red-500/30'], ['eligible', 'Nominate come ammesse', 'text-emerald-700 border-emerald-500/30']].map(([k, title, tone]) => (
             <div key={k} className="space-y-2">

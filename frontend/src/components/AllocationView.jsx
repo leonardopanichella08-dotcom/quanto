@@ -8,6 +8,7 @@ import PipelineButton from './PipelineButton'
 import { Hint } from './Help'
 import ForecastStep from './ForecastStep'
 import PotentialStep from './PotentialStep'
+import ProjectIdeas from './ProjectIdeas'
 import { BandiChart, ForecastChart, PlanChart, PotentialChart, ProfileChart } from './StepCharts'
 
 const PALETTE = ['#38bdf8', '#a78bfa', '#f472b6', '#34d399', '#fbbf24', '#fb7185', '#2dd4bf', '#818cf8', '#f97316', '#84cc16', '#e879f9', '#94a3b8']
@@ -188,6 +189,7 @@ function BandoCard({ r, picked, onToggle, onBudget }) {
           <p className="text-[11px] text-mute">{r.issuer || 'Ente non indicato'} · {r.bando_id}</p>
         </div>
         <div className="flex flex-wrap gap-1.5 justify-end">
+          {r.mode && <span title={`Si calcola su ${r.mode.base}`} className="px-2 py-0.5 text-[11px] font-medium rounded border border-line-strong text-ink-2">{r.mode.needs_project ? 'A progetto' : r.mode.label}</span>}
           {r.de_minimis?.applies && <span title={r.de_minimis.evidence[0]?.text} className="px-2 py-0.5 text-[11px] font-medium rounded border border-violet-500/30 bg-violet-500/10 text-violet-700">In de minimis</span>}
           <span className={`px-2 py-0.5 text-[11px] font-medium rounded border ${tone}`}>{fit}</span>
         </div>
@@ -276,6 +278,8 @@ export default function AllocationView({ onGoProfile, onBudgetFrom, onOpenBudget
   const [dmOverride, setDmOverride] = useState('')                    // vuoto = vale la stima di QUANTO (dagli aiuti dichiarati nei bilanci); pieno = il valore scritto dall'utente
   const [plan, setPlan] = useState(null)
   const [planHigh, setPlanHigh] = useState(null)
+  const [includeCurrent, setIncludeCurrent] = useState(false)       // nel progetto scelto: includere anche le spese correnti (dove i bandi scelti le ammettono)
+  const [project, setProject] = useState(null)                    // un'idea di progetto scelta: il piano si calcola sulle sue spese nuove, non sui costi annuali
   const [planLines, setPlanLines] = useState([])                      // le linee di finanziamento con cui è stato calcolato il piano (servono per i budget)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(null)
@@ -354,7 +358,7 @@ export default function AllocationView({ onGoProfile, onBudgetFrom, onOpenBudget
   const needsDeMinimis = pickedRows.some((r) => r.fund.de_minimis)
   const dmEstimate = match?.de_minimis || null
   const overrideOk = dmOverride !== '' && Number.isFinite(Number(dmOverride)) && Number(dmOverride) >= 0         // un valore scritto non valido (vuoto, negativo, non numerico) non blocca il piano: vale la stima
-  const deMinimis = overrideOk ? String(Number(dmOverride)) : String(dmEstimate ? dmEstimate.residual_eur : 300000)  // il valore che usa il piano: la stima, salvo correzione dell'utente
+  const deMinimis = overrideOk ? String(Number(dmOverride)) : String(dmEstimate ? (dmEstimate.basis === 'RNA' ? dmEstimate.residual_eur : (dmEstimate.safe_residual_eur ?? dmEstimate.residual_eur)) : 270000)  // il valore che usa il piano: se non è verificato sul registro, la stima ridotta del margine di sicurezza; salvo correzione dell'utente
 
   // Il piano si ricalcola da solo a ogni scelta (bandi inclusi, obiettivo, de minimis): il calcolo è sul server.
   const run = useCallback(async () => {
@@ -370,7 +374,9 @@ export default function AllocationView({ onGoProfile, onBudgetFrom, onOpenBudget
           ? { ...r.fund, coverage_pct: r.estimate.rate_high_pct / 100, max_total_eur: r.estimate.cap_high_eur ?? r.fund.max_total_eur } : r.fund
         return grants.includes(f.fund_id) ? { ...f, excludes: [...new Set([...(f.excludes || []), ...grants.filter((id) => id !== f.fund_id)])] } : f
       }
-      const body = (high) => ({ fiscal_year: match.forecast.fiscal_year, use_profile_forecast: true, growth_pct: applied, optimization_target: target,
+      const projectLines = project ? project.lines.filter((l) => (l.nature === 'NUOVA' || (includeCurrent && l.nature === 'ORDINARIA')) && l.amount_eur > 0).map((l) => ({ item_id: l.item_id, category: l.category, amount_eur: l.amount_eur, expense_type: l.expense_type || undefined, label: l.label })) : null
+      const base = projectLines ? { historical_expenses: projectLines } : { use_profile_forecast: true, growth_pct: applied }
+      const body = (high) => ({ fiscal_year: match.forecast.fiscal_year, ...base, optimization_target: target,
         available_funding_lines: pickedRows.map((r) => line(r, high)), ...(needsDeMinimis ? { de_minimis_residual_eur: Number(deMinimis) } : {}) })
       const res = await api.optimizeAllocation(body(false))
       const hasRange = pickedRows.some((r) => r.estimate?.rate_high_pct > r.estimate?.rate_pct)
@@ -378,7 +384,7 @@ export default function AllocationView({ onGoProfile, onBudgetFrom, onOpenBudget
       if (mine === seq.current) { setPlan(res); setPlanHigh(resHigh); setPlanLines(body(false).available_funding_lines) }
     } catch (e) { if (mine === seq.current) { setPlanError(e.message); setPlan(null); setPlanHigh(null) } } finally { if (mine === seq.current) setLoading(false) }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [match, picked, target, deMinimis])
+  }, [match, picked, target, deMinimis, project, includeCurrent])
   useEffect(() => { run() }, [run])
   const declareAid = () => window.dispatchEvent(new CustomEvent('quanto-assistant', { detail: { task: 'deminimis', year: Number(year) } }))
   // L'assistente chiede di ricalcolare (dopo aver salvato dati nel profilo) e aspetta il risultato: lo si comunica quando il piano è pronto.
@@ -410,6 +416,12 @@ export default function AllocationView({ onGoProfile, onBudgetFrom, onOpenBudget
       deMinimis: dmEstimate ? { ...dmEstimate, residual_eur: Number(deMinimis), needed_eur: plan?.de_minimis_used_eur ?? 0 } : null } }))
   }, [tick, plan, planHigh, planError, loading, matching, match])         // eslint-disable-line react-hooks/exhaustive-deps
 
+  const chooseProject = (idea) => {
+    setProject(idea)
+    const ids = new Set(idea.bandi.map((b) => b.bando_id))
+    const fit = (match?.matching.results || []).filter((r) => r.fund && r.fit !== 'NON_ADATTO' && ids.has(r.bando_id)).map((r) => r.bando_id)
+    if (fit.length) { allMode.current = false; setPicked(fit) }                  // i bandi che finanziano quel tipo di progetto, se adatti all'azienda
+  }
   const toggle = (id) => { allMode.current = false; setPicked((p) => (p.includes(id) ? p.filter((x) => x !== id) : [...p, id])) }
   const pick = (ids, all) => { allMode.current = !!all; setPicked(ids) }
   const maxMonth = plan ? Math.max(...plan.monthly_plan.map((m) => m.gross_eur), 1) : 1
@@ -497,18 +509,26 @@ export default function AllocationView({ onGoProfile, onBudgetFrom, onOpenBudget
       )}
 
       {match && (
-        <Step n={4} title="Tutti i bandi insieme: il potenziale massimo" done={picked.length > 0 && !!plan} defaultOpen
+        <Step n={4} title="Idee di progetto e misure senza progetto" done={!!project}
+          summary={project ? `Il piano è calcolato sul progetto «${project.title}».` : 'Facoltativo: scegli un progetto per pianificare solo le sue spese; senza, il piano usa le spese annuali, che per molte misure sono la base giusta.'}
+          sub="Non tutti i bandi chiedono un progetto: garanzie, crediti d’imposta automatici, incentivi alle assunzioni, spese commerciali e ristori si calcolano su altre basi, e il piano annuale parte dalle spese dell’azienda. I bandi a progetto (ricerca, investimenti) finanziano invece le spese nuove di un progetto: qui propongo progetti dai documenti dell’azienda, con le spese che li compongono, cosa manca per presentarli e i bandi che li finanziano.">
+          <ProjectIdeas year={year} active={project} onAllocate={chooseProject} onClear={() => setProject(null)} includeCurrent={includeCurrent} setIncludeCurrent={setIncludeCurrent} />
+        </Step>
+      )}
+
+      {match && (
+        <Step n={5} title="Tutti i bandi insieme: il potenziale massimo" done={picked.length > 0 && !!plan} defaultOpen
           alert={planError}
           summary={plan ? `Tutti i bandi scelti insieme coprirebbero ${fmtEur(plan.covered_by_public_funds_eur)}${planHigh && planHigh.covered_by_public_funds_eur > plan.covered_by_public_funds_eur + 0.5 ? ` – ${fmtEur(planHigh.covered_by_public_funds_eur)}` : ''} su ${fmtEur(plan.total_gross_expense_eur)} di spese del ${plan.fiscal_year} (${fmtNum(plan.overall_coverage_percentage, 1)}%).${needsDeMinimis ? ` Tetto de minimis residuo usato: ${fmtEur(Number(deMinimis))}${overrideOk ? ' (scritto da te)' : ' (stimato dai bilanci)'}.` : ''}` : (picked.length === 0 ? 'Scegli i bandi da combinare per vedere il potenziale.' : (loading ? 'Calcolo il piano con tutti i bandi insieme…' : null))}
           chart={<PotentialChart plan={plan} nameOf={(id) => results.find((r) => r.fund?.fund_id === id)?.name || id} dm={{ estimate: dmEstimate }} />}
-          sub="Se l’azienda partecipasse e vincesse tutti i bandi a cui può accedere, quanto riuscirebbe a coprire in un anno? Li applico insieme rispettando cumulo, tetti e de minimis, senza pagare due volte la stessa spesa.">
-          <PotentialStep results={results} picked={picked} onPick={pick} dm={{ estimate: dmEstimate, override: overrideOk ? dmOverride : '', invalid: dmOverride !== '' && !overrideOk, setOverride: (v) => setDmOverride(String(v).replace(/[^0-9.,]/g, '').replace(',', '.')), value: Number(deMinimis), onDeclare: declareAid }} plan={plan} planHigh={planHigh} loading={loading} planError={planError} onStudyMore={studyMore} studyingMore={studyingMore} />
+          sub="Se l’azienda partecipasse e vincesse tutti i bandi a cui può accedere, quanto riuscirebbe a coprire in un anno? Li applico insieme rispettando cumulo, tetti e de minimis, senza pagare due volte la stessa spesa. È il massimo ammissibile: non considera le graduatorie e la probabilità di vincere, i tempi di erogazione e la cassa, né i costi di gestione di ogni bando. Per i bandi a progetto conta solo la parte di spese che il bando finanzia (vedi «Idee di progetto»); per garanzie, crediti automatici, incentivi alle assunzioni e spese commerciali la base è un’altra, e ogni bando dice quale.">
+          <PotentialStep results={results} picked={picked} onPick={pick} dm={{ estimate: dmEstimate, override: overrideOk ? dmOverride : '', invalid: dmOverride !== '' && !overrideOk, setOverride: (v) => setDmOverride(String(v).replace(/[^0-9.,]/g, '').replace(',', '.')), value: Number(deMinimis), onDeclare: declareAid, onVerify: onGoProfile }} plan={plan} planHigh={planHigh} loading={loading} planError={planError} onStudyMore={studyMore} studyingMore={studyingMore} />
           {studyNote && <p className="text-[11px] text-ink-2 leading-relaxed">{studyNote}</p>}
         </Step>
       )}
 
       {match && picked.length > 0 && (
-        <Step n={5} title="Il piano dell’anno, voce per voce" done={!!plan}
+        <Step n={6} title="Il piano, voce per voce" done={!!plan}
           alert={planError}
           summary={plan ? `${plan.allocation_plan.length} voci di spesa assegnate ai bandi: ${fmtEur(plan.covered_by_public_funds_eur)} coperti, ${fmtEur(plan.net_cost_to_entity_eur)} restano a carico dell’ente.` : null}
           chart={<PlanChart plan={plan} />}
@@ -518,13 +538,13 @@ export default function AllocationView({ onGoProfile, onBudgetFrom, onOpenBudget
               <select value={target} onChange={(e) => setTarget(e.target.value)} className="field !w-full md:!w-auto min-w-0">{TARGETS.map(([v, l]) => <option key={v} value={v}>{l}</option>)}</select></label>
             <span className="text-xs text-mute">{pickedRows.length} {pickedRows.length === 1 ? 'bando incluso' : 'bandi inclusi'}</span>
           </div>
-          {needsDeMinimis && <p className="text-[11px] text-ink-2 leading-relaxed max-w-3xl">Alcuni bandi scelti sono in de minimis: il tetto residuo che il piano rispetta (<strong className="text-ink">{fmtEur(Number(deMinimis))}</strong>) e come è stato stimato sono spiegati nel punto 4.</p>}
+          {needsDeMinimis && <p className="text-[11px] text-ink-2 leading-relaxed max-w-3xl">Alcuni bandi scelti sono in de minimis: il tetto residuo che il piano rispetta (<strong className="text-ink">{fmtEur(Number(deMinimis))}</strong>) e come è stato stimato sono spiegati nel punto 5.</p>}
         </Step>
       )}
 
 
       {plan && onOpenBudgets && (
-        <Step n={6} title="Dall’allocazione ai budget dei bandi" done={false}
+        <Step n={7} title="Dall’allocazione ai budget dei bandi" done={false}
           summary={`Il piano usa ${plan.fund_usage.filter((u) => u.used_eur > 0).length} ${plan.fund_usage.filter((u) => u.used_eur > 0).length === 1 ? 'bando' : 'bandi'}: da qui ricavi il budget di ognuno, già controllato con i suoi 60 criteri e verificato insieme agli altri.`}
           sub="Ogni bando riceve solo le spese che finanzia, con l’importo su cui calcola il suo contributo. Il personale è diviso tra i progetti senza sovrapporsi (la stessa ora non si rendiconta a due bandi), le spese finanziate da due bandi dichiarano l’altro contributo e i bandi non cumulabili non si toccano mai. Apri ogni budget per modificarlo: il controllo dei 60 criteri gira sul suo bando.">
           <BudgetsFromPlan plan={plan} lines={planLines} onOpen={onOpenBudgets} />

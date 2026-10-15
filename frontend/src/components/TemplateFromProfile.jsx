@@ -15,6 +15,7 @@ export default function TemplateFromProfile({ bando, onApply, onGoProfile, start
   const [scale, setScale] = useState(100)
   const [fit, setFit] = useState(true)
   const [year, setYear] = useState('')
+  const [start, setStart] = useState('')
   const [busy, setBusy] = useState(false)
   const [res, setRes] = useState(null)
   const [error, setError] = useState(null)
@@ -23,7 +24,7 @@ export default function TemplateFromProfile({ bando, onApply, onGoProfile, start
   const generate = async () => {
     setBusy(true); setError(null)
     try {
-      const r = await api.profileTemplate(bando.bando_id, Number(scale), fit, year ? Number(year) : undefined)
+      const r = await api.profileTemplate(bando.bando_id, Number(scale), fit, year ? Number(year) : undefined, start || undefined)
       setRes(r)
       onApply(r)
     } catch (e) { setError(e.message); setRes(null) } finally { setBusy(false) }
@@ -40,12 +41,19 @@ export default function TemplateFromProfile({ bando, onApply, onGoProfile, start
       </button>
       {open && (
         <div className="px-4 pb-4 space-y-3">
+          {(() => { const m = bando.funding_modes?.modes?.[0]; return m && !m.needs_project ? (
+            <p className="text-xs p-2.5 rounded-lg border border-emerald-500/30 bg-emerald-500/5 text-ink-2 leading-relaxed"><strong className="text-ink">Questo bando non chiede un progetto nuovo</strong> ({m.label.toLowerCase()}). Si calcola su {m.base}. {m.ordinary_costs_ok ? 'Le spese che l’azienda sostiene già sono una base valida per questa bozza.' : 'Le spese di bilancio non sono la base: guarda gli acquisti e le persone dei piani dell’azienda.'}</p>
+          ) : (
+            <p className="text-xs p-2.5 rounded-lg border border-amber-500/30 bg-amber-500/5 text-ink-2 leading-relaxed"><strong className="text-ink">Questo bando finanzia un progetto.</strong> La bozza parte dalle spese che l’azienda sostiene già: serve a capire l’ordine di grandezza e cosa il bando ammetterebbe. Un budget da presentare si costruisce sul progetto: dalle «Idee di progetto» nell’Allocazione, oppure inserendo a mano le spese nuove. Le spese correnti entrano solo se il bando le ammette per forma (spese generali a forfait, personale realmente dedicato).</p>
+          ) })()}
           <p className="text-xs text-ink-2 leading-relaxed">Parte da tutto ciò che hai caricato nel Profilo: l’organico persona per persona (livello, contratto, RAL), il budget e il piano degli investimenti dell’azienda se ci sono, altrimenti la previsione dall’ultimo bilancio. Le spese sono voci precise (affitti, energia, licenze…), non solo categorie; quelle che «{bando.name}» esclude per nome non entrano e le voci sopra i tetti si riducono. È solo una base: modificala come vuoi, poi controllala qui sotto.</p>
           <div className="flex flex-wrap items-end gap-3">
             <label className="space-y-1 text-xs text-ink-2"><span className="label">Quota del progetto (% di spese e di tempo di lavoro)</span>
               <input type="number" min="1" max="100" className="field !w-28" value={scale} onChange={(e) => setScale(e.target.value)} /></label>
             <label className="space-y-1 text-xs text-ink-2"><span className="label">Anno (vuoto = il prossimo)</span>
               <input type="number" min="2020" max="2100" placeholder="auto" className="field !w-24" value={year} onChange={(e) => setYear(e.target.value)} /></label>
+            <label className="space-y-1 text-xs text-ink-2"><span className="label">Avvio del progetto (facoltativo)</span>
+              <input type="date" className="field !w-40" value={start} onChange={(e) => setStart(e.target.value)} title="Se la indichi, il controllo 46 verifica su ogni voce che la spesa sia dentro la finestra del bando" /></label>
             <label className="inline-flex items-center gap-2 text-xs text-ink-2 pb-2"><input type="checkbox" checked={fit} onChange={(e) => setFit(e.target.checked)} />Riduci le voci sopra i tetti del bando</label>
             <button className="btn-primary" disabled={busy || !(Number(scale) > 0)} onClick={generate}>{busy && <Loader2 className="w-3.5 h-3.5 animate-spin" />}{res ? 'Rigenera la bozza' : 'Crea la bozza'}</button>
             <button className="btn" onClick={() => window.dispatchEvent(new CustomEvent('quanto-assistant', { detail: { task: 'budget', bandoId: bando.bando_id, scale: Number(scale) > 0 ? Number(scale) : undefined } }))}><Sparkles className="w-3.5 h-3.5" />Fallo fare all’assistente</button>
@@ -70,11 +78,11 @@ export default function TemplateFromProfile({ bando, onApply, onGoProfile, start
 
               <div className="space-y-1.5">
                 <p className="font-medium text-ink">Le spese, voce per voce, e da dove viene ogni numero</p>
-                <div className="overflow-x-auto"><table className="w-full"><thead><tr className="text-left text-mute"><th className="font-medium py-1">Voce di spesa</th><th className="font-medium">Categoria</th><th className="font-medium text-right">Importo</th><th className="font-medium pl-3">Fonte</th></tr></thead>
+                <div className="overflow-x-auto"><table className="w-full"><thead><tr className="text-left text-mute"><th className="font-medium py-1">Voce di spesa</th><th className="font-medium">Categoria</th><th className="font-medium text-right">Importo</th><th className="font-medium pl-3">Natura e fonte</th></tr></thead>
                   <tbody>{shown.map((b) => { const [label, tone] = BASIS[b.basis] || [b.basis, 'border-line text-ink-2']; return (
                     <tr key={b.item_id} className="border-t border-line align-top"><td className="py-1 text-ink-2">{b.label}<span className="block text-[10px] text-mute">{b.detail}</span></td>
                       <td className="text-ink-2">{CATEGORY_LABEL[b.category]}</td><td className="text-right tabular-nums">{fmtEur(b.amount_eur)}</td>
-                      <td className="pl-3"><span className={`px-1.5 py-0.5 rounded border text-[10px] ${tone}`}>{label}</span>{b.sources?.[0]?.filename && <span className="block text-[10px] text-mute truncate max-w-[16rem]" title={b.sources[0].filename}>{b.sources[0].filename}</span>}</td></tr>) })}</tbody></table></div>
+                      <td className="pl-3"><span className={`mr-1 px-1.5 py-0.5 rounded border text-[10px] ${b.nature === 'NUOVA' || b.nature === 'CORRENTE' ? 'border-emerald-500/30 text-emerald-700' : 'border-amber-500/30 text-amber-700'}`} title={b.nature === 'NUOVA' ? 'Un acquisto in programma: una spesa che il progetto causa' : b.nature === 'CORRENTE' ? 'Una spesa che l’azienda sostiene già: per questo bando è una base valida' : 'Una spesa che l’azienda sostiene comunque: per questo bando non è una spesa di progetto'}>{b.nature === 'NUOVA' ? 'nuova' : b.nature === 'CORRENTE' ? 'corrente' : 'ordinaria'}</span><span className={`px-1.5 py-0.5 rounded border text-[10px] ${tone}`}>{label}</span>{b.sources?.[0]?.filename && <span className="block text-[10px] text-mute truncate max-w-[16rem]" title={b.sources[0].filename}>{b.sources[0].filename}</span>}</td></tr>) })}</tbody></table></div>
                 {rows.length > 8 && <button className="underline text-ink-2" onClick={() => setShowAll(!showAll)}>{showAll ? 'Mostra meno' : `Mostra tutte le ${rows.length} voci`}</button>}
               </div>
 

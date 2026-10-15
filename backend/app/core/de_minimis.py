@@ -12,6 +12,7 @@ Quando si parte dalla voce scritta a mano («anche de minimis») ogni contributo
 """
 from __future__ import annotations
 
+from datetime import date
 from typing import Any, Dict, Optional
 
 PLAFOND_EUR = 300_000.0
@@ -49,6 +50,23 @@ def estimate(owner: str, year: int, used_by_plan_eur: Optional[float] = None) ->
            "window": [window[0], window[-1]], "note": note,
            "verify": "Per verificarlo: visura aiuti sul Registro Nazionale degli Aiuti (RNA), provvedimenti di concessione già ricevuti, dichiarazioni de minimis firmate per le domande precedenti; "
                      "per un gruppo di società collegate si sommano gli aiuti di tutte."}
+    # La verifica sul registro ufficiale (impresa unica + visura aiuti dell'RNA): finché non è completa e recente il piano usa un residuo ridotto di un margine di sicurezza.
+    try:
+        from app.core import aids_register
+        v = aids_register.status(owner, date(year, 1, 1))
+        out["verification"] = {"status": v["status"], "problems": v["problems"], "message": v["message"], "residual_register_eur": v["residual_eur"], "checked": sorted(v["checks"])}
+        if v["status"] == "VERIFICATO":
+            out.update({"basis": "RNA", "received_eur": v["received_eur"], "residual_eur": v["residual_eur"],
+                        "note": f"Verificato sul Registro Nazionale degli Aiuti: aiuti de minimis dell'impresa unica nel triennio {v['window'][0][:4]}–{v['window'][1][:4]}: {v['received_eur']:,.0f} €.".replace(",", ".")})
+            residual = v["residual_eur"]
+        else:
+            safe = max(0.0, residual - PLAFOND_EUR * aids_register.SAFETY_MARGIN)
+            if v["received_eur"] > received:                          # la verifica ha trovato più aiuti di quelli dei bilanci: vale il più prudente
+                safe = max(0.0, min(safe, PLAFOND_EUR - v["received_eur"] - PLAFOND_EUR * aids_register.SAFETY_MARGIN))
+            out["safe_residual_eur"] = round(safe, 2)
+    except Exception:                                                  # la verifica è un'aggiunta: se non si legge non cambia la stima di sempre
+        out["verification"] = None
+    out.setdefault("safe_residual_eur", out["residual_eur"] if out["basis"] == "RNA" else round(max(0.0, out["residual_eur"] - PLAFOND_EUR * 0.10), 2))
     if used_by_plan_eur is not None:
         out["needed_eur"] = round(used_by_plan_eur, 2)
         out["margin_eur"] = round(residual - used_by_plan_eur, 2)

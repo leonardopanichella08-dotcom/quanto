@@ -6,7 +6,7 @@ from pydantic import BaseModel, Field
 
 from app.api.deps import actor_of, scope_of
 from app.core import company_profile as cp
-from app.core import budget_basis, company_facts, de_minimis, events, expense_types, matching
+from app.core import aids_register, budget_basis, company_facts, de_minimis, events, expense_types, matching, project_ideas, project_types
 
 router = APIRouter()
 
@@ -42,6 +42,7 @@ class TemplateBody(BaseModel):
     scale_pct: float = Field(default=100, gt=0, le=100, description="Quota del totale annuale da dedicare al progetto")
     fit: bool = Field(default=True, description="Riduci le voci sopra i tetti del bando alla parte ammissibile")
     year: Optional[int] = Field(default=None, ge=2020, le=2100, description="Anno del progetto (default: quello dopo l'ultimo bilancio, dentro la finestra del bando)")
+    project_start: Optional[str] = Field(default=None, description="Data di avvio del progetto (AAAA-MM-GG): su ogni voce il controllo 46 verifica la finestra di ammissibilità del bando")
 
 
 @router.get("", summary="Il profilo aziendale: dati, bilanci per esercizio, cosa manca e quanto è completo")
@@ -116,7 +117,7 @@ def match(body: ForecastBody, request: Request) -> dict:
 def template(body: TemplateBody, request: Request) -> dict:
     owner = scope_of(request)
     try:
-        out = _guard(matching.budget_template, owner, body.bando_id, body.scale_pct, body.fit, body.year)
+        out = _guard(matching.budget_template, owner, body.bando_id, body.scale_pct, body.fit, body.year, body.project_start)
     except KeyError:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Bando non trovato") from None
     events.record("profile.template", f"Bozza di budget per {body.bando_id}: {len(out['cost_items'])} voci, {out['total_eur']:,.2f} €", actor=owner, bando_id=body.bando_id)
@@ -147,3 +148,65 @@ def facts_overview(request: Request) -> dict:
 @router.get("/expense-types", summary="L'elenco delle voci di spesa riconosciute")
 def expense_type_list() -> dict:
     return {"types": expense_types.catalog()}
+
+
+# ------------------------------------------------------------------------------------------------ idee di progetto
+@router.get("/project-ideas", summary="Idee di progetto per l'azienda, dai suoi documenti, con le spese (nuove o ordinarie), cosa manca e i bandi che le finanziano")
+def ideas(request: Request, year: Optional[int] = None) -> dict:
+    return _guard(project_ideas.generate, scope_of(request), year)
+
+
+@router.get("/project-types", summary="Le tipologie di progetto che un bando può finanziare")
+def project_type_list() -> dict:
+    return {"types": project_types.catalog()}
+
+
+# ------------------------------------------------------------------------------------------------ aiuti ricevuti, impresa unica, registro nazionale
+def _aids_guard(fn, *a, **kw):
+    try:
+        return fn(*a, **kw)
+    except aids_register.AidsError as exc:
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(exc)) from exc
+
+
+class GroupBody(BaseModel):
+    answers: Dict[str, str] = Field(default_factory=dict)
+    companies: list = Field(default_factory=list)
+
+
+class AidEntriesBody(BaseModel):
+    company: str = Field(default="SELF", description="SELF = l'azienda; altrimenti il codice fiscale dell'impresa collegata")
+    source: str = Field(default="RNA", description="RNA (visura ufficiale) o MANUALE")
+    checked_at: Optional[str] = Field(default=None, description="Data in cui si è consultata la visura aiuti dell'RNA (solo per la fonte RNA)")
+    entries: list = Field(default_factory=list)
+
+
+class ConfirmBody(BaseModel):
+    note: str = Field(default="", max_length=300)
+
+
+@router.get("/aids", summary="Aiuti già ricevuti, impresa unica e verifica sul Registro Nazionale degli Aiuti: stato e residuo de minimis")
+def aids(request: Request, on: Optional[str] = None) -> dict:
+    day = None
+    if on:
+        try:
+            from datetime import date as _d
+            day = _d.fromisoformat(on)
+        except ValueError:
+            raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="Data non valida") from None
+    return aids_register.status(scope_of(request), day)
+
+
+@router.put("/aids/group", summary="Impresa unica: le risposte alle cinque domande e l'elenco delle imprese collegate")
+def aids_group(body: GroupBody, request: Request) -> dict:
+    return _aids_guard(aids_register.save_group, scope_of(request), body.answers, body.companies, actor_of(request))
+
+
+@router.put("/aids/entries", summary="Le concessioni di un'impresa dalla visura aiuti dell'RNA (o inserite a mano): sostituiscono quelle precedenti della stessa fonte")
+def aids_entries(body: AidEntriesBody, request: Request) -> dict:
+    return _aids_guard(aids_register.save_entries, scope_of(request), body.company, body.source, body.entries, body.checked_at, actor_of(request))
+
+
+@router.post("/aids/confirm", summary="Chi ha fatto la verifica la attesta: resta nel registro delle operazioni")
+def aids_confirm(body: ConfirmBody, request: Request) -> dict:
+    return _aids_guard(aids_register.confirm, scope_of(request), actor_of(request), body.note)

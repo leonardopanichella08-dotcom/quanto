@@ -183,7 +183,7 @@ def decor(c, doc):
     c.drawString(20 * mm, 11 * mm, "QUANTO")
     c.setFont(F, 8)
     c.setFillColor(MUTE)
-    c.drawString(34 * mm, 11 * mm, "Riassunto · 12 ottobre 2026")
+    c.drawString(34 * mm, 11 * mm, "Riassunto · 15 ottobre 2026")
     c.drawRightString(A4[0] - 20 * mm, 11 * mm, f"{doc.page}")
     c.restoreState()
 
@@ -212,7 +212,7 @@ def build() -> Path:
        "<b>Boutique di finanza agevolata</b> che costruiscono budget e piani di allocazione e hanno bisogno di ripetibilità e di una fonte per ogni cifra.",
        "<b>Direttori finanziari e consulenti d'impresa</b> che pianificano più fondi insieme per l'azienda che seguono e vogliono sapere chi paga cosa lungo l'anno."])
     SP(4)
-    kpis([("60", "regole applicate a ogni voce di budget"), ("8", "bandi con un modello di calcolo curato a mano"), ("780+", "bandi aperti nel catalogo nazionale, aggiornati ogni notte"), ("523", "test automatici sul motore")])
+    kpis([("60", "regole applicate a ogni voce di budget"), ("8", "bandi con un modello di calcolo curato a mano"), ("780+", "bandi aperti nel catalogo nazionale, aggiornati ogni notte"), ("538", "test automatici sul motore")])
     story.append(PageBreak())
 
     # ------------------------------------------------------------------ 2. come lavora
@@ -230,8 +230,10 @@ def build() -> Path:
     B(["<b>Parte dal cliente, non dal bando.</b> Si carica visura e bilancio e QUANTO propone i bandi più adatti all'azienda, in ordine di affinità e con i motivi.",
        "<b>Dà una cifra, con l'intervallo.</b> Per ogni bando c'è il valore prudente e quello con tutte le maggiorazioni, con le ipotesi scritte accanto.",
        "<b>Mette insieme più bandi senza sbagliare.</b> Rispetta cumulo, tetti e il limite degli aiuti «de minimis»; dice quali bandi non servono e perché.",
-       "<b>Costruisce il budget dal bilancio.</b> Poi lo controlla voce per voce: ammessa, ridotta, respinta o in attesa di un documento, sempre con il motivo.",
-       "<b>Si ricorda di tutto.</b> Cambiando pagina, chiudendo l'app o passando a un altro cliente, ogni scelta resta al suo posto."])
+       "<b>Costruisce il budget sull'azienda.</b> Ogni persona con livello, contratto e RAL; le spese una per una, con il documento da cui vengono. Poi lo controlla voce per voce, sempre con il motivo.",
+       "<b>Sa che non tutti i bandi chiedono un progetto.</b> Ogni bando dice come si accede. Esempio: 20.000 € di fiere valgono per SIMEST, non per un bando di ricerca.",
+       "<b>Verifica il de minimis sul registro.</b> Azienda e imprese collegate: senza visura recente il piano usa un residuo prudente (270.000 € invece di 283.500 €).",
+       "<b>Si ricorda di tutto.</b> Ogni scelta resta al suo posto, anche cambiando cliente."])
     H2("Due modi di lavorare")
     table([["Da soli", "Con l'assistente"], ["Si naviga tra le pagine (Allocazione, Budget, Confronto…) e si inseriscono i dati dove servono.",
            "Si scrive nella chat cosa si vuole fare, o si sceglie un suggerimento: l'assistente esegue i passaggi, chiede solo i dati che mancano e spiega cos'è ogni dato, perché serve e dove si trova."]], [W / 2, W / 2], zebra=False)
@@ -287,7 +289,8 @@ def build() -> Path:
     table([["Limite", "Come lo gestisce"], ["Non prevede l'esito di un bando", "Il potenziale è un massimo teorico; il Confronto è una statistica sulla struttura della spesa, non una previsione"],
            ["Non scrive il progetto", "Produce solo la componente numerica: budget, ammissibilità, allocazione"], ["Non somma garanzie e contributi", "Le garanzie pubbliche si calcolano a parte, come importo garantibile"],
            ["Una percentuale di un bando non si trova", "Il bando resta senza importo e lo dice; si può rilanciare lo studio per cercarla"],
-           ["Gli aiuti già ricevuti dall'azienda non si leggono da un registro", "Il tetto de minimis si stima dagli aiuti dichiarati e dice su cosa si regge; si corregge a mano"],
+           ["Non legge da solo il registro nazionale degli aiuti", "Guida la verifica: impresa unica, visura aiuti caricata, confronto con i documenti; finché non è completa il tetto de minimis resta prudente"],
+           ["Non trasforma costi ordinari in costi di progetto", "Distingue le spese nuove da quelle correnti; il personale si rendiconta sulle ore vere e alla retribuzione vera, confrontata con la busta paga"],
            ["Le scansioni dei documenti", "Dove non è disponibile il riconoscimento ottico, il documento si rifiuta con un messaggio chiaro, senza inventare un testo"]], [W * 0.38, W * 0.62])
     H2("A che punto è")
     P("Il motore, i 60 controlli, l'allocazione, il budget, il Confronto, il registro firmato e l'assistente sono realizzati e provati con migliaia di casi automatici. Non sono ancora state presentate pratiche reali tramite QUANTO: per questo non esiste una percentuale di successo e il documento non ne dichiara nessuna. "

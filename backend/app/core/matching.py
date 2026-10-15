@@ -124,6 +124,16 @@ BENEFIT_EXPLANATION = {
 }
 
 
+def _mode_of(detail: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    """La modalità di accesso principale del bando (a progetto, credito automatico, garanzia…)."""
+    from app.core import funding_modes
+    fm = detail.get("funding_modes") or {}
+    d = funding_modes.describe(fm.get("primary"))
+    if d is not None:
+        d["others"] = [m["label"] for m in fm.get("modes", [])[1:3]]
+    return d
+
+
 def _without_excluded_types(rules: Dict[str, Any], by_cat: Dict[str, float], by_type: Optional[Dict[str, Dict[str, Any]]]):
     """Le spese per categoria senza le voci che il bando esclude per nome (affitti, rappresentanza…): non fanno parte della base su cui si calcola il contributo."""
     excluded = [c for c in (rules.get("excluded_expense_types") or []) if by_type and c in by_type]
@@ -250,7 +260,7 @@ def evaluate(bando_id: str, profile: Dict[str, Any], by_cat: Dict[str, float], y
         fit = "ADATTO"
     return {"bando_id": bando_id, "name": detail["name"], "issuer": detail.get("issuer"), "status": detail.get("status"), "fit": fit, "checks": checks, "estimate": estimate,
             "fund": fund, "de_minimis": dm, "guarantee": guarantee, "guarantee_info": ({"kind_label": valuation.KIND_LABEL["GARANZIA"], "assumptions": val.get("assumptions", []), "evidence": val.get("evidence", [])} if guarantee else None),
-            "excluded_types": excluded_types, "benefit": benefit, "notes": notes, "missing_profile": sorted(set(missing)), "requirements_count": len(detail.get("requirements", [])),
+            "excluded_types": excluded_types, "mode": _mode_of(detail), "benefit": benefit, "notes": notes, "missing_profile": sorted(set(missing)), "requirements_count": len(detail.get("requirements", [])),
             "rules_count": len(rules)}
 
 
@@ -302,7 +312,7 @@ def _it_eur(x: float) -> str:
     return f"{x:,.2f}".replace(",", "§").replace(".", ",").replace("§", ".") + " €"
 
 
-def budget_template(owner: str, bando_id: str, scale_pct: float, fit: bool = True, year: Optional[int] = None) -> Dict[str, Any]:
+def budget_template(owner: str, bando_id: str, scale_pct: float, fit: bool = True, year: Optional[int] = None, project_start: Optional[str] = None) -> Dict[str, Any]:
     """Una bozza di budget per il bando, costruita sui dati dell'azienda e sulle regole del bando.
 
     - **Il personale è persona per persona**, dall'organico dei documenti (registro del personale, buste paga): livello, contratto, RAL, ore e quota di tempo sul progetto.
@@ -360,7 +370,10 @@ def budget_template(owner: str, bando_id: str, scale_pct: float, fit: bool = Tru
         if spec["asset_nature"] and r["category"] == "CAPITAL_ASSETS":
             item["asset_nature"] = spec["asset_nature"]
         items.append(item)
-        basis_rows.append({"item_id": item["item_id"], "code": r["code"], "label": r["label"], "category": r["category"], "basis": r["basis"], "forecast_eur": round(r["amount_eur"] * factor, 2),
+        nature = "NUOVA" if r["basis"] == "PIANO_INVESTIMENTI" else "ORDINARIA"            # un acquisto in programma è nuovo; una spesa di budget o di bilancio l'azienda la sostiene comunque
+        if project_start:
+            item["expense_date"] = project_start                                           # il controllo 46 verifica la finestra di ammissibilità del bando su questa data
+        basis_rows.append({"item_id": item["item_id"], "code": r["code"], "label": r["label"], "category": r["category"], "basis": r["basis"], "nature": nature, "forecast_eur": round(r["amount_eur"] * factor, 2),
                            "amount_eur": amount, "detail": r["detail"], "sources": r["sources"]})
 
     people_info: List[Dict[str, Any]] = []
@@ -394,6 +407,8 @@ def budget_template(owner: str, bando_id: str, scale_pct: float, fit: bool = Tru
                 item["contract_type"] = ct
             if p.get("payslip_ral_eur") and p["ral_eur"] is not None:
                 item["payslip_ral_eur"] = p["payslip_ral_eur"]
+            if project_start:
+                item["expense_date"] = project_start
             items.append(item)
             people_info.append({"item_id": item["item_id"], "ref": p.get("ref"), "role": p.get("role"), "level": p.get("level"), "ccnl_code": p.get("ccnl_code"), "ral_eur": ral, "hours_week": hours,
                                 "fte_allocation": fte, "has_payslip": bool(p.get("payslip_document_id")), "contract": p.get("contract")})
@@ -404,7 +419,33 @@ def budget_template(owner: str, bando_id: str, scale_pct: float, fit: bool = Tru
             needs_personnel = {"amount_eur": round(plan["personnel_base_eur"] * factor, 2),
                                "message": "Nei documenti non ci sono persone: carica il registro del personale (Excel) o le buste paga. Il controllo vuole persona per persona livello, CCNL, RAL e quota di tempo."}
 
+    if project_start:
+        try:
+            date.fromisoformat(project_start)
+        except ValueError:
+            raise cp.ProfileError("La data di avvio del progetto non è valida (AAAA-MM-GG)") from None
+    mode = _mode_of(detail)
+    current_ok = bool(mode and mode["ordinary_costs_ok"])
+    for b in basis_rows:                                                                  # dove il bando parte dalle spese correnti (spese commerciali, liquidità, ristoro) non sono «ordinarie» da guardare con sospetto
+        if current_ok and b["nature"] == "ORDINARIA":
+            b["nature"] = "CORRENTE"
+    new_eur = round(sum(b["amount_eur"] for b in basis_rows if b["nature"] == "NUOVA"), 2)
+    ordinary_eur = round(sum(b["amount_eur"] for b in basis_rows if b["nature"] in ("ORDINARIA", "CORRENTE")), 2)
+    if mode and not mode["needs_project"]:
+        message = (f"Questo bando non chiede un progetto nuovo: la modalità è «{mode['label'].lower()}». Si calcola su {mode['base']}. "
+                   + ("Le spese che l'azienda sostiene già sono quindi una base valida per questa stima." if mode["ordinary_costs_ok"] else
+                      "Per questa modalità le spese di bilancio non sono la base: la bozza mostra gli acquisti e le persone dei piani dell'azienda dove ci sono."))
+    else:
+        message = ("Questa bozza parte dalle spese che l'azienda sostiene già: serve a capire l'ordine di grandezza e cosa il bando ammetterebbe, non è ancora un progetto. Un budget da presentare "
+                   "si costruisce sul progetto: solo le spese nuove (acquisti, assunzioni) e quelle che il bando ammette per forma (spese generali a forfait, personale realmente dedicato con timesheet), "
+                   "per la parte dedicata al progetto.")
+    reality = {"new_eur": new_eur, "ordinary_eur": ordinary_eur, "personnel_eur": round(plan["personnel_base_eur"] * factor, 2) if "PERSONNEL" in allowed else 0.0, "mode": mode, "message": message}
     notes = list(plan["notes"])
+    notes.insert(0, reality["message"])
+    if "PERSONNEL" in allowed and people_info:
+        notes.append("La quota di tempo di ogni persona deve essere quella realmente dedicata al progetto e dimostrata con un timesheet: il costo si rendiconta sulle ore vere, alla retribuzione vera (il controllo 15 la confronta con la busta paga).")
+    if project_start:
+        notes.append(f"Data di avvio del progetto: {project_start}. Il controllo della finestra del bando (46) la usa su ogni voce: una spesa anteriore alla domanda o al periodo ammesso non si finanzia.")
     notes.append(f"Anno del progetto: {target}. Le spese vengono dal budget dell'azienda, dal piano degli investimenti o dalla previsione del bilancio {plan['base_year']} (la fonte è scritta su ogni voce); sono una base da adattare al progetto.")
     if scale_pct < 100:
         notes.append(f"Quota di progetto: {scale_pct:g}% delle spese annue e del tempo di lavoro di ogni persona.")
@@ -417,5 +458,5 @@ def budget_template(owner: str, bando_id: str, scale_pct: float, fit: bool = Tru
     return {"bando_id": bando_id, "base_year": plan["base_year"], "year": target, "scale_pct": scale_pct, "fit": fit, "cost_items": items, "needs_personnel": needs_personnel, "needs_category": [], "needs_review": [],
             "adjustments": adjustments, "excluded_categories": [{"category": c, "label": CATEGORY_LABEL[c]} for c in dropped_cat],
             "excluded_types": [{"code": r["code"], "label": r["label"], "amount_eur": round(r["amount_eur"] * factor, 2)} for r in dropped_types],
-            "basis": basis_rows, "personnel": people_info, "needs_input": needs_input, "notes": notes,
+            "basis": basis_rows, "personnel": people_info, "needs_input": needs_input, "notes": notes, "reality": reality,
             "total_eur": round(sum(i.get("amount_eur") or 0 for i in items), 2), "personnel_base_eur": round(plan["personnel_base_eur"] * factor, 2)}

@@ -30,7 +30,7 @@ def hq_manual_pdf() -> Response:
     return Response(content=manual.to_pdf(), media_type="application/pdf", headers={"Content-Disposition": 'attachment; filename="QUANTO_manuale_dei_processi.pdf"'})
 
 
-DOC_FILES = {"riassunto": ("QUANTO_riassunto.pdf", "Riassunto di QUANTO (7 pagine)"), "dossier": ("QUANTO_v4_2_documento_completo.pdf", "Dossier completo v4.2")}
+DOC_FILES = {"riassunto": ("QUANTO_riassunto.pdf", "Riassunto di QUANTO (7 pagine)"), "dossier": ("QUANTO_v4_2_documento_completo.pdf", "Dossier completo v4.4")}
 
 
 @router.get("/files", dependencies=deps, summary="I documenti di presentazione di QUANTO disponibili al download")
