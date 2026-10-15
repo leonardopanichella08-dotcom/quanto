@@ -6,7 +6,7 @@ from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request,
 from pydantic import BaseModel, Field
 
 from app.api.deps import actor_of, scope_of, require_hq
-from app.core import allocation_budgets, budget_basis, company_profile, events, funds, llm, webhooks
+from app.core import allocation_budgets, allocation_reality, budget_basis, company_profile, events, funds, llm, webhooks
 from app.core.renderer import render_with_grounding
 from app.core.fonte_c import service as fonte_c
 from app.core.allocation_engine import AllocationOptimizerEngine
@@ -148,3 +148,20 @@ def budgets_from_allocation(body: BudgetsBody, request: Request) -> dict:
     events.record("allocation.budgets", f"Budget dall'allocazione {body.fiscal_year}: {out['summary']['funds']} bandi, {'tutti compatibili' if out['ok'] else 'ci sono incompatibilità'}", actor=actor_of(request),
                   details={"ok": out["ok"], "funds": [b["fund_id"] for b in out["budgets"]]})
     return out
+
+
+class RealityBody(BaseModel):
+    allocation: dict = Field(..., description="Il risultato dell'allocazione (la risposta di /optimize)")
+    fiscal_year: int = Field(..., ge=2020, le=2100)
+    assumptions: dict = Field(default_factory=dict, description="Per fondo: probability_pct, admin_cost_eur, fee_pct, reimbursement_lag_months, advance_pct (le indica una persona)")
+    funding_lines: List[dict] = Field(default_factory=list)
+
+
+@router.post("/reality", summary="Dall'allocazione alla realtà: valore atteso, costo dell'istruttoria, tempi di incasso, cumulo con altri aiuti")
+def reality(body: RealityBody, request: Request) -> dict:
+    if not body.allocation.get("allocation_plan"):
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="L'allocazione non ha spese: eseguila prima")
+    try:
+        return allocation_reality.assess(scope_of(request), body.allocation, body.assumptions, body.fiscal_year, body.funding_lines or None)
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(exc)) from exc

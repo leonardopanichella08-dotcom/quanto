@@ -1,0 +1,209 @@
+Codice;Conto;Saldo iniziale;Movimenti dare;Movimenti avere;Saldo finale
+100.010;Costi di sviluppo: costo storico;153656,00;369027,52;342819,52;179864,00
+100.020;Diritti di utilizzazione di opere dell'ingegno (software applicativo): costo storico;35914,00;81896,81;75344,81;42466,00
+100.030;Concessioni, licenze, marchi e diritti simili: costo storico;9292,00;13772,14;12316,14;10748,00
+100.040;Altre immobilizzazioni immateriali (migliorie su beni di terzi): costo storico;19638,00;32182,44;29998,44;21822,00
+105.010;Fondo ammortamento: costi di sviluppo;-86830,00;63155,04;78835,04;-102510,00
+105.020;Fondo ammortamento: diritti di utilizzazione di opere dell'ingegno (software applicativo);-23380,00;19758,18;24238,18;-27860,00
+105.030;Fondo ammortamento: concessioni, licenze, marchi e diritti simili;-5476,00;5388,97;6284,97;-6372,00
+105.040;Fondo ammortamento: altre immobilizzazioni immateriali (migliorie su beni di terzi);-10814,00;18908,92;20252,92;-12158,00
+110.010;Impianti e macchinario (impianti di rete e cablaggio): costo storico;38896,00;28958,95;24074,95;43780,00
+110.020;Attrezzature industriali e commerciali (server e apparati di test): costo storico;84608,00;95284,13;84702,13;95190,00
+110.030;Altri beni: macchine d'ufficio elettroniche: costo storico;123952,00;112723,67;94815,67;141860,00
+110.040;Altri beni: mobili e arredi: costo storico;42396,00;74753,14;69869,14;47280,00
+110.050;Altri beni: autovetture e mezzi di trasporto interni: costo storico;23448,00;41404,84;38962,84;25890,00
+115.010;Fondo ammortamento: impianti e macchinario (impianti di rete e cablaggio);-24249,00;17010,39;21131,39;-28370,00
+115.020;Fondo ammortamento: attrezzature industriali e commerciali (server e apparati di test);-54171,00;67675,42;76234,42;-62730,00
+115.030;Fondo ammortamento: altri beni: macchine d'ufficio elettroniche;-88266,00;196054,96;209368,96;-101580,00
+115.040;Fondo ammortamento: altri beni: mobili e arredi;-22576,00;29204,04;33008,04;-26380,00
+115.050;Fondo ammortamento: altri beni: autovetture e mezzi di trasporto interni;-14038,00;22239,00;24141,00;-15940,00
+120.010;Depositi cauzionali: sede legale di via Garibaldi;5950,00;7391,94;7391,94;5950,00
+120.020;Depositi cauzionali: unità locale di corso Francia;2550,00;3612,24;3612,24;2550,00
+200.010;Lavori in corso su ordinazione: Piattaforma di gestione ordini per distributore alimentare;17093,22;28958,84;27204,38;18847,68
+200.020;Lavori in corso su ordinazione: Portale servizi al cittadino per ente locale;15297,93;13327,17;12849,88;15775,22
+200.030;Lavori in corso su ordinazione: Cruscotto di analisi dei dati per azienda meccanica;11221,25;22444,62;19882,63;13783,24
+200.040;Lavori in corso su ordinazione: App mobile per rete di assistenza tecnica;8773,37;18999,77;14830,76;12942,38
+200.050;Lavori in corso su ordinazione: Integrazione gestionale e magazzino per impresa tessile;5431,37;17581,91;14894,21;8119,07
+200.060;Lavori in corso su ordinazione: Sistema di prenotazione per struttura ricettiva;3182,86;6541,03;5191,48;4532,41
+210.010;Crediti verso clienti Italia;293276,34;2753459,43;2696273,73;350462,04
+210.020;Crediti verso clienti Unione Europea;34101,90;458301,91;451652,41;40751,40
+210.030;Crediti verso clienti extra Unione Europea;13640,76;84754,93;82095,13;16300,56
+210.040;Fatture da emettere a clienti;21512,00;313923,19;309787,19;25648,00
+210.090;Fondo svalutazione crediti verso clienti;-3998,00;65260,83;66960,83;-5698,00
+220.010;Credito d'imposta per ricerca e sviluppo da utilizzare in compensazione;31500,00;94274,23;83774,23;42000,00
+220.020;Erario c/IVA a credito;2790,00;2790,00;5580,00;0,00
+220.030;Erario c/ritenute subite e acconti d'imposta;1080,00;1080,00;2160,00;0,00
+220.040;Crediti verso INAIL e INPS per rimborsi;630,00;630,00;1260,00;0,00
+230.010;Anticipi a fornitori;1610,00;2265,40;1943,40;1932,00
+230.020;Anticipi a dipendenti per trasferte;1085,00;1944,84;1727,84;1302,00
+230.030;Crediti diversi;805,00;1192,76;1031,76;966,00
+300.010;Banca prima c/c ordinario;119821,82;736908,78;729437,16;127293,44
+300.020;Banca seconda c/c ordinario;73439,18;865783,90;861204,52;78018,56
+310.010;Cassa contanti;174,00;1749,91;1738,91;185,00
+310.010;Cancelleria e stampati per uffici;0,00;3262,61;92,01;3170,60
+310.020;Cancelleria: carta, toner e cartucce;0,00;3348,36;70,61;3277,75
+310.030;Materiale di consumo per ufficio e cancelleria;0,00;2157,20;54,02;2103,18
+310.040;Cancelleria per sala riunioni e archivio;0,00;1276,77;28,30;1248,47
+310.050;Hardware di piccolo valore: periferiche e accessori;0,00;2571,27;57,98;2513,29
+310.060;Hardware: memorie, dischi e componenti;0,00;1416,30;24,05;1392,25
+310.070;Hardware: cavi, adattatori e materiale informatico di consumo;0,00;1405,86;27,82;1378,04
+310.080;Hardware di piccolo valore: cuffie, webcam e dispositivi per videoconferenza;0,00;1143,07;26,65;1116,42
+310.090;Materiale di pulizia per uffici;0,00;1027,65;13,28;1014,37
+310.100;Materiale di igiene e sanificazione (pulizia);0,00;423,55;10,20;413,35
+310.110;Prodotti per pulizia e cucina uffici;0,00;227,26;4,98;222,28
+310.120;Carburanti autovetture aziendali;0,00;5196,57;130,57;5066,00
+310.130;Carburanti e lubrificanti per autovetture di servizio;0,00;1148,18;14,18;1134,00
+320.010;Consulenze informatiche: architettura e sviluppo applicativo;0,00;25435,18;592,68;24842,50
+320.020;Consulenze di data science e analisi dei dati;0,00;21058,66;531,07;20527,59
+320.030;Consulenze di sicurezza informatica e penetration test;0,00;11561,09;269,07;11292,02
+320.040;Consulenze tecniche: user experience e design;0,00;10740,64;228,26;10512,38
+320.050;Consulenze sistemistiche e DevOps;0,00;19687,68;362,17;19325,51
+320.060;Consulenze legali e contrattuali;0,00;6134,36;171,40;5962,96
+320.070;Consulenze fiscali e tributarie;0,00;5149,94;90,23;5059,71
+320.080;Consulenze del lavoro e paghe;0,00;6548,44;172,59;6375,85
+320.090;Consulenze in materia di protezione dei dati (GDPR);0,00;2550,60;55,78;2494,82
+320.100;Consulenze notarili;0,00;1929,68;23,02;1906,66
+320.110;Compensi a professionisti per sviluppo applicativo;0,00;29077,88;359,08;28718,80
+320.120;Compensi a collaboratori esterni: sviluppo e test;0,00;21057,14;258,59;20798,55
+320.130;Compensi a professionisti: traduzioni e redazione tecnica;0,00;8663,56;193,62;8469,94
+320.140;Prestazioni di lavoro autonomo occasionale;0,00;6385,50;172,79;6212,71
+320.150;Licenze software: ambienti di sviluppo e strumenti di test;0,00;15862,79;219,18;15643,61
+320.160;Servizi cloud: hosting e macchine virtuali;0,00;14308,04;374,69;13933,35
+320.170;Servizi cloud: archiviazione e backup;0,00;6492,47;160,81;6331,66
+320.180;Licenze software: collaborazione e comunicazione;0,00;7612,96;190,29;7422,67
+320.190;Servizi cloud: database gestiti e monitoraggio;0,00;10556,13;115,52;10440,61
+320.200;Licenze software: sicurezza, antivirus e gestione accessi;0,00;4969,49;141,39;4828,10
+320.210;Energia elettrica sede e unità locale;0,00;6445,33;144,48;6300,85
+320.220;Riscaldamento e gas per uffici;0,00;4603,73;50,16;4553,57
+320.230;Acqua e servizi idrici;0,00;3519,32;73,74;3445,58
+320.240;Spese telefoniche fisse e mobili;0,00;3902,76;45,01;3857,75
+320.250;Connettività: fibra e linee dati (spese telefoniche);0,00;4270,64;53,51;4217,13
+320.260;Spese telefoniche: roaming e servizi voce in rete;0,00;1543,52;18,40;1525,12
+320.270;Assicurazioni responsabilità civile professionale;0,00;4767,27;93,72;4673,55
+320.280;Assicurazioni cyber risk;0,00;2214,43;59,16;2155,27
+320.290;Assicurazioni incendio e furto della sede;0,00;1445,26;37,65;1407,61
+320.300;Assicurazioni autovetture aziendali;0,00;2616,95;67,48;2549,47
+320.310;Assicurazioni infortuni dei dipendenti;0,00;1132,64;18,54;1114,10
+320.320;Pubblicità online: motori di ricerca e social;0,00;14870,69;155,08;14715,61
+320.330;Marketing: eventi e webinar;0,00;7913,24;164,06;7749,18
+320.340;Pubblicità e materiale promozionale;0,00;5798,50;92,85;5705,65
+320.350;Marketing: realizzazione del sito web e dei contenuti;0,00;6126,09;82,73;6043,36
+320.360;Partecipazione a fiere di settore;0,00;4553,97;67,77;4486,20
+320.370;Corsi di formazione tecnica per sviluppatori;0,00;6705,23;132,22;6573,01
+320.380;Corsi di aggiornamento professionale: certificazioni;0,00;3555,16;48,85;3506,31
+320.390;Formazione obbligatoria sulla sicurezza sul lavoro;0,00;2318,07;36,81;2281,26
+320.400;Seminari e conferenze di settore;0,00;4001,65;97,17;3904,48
+320.410;Corsi di formazione manageriale;0,00;2195,72;60,78;2134,94
+320.420;Manutenzione ordinaria degli uffici: parte elettrica e idraulica;0,00;2929,09;49,44;2879,65
+320.430;Servizio di pulizia uffici;0,00;6049,77;147,12;5902,65
+320.440;Manutenzione ordinaria e piccole riparazioni;0,00;4130,86;113,16;4017,70
+320.450;Spese di rappresentanza e ospitalità clienti;0,00;5407,63;90,26;5317,37
+320.460;Trasferte e rimborsi chilometrici;0,00;3737,05;101,03;3636,02
+320.470;Trasferte: viaggi, alloggio e vitto;0,00;4752,31;73,05;4679,26
+320.480;Spese di rappresentanza: omaggi aziendali;0,00;1997,20;29,85;1967,35
+320.490;Spese bancarie e commissioni su conti correnti;0,00;2009,24;29,14;1980,10
+320.500;Spese bancarie: commissioni su incassi e POS;0,00;1545,05;35,75;1509,30
+320.510;Spese bancarie: commissioni su fidejussioni e garanzie;0,00;2160,91;50,31;2110,60
+320.520;Spese postali e raccomandate;0,00;910,48;11,00;899,48
+320.530;Servizi di corriere e spedizioni;0,00;1226,41;25,89;1200,52
+330.010;Affitto della sede legale di via Garibaldi;0,00;35798,16;368,63;35429,53
+330.020;Affitto dell'unità locale di corso Francia;0,00;11811,98;178,51;11633,47
+330.030;Spese condominiali della sede legale;0,00;4773,99;93,76;4680,23
+330.040;Spese condominiali dell'unità locale;0,00;2291,26;34,49;2256,77
+330.050;Canoni di locazione operativa: autovettura ibrida di rappresentanza;0,00;6912,52;117,25;6795,27
+330.060;Canoni di locazione operativa: autovettura di servizio;0,00;6585,48;180,75;6404,73
+330.070;Canoni di locazione operativa: stampanti multifunzione;0,00;2267,18;42,61;2224,57
+330.080;Canoni di locazione operativa: notebook;0,00;3239,46;64,03;3175,43
+340.010;Retribuzioni ordinarie dei dipendenti;0,00;449868,35;4803,69;445064,66
+340.020;Mensilità aggiuntive: tredicesima e quattordicesima;0,00;103316,24;2915,11;100401,13
+340.030;Straordinari e indennità di reperibilità;0,00;26778,35;677,26;26101,09
+340.040;Premi di risultato al personale;0,00;41764,92;1171,86;40593,06
+340.050;Ferie, permessi e ratei maturati e non goduti;0,00;28662,64;822,58;27840,06
+341.010;Oneri sociali: contributi INPS a carico dell'azienda;0,00;162973,77;4644,78;158328,99
+341.020;Oneri sociali: premi INAIL;0,00;15771,46;319,70;15451,76
+341.030;Oneri sociali: contributi a fondi di previdenza e assistenza (Fondo Est);0,00;10981,06;208,75;10772,31
+341.040;Oneri sociali su mensilità aggiuntive e ratei;0,00;5927,56;80,62;5846,94
+342.010;Trattamento di fine rapporto: quota accantonata in azienda;0,00;29322,82;670,42;28652,40
+342.020;Trattamento di fine rapporto: quota versata al Fondo di Tesoreria INPS;0,00;13236,69;239,46;12997,23
+342.030;Trattamento di fine rapporto: quota versata a previdenza complementare;0,00;4607,79;57,42;4550,37
+343.010;Buoni pasto al personale;0,00;5687,87;147,75;5540,12
+343.020;Welfare aziendale: assistenza sanitaria integrativa del personale;0,00;4584,25;65,88;4518,37
+343.030;Altri costi del personale: abbonamenti di trasporto e rimborsi;0,00;2472,73;52,00;2420,73
+343.040;Altri costi del personale: visite mediche e sicurezza;0,00;1653,29;32,51;1620,78
+350.010;Ammortamento costi di sviluppo;0,00;15935,44;255,44;15680,00
+350.020;Ammortamento diritti di utilizzazione di opere dell'ingegno (software applicativo);0,00;4580,32;100,32;4480,00
+350.030;Ammortamento concessioni, licenze, marchi e diritti simili;0,00;918,80;22,80;896,00
+350.040;Ammortamento altre immobilizzazioni immateriali (migliorie su beni di terzi);0,00;1378,90;34,90;1344,00
+351.010;Ammortamento impianti e macchinario (impianti di rete e cablaggio);0,00;4209,92;88,92;4121,00
+351.020;Ammortamento attrezzature industriali e commerciali (server e apparati di test);0,00;8659,60;100,60;8559,00
+351.030;Ammortamento altri beni: macchine d'ufficio elettroniche;0,00;13499,83;185,83;13314,00
+351.040;Ammortamento altri beni: mobili e arredi;0,00;3852,84;48,84;3804,00
+351.050;Ammortamento altri beni: autovetture e mezzi di trasporto interni;0,00;1946,68;44,68;1902,00
+352.010;Svalutazione dei crediti verso clienti;0,00;3043,19;43,19;3000,00
+360.010;Imposta di bollo e tasse di concessione governativa;0,00;1214,06;25,44;1188,62
+360.020;Tassa rifiuti (TARI);0,00;1401,20;19,79;1381,41
+360.030;Diritti camerali annuali;0,00;838,47;16,62;821,85
+360.040;Altre imposte e tasse indirette e di registro;0,00;715,33;7,21;708,12
+360.050;Quote associative a organizzazioni di categoria;0,00;1249,24;28,45;1220,79
+360.060;Quote associative a consorzi e distretti tecnologici;0,00;589,35;10,14;579,21
+360.070;Sopravvenienze passive ordinarie: rettifiche di ricavi;0,00;1115,43;16,45;1098,98
+360.080;Sopravvenienze passive ordinarie: costi di competenza di esercizi precedenti;0,00;1331,94;30,92;1301,02
+360.090;Erogazioni liberali a enti del terzo settore;0,00;1170,18;19,81;1150,37
+360.100;Erogazioni liberali: borse di studio;0,00;358,31;8,68;349,63
+400.010;Risconti attivi su licenze software e servizi cloud;4872,00;6971,48;6101,48;5742,00
+400.020;Risconti attivi su premi assicurativi;2016,00;3220,21;2860,21;2376,00
+400.030;Risconti attivi su canoni di locazione operativa;1512,00;1701,35;1431,35;1782,00
+410.010;Sviluppo di applicativi web su commessa;0,00;3152,69;255039,81;-251887,12
+410.020;Sviluppo di applicazioni mobile su commessa;0,00;2991,72;125531,40;-122539,68
+410.030;Integrazioni e API verso sistemi gestionali dei clienti;0,00;4234,15;154004,87;-149770,72
+410.040;Personalizzazioni e manutenzione evolutiva;0,00;2234,50;158812,98;-156578,48
+420.010;Canoni della piattaforma Atlas: piano base;0,00;2813,97;116804,37;-113990,40
+420.020;Canoni della piattaforma Atlas: piano professional;0,00;4915,76;175901,36;-170985,60
+420.030;Licenze d'uso a studi professionali;0,00;1421,23;105912,43;-104491,20
+420.040;Canoni di hosting e manutenzione applicativa ricorrente;0,00;1800,27;87293,07;-85492,80
+430.010;Consulenza di analisi dei requisiti e project management;0,00;2722,69;93915,01;-91192,32
+430.020;Analisi dei dati e business intelligence;0,00;2570,13;116560,53;-113990,40
+430.030;Consulenza sulla sicurezza informatica e sulla protezione dei dati;0,00;2058,52;81851,80;-79793,28
+440.010;Corsi di formazione per i clienti;0,00;599,28;49045,20;-48445,92
+440.020;Assistenza tecnica e help desk;0,00;681,89;61951,73;-61269,84
+440.030;Interventi tecnici presso la sede del cliente;0,00;804,59;33576,83;-32772,24
+450.010;Variazione dei lavori in corso su ordinazione;0,00;347,02;13347,02;-13000,00
+460.010;Incrementi di immobilizzazioni per lavori interni: costi di sviluppo della piattaforma;0,00;464,55;26672,55;-26208,00
+470.010;Contributi in conto esercizio: credito d'imposta ricerca e sviluppo;0,00;977,34;42977,34;-42000,00
+480.010;Rimborsi assicurativi;0,00;55,56;2136,25;-2080,69
+480.020;Recuperi di spese da clienti;0,00;41,74;1675,60;-1633,86
+480.030;Sopravvenienze attive ordinarie;0,00;28,16;1207,60;-1179,44
+480.040;Plusvalenze e altri proventi di gestione;0,00;21,08;927,09;-906,01
+500.010;Capitale sociale;-50000,00;88007,87;88007,87;-50000,00
+500.020;Riserva legale;-10000,00;2371,96;2371,96;-10000,00
+500.030;Riserva straordinaria;-221993,00;263846,13;342998,13;-301145,00
+500.090;Utile dell'esercizio precedente da destinare;-159152,00;159152,00;0,00;0,00
+510.010;Interessi attivi su conti correnti bancari;0,00;39,46;1489,46;-1450,00
+520.010;Fondo trattamento di fine rapporto;-132260,00;224165,00;248985,00;-157080,00
+520.010;Interessi passivi sul finanziamento chirografario;0,00;7776,48;122,48;7654,00
+520.020;Commissioni e interessi passivi su affidamenti bancari;0,00;735,93;13,25;722,68
+520.030;Interessi di mora a fornitori;0,00;536,71;13,39;523,32
+530.010;Utili su cambi;0,00;0,00;0,00;0,00
+530.020;Perdite su cambi;0,00;313,39;3,39;310,00
+590.010;IRES corrente dell'esercizio;0,00;49351,19;1162,19;48189,00
+590.020;IRAP corrente dell'esercizio;0,00;10184,31;206,31;9978,00
+600.010;Finanziamento chirografario: quota esigibile entro l'esercizio successivo;-45000,00;62529,49;62529,49;-45000,00
+600.020;Finanziamento chirografario: quota esigibile oltre l'esercizio successivo;-75000,00;103278,79;58278,79;-30000,00
+610.010;Fornitori Italia;-35919,84;543781,14;552479,06;-44617,76
+610.020;Fornitori Unione Europea;-3265,44;26060,14;26850,86;-4056,16
+610.030;Fornitori extra Unione Europea;-1632,72;20143,41;20538,77;-2028,08
+610.040;Fatture da ricevere da fornitori;-5566,00;31516,89;32864,89;-6914,00
+620.010;Erario c/ritenute su redditi di lavoro dipendente;-21296,73;176576,02;180613,69;-25334,40
+620.020;Erario c/ritenute su redditi di lavoro autonomo;-3182,27;20539,07;21142,40;-3785,60
+620.030;Erario c/IVA a debito;-14607,00;82940,46;85748,46;-17415,00
+620.040;Debito per IRES dell'esercizio;-13233,00;94316,85;96503,85;-15420,00
+620.050;Debito per IRAP dell'esercizio;-2380,00;17592,19;18006,19;-2794,00
+630.010;INPS c/contributi da versare;-12517,30;130304,85;132673,29;-14885,74
+630.020;INAIL c/premi da versare;-1309,95;18246,45;18494,31;-1557,81
+630.030;Fondi di previdenza complementare e Fondo Est c/contributi;-727,75;5607,68;5745,38;-865,45
+640.010;Dipendenti c/retribuzioni da pagare;-40143,45;302096,18;309706,80;-47754,07
+640.020;Carte di credito aziendali;-1241,55;8411,90;8647,28;-1476,93
+640.030;Debiti per ferie, permessi e ratei di mensilità aggiuntive maturati;-16140,00;190341,00;193401,00;-19200,00
+700.010;Ratei passivi su interessi del finanziamento;-864,00;665,31;755,31;-954,00
+700.020;Ratei passivi su utenze di competenza;-1056,00;1303,20;1413,20;-1166,00
+700.030;Risconti passivi su canoni della piattaforma fatturati anticipatamente;-2880,00;3320,54;3620,54;-3180,00

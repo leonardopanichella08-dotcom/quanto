@@ -22,7 +22,7 @@ from typing import List, Tuple
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
-from sample_company import bilancio, docs, docs_long, docs_more, model, xlsx_pack  # noqa: E402
+from sample_company import bilancio, docs, docs_long, docs_more, docs_new, model, xlsx_pack  # noqa: E402
 from sample_company.model import ALL_YEARS, COMPANY, YEARS  # noqa: E402,F401
 
 
@@ -85,6 +85,12 @@ def build(dest: Path) -> List[Tuple[str, Path]]:
     files.append(("OTHER", xlsx_pack.fatture_ricevute(dest / "33_Registro_fatture_ricevute_2024-2025.xlsx")))
     files.append(("OTHER", xlsx_pack.commesse(dest / "34_Controllo_commesse_e_budget_2026.xlsx")))
     files.append(("OTHER", xlsx_pack.modello_bp(dest / "35_Business_plan_modello_finanziario.xlsx")))
+    files.append(("OTHER", docs_new.visura_aiuti(dest / "51_Visura_aiuti_RNA_14-10-2026.pdf")))
+    for k, name in enumerate(("52_Preventivo_infrastruttura_cloud.pdf", "53_Preventivo_licenze_software.pdf", "54_Preventivo_macchine_e_arredi.pdf")):
+        files.append(("OTHER", docs_new.preventivo(dest / name, k)))
+    files.append(("OTHER", docs_new.fatture_xml_zip(dest / "55_Fatture_passive_2025_XML.zip")))
+    files.append(("OTHER", docs_new.bilancio_xbrl(dest / "56_Bilancio_2024-2025_XBRL.xbrl")))
+    files.append(("OTHER", docs_new.bilancio_verifica_csv(dest / "57_Bilancio_di_verifica_2025_gestionale.csv")))
     return files
 
 

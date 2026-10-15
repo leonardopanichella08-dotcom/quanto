@@ -26,7 +26,8 @@ function Idea({ idea, active, onAllocate }) {
         <div className="space-y-3 pt-2 border-t border-line">
           <div className="overflow-x-auto"><table className="w-full"><thead><tr className="text-left text-mute"><th className="font-medium py-1">Spesa</th><th className="font-medium">Natura</th><th className="font-medium text-right">Importo</th></tr></thead>
             <tbody>{idea.lines.map((l) => { const [nl, tone, hint] = NATURE[l.nature]; return (
-              <tr key={l.item_id} className="border-t border-line align-top"><td className="py-1 text-ink-2">{l.label}<span className="block text-[10px] text-mute">{CATEGORY_LABEL[l.category]} · {l.detail}</span></td>
+              <tr key={l.item_id} className="border-t border-line align-top"><td className="py-1 text-ink-2">{l.label}<span className="block text-[10px] text-mute">{CATEGORY_LABEL[l.category]} · {l.detail}</span>
+                {l.quotes?.length > 0 && <span className="block text-[10px] text-emerald-700">{l.quotes.length === 1 ? 'Preventivo' : 'Preventivi'}: {l.quotes.map((q) => `${q.supplier} ${fmtEur(q.net_eur)}${q.valid_until ? ` (valido fino al ${q.valid_until})` : ''}`).join(' · ')}{l.plan_amount_eur ? ` — nel piano ${fmtEur(l.plan_amount_eur)}` : ''}</span>}</td>
                 <td><span title={hint} className={`px-1.5 py-0.5 rounded border text-[10px] ${tone}`}>{nl}</span></td><td className="text-right tabular-nums">{l.amount_eur == null ? '—' : fmtEur(l.amount_eur)}</td></tr>) })}</tbody></table></div>
           {idea.missing.length > 0 && <div><p className="font-medium text-ink">Cosa manca per farne un budget presentabile</p>{idea.missing.map((m) => <p key={m} className="text-ink-2">• {m}</p>)}</div>}
           <div><p className="font-medium text-ink">Bandi che finanziano questo tipo di progetto · {idea.bandi.length}</p>

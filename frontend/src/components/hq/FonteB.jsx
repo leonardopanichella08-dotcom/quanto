@@ -72,6 +72,41 @@ function Detail({ id, onClose }) {
   )
 }
 
+function CompleteLevels({ codes, onDone }) {
+  const [info, setInfo] = useState({})
+  const [levels, setLevels] = useState({})
+  const [busy, setBusy] = useState(null)
+  const [msg, setMsg] = useState(null)
+  useEffect(() => { Promise.all(codes.map((c) => api.fbCompletion(c).then((i) => [c, i]).catch(() => [c, null]))).then((r) => setInfo(Object.fromEntries(r))) }, [codes.join('|')])
+  const go = async (code) => {
+    setBusy(code); setMsg(null)
+    try {
+      const d = await api.fbCompleteLevels(code, (levels[code] || '').split(',').map((x) => x.trim()).filter(Boolean))
+      setMsg(`Bozza creata: ${d.rows} livelli in tutto. Controllala sul contratto e pubblicala qui sotto con l’attestazione.`); setLevels({ ...levels, [code]: '' }); onDone()
+    } catch (e) { setMsg(e.detail?.message || e.message) } finally { setBusy(null) }
+  }
+  if (!codes.length) return null
+  return (
+    <div className="card p-5 space-y-3">
+      <SectionTitle>Livelli mancanti di un contratto</SectionTitle>
+      <p className="text-xs text-ink-2 leading-relaxed">Se un cliente ha una persona a un livello che manca in tabella, il controllo del suo costo orario resta in attesa. Qui prepari una <b>bozza</b> che aggiunge i livelli mancanti: è possibile solo se <b>tutti</b> i livelli già pubblicati di quel contratto hanno gli stessi parametri (ore, oneri, TFR), che vengono copiati. Resta una bozza: tu la controlli sul testo del contratto e la pubblichi attestandolo.</p>
+      {codes.map((c) => { const i = info[c]; return (
+        <div key={c} className="p-3 rounded-xl border border-line bg-field text-xs space-y-2">
+          <p className="font-medium text-ink">{c} <span className="text-mute font-normal">· livelli oggi: {i?.levels?.join(', ') || '—'}</span></p>
+          {i && !i.possible && <p className="text-ink-2">{i.reason}</p>}
+          {i?.possible && (
+            <div className="flex flex-wrap items-center gap-2">
+              <input className="field !w-auto !py-1 min-w-[16rem]" placeholder="Livelli da aggiungere, separati da virgola (es. Quadro, 1, 2)" value={levels[c] || ''} onChange={(e) => setLevels({ ...levels, [c]: e.target.value })} />
+              <button className="btn-primary !py-1" disabled={!(levels[c] || '').trim() || busy === c} onClick={() => go(c)}>{busy === c ? <Loader2 className="w-3 h-3 animate-spin" /> : null}Prepara la bozza</button>
+              <span className="text-mute">Copia: {i.common.standard_hours} ore · oneri {Number(i.common.social_charges_pct) * 100}% · TFR {Number(i.common.tfr_pct) * 100}%</span>
+            </div>
+          )}
+        </div>) })}
+      {msg && <p className="text-xs text-ink-2">{msg}</p>}
+    </div>
+  )
+}
+
 export default function FonteB() {
   const [kinds, setKinds] = useState({})
   const [list, setList] = useState([])
@@ -97,6 +132,7 @@ export default function FonteB() {
       </div>
       {error && <div className="p-3 rounded-xl border border-red-500/30 bg-red-500/10 text-red-700 text-xs">{error}</div>}
       <Upload kinds={kinds} onDone={load} />
+      {summary && <CompleteLevels codes={Object.keys(summary.ccnl)} onDone={load} />}
       {open && <Detail id={open} onClose={() => setOpen(null)} />}
       <div className="card p-5 space-y-3">
         <SectionTitle>Insiemi di dati ({list.length})</SectionTitle>

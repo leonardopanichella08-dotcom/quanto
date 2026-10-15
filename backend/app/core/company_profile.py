@@ -289,6 +289,41 @@ def sync_from_documents(owner: str, actor: Optional[str] = None) -> Dict[str, An
             fsrc.pop("_partial", None)
         _save_financials(owner, year, fdata, fsrc)
         changed["years"][year] = bucket
+    # esercizi senza un bilancio PDF: bilancio di verifica del gestionale (costi per categoria) e bilancio XBRL (totali)
+    structured: Dict[int, Dict[str, Any]] = {}
+    for d in sorted((x for x in docs if x["doc_type"] == "OTHER"), key=lambda x: x["id"]):
+        for f in d["fields"]:
+            if f["field_key"] not in ("trial_balance_line", "xbrl_balance") or f["status"] not in fonte_c.USABLE or not f.get("parsed"):
+                continue
+            pr = f["parsed"]
+            slot = structured.setdefault(pr["year"], {"tb": {}, "tb_doc": None, "x": {}, "x_doc": None})
+            if f["field_key"] == "trial_balance_line":
+                if slot["tb_doc"] != d["id"]:
+                    slot["tb"], slot["tb_doc"] = {}, d["id"]                        # per esercizio vale il documento caricato per ultimo
+                slot["tb"][pr["category"]] = round(slot["tb"].get(pr["category"], 0.0) + pr["amount_eur"], 2)
+            else:
+                slot["x"], slot["x_doc"] = pr, d["id"]
+    fin_all = _load_financials(owner)
+    for year, slot in sorted(structured.items()):
+        if year in latest:                                                            # un bilancio PDF c'è già: ha le righe e la nota integrativa
+            continue
+        fdata, fsrc = fin_all.get(year, ({}, {}))
+        bucket: List[str] = []
+        if slot["tb_doc"]:
+            for cat, amount in slot["tb"].items():
+                if cat in FIN_KEY:
+                    put(fdata, fsrc, FIN_KEY[cat], amount, slot["tb_doc"], bucket)
+            put(fdata, fsrc, "total_costs_eur", round(sum(slot["tb"].values()), 2), slot["tb_doc"], bucket)
+        if slot["x_doc"]:
+            x = slot["x"]
+            for k in ("revenue_eur", "net_result_eur", "total_costs_eur"):
+                if x.get(k) is not None:
+                    put(fdata, fsrc, k, x[k], slot["x_doc"], bucket)
+            if x.get("personnel_eur") is not None and FIN_KEY["PERSONNEL"] not in fdata:
+                put(fdata, fsrc, FIN_KEY["PERSONNEL"], x["personnel_eur"], slot["x_doc"], bucket)
+        if bucket:
+            _save_financials(owner, year, fdata, fsrc)
+            changed["years"][year] = bucket
     events.record("profile.sync", f"Profilo riletto da {len(docs)} documenti: {len(changed['profile'])} dati aziendali, {len(changed['years'])} esercizi", actor=actor or owner)
     return changed
 
@@ -308,6 +343,11 @@ def year_lines(owner: str, year: int) -> Dict[str, Any]:
         try:
             ex = fonte_c.balance_expenses(did, owner)
         except (KeyError, fonte_c.DocumentError):
+            tb = fonte_c.trial_balance_lines(did, year, owner)             # un bilancio di verifica del gestionale
+            if tb:
+                docs.append(did)
+                lines += [{"description": ln["description"], "category": ln["category"], "expense_type": ln.get("expense_type") or expense_types.classify_type(ln["description"], ln["category"]),
+                           "amount": float(ln["amount_eur"]), "ref": f"DOC-FC-{did}"} for ln in tb if ln["category"] != "OTHER"]
             continue
         if ex["fiscal_year"] != year:
             continue

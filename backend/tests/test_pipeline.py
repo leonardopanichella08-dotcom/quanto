@@ -163,3 +163,17 @@ def test_conflicting_figure_rules_wait_for_review_with_their_candidates():
     assert "advance_pct" not in out.published and "advance_pct" in out.pending_review
     ok = Ingestion.extract("CAT-FIG-JJJ000", sources=[("Regolamento del Fondo", text.split(". ")[0] + ".")], strict_refs={"Regolamento del Fondo"})
     assert ok.published.get("advance_pct") == "0.25"
+
+
+def test_excluded_expense_types_read_from_text_wait_for_a_person():
+    Ingestion.catalog("CAT-EXC-KKK000", "Fondo Esclusioni Prova", "Ente", None, None)
+    text = "Le spese per IVA non sono ammissibili. Sono ammissibili le spese di viaggio. Non sono ammissibili le spese di locazione."
+    out = Ingestion.extract("CAT-EXC-KKK000", sources=[("Bando", text)], strict_refs={"Bando"})
+    assert "excluded_expense_types" not in out.published and "excluded_expense_types" in out.pending_review      # nessun controllo attivo finché nessuno conferma
+    queue = [q for q in Ingestion.review_queue() if q["bando_id"] == "CAT-EXC-KKK000" and q["rule_key"] == "excluded_expense_types"]
+    assert queue and queue[0]["passes"]
+    rs, _ = Ingestion.build_rule_set("CAT-EXC-KKK000")
+    assert not rs or not rs.excluded_expense_types
+    Ingestion.resolve_review("CAT-EXC-KKK000", "excluded_expense_types", queue[0]["passes"][0])
+    rs, _ = Ingestion.build_rule_set("CAT-EXC-KKK000")
+    assert rs is not None and "OH_AFFITTI" in rs.excluded_expense_types

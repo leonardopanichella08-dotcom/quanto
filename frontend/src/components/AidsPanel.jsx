@@ -61,6 +61,12 @@ export default function AidsPanel() {
 
               <div className="space-y-2">
                 <p className="font-medium text-ink">1. Impresa unica: l’azienda ha legami con altre imprese?</p>
+                {st.suggested_answers && Object.keys(answers).length === 0 && (
+                  <p className="p-2 rounded-lg border border-emerald-500/30 bg-emerald-500/5 text-ink-2 leading-relaxed">
+                    Nella dichiarazione sostitutiva caricata l’impresa dichiara di non essere collegata ad altre. Puoi usarla come risposta di partenza: resta una tua verifica, non viene applicata da sola.{' '}
+                    <button className="underline text-ink" onClick={() => setAnswers({ ...st.suggested_answers })}>Usa «No» a tutte le domande</button>
+                  </p>
+                )}
                 {Object.entries(st.questions).map(([k, q]) => (
                   <div key={k} className="flex flex-wrap items-start gap-2">
                     <span className="flex-1 min-w-[16rem] text-ink-2 leading-relaxed">{k}) {q}</span>

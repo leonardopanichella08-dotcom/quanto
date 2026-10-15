@@ -288,3 +288,74 @@ def publish(dataset_id: int, actor: str, attest_official: bool) -> Dict[str, Any
                     raise PermissionError(f"Il periodo di validità si sovrappone all'insieme {p['id']} già pubblicato")
         conn.execute("UPDATE fonte_b_datasets SET status='PUBLISHED', official=TRUE, published_by=?, published_at=? WHERE id=?", (actor, events.now_iso(), dataset_id))
         return _public(_dataset_row(conn, dataset_id))
+
+
+# ------------------------------------------------------------------------------------------------ livelli mancanti
+def _current_ccnl(conn: Conn, code: str, on: date) -> Optional[Dict[str, Any]]:
+    """L'insieme CCNL pubblicato in vigore alla data indicata, con le sue righe."""
+    d = conn.execute(
+        "SELECT * FROM fonte_b_datasets WHERE kind='CCNL' AND code=? AND status IN ('PUBLISHED','SUPERSEDED') AND official AND valid_from<=? AND (valid_to IS NULL OR valid_to>=?) "
+        "ORDER BY valid_from DESC, id DESC LIMIT 1", (code.upper(), on, on)).fetchone()
+    if d is None:
+        return None
+    rows = conn.execute("SELECT level, standard_hours, social_charges_pct, tfr_pct FROM fonte_b_ccnl WHERE dataset_id=?", (d["id"],)).fetchall()
+    return {"dataset": d, "rows": [dict(r) for r in rows]}
+
+
+def completion_info(code: str, on: Optional[date] = None) -> Dict[str, Any]:
+    """Si può preparare una bozza che aggiunge livelli mancanti a un CCNL? Sì solo se TUTTI i livelli già pubblicati hanno gli stessi parametri:
+    allora l'unica ipotesi è che i nuovi livelli li abbiano uguali, e un manager la verifica sul testo del contratto prima di pubblicare."""
+    on = on or date.today()
+    with connect() as conn:
+        cur = _current_ccnl(conn, code, on)
+    if cur is None:
+        return {"code": code.upper(), "possible": False, "reason": "Di questo contratto non c'è nessuna tabella pubblicata: va caricata per intero dal testo ufficiale.", "levels": []}
+    levels = sorted((str(r["level"]) for r in cur["rows"]), key=lambda x: (len(x), x))
+    params = {(int(r["standard_hours"]), Decimal(r["social_charges_pct"]), Decimal(r["tfr_pct"])) for r in cur["rows"]}
+    base = {"code": code.upper(), "levels": levels, "dataset_id": cur["dataset"]["id"], "version": cur["dataset"]["version"]}
+    if len(params) != 1:
+        return {**base, "possible": False, "reason": "I livelli già pubblicati hanno parametri diversi tra loro: i nuovi non si possono dedurre, vanno letti dal contratto."}
+    h, soc, tfr = next(iter(params))
+    return {**base, "possible": True, "common": {"standard_hours": h, "social_charges_pct": str(soc), "tfr_pct": str(tfr)},
+            "reason": "Tutti i livelli pubblicati hanno gli stessi parametri: la bozza copia questi valori sui livelli aggiunti. Il manager deve controllarli sul contratto prima di pubblicare."}
+
+
+def _pct_text(v: Any) -> str:
+    return f"{(Decimal(v) * 100).normalize():f}%"
+
+
+def draft_level_completion(code: str, new_levels: List[str], actor: str, on: Optional[date] = None) -> Dict[str, Any]:
+    """Crea una BOZZA con i livelli esistenti più quelli aggiunti (stessi parametri). Non cambia nulla nei calcoli finché un manager non la pubblica attestando la fonte."""
+    on = on or date.today()
+    clean: List[str] = []
+    for lv in new_levels:
+        lv = str(lv).strip()
+        if not lv or len(lv) > 20 or not re.fullmatch(r"[A-Za-z0-9 ._-]+", lv):
+            raise FonteBFileError(f"Livello non valido: «{lv}»")
+        if lv not in clean:
+            clean.append(lv)
+    if not clean:
+        raise FonteBFileError("Indica almeno un livello da aggiungere")
+    info = completion_info(code, on)
+    if not info["possible"]:
+        raise FonteBFileError(info["reason"])
+    already = [lv for lv in clean if lv in info["levels"]]
+    if already:
+        raise FonteBFileError("Questi livelli ci sono già: " + ", ".join(already))
+    with connect() as conn:
+        cur = _current_ccnl(conn, code, on)
+    d = cur["dataset"]
+    c = info["common"]
+    out = io.StringIO()
+    w = csv.writer(out, delimiter=";", lineterminator=chr(10))
+    w.writerow(["level", "standard_hours", "social_charges_pct", "tfr_pct"])
+    for r in sorted(cur["rows"], key=lambda r: (len(str(r["level"])), str(r["level"]))):
+        w.writerow([r["level"], r["standard_hours"], _pct_text(r["social_charges_pct"]), _pct_text(r["tfr_pct"])])
+    for lv in clean:
+        w.writerow([lv, c["standard_hours"], _pct_text(c["social_charges_pct"]), _pct_text(c["tfr_pct"])])
+    start = max(on, d["valid_from"] + timedelta(days=1))
+    version = f"{d['version']}+livelli-{start.isoformat()}"
+    note = ("Bozza che completa i livelli " + ", ".join(clean) + " copiando i parametri comuni a tutti i livelli già pubblicati. "
+            "Prima di pubblicare, controllare i valori sul testo ufficiale del contratto.")
+    return create_draft("CCNL", code, d["name"], version, start, d["valid_to"], d["source_name"], d["source_url"], d["source_ref"],
+                        "livelli_completati.csv", out.getvalue().encode("utf-8"), actor, notes=note)

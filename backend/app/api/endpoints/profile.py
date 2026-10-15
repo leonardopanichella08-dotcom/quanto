@@ -210,3 +210,19 @@ def aids_entries(body: AidEntriesBody, request: Request) -> dict:
 @router.post("/aids/confirm", summary="Chi ha fatto la verifica la attesta: resta nel registro delle operazioni")
 def aids_confirm(body: ConfirmBody, request: Request) -> dict:
     return _aids_guard(aids_register.confirm, scope_of(request), actor_of(request), body.note)
+
+
+# ------------------------------------------------------------------------------------------------ coerenza tra i documenti, preventivi, soci
+@router.get("/consistency", summary="Controlli di coerenza tra i documenti (IVA e bilancio, libro soci, DURC, visura aiuti, preventivi…)")
+def consistency(request: Request) -> dict:
+    return {"checks": company_facts.consistency(scope_of(request))}
+
+
+@router.get("/quotes", summary="I preventivi dei fornitori caricati")
+def quotes(request: Request) -> dict:
+    return {"quotes": company_facts.quotes(scope_of(request))}
+
+
+@router.get("/shareholders", summary="I soci dal libro soci (le persone fisiche solo come codice anonimo)")
+def shareholders(request: Request) -> dict:
+    return {"shareholders": company_facts.shareholders(scope_of(request))}

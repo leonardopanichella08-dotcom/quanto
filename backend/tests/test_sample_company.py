@@ -15,9 +15,8 @@ from main import app  # noqa: E402
 client = TestClient(app)
 
 
-READ_SHEETS = {"10_DURC_regolare_2026.pdf", "26_Piano_ammortamento_finanziamento.pdf", "28_Contratto_locazione_sede.pdf", "30_Relazione_tecnica_credito_RS_2025.pdf",
-               "13_Registro_aiuti_ricevuti.xlsx", "14_Organico_e_livelli_CCNL.xlsx", "15_Libro_cespiti_2025.xlsx", "33_Registro_fatture_ricevute_2024-2025.xlsx",
-               "34_Controllo_commesse_e_budget_2026.xlsx", "35_Business_plan_modello_finanziario.xlsx"}
+# gli unici documenti «altri» che QUANTO si limita ad archiviare: il business plan in PDF (testo narrativo) e il registro delle fatture emesse (non serve per le spese)
+STORED_ONLY = {"12_Business_plan_2026-2028.pdf", "32_Registro_fatture_emesse_2023-2025.xlsx"}
 
 
 def upload_all(tmp_path):
@@ -53,10 +52,10 @@ def test_sample_documents_fill_the_profile_without_manual_review(tmp_path):
     # nessuna riga ambigua nei documenti letti: il profilo si compila senza interventi (la RAL dei cedolini è una stima e resta da confermare)
     for name, d in docs.items():
         if d["doc_type"] == "OTHER":
-            # i fogli Excel che QUANTO riconosce (organico, cespiti, fatture, budget, investimenti, aiuti) e i PDF che dicono dati precisi con la loro etichetta (DURC, canone di locazione,
-            # credito di ricerca e sviluppo, finanziamento) si leggono; gli altri (dichiarazioni fiscali, estratto conto…) si archiviano
-            assert d["status"] == ("PARSED" if name in READ_SHEETS else "STORED"), name
-            if name in READ_SHEETS:
+            # tutto ciò che QUANTO riconosce si legge: fogli Excel, CSV, XML e XBRL, e i PDF che dicono dati precisi con la loro etichetta (DURC, dichiarazioni, visura aiuti, preventivi…);
+            # solo il business plan narrativo e il registro delle fatture emesse si archiviano
+            assert d["status"] == ("STORED" if name in STORED_ONLY else "PARSED"), name
+            if name not in STORED_ONLY:
                 assert d["method"] and d["fields"] and all(f["status"] == "AUTO" for f in d["fields"]), name
             continue
         review = [f for f in d["fields"] if f["status"] == "NEEDS_REVIEW" and f["field_key"] not in ("ral_annual_eur",)]

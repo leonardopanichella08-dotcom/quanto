@@ -177,6 +177,89 @@ function BudgetsFromPlan({ plan, lines, onOpen }) {
   )
 }
 
+const REALITY_FIELDS = [['probability_pct', 'Probabilità di successo (%)', 'es. 60'], ['admin_cost_eur', 'Costo di istruttoria (€)', 'ore interne e spese'], ['fee_pct', 'Consulente: % sul concesso', 'anche 0'],
+  ['reimbursement_lag_months', 'Mesi per il rimborso', 'dal bando'], ['advance_pct', 'Anticipo (%)', 'dal bando']]
+
+/** Dall'allocazione alla realtà: quanto si può contare sul contributo, quanto costa ottenerlo, quando entrano i soldi e cosa si somma ad altri aiuti. Le ipotesi le scrive chi conosce il caso: nulla è inventato. */
+function RealityPanel({ plan, lines }) {
+  const [assume, setAssume] = useState({})
+  const [res, setRes] = useState(null)
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState(null)
+  const run = useCallback(async (a) => {
+    setBusy(true); setError(null)
+    try {
+      const clean = {}
+      Object.entries(a).forEach(([f, v]) => { clean[f] = {}; Object.entries(v).forEach(([k, x]) => { if (x !== '' && x != null) clean[f][k] = Number(x) }) })
+      setRes(await api.allocationReality({ allocation: plan, fiscal_year: plan.fiscal_year, assumptions: clean, funding_lines: lines }))
+    } catch (e) { setError(e.message); setRes(null) } finally { setBusy(false) }
+  }, [plan, lines])
+  useEffect(() => { setAssume({}); setRes(null); run({}) }, [plan, run])
+  useEffect(() => {      // i valori che arrivano dal bando riempiono i campi, senza sovrascrivere ciò che l'utente ha scritto
+    if (!res) return
+    setAssume((cur) => { const n = { ...cur }; res.funds.forEach((f) => { n[f.fund_id] = { ...Object.fromEntries(Object.entries(f.assumptions).filter(([k, v]) => v != null && f.origin[k] === 'dal bando')), ...(cur[f.fund_id] || {}) } }); return n })
+  }, [res])
+  const set = (fid, k, v) => setAssume((a) => ({ ...a, [fid]: { ...(a[fid] || {}), [k]: v } }))
+  const t = res?.totals
+  const cash = res?.cash
+  const maxCum = cash ? Math.max(1, ...cash.rows.map((r) => Math.abs(r.cumulative_eur))) : 1
+  return (
+    <div className="space-y-4">
+      {error && <p className="text-xs text-red-700">{error}</p>}
+      {res && (
+        <>
+          <div className="space-y-3">
+            {res.funds.map((f) => (
+              <div key={f.fund_id} className="rounded-2xl border border-line bg-field p-4 space-y-2.5 text-xs">
+                <div className="flex flex-wrap items-baseline gap-2"><p className="text-sm font-semibold text-ink">{f.name}</p><span className="text-mute">contributo previsto {fmtEur(f.covered_eur)}</span></div>
+                <div className="grid sm:grid-cols-3 lg:grid-cols-5 gap-2">
+                  {REALITY_FIELDS.map(([k, label, ph]) => (
+                    <label key={k} className="space-y-1"><span className="label">{label}</span>
+                      <input className="field !py-1" inputMode="decimal" placeholder={ph} value={assume[f.fund_id]?.[k] ?? ''} onChange={(e) => set(f.fund_id, k, e.target.value)} />
+                      {f.origin[k] === 'dal bando' && String(assume[f.fund_id]?.[k]) === String(f.assumptions[k]) && <span className="text-[10px] text-mute">letto dal bando</span>}</label>
+                  ))}
+                </div>
+                <p className={f.worth_it === false ? 'text-amber-700' : 'text-ink-2'}>{f.message}</p>
+                {f.break_even_probability_pct != null && <p className="text-[11px] text-mute">Conviene se la probabilità di successo supera il {fmtNum(f.break_even_probability_pct, 1)}%.</p>}
+              </div>
+            ))}
+            <button className="btn-primary" disabled={busy} onClick={() => run(assume)}>{busy ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : null}Calcola con queste ipotesi</button>
+          </div>
+          {t && (
+            <div className="flex flex-wrap gap-x-8 gap-y-2">
+              <div><span className="label">Contributi nominali</span><div className="text-base font-semibold tabular-nums">{fmtEur(t.nominal_eur)}</div></div>
+              <div><span className="label">Valore atteso</span><div className="text-base font-semibold tabular-nums text-emerald-700">{t.expected_eur == null ? '—' : fmtEur(t.expected_eur)}</div></div>
+              <div><span className="label">Netto di consulente e istruttoria</span><div className="text-base font-semibold tabular-nums">{t.net_expected_eur == null ? '—' : fmtEur(t.net_expected_eur)}</div></div>
+              {!t.complete && <p className="text-[11px] text-mute max-w-sm">I totali realistici compaiono quando tutte le ipotesi di tutti i bandi sono compilate: {t.funds_rated} su {t.funds} pronti.</p>}
+            </div>
+          )}
+          {cash && cash.rows.length > 0 && (
+            <div className="space-y-2">
+              <p className="text-sm font-medium text-ink">Quando entrano i soldi</p>
+              <p className="text-xs text-ink-2 leading-relaxed">{cash.message} <span className="text-mute">{cash.assumption}</span></p>
+              <div className="flex items-end gap-1 h-24" role="img" aria-label="Cassa cumulata mese per mese">
+                {cash.rows.map((r) => (
+                  <div key={r.month} className="flex-1 flex flex-col justify-end h-full min-w-0" title={`Mese ${r.month}: speso ${fmtEur(r.spent_eur)}, incassato ${fmtEur(r.received_eur)}, posizione ${fmtEur(r.cumulative_eur)}`}>
+                    <div className={`${r.cumulative_eur < 0 ? 'bg-amber-500/70' : 'bg-emerald-500/70'} rounded-sm`} style={{ height: `${Math.max(2, Math.abs(r.cumulative_eur) / maxCum * 100)}%` }} />
+                  </div>
+                ))}
+              </div>
+              <div className="flex justify-between text-[10px] text-mute"><span>mese 1</span><span>mese {cash.rows.length}</span></div>
+            </div>
+          )}
+          {res.cumulation.length > 0 && (
+            <div className="space-y-1.5">
+              <p className="text-sm font-medium text-ink">Altri aiuti da sommare</p>
+              {res.cumulation.map((c, i) => <p key={i} className="text-xs text-ink-2 flex gap-1.5"><AlertTriangle className="w-3.5 h-3.5 mt-0.5 shrink-0 text-amber-600" />{c.text}</p>)}
+            </div>
+          )}
+        </>
+      )}
+      {!res && !error && <p className="text-xs text-mute flex items-center gap-2"><Loader2 className="w-3.5 h-3.5 animate-spin" />Calcolo…</p>}
+    </div>
+  )
+}
+
 function BandoCard({ r, picked, onToggle, onBudget }) {
   const [open, setOpen] = useState(false)
   const [fit, tone] = FIT[r.fit]
@@ -548,6 +631,14 @@ export default function AllocationView({ onGoProfile, onBudgetFrom, onOpenBudget
           summary={`Il piano usa ${plan.fund_usage.filter((u) => u.used_eur > 0).length} ${plan.fund_usage.filter((u) => u.used_eur > 0).length === 1 ? 'bando' : 'bandi'}: da qui ricavi il budget di ognuno, già controllato con i suoi 60 criteri e verificato insieme agli altri.`}
           sub="Ogni bando riceve solo le spese che finanzia, con l’importo su cui calcola il suo contributo. Il personale è diviso tra i progetti senza sovrapporsi (la stessa ora non si rendiconta a due bandi), le spese finanziate da due bandi dichiarano l’altro contributo e i bandi non cumulabili non si toccano mai. Apri ogni budget per modificarlo: il controllo dei 60 criteri gira sul suo bando.">
           <BudgetsFromPlan plan={plan} lines={planLines} onOpen={onOpenBudgets} />
+        </Step>
+      )}
+
+      {plan && (
+        <Step n={8} title="Quanto vale davvero, e quando incassi" done={false}
+          summary="Un contributo nominale non è un incasso: si vince o no, ottenerlo costa lavoro, e il rimborso arriva dopo che hai pagato."
+          sub="Scrivi per ogni bando la probabilità di successo, il costo di istruttoria e la percentuale del consulente (anche zero). QUANTO non li inventa: senza, mostra solo il nominale. Anticipo e tempi di rimborso si leggono dal bando, se le sue regole sono pubblicate. Sotto vedi quanto l’azienda deve anticipare mese per mese e quali altri aiuti si sommano.">
+          <RealityPanel plan={plan} lines={planLines} />
         </Step>
       )}
 

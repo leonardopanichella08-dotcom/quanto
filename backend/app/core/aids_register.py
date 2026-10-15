@@ -151,14 +151,43 @@ def confirm(owner: str, actor: str, note: str = "") -> Dict[str, Any]:
 
 
 def _declared(owner: str, company_self: str = "SELF") -> List[Dict[str, Any]]:
-    """Gli aiuti de minimis che l'azienda ha già dichiarato nei documenti (registro degli aiuti in Excel)."""
+    """Gli aiuti de minimis che l'azienda ha già dichiarato nei documenti: registro degli aiuti in Excel e dichiarazioni sostitutive firmate."""
     from app.core import company_facts
-    out = []
+    out: List[Dict[str, Any]] = []
     for a in company_facts.aids(owner):
         if str(a.get("regime", "")).lower().startswith("de minimis"):
             out.append({"id": a.get("cor") or a["granted"], "company": company_self, "source": "FOGLIO", "granted": a["granted"], "entity": a.get("entity"), "measure": a.get("measure"),
                         "regime": "de minimis", "amount_eur": float(a["amount_eur"]), "cor": a.get("cor")})
+    for d in company_facts.facts(owner)["de_minimis_declared"]:
+        for a in d["aids"]:
+            e = {"id": a.get("cor") or a["granted"], "company": company_self, "source": "DICHIARAZIONE", "granted": a["granted"], "entity": "", "measure": a.get("measure"), "regime": "de minimis",
+                 "amount_eur": float(a["amount_eur"]), "cor": a.get("cor")}
+            if not any(_same(e, x) for x in out):
+                out.append(e)
     return out
+
+
+def _visure(owner: str, reg: Dict[str, Any]) -> Dict[str, Any]:
+    """Le visure aiuti caricate come documenti: valgono come la visura consultata, per l'impresa a cui appartengono (la propria o una collegata)."""
+    from app.core import company_facts, company_profile as cp
+    try:
+        mine = company_facts._vat_digits(cp.profile_values(owner).get("vat_number"))
+    except Exception:
+        mine = ""
+    related = {company_facts._vat_digits(c["cf"]): c["cf"] for c in reg["group"]["companies"]}
+    checks: Dict[str, Dict[str, Any]] = {}
+    entries: List[Dict[str, Any]] = []
+    for v in company_facts.rna_visure(owner):
+        cf = company_facts._vat_digits(v["cf"])
+        comp = "SELF" if cf and cf == mine else related.get(cf)
+        if comp is None:
+            continue
+        if comp not in checks or v["checked_at"] > checks[comp]["checked_at"]:
+            checks[comp] = {"checked_at": v["checked_at"], "by": "documento caricato", "document": v["document"]["filename"]}
+        for a in v["entries"]:
+            entries.append({"id": a.get("cor") or a["granted"], "company": comp, "source": "RNA", "granted": a["granted"], "entity": "", "measure": a.get("measure"), "regime": a["regime"],
+                            "amount_eur": float(a["amount_eur"]), "cor": a.get("cor")})
+    return {"checks": checks, "entries": entries}
 
 
 def _same(a: Dict[str, Any], b: Dict[str, Any]) -> bool:
@@ -176,7 +205,15 @@ def status(owner: str, on: Optional[date] = None) -> Dict[str, Any]:
     answered = all(group["answers"].get(k) in ("si", "no") for k in QUESTIONS)
     unsure = [k for k in QUESTIONS if group["answers"].get(k) == "non_so"]
     declared = _declared(owner)
+    doc = _visure(owner, reg)
+    checks = dict(reg["checks"])
+    for comp, c in doc["checks"].items():                       # vale la visura più recente, caricata o inserita
+        if comp not in checks or c["checked_at"] >= checks[comp]["checked_at"]:
+            checks[comp] = c
     rna = [e for e in reg["entries"] if e["source"] == "RNA"]
+    for e in doc["entries"]:
+        if not any(_same(e, x) and x["company"] == e["company"] for x in rna):
+            rna.append(e)
     manual = [e for e in reg["entries"] if e["source"] == "MANUALE"]
     window_start = date(on.year - 3, on.month, min(on.day, 28)) if not (on.month == 2 and on.day == 29) else date(on.year - 3, 2, 28)
 
@@ -185,9 +222,9 @@ def status(owner: str, on: Optional[date] = None) -> Dict[str, Any]:
 
     # confronto: ciò che è dichiarato nei documenti contro la visura
     diff: List[str] = []
-    checked_self = "SELF" in reg["checks"]
+    checked_self = "SELF" in checks
     if checked_self:
-        rna_self = [e for e in rna if e["company"] == "SELF"]
+        rna_self = [e for e in rna if e["company"] == "SELF" and e["regime"] == "de minimis"]            # i documenti dichiarano solo il de minimis: gli altri aiuti della visura non sono una differenza
         for d in declared:
             if not any(_same(d, r) for r in rna_self):
                 diff.append(f"Dichiarato nei documenti ma non nella visura: {d['granted']} · {d.get('measure') or d.get('entity')} · {d['amount_eur']:,.2f} €".replace(",", "§").replace(".", ",").replace("§", "."))
@@ -204,8 +241,8 @@ def status(owner: str, on: Optional[date] = None) -> Dict[str, Any]:
     received = round(sum(e["amount_eur"] for e in counted), 2)
     residual = round(max(0.0, PLAFOND_EUR - received), 2)
 
-    missing_checks = [c for c in comps if c["cf"] not in reg["checks"]]
-    stale = [c for c in comps if c["cf"] in reg["checks"] and (today - date.fromisoformat(reg["checks"][c["cf"]]["checked_at"])).days > FRESH_DAYS]
+    missing_checks = [c for c in comps if c["cf"] not in checks]
+    stale = [c for c in comps if c["cf"] in checks and (today - date.fromisoformat(checks[c["cf"]]["checked_at"])).days > FRESH_DAYS]
     problems: List[str] = []
     if not answered:
         problems.append("L'impresa unica non è completata" + (f" (risposte «non so»: {', '.join(unsure)})" if unsure else "") + ": non si sa se ci sono imprese collegate.")
@@ -215,7 +252,7 @@ def status(owner: str, on: Optional[date] = None) -> Dict[str, Any]:
         problems.append(f"La visura ha più di {FRESH_DAYS} giorni per: " + ", ".join("la tua azienda" if c["cf"] == "SELF" else (c["name"] or c["cf"]) for c in stale) + ": rifalla.")
     if diff:
         problems.append(f"{len(diff)} differenze tra la visura e i documenti: vanno spiegate.")
-    if not checked_self and not reg["entries"] and not declared:
+    if not checked_self and not rna and not declared:
         state = "NON_VERIFICATO"
     elif problems and diff and not missing_checks and not stale and answered:
         state = "DISCORDANZA"
@@ -224,8 +261,11 @@ def status(owner: str, on: Optional[date] = None) -> Dict[str, Any]:
     else:
         state = "VERIFICATO"
     usable = residual if state == "VERIFICATO" else round(max(0.0, residual - PLAFOND_EUR * SAFETY_MARGIN), 2)
+    from app.core import company_facts
+    alone = [d for d in company_facts.facts(owner)["de_minimis_declared"] if d.get("unique_enterprise_alone")]
+    suggested = ({k: "no" for k in QUESTIONS} if alone and not answered else None)          # la dichiarazione firmata dice che l'impresa non è collegata: è un suggerimento, la risposta resta di chi verifica
     return {"state_key": STATE_KEY, "status": state, "on": on.isoformat(), "window": [window_start.isoformat(), on.isoformat()], "plafond_eur": PLAFOND_EUR, "received_eur": received, "residual_eur": residual,
             "usable_residual_eur": usable, "safety_margin_eur": round(residual - usable, 2), "problems": problems, "differences": diff, "group": group, "questions": QUESTIONS, "companies": comps,
-            "checks": reg["checks"], "entries": reg["entries"], "declared_in_documents": declared, "counted": counted, "confirmations": reg["confirmations"][-5:],
+            "checks": checks, "entries": rna + manual, "declared_in_documents": declared, "suggested_answers": suggested, "counted": counted, "confirmations": reg["confirmations"][-5:],
             "message": ("Verificato sul registro ufficiale: il residuo è quello della visura." if state == "VERIFICATO" else
                         "Non verificato: il piano usa il residuo ridotto del margine di sicurezza e non è definitivo finché la verifica non è completa.")}

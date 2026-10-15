@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import json
 import re
+from datetime import date
 from typing import Any, Dict, List, Optional
 
 from app.core import fonte_b
@@ -30,19 +31,29 @@ def _rows(owner: str, keys: List[str]) -> List[Dict[str, Any]]:
     return [dict(r) for r in rows if r["status"] in fonte_c.USABLE]
 
 
+_ALL_DOCS = {"rna_visura", "rna_aid", "quote", "tax_return", "rd_credit", "durc", "bank_balance", "de_minimis_declared"}        # più documenti dello stesso tipo valgono tutti (una visura per impresa, un preventivo per fornitore…)
+
+
 def facts(owner: str) -> Dict[str, List[Dict[str, Any]]]:
-    """Fatti letti dai fogli: per ogni tipo, quelli dell'ultimo documento caricato che lo contiene."""
+    """Fatti letti dai documenti, per tipo. Per i fatti di un anno (bilancio di verifica, fatture, budget, investimenti) vale, per ogni anno, l'ultimo documento caricato; per gli altri l'ultimo documento
+    che li contiene (si aggiorna un registro sostituendolo, non si sommano due copie); per quelli di cui servono tutti i documenti (visure, preventivi, dichiarazioni) valgono tutti."""
     out: Dict[str, List[Dict[str, Any]]] = {k: [] for k in FACT_KEYS}
-    latest: Dict[str, int] = {}
     rows = _rows(owner, list(FACT_KEYS))
-    for r in rows:
-        latest[r["field_key"]] = max(latest.get(r["field_key"], 0), r["doc_id"])
-    for r in rows:
-        if r["doc_id"] != latest[r["field_key"]]:
+    parsed = [(r, json.loads(r["value"])) for r in rows]
+    latest: Dict[Any, int] = {}
+    for r, d in parsed:
+        if r["field_key"] in _ALL_DOCS:
             continue
-        d = json.loads(r["value"])
+        k = (r["field_key"], d.get("year")) if "year" in d else (r["field_key"], None)
+        latest[k] = max(latest.get(k, 0), r["doc_id"])
+    for r, d in parsed:
+        key = r["field_key"]
+        if key not in _ALL_DOCS:
+            k = (key, d.get("year")) if "year" in d else (key, None)
+            if r["doc_id"] != latest[k]:
+                continue
         d["_doc"] = {"id": r["doc_id"], "filename": r["filename"], "where": r["snippet"]}
-        out[r["field_key"]].append(d)
+        out[key].append(d)
     return out
 
 
@@ -140,3 +151,89 @@ def overview(owner: str) -> Dict[str, Any]:
     f = facts(owner)
     docs = {k: sorted({d["_doc"]["filename"] for d in v}) for k, v in f.items() if v}
     return {"counts": {k: len(v) for k, v in f.items() if v}, "documents": docs}
+
+
+# ------------------------------------------------------------------------------------------------ gli altri documenti
+def rna_visure(owner: str) -> List[Dict[str, Any]]:
+    """Le visure aiuti del registro nazionale caricate: una per impresa, con le sue concessioni."""
+    f = facts(owner)
+    by_doc: Dict[int, Dict[str, Any]] = {}
+    for v in f["rna_visura"]:
+        by_doc[v["_doc"]["id"]] = {"cf": v["cf"], "denomination": v.get("denomination"), "checked_at": v["checked_at"], "document": v["_doc"], "entries": []}
+    for a in f["rna_aid"]:
+        if a["_doc"]["id"] in by_doc:
+            by_doc[a["_doc"]["id"]]["entries"].append({k: a[k] for k in ("granted", "measure", "regime", "amount_eur", "cor")})
+    return sorted(by_doc.values(), key=lambda x: x["checked_at"])
+
+
+def quotes(owner: str) -> List[Dict[str, Any]]:
+    """I preventivi dei fornitori caricati (validi, cioè con data di validità non passata, per primi)."""
+    out = sorted(facts(owner)["quote"], key=lambda q: q.get("date") or "", reverse=True)
+    today = date.today().isoformat()
+    for q in out:
+        q["expired"] = bool(q.get("valid_until") and q["valid_until"] < today)
+    return out
+
+
+def shareholders(owner: str) -> List[Dict[str, Any]]:
+    return facts(owner)["shareholder"]
+
+
+def _vat_digits(v: Any) -> str:
+    return "".join(ch for ch in str(v or "") if ch.isdigit())[-11:]
+
+
+def consistency(owner: str) -> List[Dict[str, Any]]:
+    """Controlli di coerenza tra i documenti: servono a vedere subito se due carte dicono cose diverse."""
+    from app.core import company_profile as cp
+    f = facts(owner)
+    fin = cp._load_financials(owner)
+    out: List[Dict[str, Any]] = []
+
+    def add(key: str, label: str, status: str, detail: str) -> None:
+        out.append({"key": key, "label": label, "status": status, "detail": detail})
+
+    def it(x: float) -> str:
+        return f"{x:,.0f}".replace(",", ".") + " €"
+
+    for t in f["tax_return"]:
+        if t["kind"] == "IVA" and t.get("tax_year") in fin and fin[t["tax_year"]][0].get("revenue_eur"):
+            rev = float(fin[t["tax_year"]][0]["revenue_eur"])
+            gap = abs(t["turnover_eur"] - rev) / rev * 100
+            add("iva_vs_ricavi", f"Volume d'affari IVA {t['tax_year']} e ricavi del bilancio", "OK" if gap <= 5 else "WARN",
+                f"Volume d'affari {it(t['turnover_eur'])}, ricavi del bilancio {it(rev)}: differenza {gap:.1f}%".replace(".", ",") + ("." if gap <= 5 else ": vanno spiegate (anno d'imposta, operazioni fuori campo, reverse charge)."))
+    for x in f["xbrl_balance"]:
+        if x["year"] in fin and fin[x["year"]][0].get("revenue_eur") and x.get("revenue_eur"):
+            rev = float(fin[x["year"]][0]["revenue_eur"])
+            gap = abs(x["revenue_eur"] - rev) / rev * 100
+            add("xbrl_vs_bilancio", f"Bilancio XBRL {x['year']} e bilancio PDF", "OK" if gap < 1 else "WARN", f"Ricavi XBRL {it(x['revenue_eur'])}, ricavi del PDF {it(rev)}: differenza {gap:.1f}%".replace(".", ","))
+    sh = f["shareholder"]
+    if sh:
+        tot = sum(x["percent"] for x in sh)
+        add("soci", "Libro soci", "OK" if tot == 100 else "WARN", f"Le quote dei soci sommano il {tot}%" + ("." if tot == 100 else ": non tornano al 100%."))
+        firms = [x for x in sh if x["kind"] == "impresa"]
+        if firms:
+            add("soci_societa", "Soci che sono società", "WARN", f"{len(firms)} soci sono società ({', '.join(x['name'] for x in firms)}): per l'impresa unica serve verificare il legame e la visura aiuti di ciascuna.")
+    durc = sorted(f["durc"], key=lambda d: d.get("issued") or "")
+    if durc:
+        last = durc[-1]
+        left = (date.fromisoformat(last["expires"]) - date.today()).days
+        if last["outcome"] != "regolare":
+            add("durc", "DURC", "WARN", f"L'ultimo DURC ({last.get('issued')}) non è regolare.")
+        elif left < 0:
+            add("durc", "DURC", "WARN", f"Il DURC è scaduto il {last['expires']}: per un bando serve uno in corso di validità.")
+        elif left <= 30:
+            add("durc", "DURC", "WARN", f"Il DURC scade tra {left} giorni ({last['expires']}): rinnovalo prima di presentare una domanda.")
+        else:
+            add("durc", "DURC", "OK", f"Regolare, valido fino al {last['expires']} ({left} giorni).")
+    vis = rna_visure(owner)
+    if vis:
+        old = (date.today() - date.fromisoformat(vis[-1]["checked_at"])).days
+        add("visura_rna", "Visura aiuti dell'RNA", "OK" if old <= 30 else "WARN", f"Ultima visura caricata del {vis[-1]['checked_at']} ({old} giorni fa)" + ("." if old <= 30 else ": rifalla prima di usare il de minimis."))
+    for q in f["quote"]:
+        if q.get("valid_until") and q["valid_until"] < date.today().isoformat():
+            add("preventivo_scaduto", f"Preventivo {q.get('number') or ''}", "WARN", f"Il preventivo di {q['supplier']} è scaduto il {q['valid_until']}: chiedine uno nuovo.")
+    bank = sorted(f["bank_balance"], key=lambda b: b["on"])
+    if bank:
+        add("liquidita", "Liquidità sul conto", "INFO", f"Saldo del conto al {bank[-1]['on']}: {it(bank[-1]['balance_eur'])} (serve per il controllo della liquidità del bando).")
+    return out

@@ -11,7 +11,7 @@ SOURCE = "FIXTURE DI TEST (valori non ufficiali)"
 CCNL = {
     "TERZO_SETTORE": "level;standard_hours;social_charges_pct;tfr_pct\n1;1656;31%;8,33%\n2;1656;30%;8,33%\n3;1656;30%;8,33%\n",
     "METALMECCANICA": "level;standard_hours;social_charges_pct;tfr_pct\n3;1600;32%;8,33%\n5;1600;32%;8,33%\n",
-    "COMMERCIO": "level;standard_hours;social_charges_pct;tfr_pct\n3;1680;29,5%;8,33%\n4;1680;29,5%;8,33%\n",
+    "COMMERCIO": "level;standard_hours;social_charges_pct;tfr_pct\n" + "".join(f"{lv};1680;29,5%;8,33%\n" for lv in ("Quadro", "1", "2", "3", "4", "5", "6", "7")),
 }
 PARAMS = "param_key;value;unit\nfixed_term_surcharge_pct;1,4%;frazione\noccasional_income_limit_eur;5000;euro\n"
 AMORT = "category_code;description;rate_pct\nMACCHINARI;Macchinari e impianti;20%\nINFORMATICA;Hardware e software;20%\n"

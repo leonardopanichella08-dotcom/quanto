@@ -24,7 +24,8 @@ from app.core.fonte_c import parsers
 
 Field = parsers.Field
 CONF = 0.97                                 # celle di un foglio strutturato: nessuna ambiguità di lettura (come per un testo PDF nativo)
-FACT_KEYS = ("staff_member", "asset_line", "dep_plan_line", "supplier_spend", "aid_received", "capex_plan", "hiring_plan", "budget_line", "durc", "lease", "rd_credit", "loan")
+FACT_KEYS = ("staff_member", "asset_line", "dep_plan_line", "supplier_spend", "aid_received", "capex_plan", "hiring_plan", "budget_line", "trial_balance_line", "durc", "lease", "rd_credit", "loan",
+             "rna_visura", "rna_aid", "shareholder", "de_minimis_declared", "tax_return", "bank_balance", "quote", "xbrl_balance")
 _MONTHS = {"GEN": 1, "FEB": 2, "MAR": 3, "APR": 4, "MAG": 5, "GIU": 6, "LUG": 7, "AGO": 8, "SET": 9, "OTT": 10, "NOV": 11, "DIC": 12}
 
 
@@ -48,8 +49,22 @@ def _txt(v: Any) -> str:
 def _year(v: Any) -> Optional[int]:
     if isinstance(v, (date, datetime)):
         return v.year
-    m = re.match(r"(20\d{2})", str(v or ""))
+    m = re.match(r"(20\d{2})", str(v or "")) or re.match(r"\d{1,2}[/.\-]\d{1,2}[/.\-](20\d{2})", str(v or ""))
     return int(m.group(1)) if m else None
+
+
+def _date(v: Any) -> Optional[str]:
+    """Una data come testo ISO: da una cella data, da «2024-04-12» o da «12/04/2024»."""
+    if isinstance(v, datetime):
+        return v.date().isoformat()
+    if isinstance(v, date):
+        return v.isoformat()
+    t = str(v or "").strip()
+    m = re.match(r"(20\d{2})-(\d{2})-(\d{2})", t)
+    if m:
+        return f"{m.group(1)}-{m.group(2)}-{m.group(3)}"
+    m = re.match(r"(\d{1,2})[/.\-](\d{1,2})[/.\-](20\d{2})", t)
+    return f"{m.group(3)}-{int(m.group(2)):02d}-{int(m.group(1)):02d}" if m else None
 
 
 def _table(ws, max_header_row: int = 8) -> Tuple[Optional[List[str]], List[Tuple[int, Dict[str, Any]]]]:
@@ -163,10 +178,10 @@ def _aids(rows, no, name) -> List[Field]:
     out = []
     for r, row in rows:
         amount = _num(_col(row, "IMPORTO"))
-        granted = _col(row, "DATA CONCESSIONE")
-        if amount is None or not isinstance(granted, (date, datetime)):
+        granted = _date(_col(row, "DATA CONCESSIONE"))
+        if amount is None or granted is None:
             continue
-        out.append(_fact("aid_received", {"granted": granted.date().isoformat() if isinstance(granted, datetime) else granted.isoformat(), "entity": _txt(_col(row, "ENTE")), "measure": _txt(_col(row, "MISURA")),
+        out.append(_fact("aid_received", {"granted": granted, "entity": _txt(_col(row, "ENTE")), "measure": _txt(_col(row, "MISURA")),
                                           "regime": _txt(_col(row, "REGIME")), "amount_eur": round(amount, 2), "cor": _txt(_col(row, "COR")) or None, "eligible_costs": _txt(_col(row, "SPESE AGEVOLATE")) or None}, no, f"{name}, riga {r}"))
     return out
 
@@ -216,7 +231,53 @@ def _budget(ws, rows, no, name) -> List[Field]:
     return out
 
 
-# ------------------------------------------------------------------------------------------------ cartella di lavoro
+def _trial_balance(rows, no, name, year: Optional[int]) -> List[Field]:
+    """Il bilancio di verifica del gestionale: i conti di costo dell'esercizio. Un conto economico parte da saldo zero a inizio anno (un conto patrimoniale no), e un costo ha saldo finale positivo in dare:
+    sono i due segni che lo distinguono, qualunque sia il piano dei conti del gestionale. Un conto che non si riconosce come costo non entra."""
+    if year is None:
+        return []
+    out = []
+    for r, row in rows:
+        desc = _txt(_col(row, "CONTO") or _col(row, "DESCRIZIONE"))
+        final = _num(_col(row, "SALDO FINALE"))
+        initial = _num(_col(row, "SALDO INIZIALE"))
+        if not desc or final is None or final <= 0 or (initial is not None and abs(initial) > 0.005):
+            continue
+        if any(k in parsers.norm(desc) for k in ("INTERESS", "ONERI FINANZ", "IMPOSTE SUL REDDITO", "IRES", "IRAP", "PERDITE SU CAMBI")):          # oneri finanziari e imposte sul reddito non sono costi della produzione
+            continue
+        cat, typ = _cost_class(desc)
+        if cat is None:
+            continue
+        out.append(_fact("trial_balance_line", {"year": year, "code": _txt(_col(row, "CODICE")), "description": desc, "category": cat, "expense_type": typ, "amount_eur": round(final, 2)}, no, f"{name}, riga {r}"))
+    return out
+
+
+# ------------------------------------------------------------------------------------------------ riconoscimento di una tabella
+def _recognize(title: str, heads: List[str], rows, no: int, ws=None) -> List[Field]:
+    """Cosa dice una tabella, dalle intestazioni delle sue colonne (vale per un foglio Excel e per un CSV esportato da un gestionale)."""
+    if _has(heads, "MATRICOLA", "LIVELLO", "RAL"):
+        return _staff(rows, no, title)
+    if _has(heads, "CODICE BENE", "COSTO STORICO"):
+        return _assets(rows, no, title)
+    if "AMMORTAMENTO" in parsers.norm(title) and _has(heads, "BENE", "VALORE NETTO"):
+        return _dep_plan(rows, no, title)
+    if _has(heads, "PROTOCOLLO", "FORNITORE", "IMPONIBILE"):
+        return _supplier_spend(rows, no, title)
+    if _has(heads, "ENTE CONCEDENTE", "IMPORTO", "REGIME"):
+        return _aids(rows, no, title)
+    if heads and heads[0].startswith("INVESTIMENTO"):
+        return _capex(rows, heads, no, title)
+    if _has(heads, "POSIZIONE", "MESE DI INGRESSO"):
+        return _hiring(rows, no, title)
+    if ws is not None and _has(heads, "CODICE", "CONTO", "BUDGET ANNO"):
+        return _budget(ws, rows, no, title)
+    if _has(heads, "CODICE", "SALDO FINALE") and (_has(heads, "CONTO") or _has(heads, "DESCRIZIONE")):
+        m = re.search(r"20\d{2}", title)
+        return _trial_balance(rows, no, title, int(m.group(0)) if m else None)
+    return []
+
+
+# ------------------------------------------------------------------------------------------------ cartella di lavoro e CSV
 def read_workbook(data: bytes) -> Tuple[str, List[Field], List[str]]:
     """(descrizione di ciò che contiene, fatti letti, fogli riconosciuti). Se nessun foglio si riconosce: ('', [], [])."""
     from openpyxl import load_workbook
@@ -230,24 +291,35 @@ def read_workbook(data: bytes) -> Tuple[str, List[Field], List[str]]:
         heads, rows = _table(ws)
         if not heads or not rows:
             continue
-        got: List[Field] = []
-        if _has(heads, "MATRICOLA", "LIVELLO", "RAL"):
-            got = _staff(rows, no, ws.title)
-        elif _has(heads, "CODICE BENE", "COSTO STORICO"):
-            got = _assets(rows, no, ws.title)
-        elif "AMMORTAMENTO" in parsers.norm(ws.title) and _has(heads, "BENE", "VALORE NETTO"):
-            got = _dep_plan(rows, no, ws.title)
-        elif _has(heads, "PROTOCOLLO", "FORNITORE", "IMPONIBILE"):
-            got = _supplier_spend(rows, no, ws.title)
-        elif _has(heads, "ENTE CONCEDENTE", "IMPORTO", "REGIME"):
-            got = _aids(rows, no, ws.title)
-        elif heads and heads[0].startswith("INVESTIMENTO"):
-            got = _capex(rows, heads, no, ws.title)
-        elif _has(heads, "POSIZIONE", "MESE DI INGRESSO"):
-            got = _hiring(rows, no, ws.title)
-        elif _has(heads, "CODICE", "CONTO", "BUDGET ANNO"):
-            got = _budget(ws, rows, no, ws.title)
+        got = _recognize(ws.title, heads, rows, no, ws)
         if got:
             fields += got
             seen.append(ws.title)
     return ("Fogli letti: " + ", ".join(seen)) if fields else "", fields, seen
+
+
+def read_csv(data: bytes, filename: str = "") -> Tuple[str, List[Field], List[str]]:
+    """Un CSV esportato da un gestionale (bilancio di verifica, registro delle fatture…): stesse tabelle degli Excel, stessa lettura."""
+    import csv
+    for enc in ("utf-8-sig", "cp1252"):
+        try:
+            text = data.decode(enc)
+            break
+        except UnicodeDecodeError:
+            text = ""
+    if not text or text.count("\n") < 2:
+        return "", [], []
+    head = text.splitlines()[0]
+    delim = max((";", ",", "\t"), key=head.count)
+    reader = list(csv.reader(text.splitlines(), delimiter=delim))
+    if not reader or len(reader[0]) < 3:
+        return "", [], []
+    heads = [parsers.norm(h) for h in reader[0]]
+    rows = []
+    for j, cells in enumerate(reader[1:], 2):
+        if not any(c.strip() for c in cells):
+            continue
+        rows.append((j, {h: (cells[k].strip() if k < len(cells) else "") for k, h in enumerate(heads) if h}))
+    title = filename.rsplit(".", 1)[0] or "CSV"
+    got = _recognize(title, heads, rows, 1, None)
+    return (f"CSV letto: {filename}" if got else ""), got, ([title] if got else [])

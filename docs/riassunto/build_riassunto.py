@@ -212,7 +212,7 @@ def build() -> Path:
        "<b>Boutique di finanza agevolata</b> che costruiscono budget e piani di allocazione e hanno bisogno di ripetibilità e di una fonte per ogni cifra.",
        "<b>Direttori finanziari e consulenti d'impresa</b> che pianificano più fondi insieme per l'azienda che seguono e vogliono sapere chi paga cosa lungo l'anno."])
     SP(4)
-    kpis([("60", "regole applicate a ogni voce di budget"), ("8", "bandi con un modello di calcolo curato a mano"), ("780+", "bandi aperti nel catalogo nazionale, aggiornati ogni notte"), ("538", "test automatici sul motore")])
+    kpis([("60", "regole applicate a ogni voce di budget"), ("8", "bandi con un modello di calcolo curato a mano"), ("780+", "bandi aperti nel catalogo nazionale, aggiornati ogni notte"), ("549", "test automatici sul motore")])
     story.append(PageBreak())
 
     # ------------------------------------------------------------------ 2. come lavora
@@ -228,18 +228,18 @@ def build() -> Path:
     SP(8)
     H2("In concreto")
     B(["<b>Parte dal cliente, non dal bando.</b> Si carica visura e bilancio e QUANTO propone i bandi più adatti all'azienda, in ordine di affinità e con i motivi.",
-       "<b>Dà una cifra, con l'intervallo.</b> Per ogni bando c'è il valore prudente e quello con tutte le maggiorazioni, con le ipotesi scritte accanto.",
-       "<b>Mette insieme più bandi senza sbagliare.</b> Rispetta cumulo, tetti e il limite degli aiuti «de minimis»; dice quali bandi non servono e perché.",
-       "<b>Costruisce il budget sull'azienda.</b> Ogni persona con livello, contratto e RAL; le spese una per una, con il documento da cui vengono. Poi lo controlla voce per voce, sempre con il motivo.",
-       "<b>Sa che non tutti i bandi chiedono un progetto.</b> Ogni bando dice come si accede. Esempio: 20.000 € di fiere valgono per SIMEST, non per un bando di ricerca.",
-       "<b>Verifica il de minimis sul registro.</b> Azienda e imprese collegate: senza visura recente il piano usa un residuo prudente (270.000 € invece di 283.500 €).",
-       "<b>Si ricorda di tutto.</b> Ogni scelta resta al suo posto, anche cambiando cliente."])
+       "<b>Dà una cifra, con l'intervallo.</b> Valore prudente e valore con tutte le maggiorazioni, con le ipotesi accanto.",
+       "<b>Mette insieme più bandi senza sbagliare.</b> Rispetta cumulo, tetti e «de minimis»; dice quali bandi non servono.",
+       "<b>Costruisce il budget sull'azienda.</b> Ogni persona con livello, contratto e RAL; le spese una per una, con il documento di origine.",
+       "<b>Sa che non tutti i bandi chiedono un progetto.</b> Ogni bando dice come si accede. 20.000 € di fiere valgono per SIMEST, non per la ricerca.",
+       "<b>Verifica il de minimis sul registro.</b> Senza visura recente il piano usa un residuo prudente (270.000 € invece di 283.500 €).",
+       "<b>Dice quanto vale davvero un contributo e quando lo incassi.</b> 60.000 € al 50% di probabilità valgono 24.000 € netti.",
+       "<b>Si ricorda di tutto.</b> Ogni scelta resta salvata per cliente."])
     H2("Due modi di lavorare")
     table([["Da soli", "Con l'assistente"], ["Si naviga tra le pagine (Allocazione, Budget, Confronto…) e si inseriscono i dati dove servono.",
            "Si scrive nella chat cosa si vuole fare, o si sceglie un suggerimento: l'assistente esegue i passaggi, chiede solo i dati che mancano e spiega cos'è ogni dato, perché serve e dove si trova."]], [W / 2, W / 2], zebra=False)
     H2("Dove interviene il calcolo e dove no")
-    P("Tutti i numeri sono calcolati con regole fisse e aritmetica esatta, non stimati da un modello linguistico. L'intelligenza artificiale non scrive e non interpreta cifre: la ricerca dei documenti usa un motore di ricerca per trovare gli indirizzi, "
-      "e le regole si leggono dai testi ufficiali con schemi precisi, ognuna legata alla frase da cui nasce.")
+    P("Tutti i numeri sono calcolati con regole fisse e aritmetica esatta, mai stimati da un modello linguistico; le regole dei bandi si leggono dai testi ufficiali, ognuna legata alla frase da cui nasce.")
     story.append(PageBreak())
 
     # ------------------------------------------------------------------ 3-4. gli strumenti
@@ -289,7 +289,7 @@ def build() -> Path:
     table([["Limite", "Come lo gestisce"], ["Non prevede l'esito di un bando", "Il potenziale è un massimo teorico; il Confronto è una statistica sulla struttura della spesa, non una previsione"],
            ["Non scrive il progetto", "Produce solo la componente numerica: budget, ammissibilità, allocazione"], ["Non somma garanzie e contributi", "Le garanzie pubbliche si calcolano a parte, come importo garantibile"],
            ["Una percentuale di un bando non si trova", "Il bando resta senza importo e lo dice; si può rilanciare lo studio per cercarla"],
-           ["Non legge da solo il registro nazionale degli aiuti", "Guida la verifica: impresa unica, visura aiuti caricata, confronto con i documenti; finché non è completa il tetto de minimis resta prudente"],
+           ["Non consulta da solo il registro nazionale degli aiuti", "Legge la visura caricata e la confronta con i documenti; finché la verifica non è completa il tetto de minimis resta prudente"],
            ["Non trasforma costi ordinari in costi di progetto", "Distingue le spese nuove da quelle correnti; il personale si rendiconta sulle ore vere e alla retribuzione vera, confrontata con la busta paga"],
            ["Le scansioni dei documenti", "Dove non è disponibile il riconoscimento ottico, il documento si rifiuta con un messaggio chiaro, senza inventare un testo"]], [W * 0.38, W * 0.62])
     H2("A che punto è")
@@ -311,7 +311,7 @@ def build() -> Path:
 
     # ------------------------------------------------------------------ 7. un caso
     H1("Un caso di prova")
-    P("Azienda fittizia di prova: <b>Meridiana Digital Solutions S.r.l.</b> (software, Torino, 15 dipendenti, ricavi 2025 di 1.583.200 euro). Si caricano 50 documenti (anche con il pulsante «Carica l'azienda di prova»): visura, tre bilanci completi di 58-63 pagine, diciassette cedolini, nove F24, la bozza di candidatura, il DURC, la dichiarazione de minimis, il business plan di 46 pagine, le dichiarazioni fiscali, i registri delle fatture, il contratto di locazione, l'estratto conto e otto fogli Excel con centinaia di righe (organico, cespiti, fatture, budget, investimenti: QUANTO li legge tutti). Compila il profilo (100% dopo una sola risposta: se è una start-up innovativa).")
+    P("Azienda fittizia di prova: <b>Meridiana Digital Solutions S.r.l.</b> (software, Torino, 15 dipendenti, ricavi 2025 di 1.583.200 euro). Si caricano 57 documenti (anche con il pulsante «Carica l'azienda di prova»): visura, tre bilanci completi di 58-63 pagine, diciassette cedolini, nove F24, la bozza di candidatura, il DURC, la dichiarazione de minimis, il business plan di 46 pagine, le dichiarazioni fiscali, i registri delle fatture, il contratto di locazione, l'estratto conto, la visura aiuti, tre preventivi, le fatture elettroniche in XML, il bilancio XBRL e CSV e otto fogli Excel con centinaia di righe (organico, cespiti, fatture, budget, investimenti: QUANTO li legge tutti). Compila il profilo (100% dopo una sola risposta: se è una start-up innovativa).")
     table([["Passo", "Cosa produce QUANTO"], ["Bilanci 2023-2025", "Ricavi, costi per categoria (personale 890.700 €, consulenze 172.500 €, spese generali 194.650 €, beni strumentali 119.100 € nel 2025), utile, dipendenti medi"],
            ["Stima 2027", "Spesa prevista di 1.991.026 euro, con la variazione di ogni voce spiegata dai due ultimi bilanci"],
            ["Bandi adatti", "6 bandi adatti all'azienda, 5 con un importo calcolabile e un'etichetta «de minimis» dove la fonte lo dichiara"],

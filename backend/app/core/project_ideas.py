@@ -133,6 +133,31 @@ def generate(owner: str, year: Optional[int] = None) -> Dict[str, Any]:
                            [_line("Intervento di efficientamento (da dimensionare)", "CAPITAL_ASSETS", "CAP_IMPIANTI", None, TO_QUANTIFY, "Serve una diagnosi energetica o un preventivo: dai documenti non si ricava", [])],
                            ["Diagnosi energetica o preventivo dell'impianto", "Se le sedi sono in affitto: l'accordo del proprietario"]))
 
+    # i preventivi dei fornitori: dove c'è un preventivo valido per quel tipo di spesa, l'importo è quello del preventivo (il più basso se sono più d'uno, e si dice)
+    qs = [q for q in company_facts.quotes(owner) if not q["expired"] and q.get("expense_type")]
+    for idea in ideas:
+        if not idea["id"].startswith("piano-"):
+            continue
+        for ln in idea["lines"]:
+            mine = sorted((q for q in qs if q["expense_type"] == ln["expense_type"]), key=lambda q: q["net_eur"])
+            if not mine or ln["nature"] == ORDINARY:
+                continue
+            best = mine[0]
+            plan_amount = ln["amount_eur"]
+            ln["quotes"] = [{"supplier": q["supplier"], "number": q.get("number"), "date": q.get("date"), "valid_until": q.get("valid_until"), "net_eur": q["net_eur"], "document": q["_doc"]["filename"]} for q in mine]
+            ln["amount_eur"] = best["net_eur"]
+            ln["nature"] = NEW
+            ln["plan_amount_eur"] = plan_amount
+            ln["detail"] = (f"Preventivo n. {best.get('number') or '—'} di {best['supplier']} del {best.get('date') or '—'}" + (f", il più basso di {len(mine)}" if len(mine) > 1 else "")
+                            + (f" (il piano degli investimenti indicava {plan_amount:,.2f} €)".replace(",", "§").replace(".", ",").replace("§", ".") if plan_amount else ""))
+            ln["sources"] = [{"document_id": best["_doc"]["id"], "filename": best["_doc"]["filename"], "where": f"preventivo {best.get('number') or ''}"}]
+        idea["new_eur"] = round(sum(ln["amount_eur"] or 0 for ln in idea["lines"] if ln["nature"] == NEW), 2)
+        left = [ln for ln in idea["lines"] if ln["nature"] == NEW and not ln.get("quotes")]
+        idea["missing"] = [m for m in idea["missing"] if not m.startswith("Un preventivo per ogni acquisto")]
+        if left:
+            idea["missing"].insert(0, f"Un preventivo per {len(left)} {'acquisto' if len(left) == 1 else 'acquisti'}: " + ", ".join(ln["label"] for ln in left))
+        else:
+            idea["quoted"] = True
     # le idee con spese nuove per prime
     ideas.sort(key=lambda i: (-i["new_eur"], -i["ordinary_eur"], i["id"]))
 

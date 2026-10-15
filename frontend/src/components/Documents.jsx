@@ -32,6 +32,8 @@ const FACT_TITLE = {
   staff_member: 'Organico (persona per persona)', asset_line: 'Libro cespiti', dep_plan_line: 'Piano di ammortamento', supplier_spend: 'Spese dalle fatture ricevute (per voce)', aid_received: 'Aiuti ricevuti',
   capex_plan: 'Investimenti previsti', hiring_plan: 'Piano delle assunzioni', budget_line: 'Budget dell’azienda (per conto)',
   durc: 'DURC', lease: 'Contratto di locazione', rd_credit: 'Credito d’imposta ricerca e sviluppo', loan: 'Finanziamento',
+  trial_balance_line: 'Bilancio di verifica (costi per conto)', xbrl_balance: 'Bilancio XBRL', rna_visura: 'Visura aiuti (RNA)', rna_aid: 'Aiuti nella visura RNA', shareholder: 'Libro soci',
+  de_minimis_declared: 'Dichiarazione de minimis', tax_return: 'Dichiarazioni fiscali', bank_balance: 'Saldo del conto', quote: 'Preventivi dei fornitori',
 }
 const eurTxt = (n) => (n == null ? '—' : Number(n).toLocaleString('it-IT', { style: 'currency', currency: 'EUR' }))
 const TYPE_LABEL = {}                                    // codice della voce di spesa → etichetta, caricata una volta
@@ -50,6 +52,15 @@ function factRow(key, p) {
     case 'rd_credit': return [`Credito ${p.year || ''} (${p.rate_pct}%)`, `costi ammissibili ${eurTxt(p.eligible_costs_eur)}`, eurTxt(p.credit_eur)]
     case 'loan': return ['Finanziamento', `erogato il ${p.disbursed} · ${p.installments} rate`, eurTxt(p.original_eur)]
     case 'budget_line': return [p.description, `${p.year} · conto ${p.code} · ${t(p.expense_type)}`, eurTxt(p.amount_eur)]
+    case 'trial_balance_line': return [p.description, `${p.year} · conto ${p.code || '—'} · ${t(p.expense_type)}`, eurTxt(p.amount_eur)]
+    case 'xbrl_balance': return [`Esercizio ${p.year}`, `costi ${eurTxt(p.total_costs_eur)} · personale ${eurTxt(p.personnel_eur)} · utile ${eurTxt(p.net_result_eur)}`, eurTxt(p.revenue_eur)]
+    case 'rna_visura': return [p.denomination || 'Impresa', `codice fiscale ${p.cf} · visura del ${p.checked_at}`, '']
+    case 'rna_aid': return [p.measure, `${p.granted} · ${p.regime}${p.cor ? ` · COR ${p.cor}` : ''}`, eurTxt(p.amount_eur)]
+    case 'shareholder': return [p.kind === 'impresa' ? `${p.name} (società)` : 'Socio persona fisica', `dal ${p.since || '—'} · quota nominale ${eurTxt(p.nominal_eur)}`, `${p.percent}%`]
+    case 'de_minimis_declared': return [`Dichiarazione firmata il ${p.signed || '—'}`, `${(p.aids || []).length} aiuti dichiarati${p.unique_enterprise_alone ? ' · impresa non collegata ad altre' : ''}`, eurTxt(p.total_eur)]
+    case 'tax_return': return [p.kind === 'IVA' ? `IVA ${p.tax_year}: volume d’affari` : p.kind === 'IRAP' ? `IRAP ${p.tax_year}: valore della produzione` : `REDDITI ${p.tax_year}: reddito imponibile`, p.kind === 'IRAP' ? `imposta ${eurTxt(p.tax_eur)}` : p.kind === 'REDDITI' ? `imposta lorda ${eurTxt(p.gross_tax_eur)}` : '', eurTxt(p.turnover_eur ?? p.net_production_value_eur ?? p.taxable_income_eur)]
+    case 'bank_balance': return [`Saldo al ${p.on}`, 'estratto conto', eurTxt(p.balance_eur)]
+    case 'quote': return [`${p.supplier} · ${p.subject || 'preventivo'}`, `n. ${p.number || '—'} del ${p.date || '—'} · valido fino al ${p.valid_until || '—'} · ${t(p.expense_type)}`, eurTxt(p.net_eur)]
     default: return [key, '', '']
   }
 }
@@ -216,24 +227,50 @@ export default function Documents({ onUsePayslip, onUseBalance, onUseDraft, onPr
     await api.fcDelete(d.id); if (open === d.id) setOpen(null); refresh()
   }
   // L'azienda di prova (Meridiana): sostituisce i file con lo stesso nome già presenti con l'ultima versione e carica gli altri, uno alla volta.
-  const [demo, setDemo] = useState(null)                              // { done, total, name }
+  const [demo, setDemo] = useState(null)                              // { done, total, name, auto }
+  // Carica l'azienda di prova. `onlyChanged`: si aggiornano solo i file mancanti o diversi dall'ultima versione (impronta SHA-256) e si tolgono quelli di prova che non esistono più.
+  const syncDemo = async (man, existing, onlyChanged, auto) => {
+    const have = new Map(existing.map((d) => [d.filename, d]))
+    const names = new Set(man.files.map((m) => m.file))
+    const todo = man.files.filter((m) => !onlyChanged || have.get(m.file)?.sha256 !== m.sha256)
+    const obsolete = onlyChanged ? existing.filter((d) => /^\d{2}_/.test(d.filename) && !names.has(d.filename)) : []
+    const total = todo.length
+    for (const d of obsolete) await api.fcDelete(d.id)
+    for (let i = 0; i < total; i++) {
+      const m = todo[i]
+      setDemo({ done: i, total, name: m.file, auto })
+      for (const d of existing.filter((x) => x.filename === m.file)) await api.fcDelete(d.id)
+      const blob = await (await fetch(`/azienda_di_prova/${encodeURIComponent(m.file)}`, { cache: 'no-store' })).blob()
+      await api.fcUpload({ doc_type: m.doc_type, filename: m.file, content_base64: await fileToBase64(blob) })
+    }
+    if (total || obsolete.length) await refresh()
+    setDemo({ done: total, total, name: '', auto })
+  }
   const loadDemo = async () => {
     setError(null); setDemo({ done: 0, total: 0, name: 'elenco dei file' })
     try {
       const man = await (await fetch('/azienda_di_prova/manifest.json', { cache: 'no-store' })).json()
-      const total = man.files.length
-      let existing = await api.fcDocuments()
-      for (let i = 0; i < total; i++) {
-        const m = man.files[i]
-        setDemo({ done: i, total, name: m.file })
-        for (const d of existing.filter((x) => x.filename === m.file)) await api.fcDelete(d.id)
-        const blob = await (await fetch(`/azienda_di_prova/${encodeURIComponent(m.file)}`, { cache: 'no-store' })).blob()
-        await api.fcUpload({ doc_type: m.doc_type, filename: m.file, content_base64: await fileToBase64(blob) })
-      }
-      await refresh()
-      setDemo({ done: total, total, name: '' })
+      await syncDemo(man, await api.fcDocuments(), false, false)
     } catch (e) { setError(`Caricamento dell'azienda di prova interrotto: ${e.message}`); setDemo(null) }
   }
+  // Chi ha già caricato l'azienda di prova la trova sempre all'ultima versione, senza premere nulla: se i file dell'app sono cambiati dall'ultimo caricamento si aggiornano da soli.
+  // Non carica nulla a chi non l'ha mai caricata (un'azienda vera non si tocca).
+  const autoDone = useRef(false)
+  useEffect(() => {
+    if (autoDone.current) return
+    autoDone.current = true
+    ;(async () => {
+      try {
+        const man = await (await fetch('/azienda_di_prova/manifest.json', { cache: 'no-store' })).json()
+        const existing = await api.fcDocuments()
+        const names = new Set(man.files.map((m) => m.file))
+        if (existing.filter((d) => names.has(d.filename)).length < 3) return
+        if (man.files.every((m) => existing.some((d) => d.filename === m.file && d.sha256 === m.sha256))) return
+        await syncDemo(man, existing, true, true)
+      } catch { /* l'aggiornamento automatico è un di più: il pulsante resta */ }
+    })()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
   const upload = async (f) => {
     if (!f) return
     setBusy(true); setError(null)
@@ -255,7 +292,7 @@ export default function Documents({ onUsePayslip, onUseBalance, onUseDraft, onPr
           <button className="btn" disabled={busy || (demo && demo.done < demo.total) || demo?.total === 0} onClick={loadDemo} title="Carica tutti i documenti di Meridiana Digital Solutions (organico, buste paga, bilanci, fogli Excel…); quelli con lo stesso nome già presenti vengono sostituiti con l'ultima versione">
             {demo && demo.done < demo.total ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <FlaskConical className="w-3.5 h-3.5" />}Carica l’azienda di prova
           </button>
-          <span className="text-xs text-mute">{demo && demo.total === 0 ? 'Preparo l’elenco…' : demo && demo.done < demo.total ? `Carico ${demo.done + 1} di ${demo.total}: ${demo.name}` : demo ? `Fatto: ${demo.total} documenti aggiornati all’ultima versione.` : 'Meridiana Digital Solutions: visura, bilanci, business plan, fogli Excel… sempre l’ultima versione.'}</span>
+          <span className="text-xs text-mute">{demo && demo.total === 0 ? 'Preparo l’elenco…' : demo && demo.done < demo.total ? `Carico ${demo.done + 1} di ${demo.total}: ${demo.name}` : demo ? (demo.auto ? `Aggiornata da sola all’ultima versione: ${demo.total} documenti nuovi o cambiati.` : `Fatto: ${demo.total} documenti aggiornati all’ultima versione.`) : 'Meridiana Digital Solutions: visura, bilanci, business plan, fogli Excel… sempre l’ultima versione.'}</span>
         </div>
       </div>
       <div className="card p-5 space-y-2">

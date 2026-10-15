@@ -112,6 +112,11 @@ def test_the_company_profile_exposes_staff_assets_and_expenses_by_type(company):
 
 # ------------------------------------------------------------------------------------------------ 1 e 3. il budget dall'azienda
 def test_the_template_has_every_person_with_level_ccnl_ral_and_time_and_typed_expenses_from_the_forecast(company):
+    # una versione del contratto con soli i livelli 3 e 4 (stessi parametri): chi sta a un altro livello resta senza tabella, e il budget lo dice
+    from app.core import fonte_b_admin as admin
+    d = admin.create_draft("CCNL", "COMMERCIO", "CCNL COMMERCIO", "ridotta", __import__("datetime").date(2001, 1, 1), None, "Fonte di prova", "https://esempio.test/c", None, "t.csv",
+                           b"level;standard_hours;social_charges_pct;tfr_pct" + bytes([10]) + b"3;1680;29,5%;8,33%" + bytes([10]) + b"4;1680;29,5%;8,33%" + bytes([10]), "test")
+    admin.publish(d["id"], "test", attest_official=True)
     r = client.post("/api/v2/profile/template", json={"bando_id": "FVG-VALIDAZIONE-TRL-2026", "scale_pct": 40, "fit": True})
     assert r.status_code == 200, r.text
     t = r.json()
@@ -129,7 +134,8 @@ def test_the_template_has_every_person_with_level_ccnl_ral_and_time_and_typed_ex
     assert any("budget 2026 dell'azienda" in n for n in t["notes"])                    # il budget del cliente e la previsione dal bilancio si confrontano, con i numeri
     assert any(b["code"] == "CAP_IMMATERIALI" and b["basis"] == "PIANO_INVESTIMENTI" for b in t["basis"])
     assert all(b["sources"] and b["sources"][0].get("filename") for b in t["basis"])    # ogni numero dice da quale documento viene
-    assert any("livello" in n for n in t["needs_input"])                               # nel test Fonte B ha solo i livelli 3 e 4: lo si dice, non si inventa
+    missing = [n for n in t["needs_input"] if "livello" in n]
+    assert missing and all("bozza che aggiunge anche questo livello" in n for n in missing)      # manca il livello: lo si dice e si indica come completarlo, senza inventare nulla
 
 
 def test_the_forecast_base_is_used_when_the_company_has_no_own_budget(tmp_path):

@@ -14,7 +14,7 @@ from typing import Any, Dict, List, Optional
 
 from app.core import crypto_store, events, expense_types, fonte_b
 from app.core.db import connect
-from app.core.fonte_c import ocr, other_pdf, parsers, sheets
+from app.core.fonte_c import fatture_xml, ocr, other_pdf, parsers, sheets
 
 DOC_TYPES = {"PAYSLIP": "Busta paga", "BALANCE_SHEET": "Bilancio", "F24": "Modello F24", "APPLICATION_DRAFT": "Bozza di candidatura",
              "COMPANY_REGISTRY": "Visura camerale", "OTHER": "Altro documento aziendale"}
@@ -30,8 +30,8 @@ class DocumentError(ValueError):
 class _SheetRead:
     """Esito della lettura di un foglio Excel, con la stessa forma di quello di un PDF (metodo, pagine = fogli, nessuna confidenza di lettura da sfumare)."""
 
-    def __init__(self, summary: str, sheets_read: int) -> None:
-        self.method, self.pages, self.mean_confidence, self.summary = "xlsx", sheets_read, 0.97, summary
+    def __init__(self, summary: str, sheets_read: int, kind: str = "xlsx") -> None:
+        self.method, self.pages, self.mean_confidence, self.summary = kind, sheets_read, 0.97, summary
 
 
 def _public_doc(r) -> Dict[str, Any]:
@@ -71,9 +71,32 @@ def upload(doc_type: str, filename: str, data: bytes, owner: str) -> Dict[str, A
     fields: List[parsers.Field] = []
     if doc_type == "OTHER":                       # un documento di cui non si leggono i campi (contratto, DURC…): si conserva cifrato nel profilo; un foglio Excel riconosciuto si legge
         if data[:2] == b"PK":
-            summary, fields, _seen = sheets.read_workbook(data)
+            import io
+            import zipfile
+            try:
+                names = zipfile.ZipFile(io.BytesIO(data)).namelist()
+            except zipfile.BadZipFile:
+                names = []
+            if "xl/workbook.xml" in names:                                  # un foglio Excel
+                summary, fields, _seen = sheets.read_workbook(data)
+                kind = "xlsx"
+            else:                                                           # un archivio di fatture elettroniche (XML)
+                summary, fields, _seen = fatture_xml.read_zip(data)
+                kind = "fatture-xml"
             if fields:
-                read = _SheetRead(summary, len(_seen))
+                read = _SheetRead(summary, len(_seen), kind)
+        elif data.lstrip()[:1] == b"<":                                     # una fattura elettronica o un bilancio XBRL
+            summary, fields, _seen = fatture_xml.read_xbrl(data)
+            kind = "xbrl"
+            if not fields:
+                summary, fields, _seen = fatture_xml.read_invoices([(filename, data)])
+                kind = "fattura-xml"
+            if fields:
+                read = _SheetRead(summary, len(_seen), kind)
+        elif not data.startswith(b"%PDF") and filename.lower().endswith((".csv", ".txt")):          # un CSV esportato da un gestionale
+            summary, fields, _seen = sheets.read_csv(data, filename)
+            if fields:
+                read = _SheetRead(summary, len(_seen), "csv")
         elif data.startswith(b"%PDF"):                # un PDF ufficiale (DURC, contratto di locazione…): si leggono i pochi dati che dice con la loro etichetta, il resto resta archiviato
             try:
                 pdf = ocr.read_pdf(data)
@@ -276,6 +299,14 @@ def application_draft_items(document_id: int, owner: Optional[str] = None) -> Di
             items.append({"item_id": f"DOC{document_id}-{n}", "description": p["description"][:200], "category": p["category"],
                           "amount_eur": float(p["amount_eur"]), "source_c_ref": f"DOC-FC-{document_id}"})
     return {"document_id": document_id, "cost_items": items, "needs_personnel": personnel, "needs_category": unassigned, "needs_review": review}
+
+
+def trial_balance_lines(document_id: int, year: int, owner: Optional[str] = None) -> List[Dict[str, Any]]:
+    """Le righe di costo di un bilancio di verifica (foglio Excel o CSV del gestionale) per l'esercizio indicato."""
+    doc = get(document_id, owner)
+    if doc is None:
+        return []
+    return [f["parsed"] for f in doc["fields"] if f["field_key"] == "trial_balance_line" and f["status"] in USABLE and f.get("parsed") and f["parsed"]["year"] == year]
 
 
 def balance_expenses(document_id: int, owner: Optional[str] = None) -> Dict[str, Any]:

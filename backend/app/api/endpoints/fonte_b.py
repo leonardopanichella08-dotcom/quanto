@@ -2,7 +2,7 @@
 import base64
 import binascii
 from datetime import date
-from typing import Optional
+from typing import List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
 from pydantic import BaseModel, Field
@@ -27,6 +27,10 @@ class DatasetUpload(BaseModel):
     filename: str = Field(..., max_length=200)
     content_base64: str
     notes: Optional[str] = Field(default=None, max_length=1000)
+
+
+class CompleteLevels(BaseModel):
+    levels: List[str] = Field(..., min_length=1, max_length=20, description="Livelli da aggiungere (es. Quadro, 1, 2)")
 
 
 class PublishRequest(BaseModel):
@@ -115,3 +119,19 @@ def delete(dataset_id: int, request: Request) -> dict:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Insieme non trovato")
     events.record("fonte_b.delete", f"Bozza Fonte B {dataset_id} eliminata", actor=actor_of(request))
     return {"deleted": dataset_id}
+
+
+@router.get("/ccnl/{code}/completion", dependencies=hq_only, summary="Si possono aggiungere livelli mancanti a questo contratto? (solo se i livelli pubblicati hanno parametri identici)")
+def completion(code: str) -> dict:
+    return admin.completion_info(code)
+
+
+@router.post("/ccnl/{code}/complete-levels", dependencies=hq_only, status_code=status.HTTP_201_CREATED,
+             summary="Prepara una BOZZA con i livelli mancanti (stessi parametri); un manager la controlla sul contratto e la pubblica")
+def complete_levels(code: str, body: CompleteLevels, request: Request) -> dict:
+    try:
+        d = admin.draft_level_completion(code, body.levels, actor_of(request))
+    except admin.FonteBFileError as exc:
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail={"message": str(exc), "errors": exc.errors}) from exc
+    events.record("fonte_b.complete_levels", f"Bozza Fonte B {d['code']} v{d['version']}: aggiunti i livelli {', '.join(body.levels)}", actor=actor_of(request), details={"id": d["id"]})
+    return d

@@ -312,6 +312,14 @@ def _it_eur(x: float) -> str:
     return f"{x:,.2f}".replace(",", "§").replace(".", ",").replace("§", ".") + " €"
 
 
+def _can_complete(code: str) -> bool:
+    from app.core import fonte_b_admin
+    try:
+        return bool(fonte_b_admin.completion_info(code)["possible"])
+    except Exception:
+        return False
+
+
 def budget_template(owner: str, bando_id: str, scale_pct: float, fit: bool = True, year: Optional[int] = None, project_start: Optional[str] = None) -> Dict[str, Any]:
     """Una bozza di budget per il bando, costruita sui dati dell'azienda e sulle regole del bando.
 
@@ -414,7 +422,9 @@ def budget_template(owner: str, bando_id: str, scale_pct: float, fit: bool = Tru
                                 "fte_allocation": fte, "has_payslip": bool(p.get("payslip_document_id")), "contract": p.get("contract")})
         for (code, level), n in sorted(no_table.items()):
             needs_input.append(f"In Fonte B manca la tabella del contratto {code} per il livello {level} ({n} {'persona' if n == 1 else 'persone'}): il costo orario di chi è a quel livello non si può controllare "
-                               "finché un manager non la pubblica (Quartier Generale → Fonte B).")
+                               "finché un manager non la pubblica (Quartier Generale → Fonte B)."
+                               + (" I livelli già pubblicati hanno parametri identici: dal Quartier Generale si può preparare una bozza che aggiunge anche questo livello, da controllare sul contratto e pubblicare."
+                                  if _can_complete(code) else ""))
         if not staff["people"] and plan["personnel_base_eur"] > 0:
             needs_personnel = {"amount_eur": round(plan["personnel_base_eur"] * factor, 2),
                                "message": "Nei documenti non ci sono persone: carica il registro del personale (Excel) o le buste paga. Il controllo vuole persona per persona livello, CCNL, RAL e quota di tempo."}

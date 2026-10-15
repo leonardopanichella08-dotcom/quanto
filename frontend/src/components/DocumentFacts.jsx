@@ -13,13 +13,14 @@ export default function DocumentFacts({ version = 0 }) {
   useEffect(() => {
     if (!open) return
     setLoading(true); setError(null)
-    Promise.allSettled([api.profileExpenses(), api.profileStaff(), api.profileAssets(), api.profileFacts()]).then(([e, s, a, f]) => {
-      setData({ expenses: e.value, staff: s.value, assets: a.value, facts: f.value })
+    Promise.allSettled([api.profileExpenses(), api.profileStaff(), api.profileAssets(), api.profileFacts(), api.profileConsistency()]).then(([e, s, a, f, c]) => {
+      setData({ expenses: e.value, staff: s.value, assets: a.value, facts: f.value, consistency: c.value })
       if (e.status === 'rejected' && !s.value && !a.value) setError(e.reason?.message || 'Non ci sono ancora dati letti')
     }).finally(() => setLoading(false))
   }, [open, version])
-  const { expenses, staff, assets, facts } = data
-  const tabs = [['spese', `Spese per voce${expenses ? ` · ${expenses.types.length}` : ''}`], ['organico', `Organico${staff?.people?.length ? ` · ${staff.people.length}` : ''}`], ['beni', `Beni${assets?.assets?.length ? ` · ${assets.assets.length}` : ''}`]]
+  const { expenses, staff, assets, facts, consistency } = data
+  const checks = consistency?.checks || (Array.isArray(consistency) ? consistency : [])
+  const tabs = [['spese', `Spese per voce${expenses ? ` · ${expenses.types.length}` : ''}`], ['organico', `Organico${staff?.people?.length ? ` · ${staff.people.length}` : ''}`], ['beni', `Beni${assets?.assets?.length ? ` · ${assets.assets.length}` : ''}`], ['coerenza', `Coerenza tra i documenti${checks.length ? ` · ${checks.length}` : ''}`]]
   return (
     <div className="card">
       <button onClick={() => setOpen(!open)} className="w-full flex items-center gap-2 px-4 py-3 text-left text-sm font-medium">
@@ -28,7 +29,7 @@ export default function DocumentFacts({ version = 0 }) {
       {open && (
         <div className="px-4 pb-4 space-y-3">
           <p className="text-xs text-ink-2 leading-relaxed">Oltre ai totali per categoria, QUANTO legge ogni riga dei bilanci e dei fogli Excel: le spese una per una, le persone con livello e RAL, i beni con il loro ammortamento. Con questi dati costruisce il budget voce per voce.</p>
-          {facts && Object.keys(facts.counts || {}).length > 0 && <p className="text-[11px] text-mute">Dai documenti: {Object.entries(facts.counts).map(([k, n]) => `${n} ${{ staff_member: 'persone', asset_line: 'beni', dep_plan_line: 'righe di ammortamento', supplier_spend: 'voci di spesa dalle fatture', aid_received: 'aiuti', capex_plan: 'investimenti', hiring_plan: 'assunzioni', budget_line: 'conti di budget', durc: 'DURC', lease: 'contratto di locazione', rd_credit: 'credito di ricerca e sviluppo', loan: 'finanziamento' }[k] || k}`).join(' · ')}.</p>}
+          {facts && Object.keys(facts.counts || {}).length > 0 && <p className="text-[11px] text-mute">Dai documenti: {Object.entries(facts.counts).map(([k, n]) => `${n} ${{ staff_member: 'persone', asset_line: 'beni', dep_plan_line: 'righe di ammortamento', supplier_spend: 'voci di spesa dalle fatture', aid_received: 'aiuti', capex_plan: 'investimenti', hiring_plan: 'assunzioni', budget_line: 'conti di budget', durc: 'DURC', lease: 'contratto di locazione', rd_credit: 'credito di ricerca e sviluppo', loan: 'finanziamento', trial_balance_line: 'conti del bilancio di verifica', xbrl_balance: 'bilanci XBRL', rna_visura: 'visure aiuti', rna_aid: 'aiuti in visura', shareholder: 'soci', de_minimis_declared: 'dichiarazioni de minimis', tax_return: 'dichiarazioni fiscali', bank_balance: 'saldi di conto', quote: 'preventivi' }[k] || k}`).join(' · ')}.</p>}
           <div className="flex flex-wrap gap-2">{tabs.map(([k, l]) => <button key={k} onClick={() => setTab(k)} aria-pressed={tab === k} className={`px-3 py-1.5 rounded-lg text-xs font-medium border transition ${tab === k ? 'bg-brand/25 text-brand-ink border-brand/60' : 'border-line text-ink-2 hover:border-line-strong'}`}>{l}</button>)}</div>
           {loading && <p className="text-xs text-mute flex items-center gap-2"><Loader2 className="w-3.5 h-3.5 animate-spin" />Carico…</p>}
           {error && <p className="text-xs text-amber-700">{error}</p>}
@@ -49,6 +50,15 @@ export default function DocumentFacts({ version = 0 }) {
               <div className="overflow-x-auto"><table className="w-full text-xs"><thead><tr className="text-left text-mute"><th className="py-1 font-medium">Classe di beni</th><th className="font-medium text-right">Beni</th><th className="font-medium text-right">Costo storico</th><th className="font-medium text-right">Valore residuo</th></tr></thead>
                 <tbody>{Object.entries(assets.by_class).map(([c, v]) => <tr key={c} className="border-t border-line"><td className="py-1 text-ink-2">{c}</td><td className="text-right tabular-nums">{v.assets}</td><td className="text-right tabular-nums">{fmtEur(v.cost_eur)}</td><td className="text-right tabular-nums">{fmtEur(v.net_eur)}</td></tr>)}</tbody></table>
                 {Object.keys(assets.depreciation_by_year).length > 0 && <p className="text-[11px] text-mute mt-1">Ammortamento previsto: {Object.entries(assets.depreciation_by_year).map(([y, v]) => `${y}: ${fmtEur(v)}`).join(' · ')}.</p>}</div>
+            )
+          )}
+          {tab === 'coerenza' && (
+            checks.length === 0 ? <p className="text-xs text-mute">Servono almeno due documenti che parlano della stessa cosa (per esempio il bilancio e la dichiarazione IVA) per confrontarli.</p> : (
+              <ul className="space-y-1.5">{checks.map((c) => (
+                <li key={c.key + c.label} className="text-xs flex gap-2 items-start">
+                  <span className={`mt-0.5 shrink-0 px-1.5 py-0.5 rounded border text-[10px] font-medium ${c.status === 'OK' ? 'bg-emerald-50 text-emerald-800 border-emerald-200' : c.status === 'WARN' ? 'bg-amber-50 text-amber-800 border-amber-200' : 'bg-tint text-ink-2 border-line'}`}>{c.status === 'OK' ? 'torna' : c.status === 'WARN' ? 'da vedere' : 'info'}</span>
+                  <span><span className="font-medium text-ink">{c.label}.</span> <span className="text-ink-2">{c.detail}</span></span>
+                </li>))}</ul>
             )
           )}
         </div>

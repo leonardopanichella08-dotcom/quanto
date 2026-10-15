@@ -5,301 +5,343 @@
    "file": "01_Visura_camerale_Meridiana_Digital_Solutions.pdf",
    "doc_type": "COMPANY_REGISTRY",
    "size": 27905,
-   "sha256": "aeb02741e33bc257ec8aa78e068cd4d5768a514493da117630c2e4c436a9f56e"
+   "sha256": "0693b4ad4fb2b9ee5207513fcce1f26f273f4da9cc15ff6f121e08b168a4a021"
   },
   {
    "file": "02_Bilancio_2023.pdf",
    "doc_type": "BALANCE_SHEET",
    "size": 242142,
-   "sha256": "74bf16318caa54bf010337f7ef2a48a934305cf6224bc3ca1b7bbd9f2fe016a1"
+   "sha256": "0d69dffdb49be5bfd65f7a5da6730d4960e0c70cf6be19a463bfe59254510039"
   },
   {
    "file": "03_Bilancio_2024.pdf",
    "doc_type": "BALANCE_SHEET",
    "size": 248680,
-   "sha256": "afd3750c001d529c8262168e21d7383a381876d06e9d6f4b48c41c69c04129e4"
+   "sha256": "3fb58e7faa1e1d2cdf8b391945c6bf33d5634ab88a23e8e1cdb59889b53cba57"
   },
   {
    "file": "04_Bilancio_2025.pdf",
    "doc_type": "BALANCE_SHEET",
    "size": 265696,
-   "sha256": "c69d4901537da95f3571d563f6ee3a9e3a2de0d4df2dc80a0367a12f6bc851f0"
+   "sha256": "707cbbe3d66cf4a7138d9635154fde1202c757c1a792d9e1010fc0fc8c3eafed"
   },
   {
    "file": "36_Busta_paga_agosto_2026_Ferraris_Giulia.pdf",
    "doc_type": "PAYSLIP",
    "size": 7367,
-   "sha256": "f64e9311c979e4138e739addc59c493241cf24518af0b1c9815e44b900d7ecc9"
+   "sha256": "32e3662350f056e9ad9d8afc35ca3770ce9a2407e0c3a3439add2dca89b1df07"
   },
   {
    "file": "37_Busta_paga_agosto_2026_Gallo_Matteo.pdf",
    "doc_type": "PAYSLIP",
    "size": 7381,
-   "sha256": "c4d271e78980bcc10a183c6d031001dcd2c7de9741f69160b692a03b9c7da4ec"
+   "sha256": "c2198090b9a59a9ae5a47f5d2e7eb6e42606c3bb978fffc5219cab413aaab35e"
   },
   {
    "file": "05_Busta_paga_agosto_2026_Bertone_Andrea.pdf",
    "doc_type": "PAYSLIP",
    "size": 7443,
-   "sha256": "883bd1e7403c563ddfce1a08a60eaee7467f4ac0436146b5e6b4c37edb4b872b"
+   "sha256": "d3b5069e66056f4900f93e81334ad7e6cf2f2d526bab6af8dd2b4a6e3d959190"
   },
   {
    "file": "38_Busta_paga_agosto_2026_Marchetti_Elena.pdf",
    "doc_type": "PAYSLIP",
    "size": 7448,
-   "sha256": "fd1ff91f0ea2719e0cfda20d17fc0da064492b99feb6e437bdad2f93eda7217f"
+   "sha256": "f8199a41286cbe875ed8f725e76e9910065192bdd8beb5f5ba0a0b571118ca9c"
   },
   {
    "file": "39_Busta_paga_agosto_2026_Costa_Luca.pdf",
    "doc_type": "PAYSLIP",
    "size": 7444,
-   "sha256": "1bc8ef3e910ac11eade4da1b531892ed13dd0eebe63c5e07f6b3f33aab413f0d"
+   "sha256": "245404df0c0d3b3f9c1427a6ef10a3d94b954d590afa0b8f99fb0663dc5b54f9"
   },
   {
    "file": "06_Busta_paga_agosto_2026_Ricci_Chiara.pdf",
    "doc_type": "PAYSLIP",
    "size": 7446,
-   "sha256": "492cc7d1eb60d41e8f63538c7c957792e0c393493c24959754c843298a1566cb"
+   "sha256": "b4a7ce7c0ab2706c708fc17439500055cbaf221a5710adfbbed6a38e9bd986c7"
   },
   {
    "file": "40_Busta_paga_agosto_2026_Moretti_Davide.pdf",
    "doc_type": "PAYSLIP",
    "size": 7440,
-   "sha256": "5ba89c7dd262e8b70c68ea6119e167e4b512d911e394caccc2d4d82600eea917"
+   "sha256": "8f749b3f0708e66eccc4b770c7b56103f1e47ae472dc41aaf06ba5e772a1a1d0"
   },
   {
    "file": "41_Busta_paga_agosto_2026_Conti_Federica.pdf",
    "doc_type": "PAYSLIP",
    "size": 7363,
-   "sha256": "e7b11cf31c4b634067c67288391afcbcec5a4ae270ba233fe3106e6d8d92ab1e"
+   "sha256": "088709a0d8a909e5e12633ef7e8a99a2a0a27175594578f8ea3843edcf724bd0"
   },
   {
    "file": "42_Busta_paga_agosto_2026_De_Luca_Simone.pdf",
    "doc_type": "PAYSLIP",
    "size": 7447,
-   "sha256": "209f6295b0f44b9f75964fc852990fcd34ef1f5f06cf4a044d3fed7ccb20a027"
+   "sha256": "fad9f56de118a8457e1673d56b8c76ce94a2d158a1eacfa965a7d347721b8a6e"
   },
   {
    "file": "43_Busta_paga_agosto_2026_Barbieri_Laura.pdf",
    "doc_type": "PAYSLIP",
    "size": 7448,
-   "sha256": "b64c2098d4e1913998edde641e057b37951f36b79b64344051d9c2236f7518e4"
+   "sha256": "897dd09a097460947a9e0cfa8f9487223b33a6d1976e177ea3d33b363d067d5c"
   },
   {
    "file": "44_Busta_paga_agosto_2026_Fontana_Paola.pdf",
    "doc_type": "PAYSLIP",
    "size": 7457,
-   "sha256": "de092aa05da7b0286b6952819fba5bcc40c004e8776ac272560cb87c92a50f8a"
+   "sha256": "eede0eaa8de7fe0b4d51b447a2c3e5049611ea503e796d3e55918bf38c3331d8"
   },
   {
    "file": "45_Busta_paga_agosto_2026_Esposito_Marco.pdf",
    "doc_type": "PAYSLIP",
    "size": 7444,
-   "sha256": "2336a287d9d8afbbf130e77626e4a5a314a754989e963a29941c3af7bad943ac"
+   "sha256": "ab4afefc98653a0e57a739fc7a9153a8ef2c2c0de4424dde891061f2f63c86b2"
   },
   {
    "file": "46_Busta_paga_agosto_2026_Villa_Giorgia.pdf",
    "doc_type": "PAYSLIP",
    "size": 7381,
-   "sha256": "9b088e70f8cea29f1372154d47d84eaf2dda646bfd6d7eb432c3a8548178015b"
+   "sha256": "0ade143c5ef5e98c9d2d2c61bc0af25000de96aa7a05a97093a4d9ae92357773"
   },
   {
    "file": "47_Busta_paga_agosto_2026_Greco_Fabio.pdf",
    "doc_type": "PAYSLIP",
    "size": 7439,
-   "sha256": "952756d43f689866266fb7c9c9fe76fc71807a1e2a6636c0e174bbe83976e420"
+   "sha256": "d9b7056174dd7dd742401d34a16218eda8eb8ffe307f475c7ce44eff73f13a7e"
   },
   {
    "file": "48_Busta_paga_agosto_2026_Rossetti_Valentina.pdf",
    "doc_type": "PAYSLIP",
    "size": 7446,
-   "sha256": "b81b416ad5a8ad2e5f6d9a95f859578c1286a237a81e0ddf73461809d60deb93"
+   "sha256": "a98de839ea1a680534d545dde9619d06ad1c9eabd7d27e2296fab1e8d8ef8356"
   },
   {
    "file": "49_Busta_paga_agosto_2026_Mancini_Nicolo.pdf",
    "doc_type": "PAYSLIP",
    "size": 7379,
-   "sha256": "4895b514e64a63552b8882403d53116bc8b1b4151f40873b9c7dfe23ff4669fa"
+   "sha256": "3b9e8fd863bbb860e0aa984a2a304da34b718ddc11155c90d6e4b4460d60aadb"
   },
   {
    "file": "50_Busta_paga_agosto_2026_Ferrero_Anna.pdf",
    "doc_type": "PAYSLIP",
    "size": 7373,
-   "sha256": "92fb2517e6cab166f4c40acb417e18d3fa31b9d4d2aabfc0250b344aedcc7e9f"
+   "sha256": "cc9e2ed812a57fe15228179d04e2bbba3d09a843ea3dc7142bb43a62b200d3fe"
   },
   {
    "file": "07_F24_pagamento_16-09-2026.pdf",
    "doc_type": "F24",
    "size": 5255,
-   "sha256": "00209601ac14bd9654fe7c66b6eb9ff0413d888d45e6612ad437a4126a7b8ad9"
+   "sha256": "81b850b2c124f9de09283d4dd982dc5dc3495601f30897a6448cd0a306118dfc"
   },
   {
    "file": "08_F24_pagamento_16-08-2026.pdf",
    "doc_type": "F24",
    "size": 5269,
-   "sha256": "66c69d965f101068bf408125061f7e70e0d440b7cec5cd965f1ea58a7957a85d"
+   "sha256": "ce3fdf48f14b1126d0edaa23e59d169daa29bf9b10d53c698ddced9a2a2c7afc"
   },
   {
    "file": "09_Bozza_candidatura_Progetto_Atlas.pdf",
    "doc_type": "APPLICATION_DRAFT",
    "size": 56296,
-   "sha256": "3023ab646dba95eafa61a7675db1e02432013c87fe74b1f8f11bb104e1adc685"
+   "sha256": "e1f0f225f7dd6019d264a0d4c09b3018dc88fd49baa612556cc6a9497dfd0e13"
   },
   {
    "file": "10_DURC_regolare_2026.pdf",
    "doc_type": "OTHER",
    "size": 11893,
-   "sha256": "add06d5238cd8b2c31ea70809448769701cf2fde8d5616cc291e192ca6417057"
+   "sha256": "6c983cfa2deaef7771952da1f8bc03bcd4b1ac4072ddd7799209e2adf548a637"
   },
   {
    "file": "11_Dichiarazione_de_minimis_2024-2026.pdf",
    "doc_type": "OTHER",
    "size": 13173,
-   "sha256": "6f1016efd66bcd92434bf46a9e4b5a478c7ba02720780024ee51c3471121719b"
+   "sha256": "49d44ab56730eddd20ef7dbd5f8c791f27a84ae4f0897693d9596210cad6fd6d"
   },
   {
    "file": "12_Business_plan_2026-2028.pdf",
    "doc_type": "OTHER",
    "size": 167396,
-   "sha256": "e7d915e878cf506848d7b5bd30921497243333f610e5e82f2733f41f2c81ee02"
+   "sha256": "15757db02864125979404752b8509677031bb843461c8d3b7402efe7c7a5f34c"
   },
   {
    "file": "13_Registro_aiuti_ricevuti.xlsx",
    "doc_type": "OTHER",
-   "size": 12362,
-   "sha256": "243d05d6d2ea4b58a5268114e52d90f19678c594a1cdf1b8847d53e8bc9b1e2c"
+   "size": 12361,
+   "sha256": "2f8f4967a7b6495259db4d4e79db24bfa75cb04e888c8870497bb1591b5916a8"
   },
   {
    "file": "14_Organico_e_livelli_CCNL.xlsx",
    "doc_type": "OTHER",
-   "size": 19072,
-   "sha256": "939d2faab76e79297f16eecb324d02e22ba802aacc662485af8964bee9feecd6"
+   "size": 19071,
+   "sha256": "2d47a1f19e178366ee91fc0e5409b9517d9c52fda2b6c4ee7d122086d49b6c47"
   },
   {
    "file": "15_Libro_cespiti_2025.xlsx",
    "doc_type": "OTHER",
-   "size": 38122,
-   "sha256": "a3ebcc74319152ecbd2a98226a6d23d19a5c1793d22c9b86ccca7538adc2d5d7"
+   "size": 38121,
+   "sha256": "c9826ff4b5b5049d75d7ea3df342fbf84da2c9ff88d0902149f8c4c67d7fbed3"
   },
   {
    "file": "16_F24_pagamento_16-07-2026.pdf",
    "doc_type": "F24",
    "size": 5267,
-   "sha256": "a6e4599c0448cc7687346280adbea9e928e20e554a8bb8703653c62aad99ab8e"
+   "sha256": "05de1e10054d186915c3a6c71c8982e14e6d942919fe51708c8cd11ab5081773"
   },
   {
    "file": "17_F24_pagamento_16-06-2026.pdf",
    "doc_type": "F24",
    "size": 4370,
-   "sha256": "f9cbe6eb2065c3988152163687db7c54b80715d8d2a3b8ed0a434e4bbccb357f"
+   "sha256": "fb88a07fc799db83bfb281e1ac6786b55bba758060e6adddc6347a91f691b663"
   },
   {
    "file": "18_F24_pagamento_16-05-2026.pdf",
    "doc_type": "F24",
    "size": 4366,
-   "sha256": "77a41ee73284ee70996364f4789d755c3d87e3210ff3a50bfc3fb00230bc58e6"
+   "sha256": "fd38545ba90fdc66631f3eb59a0dffc6bbd1add9dbb23e7c73a1553a5cb0ecda"
   },
   {
    "file": "19_F24_pagamento_16-04-2026.pdf",
    "doc_type": "F24",
    "size": 4365,
-   "sha256": "c0679698f2e80ae6616d894a2145107b5c773d094b518ea688f3a00670759f23"
+   "sha256": "809b2bbad6d1f6981c491ab75c1e0e45528c880ff903d306e1585b11b8c8814b"
   },
   {
    "file": "20_F24_pagamento_16-03-2026.pdf",
    "doc_type": "F24",
    "size": 4386,
-   "sha256": "93a581ab18205dafffdeba52854d6cec460ef8a659229381da93f00c870b7446"
+   "sha256": "5298cb9e5716cd574fdf31930ee1464de9f35fc0eb32cf469f4ee53ed69a2843"
   },
   {
    "file": "21_F24_pagamento_16-02-2026.pdf",
    "doc_type": "F24",
    "size": 4382,
-   "sha256": "b68538898fb2866016e90081932c004576d0afd5bddfbf5ce42ac7688133092e"
+   "sha256": "ed6c73d83a0d92cc5c29f71519d4e74f5eea62c8a31e0947c6b9c17538a08d01"
   },
   {
    "file": "22_F24_pagamento_16-01-2026.pdf",
    "doc_type": "F24",
    "size": 4370,
-   "sha256": "bb7e4849811ffcd74f5ea755e83532a5e51a1c91f9b1d030f923da6728104dbc"
+   "sha256": "01c57068a74f7dfdf34506bbb6ed998131921bdf93fd2b5bcacc7481d18b3a9a"
   },
   {
    "file": "23_Dichiarazione_Redditi_SC_2025.pdf",
    "doc_type": "OTHER",
    "size": 16237,
-   "sha256": "000f7a08db8c450300fa6247dbc1d4935a03fa523568fb144b4134cb6cc873bb"
+   "sha256": "496575e5c104d3467d34a23cb8c55f2280789b1ac8bb04514ccbd8e5fb47ab80"
   },
   {
    "file": "24_Dichiarazione_IRAP_2025.pdf",
    "doc_type": "OTHER",
    "size": 8803,
-   "sha256": "52802351efedb930857f366c0c525e2a79b9c5dd026d626e63c0660abe796a75"
+   "sha256": "4dcabd7598081175a483b6a26700c9b32eac0cc312947fb23e4a22bfd2e152d5"
   },
   {
    "file": "25_Dichiarazione_IVA_2026.pdf",
    "doc_type": "OTHER",
    "size": 13366,
-   "sha256": "14e88f6b3cd90845ad5e2c58280775f6e4740befce47953ff935fe076dedf538"
+   "sha256": "2d45239fe82cd1b97efc5467e683b4e1697fb62d16ef23cca92f07de9848c5db"
   },
   {
    "file": "26_Piano_ammortamento_finanziamento.pdf",
    "doc_type": "OTHER",
    "size": 9509,
-   "sha256": "8ac18fbde78d8bf5029381a59508e62718d63055d2573fdb48b9ca93244a65f0"
+   "sha256": "dcf08280763b54116870b79d124328e0dbce82d97ce8801e63999680256af504"
   },
   {
    "file": "27_Estratto_conto_agosto_2026.pdf",
    "doc_type": "OTHER",
    "size": 20555,
-   "sha256": "7637e0c0914d094651f47da9afb9183bb014aec2170d486952591b47b4472dd1"
+   "sha256": "f4dc15aa96dc12f4396c6fd3494169f2f2b1d8dad8e225d34d71c9cac765fd6f"
   },
   {
    "file": "28_Contratto_locazione_sede.pdf",
    "doc_type": "OTHER",
    "size": 14841,
-   "sha256": "91ea961374fa0c4946a83f1358581c7a93433c4287b5a05ac8d874376834536f"
+   "sha256": "31366faee934bedcb1db5c732b3c53ce0e34f950b49217da20086bb61dfc17ce"
   },
   {
    "file": "29_Libro_soci.pdf",
    "doc_type": "OTHER",
    "size": 6115,
-   "sha256": "e7daf37df3a3f0c65b3c609f81bff2a1db7a272fc819d39ef68c697aeecfd326"
+   "sha256": "17fc00f22a56e554980bb47c997b41a7d5200222f0a31fe2de86739006c6b1c5"
   },
   {
    "file": "30_Relazione_tecnica_credito_RS_2025.pdf",
    "doc_type": "OTHER",
    "size": 14806,
-   "sha256": "8eb2578edf68868c73f5e9484ef364b9b42152ece0ee87a5bf22b9456a1267a3"
+   "sha256": "e6e12abe9fa86322b0c69eb7a4204a61bc5bb77079d14a7eaf88d7afc60c6314"
   },
   {
    "file": "31_Bilancio_di_verifica_e_CE_mensile.xlsx",
    "doc_type": "OTHER",
-   "size": 99255,
-   "sha256": "93fd78e531816c0e163b4bd286cf7f6f447469c95f13a05c40f1368b854152e8"
+   "size": 99251,
+   "sha256": "10a25731c46a479beb05e865be7d6b001befddc7b9ca7ad5f39fdce7f4474abf"
   },
   {
    "file": "32_Registro_fatture_emesse_2023-2025.xlsx",
    "doc_type": "OTHER",
-   "size": 98877,
-   "sha256": "162c2536aa544031f292c3118f42fb79fd28c6d7889582ec645074413542d9c9"
+   "size": 98876,
+   "sha256": "4d194abcf00c13733842a0feba3f9b39ed47b3a34a901f3e9e62183048ecc22c"
   },
   {
    "file": "33_Registro_fatture_ricevute_2024-2025.xlsx",
    "doc_type": "OTHER",
-   "size": 227416,
-   "sha256": "cc4eadf6cbd44d36e696e3bc321b74183c5aeebf61aa83ec1b060df233afd40a"
+   "size": 227415,
+   "sha256": "00c84a4ef6b9923ce62a72c0fc140604a7838c6a3dde284835b2ee966e3308a8"
   },
   {
    "file": "34_Controllo_commesse_e_budget_2026.xlsx",
    "doc_type": "OTHER",
    "size": 39612,
-   "sha256": "775c01f4857bbdd031eed719704498ffa86407911be3be158df1c7c08306c9b3"
+   "sha256": "96091101d54667b17d68a1eedca4ccf36e65187443355e2887409e1698873f65"
   },
   {
    "file": "35_Business_plan_modello_finanziario.xlsx",
    "doc_type": "OTHER",
    "size": 32331,
-   "sha256": "f033c8a62395079ec531fd617c33afe822cb3474edf72b4d3b65cb409418aeea"
+   "sha256": "b07454962af61b72f16c2462ee09d322a8a3f6af1f4786b038de18c8df29d4e8"
+  },
+  {
+   "file": "51_Visura_aiuti_RNA_14-10-2026.pdf",
+   "doc_type": "OTHER",
+   "size": 4232,
+   "sha256": "96a4d2755ace16b432e427391d2b6a20856af6036828a5b0b10a6163901e43fa"
+  },
+  {
+   "file": "52_Preventivo_infrastruttura_cloud.pdf",
+   "doc_type": "OTHER",
+   "size": 2907,
+   "sha256": "13a49190f8c9b4680c82638fc8a5fe803fbad66cb5f14741ab369eadaab6746b"
+  },
+  {
+   "file": "53_Preventivo_licenze_software.pdf",
+   "doc_type": "OTHER",
+   "size": 2848,
+   "sha256": "33b06f736cca5b3ec164f5d51641234eb2d70cfa362cfcb66ed6e0b9bedfc915"
+  },
+  {
+   "file": "54_Preventivo_macchine_e_arredi.pdf",
+   "doc_type": "OTHER",
+   "size": 2899,
+   "sha256": "3a7b4f92ab21d0942c667215443d326ba4d7333f7e00d2e5c2984b14add14c47"
+  },
+  {
+   "file": "55_Fatture_passive_2025_XML.zip",
+   "doc_type": "OTHER",
+   "size": 894246,
+   "sha256": "f5fef377d4bedeb37728eaa400cf9a4497ff5e5135cbc099922fe3e68830582a"
+  },
+  {
+   "file": "56_Bilancio_2024-2025_XBRL.xbrl",
+   "doc_type": "OTHER",
+   "size": 3190,
+   "sha256": "8fce9158cac1b2ceb5676dcad58005ff3ad8f5e3d1f7ef3c62b3c1875c1d94c9"
+  },
+  {
+   "file": "57_Bilancio_di_verifica_2025_gestionale.csv",
+   "doc_type": "OTHER",
+   "size": 18080,
+   "sha256": "4f61a30688b251e0a80a5d72a387dde5a48a5fcc538ecfd9a2f2ee7fcdca66be"
   }
  ]
 }

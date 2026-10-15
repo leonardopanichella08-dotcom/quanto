@@ -170,6 +170,7 @@ class ExtractionOutcome:
 
 
 MAX_REQUIREMENTS = 2500
+HUMAN_CONFIRMED_KEYS = frozenset({"excluded_expense_types"})
 MAX_TO_REVIEW = 400
 
 
@@ -252,7 +253,8 @@ class Ingestion:
                         continue
                     values = list(dict.fromkeys(v for _, v in hits))
                     trusted = strict_refs is None or any(r in strict_refs for r, _ in hits) or len({r for r, _ in hits}) >= 2
-                    if len(values) == 1 and trusted:
+                    # l'elenco delle voci di spesa escluse esce dal testo di un bando: una voce letta male toglierebbe soldi ammessi, quindi la conferma è sempre di una persona (Quartier Generale)
+                    if len(values) == 1 and trusted and key not in HUMAN_CONFIRMED_KEYS:
                         put(key, values[0], "STRUCTURED_PARSING", "PUBLISHED", ref=hits[0][0])
                         published[key] = values[0]
                         existing[key] = {"status": "PUBLISHED", "origin": "STRUCTURED_PARSING"}
