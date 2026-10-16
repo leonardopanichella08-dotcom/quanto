@@ -257,23 +257,34 @@ function RealityPanel({ plan, lines }) {
   )
 }
 
-function BandoCard({ r, picked, onToggle, onBudget, includeLabel = 'Includi' }) {
+function BandoCard({ r, picked, onToggle, onBudget, includeLabel = 'Includi', scenario = 'ANNUAL', linked = [], onPickProject }) {
   const [open, setOpen] = useState(false)
   const [fit, tone] = FIT[r.fit]
   const e = r.estimate
+  const projectOnly = !!r.mode?.needs_project
+  const blocked = projectOnly && scenario === 'ANNUAL'                            // un bando a progetto non finanzia le spese annuali: nel piano dell'anno non entra
   return (
-    <div className={`rounded-2xl border p-4 space-y-3 ${picked ? 'border-brand/60 bg-brand/5' : 'border-line bg-field'}`}>
+    <div className={`rounded-2xl p-4 space-y-3 ${picked ? 'bg-brand/5 ring-1 ring-brand/40' : 'bg-tint'} ${blocked ? 'opacity-95' : ''}`}>
       <div className="space-y-1.5">
         <div className="flex flex-wrap gap-1.5">
-          {r.mode && <span title={`Si calcola su ${r.mode.base}`} className="px-2 py-0.5 text-[11px] font-medium rounded border border-line-strong text-ink-2">{r.mode.needs_project ? 'A progetto' : r.mode.label}</span>}
-          {r.de_minimis?.applies && <span title={r.de_minimis.evidence[0]?.text} className="px-2 py-0.5 text-[11px] font-medium rounded border border-violet-500/30 bg-violet-500/10 text-violet-700">De minimis</span>}
-          <span className={`px-2 py-0.5 text-[11px] font-medium rounded border ${tone}`}>{fit}</span>
+          {r.mode && <span title={`Si calcola su ${r.mode.base}`} className="px-2 py-0.5 text-[11px] font-medium rounded-full bg-white text-ink-2">{projectOnly ? 'Per un progetto' : r.mode.label}</span>}
+          {r.de_minimis?.applies && <span title={r.de_minimis.evidence[0]?.text} className="px-2 py-0.5 text-[11px] font-medium rounded-full bg-violet-500/10 text-violet-700">De minimis</span>}
+          <span className={`px-2 py-0.5 text-[11px] font-medium rounded-full ${tone}`}>{fit}</span>
         </div>
         <p className="text-sm font-semibold text-ink break-words leading-snug">{r.name}</p>
         <p className="text-[11px] text-mute">{r.issuer || 'Ente non indicato'}</p>
       </div>
 
-      {e ? (
+      {blocked ? (
+        <div className="space-y-2">
+          <p className="text-sm text-ink-2 leading-snug">Finanzia le spese nuove di un progetto{e ? <>, fino al <span className="font-semibold text-ink tabular-nums">{fmtNum(e.rate_pct, 0)}%</span></> : ''}: non le spese annuali. L’importo si calcola quando scegli un progetto.</p>
+          {linked.length > 0
+            ? <div className="flex flex-wrap items-center gap-1.5"><span className="text-[11px] text-mute">Progetti possibili:</span>{linked.map((i) => <button key={i.id} className="btn !py-0.5 !text-[11px]" onClick={() => onPickProject(i)}>{i.title}</button>)}</div>
+            : <p className="text-[11px] text-mute">Nessuno dei tuoi documenti suggerisce un progetto adatto a questo bando.</p>}
+        </div>
+      ) : projectOnly && scenario === 'PROJECT' ? (
+        <p className="text-sm text-ink-2 leading-snug">{e ? <>Contributo fino al <span className="font-semibold text-ink tabular-nums">{fmtNum(e.rate_pct, 0)}%</span> delle spese del progetto.</> : 'Contributo sulle spese del progetto.'}</p>
+      ) : e ? (
         <div className="flex flex-wrap items-end gap-x-6 gap-y-1">
           <div><span className="label">{e.kind_label || 'Contributo stimato'}</span><div className="text-lg font-display font-semibold text-emerald-700 tabular-nums">{fmtEur(e.covered_eur)}{e.covered_high_eur > e.covered_eur + 0.5 && <span className="text-sm text-emerald-700/80"> – {fmtEur(e.covered_high_eur)}</span>}</div></div>
           <div><span className="label">Sulle tue spese</span><div className="text-sm font-semibold tabular-nums">{fmtNum(e.covered_pct_of_total, 1)}%</div></div>
@@ -281,10 +292,10 @@ function BandoCard({ r, picked, onToggle, onBudget, includeLabel = 'Includi' }) 
       ) : r.guarantee ? (
         <div><span className="label">Importo garantibile</span><div className="text-lg font-display font-semibold text-sky-700 tabular-nums">{fmtEur(r.guarantee.guaranteed_low_eur)} – {fmtEur(r.guarantee.guaranteed_high_eur)}</div></div>
       ) : <p className="text-xs text-amber-700">Nessuna percentuale nei documenti letti: puoi farlo studiare di nuovo.</p>}
-      {e && e.adjustments.length > 0 && <p className="text-[11px] text-amber-700 inline-flex items-center gap-1.5"><AlertTriangle className="w-3.5 h-3.5" />Alcune voci vanno ridotte per rientrare nei tetti (dettagli)</p>}
+      {e && !projectOnly && e.adjustments.length > 0 && <p className="text-[11px] text-amber-700 inline-flex items-center gap-1.5"><AlertTriangle className="w-3.5 h-3.5" />Alcune voci vanno ridotte per rientrare nei tetti (dettagli)</p>}
 
       <div className="flex flex-wrap items-center gap-2">
-        {r.fund && r.fit !== 'NON_ADATTO' && <label className="inline-flex items-center gap-2 text-xs font-medium cursor-pointer"><input type="checkbox" checked={picked} onChange={onToggle} />{includeLabel}</label>}
+        {r.fund && r.fit !== 'NON_ADATTO' && !blocked && <label className="inline-flex items-center gap-2 text-xs font-medium cursor-pointer"><input type="checkbox" checked={picked} onChange={onToggle} />{includeLabel}</label>}
         <button className="btn !py-1 ml-auto" onClick={() => setOpen(!open)}>{open ? <ChevronDown className="w-3 h-3" /> : <ChevronRight className="w-3 h-3" />}Dettagli</button>
       </div>
 
@@ -345,6 +356,9 @@ export default function AllocationView({ onGoProfile, onBudgetFrom, onOpenBudget
   const [dmOverride, setDmOverride] = useState('')                    // vuoto = vale la stima di QUANTO (dagli aiuti dichiarati nei bilanci); pieno = il valore scritto dall'utente
   const [plan, setPlan] = useState(null)
   const [planHigh, setPlanHigh] = useState(null)
+  const [ideas, setIdeas] = useState(null)                       // le idee di progetto: servono sia alla sezione «Progetti» sia alle schede dei bandi a progetto
+  const [ideasError, setIdeasError] = useState(null)
+  const [ideasLoading, setIdeasLoading] = useState(false)
   const [includeCurrent, setIncludeCurrent] = useState(false)       // nel progetto scelto: includere anche le spese correnti (dove i bandi scelti le ammettono)
   const [project, setProject] = useState(null)                    // il progetto scelto: nello scenario «Progetto» il piano si calcola sulle sue spese nuove
   const [planLines, setPlanLines] = useState([])                      // le linee di finanziamento con cui è stato calcolato il piano (servono per i budget)
@@ -382,8 +396,10 @@ export default function AllocationView({ onGoProfile, onBudgetFrom, onOpenBudget
     try {
       const res = await runMatch()
       const valid = new Set(res.matching.results.filter((r) => r.fund).map((r) => r.bando_id))
-      const sure = res.matching.results.filter((r) => r.fit === 'ADATTO' && r.fund).map((r) => r.bando_id)
-      const keep = allMode.current ? sure : (pending.current ?? picked)   // piano «tutti i bandi adatti»: segue i bandi nuovi; altrimenti le scelte restano (se ancora valide)
+      const annualOk = (r) => !r.mode?.needs_project                                       // un bando a progetto non finanzia le spese annuali
+      const sure = res.matching.results.filter((r) => r.fit === 'ADATTO' && r.fund && annualOk(r)).map((r) => r.bando_id)
+      const annualIds = new Set(res.matching.results.filter((r) => r.fund && annualOk(r)).map((r) => r.bando_id))
+      const keep = (allMode.current ? sure : (pending.current ?? picked)).filter((id) => annualIds.has(id))   // piano «tutti i bandi adatti»: segue i bandi nuovi; altrimenti le scelte restano (se ancora valide)
       pending.current = null
       setPicked(keep.filter((id) => valid.has(id)))
       setTab(res.matching.summary.ADATTO ? 'ADATTO' : res.matching.summary.DA_VERIFICARE ? 'DA_VERIFICARE' : 'NON_ADATTO')
@@ -485,6 +501,21 @@ export default function AllocationView({ onGoProfile, onBudgetFrom, onOpenBudget
       deMinimis: dmEstimate ? { ...dmEstimate, residual_eur: Number(deMinimis), needed_eur: plan?.de_minimis_used_eur ?? 0 } : null } }))
   }, [tick, plan, planHigh, planError, loading, matching, match])         // eslint-disable-line react-hooks/exhaustive-deps
 
+  const hasData = ov && ov.last_year != null
+  const results = match?.matching.results || []
+  const shown = results.filter((r) => r.fit === tab)
+  useEffect(() => {
+    if (!hasData) return undefined
+    let live = true
+    setIdeasLoading(true); setIdeasError(null)
+    api.profileIdeas(year ? Number(year) : undefined).then((d) => { if (live) setIdeas(d) }).catch((e) => { if (live) { setIdeasError(e.message); setIdeas(null) } }).finally(() => { if (live) setIdeasLoading(false) })
+    return () => { live = false }
+  }, [year, hasData, match === null])        // eslint-disable-line react-hooks/exhaustive-deps
+  const ideasByBando = {}
+  ;(ideas?.ideas || []).forEach((i) => i.bandi.forEach((b) => { (ideasByBando[b.bando_id] = ideasByBando[b.bando_id] || []).push(i) }))
+  const projectBandi = results.filter((r) => r.fund && r.fit !== 'NON_ADATTO' && r.mode?.needs_project)
+  const orphans = projectBandi.filter((r) => !(ideasByBando[r.bando_id] || []).length).map((r) => r.name)
+  const isCandidate = (r) => (inProject ? (project?.bandi || []).some((b) => b.bando_id === r.bando_id) : !r.mode?.needs_project)
   const openStep = (id, on = true) => setOpenSteps((o) => ({ ...o, [id]: on }))
   const toggleStep = (id) => setOpenSteps((o) => ({ ...o, [id]: !o[id] }))
   const goStep = (id) => { openStep(id); setTimeout(() => flashTo(`al-${id}`), 120) }
@@ -502,24 +533,21 @@ export default function AllocationView({ onGoProfile, onBudgetFrom, onOpenBudget
   }
   const pick = (ids, all) => { if (inProject) setProjectPicked(ids); else { allMode.current = !!all; setPicked(ids) } }
   const maxMonth = plan ? Math.max(...plan.monthly_plan.map((m) => m.gross_eur), 1) : 1
-  const hasData = ov && ov.last_year != null
-  const results = match?.matching.results || []
-  const shown = results.filter((r) => r.fit === tab)
 
   const nPlanFunds = plan ? plan.fund_usage.filter((u) => u.used_eur > 0).length : 0
   const scenarioBar = (
-    <div className="space-y-2">
-      <div className="inline-flex rounded-xl border border-line p-0.5 bg-tint" role="tablist" aria-label="Cosa pianificare">
-        {[['ANNUAL', 'Piano dell’anno'], ['PROJECT', 'Progetto']].map(([id, label]) => (
+    <div className="space-y-2.5">
+      <div className="inline-flex rounded-full bg-tint-2 p-0.5" role="tablist" aria-label="Cosa pianificare">
+        {[['ANNUAL', 'Spese dell’anno'], ['PROJECT', 'Un progetto']].map(([id, label]) => (
           <button key={id} role="tab" aria-selected={mode === id} onClick={() => { if (id === 'PROJECT' && !project) { goStep('progetti'); return } setMode(id) }}
-            className={`px-4 py-1.5 rounded-lg text-sm transition ${mode === id ? 'bg-white shadow-sm font-medium text-ink' : 'text-ink-2 hover:text-ink'}`}>{label}</button>
+            className={`px-4 py-1.5 rounded-full text-sm transition ${mode === id ? 'bg-white shadow-sm font-medium text-ink' : 'text-ink-2 hover:text-ink'}`}>{label}</button>
         ))}
       </div>
       <p className="text-sm text-ink-2 leading-snug">
         {inProject
-          ? <>«{project.title}»: solo le sue spese nuove, con i bandi che lo finanziano. <button className="underline text-ink" onClick={() => goStep('progetti')}>Cambia progetto</button></>
+          ? <>«{project.title}»: le sue spese nuove, con i bandi che finanziano progetti come questo. <button className="underline text-ink" onClick={() => goStep('progetti')}>Cambia progetto</button></>
           : mode === 'PROJECT' ? 'Scegli prima un progetto.'
-            : <>Tutte le spese del {year} dell’azienda, con tutti i bandi adatti.{project && <> <button className="underline text-ink" onClick={() => setMode('PROJECT')}>Vai al progetto «{project.title}»</button></>}</>}
+            : <>Le spese previste per il {year}, con i bandi che non chiedono un progetto.{projectBandi.length > 0 && <> I {projectBandi.length} bandi che finanziano progetti sono a parte: <button className="underline text-ink" onClick={() => goStep('progetti')}>scegli un progetto</button>.</>}</>}
       </p>
     </div>
   )
@@ -559,12 +587,12 @@ export default function AllocationView({ onGoProfile, onBudgetFrom, onOpenBudget
 
       {match && (
         <Step id="al-risultato" title="Risultato" done={active.length > 0 && !!plan} open={!!openSteps.risultato} onToggle={() => toggleStep('risultato')} alert={planError}
-          summary={plan ? `${fmtEur(plan.covered_by_public_funds_eur)}${planHigh && planHigh.covered_by_public_funds_eur > plan.covered_by_public_funds_eur + 0.5 ? ` – ${fmtEur(planHigh.covered_by_public_funds_eur)}` : ''} coperti su ${fmtEur(plan.total_gross_expense_eur)} · ${fmtNum(plan.overall_coverage_percentage, 1)}% · ${inProject ? `progetto «${project.title}»` : 'piano dell’anno'}` : (active.length === 0 ? (inProject ? 'Nessun bando adatto cita questo tipo di progetto: includi tu i bandi da usare' : 'Scegli i bandi da includere') : 'Calcolo…')}
-          info={<><p><strong className="text-ink">Piano dell’anno</strong>: le spese previste dell’azienda per il {year}, con tutti i bandi adatti. Per molte misure (crediti d’imposta, garanzie, spese commerciali) è la base giusta.</p><p><strong className="text-ink">Progetto</strong>: solo le spese nuove di un progetto che scegli sotto, con i bandi che lo finanziano. È un calcolo più piccolo: serve per i bandi a progetto.</p><p>Le due scelte di bandi restano separate: passare da una all’altra non cancella nulla. Il risultato è un massimo teorico: non considera la probabilità di vincere né i tempi (vedi «Valore reale e incassi»).</p></>}
+          summary={plan ? `${fmtEur(plan.covered_by_public_funds_eur)}${planHigh && planHigh.covered_by_public_funds_eur > plan.covered_by_public_funds_eur + 0.5 ? ` – ${fmtEur(planHigh.covered_by_public_funds_eur)}` : ''} coperti su ${fmtEur(plan.total_gross_expense_eur)} · ${fmtNum(plan.overall_coverage_percentage, 1)}% · ${inProject ? `progetto «${project.title}»` : 'spese dell’anno'}` : (active.length === 0 ? (inProject ? 'Nessun bando adatto cita questo tipo di progetto: includi tu i bandi da usare' : 'Scegli i bandi da includere') : 'Calcolo…')}
+          info={<><p><strong className="text-ink">Spese dell’anno</strong>: le spese che l’azienda sosterrà comunque nel {year} (personale, affitti, licenze…), coperte dai bandi che non chiedono un progetto: crediti d’imposta, spese commerciali, incentivi alle assunzioni.</p><p><strong className="text-ink">Un progetto</strong>: spese nuove e straordinarie (un investimento, una ricerca), coperte dai bandi che finanziano progetti. Un bando a progetto non paga le spese correnti: per questo non compare tra le spese dell’anno.</p><p>«Includi nel piano» e «Includi nel progetto» fanno la stessa cosa nello scenario che stai guardando: decidono quali bandi entrano nel calcolo. Le due scelte restano separate.</p><p>Le spese vengono dal budget dell’azienda e dal piano degli investimenti, se li hai caricati; altrimenti dalla stima dell’anno.</p><p>È un massimo teorico: non considera la probabilità di vincere né i tempi (vedi «Valore reale e incassi»).</p></>}
           >
           {scenarioBar}
           <div className="max-w-xl"><PotentialChart plan={plan} nameOf={(id) => results.find((r) => r.fund?.fund_id === id)?.name || id} dm={{ estimate: dmEstimate }} /></div>
-          <PotentialStep results={results} picked={active} onPick={pick} scenario={inProject ? 'PROJECT' : 'ANNUAL'} dm={{ estimate: dmEstimate, override: overrideOk ? dmOverride : '', invalid: dmOverride !== '' && !overrideOk, setOverride: (v) => setDmOverride(String(v).replace(/[^0-9.,]/g, '').replace(',', '.')), value: Number(deMinimis), onDeclare: declareAid, onVerify: () => onGoProfile({ to: 'aiuti' }) }} plan={plan} planHigh={planHigh} loading={loading} planError={planError} onStudyMore={studyMore} studyingMore={studyingMore} />
+          <PotentialStep results={results} picked={active} onPick={pick} scenario={inProject ? 'PROJECT' : 'ANNUAL'} isCandidate={isCandidate} dm={{ estimate: dmEstimate, override: overrideOk ? dmOverride : '', invalid: dmOverride !== '' && !overrideOk, setOverride: (v) => setDmOverride(String(v).replace(/[^0-9.,]/g, '').replace(',', '.')), value: Number(deMinimis), onDeclare: declareAid, onVerify: () => onGoProfile({ to: 'aiuti' }) }} plan={plan} planHigh={planHigh} loading={loading} planError={planError} onStudyMore={studyMore} studyingMore={studyingMore} />
           {studyNote && <p className="text-[11px] text-ink-2 leading-relaxed">{studyNote}</p>}
         </Step>
       )}
@@ -597,7 +625,7 @@ export default function AllocationView({ onGoProfile, onBudgetFrom, onOpenBudget
           ) : (
             <>
               {shown.length === 0 && <p className="text-xs text-mute">Nessun bando in questa categoria.</p>}
-              <div className="grid lg:grid-cols-2 gap-4">{shown.map((r) => <BandoCard key={r.bando_id} r={r} picked={active.includes(r.bando_id)} includeLabel={inProject ? 'Includi nel progetto' : 'Includi nel piano'} onToggle={() => toggle(r.bando_id)} onBudget={onBudgetFrom} />)}</div>
+              <div className="grid lg:grid-cols-2 gap-4">{shown.map((r) => <BandoCard key={r.bando_id} r={r} picked={active.includes(r.bando_id)} includeLabel={inProject ? 'Includi nel progetto' : 'Includi nel piano'} scenario={inProject ? 'PROJECT' : 'ANNUAL'} linked={ideasByBando[r.bando_id] || []} onPickProject={chooseProject} onToggle={() => toggle(r.bando_id)} onBudget={onBudgetFrom} />)}</div>
             </>
           )}
         </Step>
@@ -605,9 +633,9 @@ export default function AllocationView({ onGoProfile, onBudgetFrom, onOpenBudget
 
       {match && (
         <Step id="al-progetti" title="Progetti" done={!!project} open={!!openSteps.progetti} onToggle={() => toggleStep('progetti')}
-          summary={project ? `Scelto: «${project.title}»${inProject ? ' · in uso' : ''}` : 'Facoltativo · per i bandi che finanziano un progetto'}
-          info="Un bando a progetto (ricerca, investimenti) finanzia le spese nuove di un progetto, non i costi correnti. Qui propongo progetti ricavati dai documenti dell’azienda. Garanzie, crediti d’imposta automatici, assunzioni e spese commerciali non chiedono un progetto: per quelli basta il piano dell’anno.">
-          <ProjectIdeas year={year} active={project} onAllocate={chooseProject} onClear={() => { setProject(null); setMode('ANNUAL') }} includeCurrent={includeCurrent} setIncludeCurrent={setIncludeCurrent} />
+          summary={project ? `Scelto: «${project.title}»${inProject ? ' · in uso' : ''}` : (ideas ? `${ideas.ideas.length} idee dai tuoi documenti · per i ${projectBandi.length} bandi che finanziano progetti` : 'Per i bandi che finanziano progetti')}
+          info="I bandi a progetto (ricerca, investimenti) finanziano le spese nuove di un progetto, non i costi correnti. Le idee qui sotto nascono dai documenti dell’azienda e ognuna elenca i bandi che finanziano quel tipo di progetto. Se un bando a progetto non ha un’idea collegata, i tuoi documenti non ne suggeriscono una adatta: non ne invento. Crediti d’imposta, garanzie, assunzioni e spese commerciali non chiedono un progetto.">
+          <ProjectIdeas data={ideas} error={ideasError} loading={ideasLoading} orphans={orphans} active={project} onAllocate={chooseProject} onClear={() => { setProject(null); setMode('ANNUAL') }} includeCurrent={includeCurrent} setIncludeCurrent={setIncludeCurrent} />
         </Step>
       )}
 

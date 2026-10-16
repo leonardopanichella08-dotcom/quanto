@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { Info } from './ui'
 import { AlertTriangle, CheckCircle2, Loader2, Trash2 } from 'lucide-react'
 import { api } from '../lib/api'
 import { fmtEur, fmtNum } from '../lib/format'
@@ -147,7 +148,7 @@ export default function Confronto({ validation, client }) {
       <div className="card p-5 space-y-3">
         <div className="flex flex-wrap items-center gap-3">
           <div className="min-w-0 flex-1"><span className="label">Con quale motore ti confronti</span>
-            <p className="text-[11px] text-ink-2 mt-0.5 max-w-2xl leading-relaxed">Ogni template che salvi entra sempre, in forma anonima, nel motore collettivo. Il motore interno invece lavora solo sui template del tuo studio.</p></div>
+            <Info label="Come funziona">Ogni template che salvi entra sempre, in forma anonima, nel motore collettivo. Il motore interno invece lavora solo sui template del tuo studio.</Info></div>
           <div className="inline-flex rounded-xl border border-line overflow-hidden" role="group" aria-label="Motore di confronto">
             {[['COLLETTIVO', 'Collettivo'], ['INTERNO', 'Interno dello studio']].map(([k, l]) => (
               <button key={k} aria-pressed={engine === k} onClick={() => setEngine(k)} className={`px-3.5 py-2 text-xs font-medium transition ${engine === k ? 'bg-liquid text-ink' : 'text-ink-2 hover:bg-field'}`}>{l}</button>
@@ -170,7 +171,7 @@ export default function Confronto({ validation, client }) {
 
       <div className="card p-6 space-y-4">
         <div><h3 className="font-semibold text-base">Il budget consigliato</h3>
-          <p className="text-xs text-ink-2 mt-0.5 max-w-2xl leading-relaxed">Scegli la nicchia (codice ATECO) e il bando: ti mostro come hanno ripartito il budget le aziende simili che hanno scelto quel bando, contando di più quelle ammesse.</p></div>
+          <Info label="Come funziona">Scegli la nicchia (codice ATECO) e il bando: ti mostro come hanno ripartito il budget le aziende simili che hanno scelto quel bando, contando di più quelle ammesse.</Info></div>
         <div className="grid sm:grid-cols-4 gap-3">
           <label className="space-y-1"><span className="label">Codice ATECO del lavoro</span><input className="field" value={ateco} onChange={(e) => setAteco(e.target.value)} placeholder="es. 01.11 o 62.01" /></label>
           <label className="space-y-1 sm:col-span-2"><span className="label">Bando scelto (solo quelli affini a questa azienda)</span>
@@ -224,7 +225,7 @@ export default function Confronto({ validation, client }) {
 
       <div className="card p-6 space-y-4">
         <div><h3 className="font-semibold text-base">Salva un budget come template</h3>
-          <p className="text-xs text-ink-2 mt-0.5 max-w-2xl leading-relaxed">Per un cliente di questa nicchia che ha scelto questo bando: scrivi come hai ripartito il budget del progetto e com’è andata. Il template allena il consiglio qui sopra.</p></div>
+          <Info label="Come funziona">Per un cliente di questa nicchia che ha scelto questo bando: scrivi come hai ripartito il budget del progetto e com’è andata. Il template allena il consiglio qui sopra.</Info></div>
         <div className="flex flex-wrap gap-2">
           {fromBudget && <button className="btn" onClick={() => setForm((f) => ({ ...f, shares: fromBudget.shares, total: String(fromBudget.total) }))}>Parti dal budget che hai controllato</button>}
           {rec?.status === 'OK' && <button className="btn" onClick={() => setForm((f) => ({ ...f, shares: Object.fromEntries(Object.entries(rec.recommended).map(([k, v]) => [k, Math.round(v * 1000) / 10])) }))}>Parti dal consiglio</button>}
@@ -245,7 +246,7 @@ export default function Confronto({ validation, client }) {
           <label className="space-y-1"><span className="label">Regione</span><input className="field" value={region} onChange={(e) => setRegion(e.target.value)} /></label>
         </div>
         <label className="space-y-1 block"><span className="label">Nota (facoltativa)</span><input className="field" maxLength={500} value={form.note} onChange={(e) => setForm({ ...form, note: e.target.value })} placeholder="Per esempio: progetto di meccanizzazione, cofinanziamento 40%" /></label>
-        <p className="text-[11px] text-mute leading-relaxed">Il template è anonimo (nessuna ragione sociale né partita IVA) e alimenta il motore collettivo; la nota resta tua.</p>
+        <Info label="Come funziona">Il template è anonimo (nessuna ragione sociale né partita IVA) e alimenta il motore collettivo; la nota resta tua.</Info>
         <div className="flex items-center gap-3">
           <button className="btn-primary" disabled={saving || !ateco || !bandoId || Math.abs(sum - 1) > 0.0205} onClick={save}>{saving && <Loader2 className="w-3.5 h-3.5 animate-spin" />}Salva template</button>
           {(!ateco || !bandoId) && <span className="text-xs text-mute">Indica il codice ATECO e il bando.</span>}
@@ -255,7 +256,7 @@ export default function Confronto({ validation, client }) {
 
       <div className="card p-6 space-y-3">
         <div><h3 className="font-semibold text-base">Mappa: quali nicchie partecipano a quali bandi</h3>
-          <p className="text-xs text-ink-2 mt-0.5">Per ogni nicchia, i bandi scelti con la ripartizione media del budget e quanti sono stati ammessi. Clicca un bando per vedere il consiglio.</p></div>
+          <Info label="Come funziona">Per ogni nicchia, i bandi scelti con la ripartizione media del budget e quanti sono stati ammessi. Clicca un bando per vedere il consiglio.</Info></div>
         {niches.length === 0 && <p className="text-xs text-mute">Nessun template ancora: salvane uno qui sopra e la mappa si costruisce.</p>}
         {niches.map((n) => (
           <div key={n.division} className="rounded-2xl border border-line bg-field p-4 space-y-2">
@@ -273,7 +274,7 @@ export default function Confronto({ validation, client }) {
 
       <div className="card p-6 space-y-3">
         <div><h3 className="font-semibold text-base">I template del tuo studio ({mine.length})</h3>
-          <p className="text-xs text-ink-2 mt-0.5 max-w-2xl leading-relaxed">Tutti i budget che hai salvato, con il cliente da cui vengono. Quando il bando risponde, aggiorna l’esito: i budget ammessi pesano di più e il consiglio si ricalcola da solo.</p></div>
+          <Info label="Come funziona">Tutti i budget che hai salvato, con il cliente da cui vengono. Quando il bando risponde, aggiorna l’esito: i budget ammessi pesano di più e il consiglio si ricalcola da solo.</Info></div>
         {mine.length === 0 && <p className="text-xs text-mute">Nessun template salvato.</p>}
         {mine.length > 0 && (
           <div className="overflow-x-auto">

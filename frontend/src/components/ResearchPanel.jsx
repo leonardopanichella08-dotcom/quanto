@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react'
+import { Info } from './ui'
 import { AlertTriangle, CheckCircle2, ExternalLink, Loader2, Play, Plus, Search, XCircle } from 'lucide-react'
 import { api } from '../lib/api'
 import { Hint } from './Help'
@@ -184,7 +185,7 @@ export default function ResearchPanel({ onDone, pick, onUse }) {
   return (
     <div className="card p-5 space-y-4">
       <h3 className="font-semibold text-base flex items-center gap-2"><Search className="w-4 h-4 text-brand-ink" />Cerca un bando sul web <Hint id="bando_ricerca" /></h3>
-      <p className="text-xs text-ink-2 leading-relaxed max-w-3xl">Scrivi il nome del bando. QUANTO lo cerca su internet, scarica le pagine e i PDF ufficiali (decreti, avvisi, circolari, atti della Gazzetta Ufficiale), li salva in memoria e li legge tutti. Le fonti ufficiali hanno la precedenza.</p>
+      <Info label="Come funziona">Scrivi il nome del bando. QUANTO lo cerca su internet, scarica le pagine e i PDF ufficiali (decreti, avvisi, circolari, atti della Gazzetta Ufficiale), li salva in memoria e li legge tutti. Le fonti ufficiali hanno la precedenza.</Info>
 
       <div className="grid md:grid-cols-2 gap-3">
         <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Nome del bando (es. Resto al Sud)" aria-label="Nome del bando" className="field" disabled={running} />

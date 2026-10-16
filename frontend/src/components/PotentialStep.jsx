@@ -113,10 +113,10 @@ function RebuiltBudget({ plan, nameOf }) {
 
 /** Tutti i bandi a cui l'azienda può partecipare, applicati insieme: quanto potrebbe coprire se li vincesse tutti. Il calcolo è quello del piano (stesse regole di
  *  cumulo, tetti e de minimis): qui si scelgono i bandi e si legge il confronto con la somma dei bandi presi uno per uno. */
-export default function PotentialStep({ results, picked, onPick, dm, plan, planHigh, loading, planError, onStudyMore, studyingMore, scenario = 'ANNUAL' }) {
+export default function PotentialStep({ results, picked, onPick, dm, plan, planHigh, loading, planError, onStudyMore, studyingMore, scenario = 'ANNUAL', isCandidate = () => true, projectOnly = 0, onGoProjects }) {
   const [withMaybe, setWithMaybe] = useState(false)
-  const sure = results.filter((r) => r.fit === 'ADATTO' && r.fund)
-  const maybe = results.filter((r) => r.fit === 'DA_VERIFICARE' && r.fund)
+  const sure = results.filter((r) => r.fit === 'ADATTO' && r.fund && isCandidate(r))
+  const maybe = results.filter((r) => r.fit === 'DA_VERIFICARE' && r.fund && isCandidate(r))
   const noAmount = results.filter((r) => r.fit !== 'NON_ADATTO' && !r.fund && !r.guarantee)
   const guarantees = results.filter((r) => r.fit !== 'NON_ADATTO' && r.guarantee)
   const wanted = [...sure, ...(withMaybe ? maybe : [])]
@@ -130,7 +130,7 @@ export default function PotentialStep({ results, picked, onPick, dm, plan, planH
     <div className="space-y-4">
       <div className="flex flex-wrap items-center gap-3">
         <button className="btn-primary" disabled={wanted.length === 0} onClick={() => onPick(wantedIds, !withMaybe)}>
-          <Sparkles className="w-3.5 h-3.5" />{isAll ? 'Tutti i bandi adatti inclusi' : `Includi tutti i bandi adatti (${sure.length}${withMaybe ? ` + ${maybe.length}` : ''})`}
+          <Sparkles className="w-3.5 h-3.5" />{isAll ? (scenario === 'PROJECT' ? 'Tutti i bandi del progetto inclusi' : 'Tutti i bandi inclusi') : `${scenario === 'PROJECT' ? 'Includi i bandi del progetto' : 'Includi tutti'} (${sure.length}${withMaybe ? ` + ${maybe.length}` : ''})`}
         </button>
         {maybe.length > 0 && (
           <label className="inline-flex items-center gap-2 text-xs text-ink-2 cursor-pointer">
@@ -139,7 +139,10 @@ export default function PotentialStep({ results, picked, onPick, dm, plan, planH
         )}
         {picked.length > 0 && <button className="btn" onClick={() => onPick([], false)}>Nessuno</button>}
       </div>
-      {sure.length === 0 && <p className="text-xs text-amber-700">Nessun bando adatto con un importo stimabile: studia altri bandi del catalogo.</p>}
+      {sure.length === 0 && <p className="text-xs text-amber-700">{scenario === 'PROJECT' ? 'Nessun bando adatto cita questo tipo di progetto: puoi includere tu i bandi dalla lista «Bandi».' : 'Nessun bando adatto per le spese annuali con un importo stimabile: studia altri bandi del catalogo.'}</p>}
+      {scenario === 'ANNUAL' && projectOnly > 0 && (
+        <p className="text-xs text-ink-2">{projectOnly} {projectOnly === 1 ? 'bando finanzia' : 'bandi finanziano'} solo progetti, non le spese annuali: non {projectOnly === 1 ? 'è' : 'sono'} in questo piano. {onGoProjects && <button className="underline text-ink" onClick={onGoProjects}>Scegli un progetto</button>}</p>
+      )}
       {onStudyMore && (
         <div className="flex flex-wrap items-center gap-3">
           <button className="btn" disabled={studyingMore} onClick={onStudyMore}>{studyingMore && <Loader2 className="w-3.5 h-3.5 animate-spin" />}{studyingMore ? 'Studio in corso…' : 'Studia 5 nuovi bandi'}</button>
@@ -186,7 +189,7 @@ export default function PotentialStep({ results, picked, onPick, dm, plan, planH
 
       {guarantees.length > 0 && (
         <div className="rounded-2xl border border-line bg-field p-4 space-y-2 text-xs">
-          <p className="font-medium text-ink">Garanzie pubbliche ({guarantees.length}) <Info label="Perché sono a parte">Non sono un contributo: coprono una parte di un finanziamento bancario. Per questo non si sommano al piano.</Info></p>
+          <div className="font-medium text-ink space-y-1"><p>Garanzie pubbliche ({guarantees.length})</p><Info label="Perché sono a parte">Non sono un contributo: coprono una parte di un finanziamento bancario. Per questo non si sommano al piano.</Info></div>
                     <ul className="space-y-1">{guarantees.map((r) => <li key={r.bando_id} className="text-ink-2"><span className="font-medium text-ink">{r.name}</span> — garantiti {fmtEur(r.guarantee.guaranteed_low_eur)} – {fmtEur(r.guarantee.guaranteed_high_eur)} su un finanziamento di {fmtEur(r.guarantee.financed_eur)}.</li>)}</ul>
         </div>
       )}

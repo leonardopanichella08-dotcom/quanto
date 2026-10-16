@@ -315,12 +315,11 @@ function AppInner({ bridge }) {
         footer={TABS.filter(([id]) => ['guida', 'profilo'].includes(id))} onAssistant={assistant.openMenu} />}
       <div className="flex-1 min-w-0">
       <MobileBar onOpen={() => setMenuOpen(true)} />
-      <main className="px-5 md:px-10 pt-8 pb-20 max-w-6xl mx-auto space-y-6">
+      <main className="px-5 md:px-12 pt-10 pb-24 max-w-5xl mx-auto space-y-6">
         {HEADS[tab] && <PageHead icon={TABS.find(([id]) => id === tab)[2]} title={HEADS[tab][0]} sub={HEADS[tab][1]}>
           <div className="flex flex-wrap items-center gap-2 text-xs">
-            <span className="chip"><span className={`h-1.5 w-1.5 rounded-full ${banner.dot}`} /><span className={banner.tone}>{banner.text}</span></span>
-            {activeClient && <span className="chip">Lavoro: {activeClient.name}</span>}
-            <span className="chip">{bando ? `In uso: ${bando.name}` : 'Nessun bando scelto'}</span>
+            {(registry?.offline || (registry && !registry.intact)) && <span className="chip"><span className={`h-1.5 w-1.5 rounded-full ${banner.dot}`} /><span className={banner.tone}>{banner.text}</span></span>}
+            {tab === 'canvas' && bando && <span className="chip">{bando.name}</span>}
           </div>
         </PageHead>}
 

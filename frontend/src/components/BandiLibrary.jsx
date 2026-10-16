@@ -3,7 +3,7 @@ import { AlertTriangle, CheckCircle2, Clock, ExternalLink, Loader2, Scale } from
 import { api } from '../lib/api'
 import { BANDO_STATUS_STYLE, KIND_STYLE, fmtTs } from '../lib/format'
 import { ruleLabel } from '../data/ruleLabels'
-import { ChromeCard } from './ui'
+import { ChromeCard, Info } from './ui'
 import PipelineButton from './PipelineButton'
 import Guide from './Guide'
 import ResearchPanel from './ResearchPanel'
@@ -204,7 +204,7 @@ function Detail({ bando, onUse, using, onStudied }) {
               </div>
             ))}
           </div>
-          <p className="text-ink-2 leading-relaxed">Le voci di spesa che il testo del bando nomina, oltre alle cinque categorie: quelle escluse non entrano nel budget né nel contributo stimato. Ogni voce porta la frase del bando che la riguarda; se un bando non le nomina non le invento.</p>
+          <Info label="Come funziona">Le voci di spesa che il testo del bando nomina, oltre alle cinque categorie: quelle escluse non entrano nel budget né nel contributo stimato. Ogni voce porta la frase del bando che la riguarda; se un bando non le nomina non le invento.</Info>
           {[['excluded', 'Escluse per nome', 'text-red-700 border-red-500/30'], ['eligible', 'Nominate come ammesse', 'text-emerald-700 border-emerald-500/30']].map(([k, title, tone]) => (
             <div key={k} className="space-y-2">
               <p className="font-medium text-ink">{title} · {scope[k].length}</p>

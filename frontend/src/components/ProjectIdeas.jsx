@@ -1,6 +1,5 @@
 import React, { useEffect, useState } from 'react'
 import { AlertTriangle, ChevronDown, ChevronRight, Lightbulb, Loader2 } from 'lucide-react'
-import { api } from '../lib/api'
 import { CATEGORY_LABEL, fmtEur } from '../lib/format'
 
 const NATURE = {
@@ -45,19 +44,17 @@ function Idea({ idea, active, onAllocate }) {
 }
 
 /** Idee di progetto dai documenti dell'azienda: un bando finanzia progetti, non costi. Ogni idea dice cosa la compone, cosa manca e quali bandi la finanziano. */
-export default function ProjectIdeas({ year, active, onAllocate, onClear, includeCurrent, setIncludeCurrent }) {
-  const [data, setData] = useState(null)
-  const [error, setError] = useState(null)
-  const [loading, setLoading] = useState(false)
-  useEffect(() => {
-    let live = true
-    setLoading(true); setError(null)
-    api.profileIdeas(year ? Number(year) : undefined).then((d) => { if (live) setData(d) }).catch((e) => { if (live) { setError(e.message); setData(null) } }).finally(() => { if (live) setLoading(false) })
-    return () => { live = false }
-  }, [year])
+export default function ProjectIdeas({ data, error, loading, active, onAllocate, onClear, includeCurrent, setIncludeCurrent, orphans = [] }) {
   return (
     <div className="space-y-4">
       <p className="text-xs text-ink-2 leading-snug">Progetti ricavati dai documenti dell’azienda. Sono ipotesi da validare: un importo che non viene da un documento non lo invento.</p>
+      {orphans.length > 0 && (
+        <div className="rounded-xl bg-tint p-3 text-xs space-y-1">
+          <p className="font-medium text-ink">{orphans.length} {orphans.length === 1 ? 'bando a progetto non ha' : 'bandi a progetto non hanno'} un progetto tra quelli sotto</p>
+          <p className="text-ink-2">{orphans.join(' · ')}</p>
+          <p className="text-mute">Le idee nascono dai tuoi documenti (investimenti previsti, beni da rinnovare, assunzioni…). Se non ne suggeriscono una per questi bandi, non ne invento: serve un progetto scritto dal cliente.</p>
+        </div>
+      )}
       {loading && <p className="text-xs text-mute flex items-center gap-2"><Loader2 className="w-3.5 h-3.5 animate-spin" />Costruisco le idee…</p>}
       {error && <p className="text-xs text-red-700">{error}</p>}
       {active && <div className="flex flex-wrap items-center gap-2 text-xs p-2.5 rounded-lg border border-brand/40 bg-brand/5"><Lightbulb className="w-3.5 h-3.5" />Progetto in uso: «{active.title}»<button className="btn !py-1 ml-auto" onClick={onClear}>Rimuovi il progetto</button></div>}

@@ -5,24 +5,24 @@ export default {
   theme: {
     extend: {
       colors: {
-        // Accento neutro (inchiostro): selezioni e riempimenti restano sobri. Il giallo del marchio vive solo nel logo e nell'indicatore del menu.
-        brand: { DEFAULT: '#1a1a17', light: '#f1f1ec', ink: '#1a1a17' },
-        page: '#f6f6f3',
-        ink: { DEFAULT: '#1a1a17', 2: '#4a4a43' },
-        mute: '#74746a',
-        line: { DEFAULT: 'rgba(26,26,23,0.10)', strong: 'rgba(26,26,23,0.20)' },
-        field: '#f6f6f3',
-        tint: { DEFAULT: 'rgba(26,26,23,0.035)', 2: 'rgba(26,26,23,0.07)' },
+        // Chiaro, quasi bianco, con un solo inchiostro: gli accenti sono i colori di stato (verde, ambra, rosso), usati con parsimonia.
+        brand: { DEFAULT: '#1d1d1f', light: '#f5f5f7', ink: '#1d1d1f' },
+        page: '#f5f5f7',
+        ink: { DEFAULT: '#1d1d1f', 2: '#515154' },
+        mute: '#86868b',
+        line: { DEFAULT: 'rgba(0,0,0,0.06)', strong: 'rgba(0,0,0,0.12)' },
+        field: '#f5f5f7',
+        tint: { DEFAULT: 'rgba(0,0,0,0.04)', 2: 'rgba(0,0,0,0.07)' },
       },
-      // spigoli piccoli e coerenti: niente aspetto «a bolla»
-      borderRadius: { DEFAULT: '4px', md: '6px', lg: '8px', xl: '10px', '2xl': '12px', '3xl': '14px' },
+      // raggi generosi: superfici morbide, niente spigoli da cruscotto
+      borderRadius: { DEFAULT: '8px', md: '10px', lg: '12px', xl: '16px', '2xl': '20px', '3xl': '26px' },
       fontFamily: {
-        sans: ['Inter', 'ui-sans-serif', 'system-ui', '-apple-system', 'Segoe UI', 'Roboto', 'sans-serif'],
-        mono: ['Inter', 'ui-sans-serif', 'system-ui', 'sans-serif'],            // cifre in colonna, stesso carattere
-        code: ['JetBrains Mono', 'ui-monospace', 'monospace'],                  // solo impronte e codici
-        display: ['Inter', 'ui-sans-serif', 'system-ui', 'sans-serif'],
+        sans: ['-apple-system', 'BlinkMacSystemFont', 'SF Pro Text', 'Inter', 'ui-sans-serif', 'system-ui', 'Segoe UI', 'Roboto', 'sans-serif'],
+        mono: ['-apple-system', 'BlinkMacSystemFont', 'SF Pro Text', 'Inter', 'ui-sans-serif', 'system-ui', 'sans-serif'],      // cifre in colonna, stesso carattere
+        code: ['SF Mono', 'JetBrains Mono', 'ui-monospace', 'monospace'],                                                      // solo impronte e codici
+        display: ['-apple-system', 'BlinkMacSystemFont', 'SF Pro Display', 'Inter', 'ui-sans-serif', 'system-ui', 'sans-serif'],
       },
-      boxShadow: { glass: '0 1px 2px rgba(26,26,23,0.04)' },
+      boxShadow: { glass: '0 1px 2px rgba(0,0,0,0.04), 0 12px 32px -16px rgba(0,0,0,0.10)' },
     },
   },
   plugins: [],

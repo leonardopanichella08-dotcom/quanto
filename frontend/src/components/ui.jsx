@@ -14,10 +14,10 @@ export function Mark({ size = 36, className = '' }) {
 // Titolo di pagina: titolo e una riga che dice a cosa serve la pagina; a destra, lo stato (registro, bando in uso).
 export function PageHead({ title, sub, children }) {
   return (
-    <div className="flex flex-wrap items-end gap-x-6 gap-y-3 pb-5 border-b border-line">
+    <div className="flex flex-wrap items-end gap-x-6 gap-y-3 pt-2 pb-2">
       <div className="min-w-[16rem] flex-1">
-        <h2 className="text-[22px] font-semibold tracking-tight leading-tight">{title}</h2>
-        {sub && <p className="text-[13px] text-ink-2 mt-1 max-w-2xl">{sub}</p>}
+        <h2 className="text-[32px] font-semibold tracking-tight leading-tight">{title}</h2>
+        {sub && <p className="text-[15px] text-ink-2 mt-1.5 max-w-2xl">{sub}</p>}
       </div>
       {children}
     </div>

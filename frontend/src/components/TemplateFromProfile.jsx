@@ -1,4 +1,5 @@
 import React, { useState } from 'react'
+import { Info } from './ui'
 import { AlertTriangle, ChevronDown, ChevronRight, Loader2, Sparkles, Users } from 'lucide-react'
 import { api } from '../lib/api'
 import { CATEGORY_LABEL, fmtEur } from '../lib/format'
@@ -46,7 +47,7 @@ export default function TemplateFromProfile({ bando, onApply, onGoProfile, start
           ) : (
             <p className="text-xs p-2.5 rounded-lg border border-amber-500/30 bg-amber-500/5 text-ink-2 leading-relaxed"><strong className="text-ink">Questo bando finanzia un progetto.</strong> La bozza parte dalle spese che l’azienda sostiene già: serve a capire l’ordine di grandezza e cosa il bando ammetterebbe. Un budget da presentare si costruisce sul progetto: dalle «Idee di progetto» nell’Allocazione, oppure inserendo a mano le spese nuove. Le spese correnti entrano solo se il bando le ammette per forma (spese generali a forfait, personale realmente dedicato).</p>
           ) })()}
-          <p className="text-xs text-ink-2 leading-relaxed">Parte da tutto ciò che hai caricato nel Profilo: l’organico persona per persona (livello, contratto, RAL), il budget e il piano degli investimenti dell’azienda se ci sono, altrimenti la previsione dall’ultimo bilancio. Le spese sono voci precise (affitti, energia, licenze…), non solo categorie; quelle che «{bando.name}» esclude per nome non entrano e le voci sopra i tetti si riducono. È solo una base: modificala come vuoi, poi controllala qui sotto.</p>
+          <Info label="Come funziona">Parte da tutto ciò che hai caricato nel Profilo: l’organico persona per persona (livello, contratto, RAL), il budget e il piano degli investimenti dell’azienda se ci sono, altrimenti la previsione dall’ultimo bilancio. Le spese sono voci precise (affitti, energia, licenze…), non solo categorie; quelle che «{bando.name}» esclude per nome non entrano e le voci sopra i tetti si riducono. È solo una base: modificala come vuoi, poi controllala qui sotto.</Info>
           <div className="flex flex-wrap items-end gap-3">
             <label className="space-y-1 text-xs text-ink-2"><span className="label">Quota del progetto (% di spese e di tempo di lavoro)</span>
               <input type="number" min="1" max="100" className="field !w-28" value={scale} onChange={(e) => setScale(e.target.value)} /></label>

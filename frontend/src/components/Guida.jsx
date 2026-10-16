@@ -13,7 +13,7 @@ function Quickstart() {
   return (
     <div className="space-y-4">
       <p className="text-sm text-ink-2 leading-relaxed max-w-2xl">QUANTO controlla il budget di una domanda di finanziamento: prende le regole del bando, verifica ogni spesa e ti dice cosa è finanziabile, cosa va ridotto e perché. Il percorso è sempre lo stesso, in cinque mosse.</p>
-      <ol className="grid md:grid-cols-5 gap-3">
+      <ol className="grid sm:grid-cols-2 xl:grid-cols-5 gap-3">
         {QUICKSTART.map((s, i) => (
           <li key={s.t}>
             <button type="button" onClick={() => nav.go(go[i])} className="card p-4 h-full w-full text-left flex flex-col items-start justify-start gap-2 hover:-translate-y-0.5 transition duration-200">

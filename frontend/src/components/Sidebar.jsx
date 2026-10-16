@@ -13,7 +13,7 @@ const Item = ({ id, label, Icon, tab, onGo, extra }) => (
 function Group({ title, children }) {
   return (
     <div className="space-y-0.5">
-      {title && <p className="px-3 pb-1 text-[10px] font-semibold uppercase tracking-[0.08em] text-mute">{title}</p>}
+      {title && <p className="px-3 pb-1 text-[11px] font-medium text-mute">{title}</p>}
       {children}
     </div>
   )
@@ -28,7 +28,7 @@ function Workspace({ clients, clientId, onChange, onNew }) {
   const current = clients.find((c) => c.id === clientId)
   return (
     <label className="block relative">
-      <span className="px-1 pb-1 block text-[10px] font-semibold uppercase tracking-[0.08em] text-mute">Lavoro attivo</span>
+      <span className="px-1 pb-1 block text-[11px] font-medium text-mute">Lavoro attivo</span>
       <div className="relative">
         <Briefcase className="w-4 h-4 text-mute absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
         <select aria-label="Lavoro attivo" value={clientId || ''} onChange={(e) => (e.target.value === '__new' ? onNew() : onChange(Number(e.target.value)))}
@@ -66,7 +66,7 @@ export default function Sidebar({ onAssistant, user, isOwner, tab, onGo, clients
       </div>
       <Workspace clients={clients} clientId={clientId} onChange={onClient} onNew={onNewClient} />
       {onAssistant && (
-        <button className="w-full flex items-center gap-2.5 px-3 py-2.5 rounded-lg bg-ink text-white text-[13px] font-medium hover:bg-ink/90" onClick={() => { onAssistant(); onClose?.() }}>
+        <button className="w-full flex items-center gap-2.5 px-3 py-2.5 rounded-2xl bg-ink text-white text-[14px] font-medium hover:bg-ink/90" onClick={() => { onAssistant(); onClose?.() }}>
           <Sparkles className="w-4 h-4 shrink-0" />Assistente<span className="ml-auto text-[10px] font-normal text-white/60">fa lui per te</span>
         </button>
       )}
@@ -91,7 +91,7 @@ export default function Sidebar({ onAssistant, user, isOwner, tab, onGo, clients
   )
   return (
     <>
-      <aside className="hidden md:block w-64 shrink-0 bg-white border-r border-line sticky top-0 h-screen">{body}</aside>
+      <aside className="hidden md:block w-64 shrink-0 bg-white/70 backdrop-blur-xl border-r border-line sticky top-0 h-screen">{body}</aside>
       {open && (
         <div className="md:hidden fixed inset-0 z-50 flex">
           <div className="absolute inset-0 bg-ink/30" onClick={onClose} aria-hidden="true" />

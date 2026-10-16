@@ -315,7 +315,7 @@ def build() -> Path:
     table([["Passo", "Cosa produce QUANTO"], ["Bilanci 2023-2025", "Ricavi, costi per categoria (personale 890.700 €, consulenze 172.500 €, spese generali 194.650 €, beni strumentali 119.100 € nel 2025), utile, dipendenti medi"],
            ["Stima 2027", "Spesa prevista di 1.991.026 euro, con la variazione di ogni voce spiegata dai due ultimi bilanci"],
            ["Bandi adatti", "6 bandi adatti all'azienda, 5 con un importo calcolabile e un'etichetta «de minimis» dove la fonte lo dichiara"],
-           ["Potenziale massimo", "Dal valore prudente di 1.252.699 € a 1.718.015 € con tutte le maggiorazioni: il 62,9% della spesa prevista; restano a carico 738.327 €"],
+           ["Spese dell'anno", "I bandi che non chiedono un progetto coprono da 148.349 € a 177.415 € (7,1%) di 2.100.186 € di spese; i bandi a progetto si calcolano su un progetto scelto, con le sue spese nuove"],
            ["Budget", "Bozza dall'azienda per il bando scelto (persone, spese per voce, investimenti), budget di ogni bando ricavati dall'allocazione e controllo dei 60 criteri"]], [W * 0.26, W * 0.74])
     P("I numeri del potenziale sono quelli calcolati sul catalogo di prova con i dati fittizi: servono a mostrare il percorso. Sul catalogo reale e su un'azienda vera il risultato è diverso.", "small")
     H2("Come si comincia")

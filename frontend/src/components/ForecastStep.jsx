@@ -1,4 +1,5 @@
 import React, { useState } from 'react'
+import { Info } from './ui'
 import { ChevronDown, ChevronRight, Loader2, RotateCcw, Trash2 } from 'lucide-react'
 import { api } from '../lib/api'
 import { fmtEur, fmtNum } from '../lib/format'
@@ -91,7 +92,7 @@ function TemplateEditor({ forecast, onSaved }) {
           {tpl ? (
             <p className="text-ink-2 leading-relaxed">Sto usando il modello{tpl.label ? <> «<strong>{tpl.label}</strong>»</> : ''} per {Object.keys(tpl.growth).length} {Object.keys(tpl.growth).length === 1 ? 'voce' : 'voci'}; le altre hanno la percentuale ricavata dai tuoi bilanci. Salvato il {String(tpl.updated_at).slice(0, 10).split('-').reverse().join('/')}.</p>
           ) : (
-            <p className="text-ink-2 leading-relaxed">Non hai un modello: per ogni voce uso la variazione che risulta dai tuoi due ultimi bilanci, già inserita qui sotto e spiegata. Se il cliente o il suo CFO ha indicato percentuali di crescita o di calo di costi e ricavi (o le hai stimate tu), salvale come modello: sostituiranno quelle automatiche.</p>
+            <Info label="Come funziona">Non hai un modello: per ogni voce uso la variazione che risulta dai tuoi due ultimi bilanci, già inserita qui sotto e spiegata. Se il cliente o il suo CFO ha indicato percentuali di crescita o di calo di costi e ricavi (o le hai stimate tu), salvale come modello: sostituiranno quelle automatiche.</Info>
           )}
         </div>
         {!open && <button className="btn !py-1" onClick={start}>{tpl ? 'Modifica il modello' : 'Inserisci il mio modello'}</button>}
@@ -108,7 +109,7 @@ function TemplateEditor({ forecast, onSaved }) {
             <label className="space-y-1"><span className="label">Chi l’ha indicato (facoltativo)</span><input className="field" maxLength={80} placeholder="Per esempio: cliente, CFO, il tuo studio" value={label} onChange={(e) => setLabel(e.target.value)} /></label>
             <label className="space-y-1"><span className="label">Nota (facoltativa)</span><input className="field" maxLength={500} placeholder="Il motivo, in una riga" value={note} onChange={(e) => setNote(e.target.value)} /></label>
           </div>
-          <p className="text-mute">Numeri positivi = crescita, negativi = calo (per esempio −3 per un calo del 3% l’anno). Le caselle vuote restano ricavate dai bilanci.</p>
+          <Info label="Come funziona">Numeri positivi = crescita, negativi = calo (per esempio −3 per un calo del 3% l’anno). Le caselle vuote restano ricavate dai bilanci.</Info>
           <div className="flex flex-wrap items-center gap-2">
             <button className="btn-primary" disabled={busy} onClick={save}>{busy && <Loader2 className="w-3.5 h-3.5 animate-spin" />}Salva il modello</button>
             <button className="btn" onClick={fromCurrent} disabled={busy}>Parti dalle percentuali attuali</button>
@@ -139,7 +140,7 @@ export default function ForecastStep({ forecast, overrides, setOverride, year, s
           <TemplateEditor key={forecast.template?.updated_at || 'none'} forecast={forecast} onSaved={onTemplateChanged} />
           <div className="overflow-x-auto">
             <div className="flex items-center justify-between mb-1">
-              <p className="text-xs text-ink-2">Le percentuali sono già compilate: puoi lasciarle così o cambiarle. Sotto ogni voce c’è il perché, con i numeri dei tuoi file.</p>
+              <Info label="Come funziona">Le percentuali sono già compilate: puoi lasciarle così o cambiarle. Sotto ogni voce c’è il perché, con i numeri dei tuoi file.</Info>
               <button className="btn !py-0.5 shrink-0 ml-3" onClick={() => setShowWhy(!showWhy)}>{showWhy ? <ChevronDown className="w-3 h-3" /> : <ChevronRight className="w-3 h-3" />}{showWhy ? 'Nascondi i perché' : 'Mostra i perché'}</button>
             </div>
             <table className="w-full text-xs">
@@ -162,7 +163,7 @@ export default function ForecastStep({ forecast, overrides, setOverride, year, s
             </table>
             {forecast.missing.length > 0 && <p className="text-xs text-amber-700 mt-2">Senza dato nel bilancio {forecast.base_year}: {forecast.missing.map((m) => m.label.toLowerCase()).join(', ')} (non entrano nella stima).</p>}
             {forecast.warnings.map((w) => <p key={w} className="text-xs text-amber-700 mt-1">{w}</p>)}
-            <p className="text-[11px] text-mute mt-2">Le percentuali ricavate dai bilanci sono la variazione tra i tuoi due ultimi esercizi e valgono per ogni anno fino a quello pianificato. «Costi sui ricavi» considera solo le cinque categorie di spesa qui sopra.</p>
+            <Info label="Come funziona">Le percentuali ricavate dai bilanci sono la variazione tra i tuoi due ultimi esercizi e valgono per ogni anno fino a quello pianificato. «Costi sui ricavi» considera solo le cinque categorie di spesa qui sopra.</Info>
           </div>
         </div>
       )}
