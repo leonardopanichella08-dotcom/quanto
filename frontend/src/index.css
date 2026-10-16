@@ -186,3 +186,7 @@
 @keyframes flash-ring { 0% { box-shadow: 0 0 0 3px rgba(138, 125, 0, 0.55); } 100% { box-shadow: 0 0 0 3px rgba(138, 125, 0, 0); } }
 .flash-target { animation: flash-ring 2.2s ease-out both; border-radius: 0.75rem; }
 @media (prefers-reduced-motion: reduce) { .flash-target { animation: none; outline: 2px solid rgba(138, 125, 0, 0.6); } }
+
+/* Un titolo che occupa lo spazio che resta (flex-1) accanto a un gruppo di etichette non scende sotto 12rem: se non ci sta, va a capo invece di spezzarsi lettera per lettera */
+.flex-wrap > .flex-1.min-w-0 { flex-basis: min(100%, 12rem); }
+.break-words { overflow-wrap: break-word; word-break: normal; }

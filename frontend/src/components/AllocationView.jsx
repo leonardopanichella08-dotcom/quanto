@@ -3,7 +3,8 @@ import { api } from '../lib/api'
 import { fmtEur, fmtNum, CATEGORY_LABEL, STATUS_LABEL, STATUS_STYLE } from '../lib/format'
 import { nextStep } from '../lib/profileSteps'
 import { AlertTriangle, CheckCircle2, ChevronDown, ChevronRight, CircleHelp, ExternalLink, FolderOpen, Loader2, Sparkles, XCircle } from 'lucide-react'
-import { ChromeCard, SectionTitle } from './ui'
+import { Info } from './ui'
+import { flashTo } from '../lib/nav'
 import Guide from './Guide'
 import PipelineButton from './PipelineButton'
 import { Hint } from './Help'
@@ -94,30 +95,25 @@ function CatalogCard({ it, onStudied }) {
   )
 }
 
-/** Un passo dell'allocazione a tendina: in alto il titolo, in mezzo il testo che spiega cosa c'è dentro e un grafico riassuntivo, in basso (si apre o si chiude) il dettaglio. */
-function Step({ n, title, sub, summary, chart, alert, children, done, defaultOpen = false }) {
-  const [open, setOpen] = useState(defaultOpen)
+/** Un passo dell'allocazione: titolo e una riga di riassunto; il resto si apre a richiesta. La spiegazione sta dietro la «i». */
+function Step({ id, title, info, summary, chart, alert, children, done, open, onToggle }) {
   return (
-    <ChromeCard label={`quanto.app/allocazione/${n}`} bodyClassName="p-6 space-y-4">
-      <div className="flex items-start gap-3">
-        <span className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-semibold shrink-0 ${done ? 'bg-emerald-500/20 text-emerald-700' : 'bg-tint-2 text-ink-2'}`}>{done ? <CheckCircle2 className="w-4 h-4" /> : n}</span>
-        <div className="min-w-0 flex-1"><SectionTitle className="!text-lg">{title}</SectionTitle></div>
-        <button type="button" className="btn !py-1 shrink-0" aria-expanded={open} onClick={() => setOpen(!open)}>
-          {open ? <ChevronDown className="w-3.5 h-3.5" /> : <ChevronRight className="w-3.5 h-3.5" />}{open ? 'Chiudi' : 'Apri i dettagli'}
-        </button>
+    <section id={id} className="card overflow-hidden scroll-mt-20">
+      <button type="button" onClick={onToggle} aria-expanded={!!open} className="w-full flex items-center gap-3 px-6 py-4 text-left">
+        <span className={`w-2 h-2 rounded-full shrink-0 ${done ? 'bg-emerald-500' : 'bg-line-strong'}`} aria-hidden="true" />
+        <span className="min-w-0 flex-1">
+          <span className="block text-[15px] font-semibold tracking-tight text-ink">{title}</span>
+          {summary && <span className="block text-sm text-ink-2 mt-0.5 leading-snug">{summary}</span>}
+        </span>
+        <ChevronDown className={`w-4 h-4 text-mute shrink-0 transition ${open ? 'rotate-180' : ''}`} />
+      </button>
+      <div className={open ? 'px-6 pb-6 pt-4 space-y-4 border-t border-line' : 'hidden'}>
+        {alert && <div className="p-3 rounded-xl border border-red-500/30 text-red-700 text-xs">{alert}</div>}
+        {info && <Info>{info}</Info>}
+        {chart && <div className="max-w-xl">{chart}</div>}
+        {children}
       </div>
-      {alert && <div className="p-3 rounded-xl border border-red-500/30 text-red-700 text-xs">{alert}</div>}
-      {(sub || summary || chart) && (
-        <div className={`grid gap-x-8 gap-y-3 pl-10 ${chart ? 'md:grid-cols-[minmax(0,1fr)_minmax(260px,420px)]' : ''}`}>
-          <div className="space-y-1.5 min-w-0">
-            {summary && <p className="text-sm font-medium text-ink leading-relaxed">{summary}</p>}
-            {sub && <p className="text-xs text-ink-2 leading-relaxed max-w-2xl">{sub}</p>}
-          </div>
-          {chart && <div className="min-w-0">{chart}</div>}
-        </div>
-      )}
-      <div className={open ? 'space-y-4 pt-4 border-t border-line' : 'hidden'}>{children}</div>
-    </ChromeCard>
+    </section>
   )
 }
 
@@ -261,68 +257,52 @@ function RealityPanel({ plan, lines }) {
   )
 }
 
-function BandoCard({ r, picked, onToggle, onBudget }) {
+function BandoCard({ r, picked, onToggle, onBudget, includeLabel = 'Includi' }) {
   const [open, setOpen] = useState(false)
   const [fit, tone] = FIT[r.fit]
   const e = r.estimate
   return (
     <div className={`rounded-2xl border p-4 space-y-3 ${picked ? 'border-brand/60 bg-brand/5' : 'border-line bg-field'}`}>
-      <div className="flex flex-wrap items-start gap-2">
-        <div className="min-w-0 flex-1">
-          <p className="text-sm font-semibold text-ink break-words">{r.name}</p>
-          <p className="text-[11px] text-mute">{r.issuer || 'Ente non indicato'} · {r.bando_id}</p>
-        </div>
-        <div className="flex flex-wrap gap-1.5 justify-end">
+      <div className="space-y-1.5">
+        <div className="flex flex-wrap gap-1.5">
           {r.mode && <span title={`Si calcola su ${r.mode.base}`} className="px-2 py-0.5 text-[11px] font-medium rounded border border-line-strong text-ink-2">{r.mode.needs_project ? 'A progetto' : r.mode.label}</span>}
-          {r.de_minimis?.applies && <span title={r.de_minimis.evidence[0]?.text} className="px-2 py-0.5 text-[11px] font-medium rounded border border-violet-500/30 bg-violet-500/10 text-violet-700">In de minimis</span>}
+          {r.de_minimis?.applies && <span title={r.de_minimis.evidence[0]?.text} className="px-2 py-0.5 text-[11px] font-medium rounded border border-violet-500/30 bg-violet-500/10 text-violet-700">De minimis</span>}
           <span className={`px-2 py-0.5 text-[11px] font-medium rounded border ${tone}`}>{fit}</span>
         </div>
+        <p className="text-sm font-semibold text-ink break-words leading-snug">{r.name}</p>
+        <p className="text-[11px] text-mute">{r.issuer || 'Ente non indicato'}</p>
       </div>
 
       {e ? (
-        <div className="flex flex-wrap items-end gap-x-6 gap-y-2">
+        <div className="flex flex-wrap items-end gap-x-6 gap-y-1">
           <div><span className="label">{e.kind_label || 'Contributo stimato'}</span><div className="text-lg font-display font-semibold text-emerald-700 tabular-nums">{fmtEur(e.covered_eur)}{e.covered_high_eur > e.covered_eur + 0.5 && <span className="text-sm text-emerald-700/80"> – {fmtEur(e.covered_high_eur)}</span>}</div></div>
-          <div><span className="label">Percentuale</span><div className="text-sm font-semibold tabular-nums">{fmtNum(e.rate_pct, 1)}%{e.rate_high_pct > e.rate_pct + 0.05 && ` – ${fmtNum(e.rate_high_pct, 1)}%`}</div></div>
-          <div><span className="label">Sul totale delle tue spese</span><div className="text-sm font-semibold tabular-nums">{fmtNum(e.covered_pct_of_total, 1)}%</div></div>
+          <div><span className="label">Sulle tue spese</span><div className="text-sm font-semibold tabular-nums">{fmtNum(e.covered_pct_of_total, 1)}%</div></div>
         </div>
       ) : r.guarantee ? (
-        <div className="space-y-1">
-          <div className="flex flex-wrap items-end gap-x-6 gap-y-2">
-            <div><span className="label">Importo garantibile</span><div className="text-lg font-display font-semibold text-sky-700 tabular-nums">{fmtEur(r.guarantee.guaranteed_low_eur)} – {fmtEur(r.guarantee.guaranteed_high_eur)}</div></div>
-            <div><span className="label">Su un finanziamento di</span><div className="text-sm font-semibold tabular-nums">{fmtEur(r.guarantee.financed_eur)}</div></div>
-          </div>
-          <p className="text-[11px] text-mute">{r.guarantee_info?.kind_label}</p>
-        </div>
-      ) : <p className="text-xs text-amber-700">{r.notes.find((n) => n.startsWith('Il bando non dichiara')) || 'Nei documenti ufficiali letti non compare una percentuale: puoi farlo studiare di nuovo per cercarla.'}</p>}
-      {e && (e.assumptions?.length > 0 || e.evidence?.length > 0) && (
-        <div className="text-[11px] text-ink-2 space-y-1 leading-relaxed">
-          {e.assumptions.map((a, i) => <p key={i}>• {a}</p>)}
-          {e.evidence.slice(0, 2).map((x, i) => <p key={`ev${i}`} className="text-mute">Dal testo ufficiale: «{x.text}»{x.url && <> · <a href={x.url} target="_blank" rel="noreferrer" className="underline">fonte</a></>}</p>)}
-        </div>
-      )}
-      {!e && r.guarantee && r.guarantee_info && (
-        <div className="text-[11px] text-ink-2 space-y-1 leading-relaxed">
-          {r.guarantee_info.assumptions.map((a, i) => <p key={i}>• {a}</p>)}
-        </div>
-      )}
-
-      {e && e.adjustments.length > 0 && (
-        <div className="p-3 rounded-xl border border-amber-500/30 bg-amber-500/5 text-xs space-y-1">
-          <p className="font-medium text-amber-700 inline-flex items-center gap-1.5"><AlertTriangle className="w-3.5 h-3.5" />Per rientrare nei tetti del bando</p>
-          {e.adjustments.map((a) => (
-            <p key={a.category} className="text-ink-2 leading-relaxed">{a.reason}: dei tuoi {fmtEur(a.forecast_eur)} di {a.label.toLowerCase()} ne sono ammissibili {fmtEur(a.eligible_eur)}. Porta la voce a {fmtEur(a.eligible_eur)} (−{fmtEur(a.over_cap_eur)}) e rientra nel tetto.</p>
-          ))}
-        </div>
-      )}
+        <div><span className="label">Importo garantibile</span><div className="text-lg font-display font-semibold text-sky-700 tabular-nums">{fmtEur(r.guarantee.guaranteed_low_eur)} – {fmtEur(r.guarantee.guaranteed_high_eur)}</div></div>
+      ) : <p className="text-xs text-amber-700">Nessuna percentuale nei documenti letti: puoi farlo studiare di nuovo.</p>}
+      {e && e.adjustments.length > 0 && <p className="text-[11px] text-amber-700 inline-flex items-center gap-1.5"><AlertTriangle className="w-3.5 h-3.5" />Alcune voci vanno ridotte per rientrare nei tetti (dettagli)</p>}
 
       <div className="flex flex-wrap items-center gap-2">
-        {r.fund && r.fit !== 'NON_ADATTO' && <label className="inline-flex items-center gap-2 text-xs font-medium cursor-pointer"><input type="checkbox" checked={picked} onChange={onToggle} />Includi nel piano</label>}
-        <button className="btn !py-1" onClick={() => onBudget(r.bando_id)}>Bozza di budget per questo bando</button>
+        {r.fund && r.fit !== 'NON_ADATTO' && <label className="inline-flex items-center gap-2 text-xs font-medium cursor-pointer"><input type="checkbox" checked={picked} onChange={onToggle} />{includeLabel}</label>}
         <button className="btn !py-1 ml-auto" onClick={() => setOpen(!open)}>{open ? <ChevronDown className="w-3 h-3" /> : <ChevronRight className="w-3 h-3" />}Dettagli</button>
       </div>
 
       {open && (
         <div className="space-y-3 text-xs pt-2 border-t border-line">
+          {e && (e.assumptions?.length > 0 || e.evidence?.length > 0) && (
+            <div className="text-[11px] text-ink-2 space-y-1 leading-relaxed">
+              {e.assumptions.map((a, i) => <p key={i}>• {a}</p>)}
+              {e.evidence.slice(0, 2).map((x, i) => <p key={`ev${i}`} className="text-mute">Dal testo ufficiale: «{x.text}»{x.url && <> · <a href={x.url} target="_blank" rel="noreferrer" className="underline">fonte</a></>}</p>)}
+            </div>
+          )}
+          {!e && r.guarantee && r.guarantee_info && <div className="text-[11px] text-ink-2 space-y-1">{r.guarantee_info.assumptions.map((a, i) => <p key={i}>• {a}</p>)}</div>}
+          {e && e.adjustments.length > 0 && (
+            <div className="p-3 rounded-xl border border-amber-500/30 bg-amber-500/5 space-y-1">
+              <p className="font-medium text-amber-700">Per rientrare nei tetti del bando</p>
+              {e.adjustments.map((a) => <p key={a.category} className="text-ink-2 leading-relaxed">{a.reason}: dei tuoi {fmtEur(a.forecast_eur)} di {a.label.toLowerCase()} ne sono ammissibili {fmtEur(a.eligible_eur)}.</p>)}
+            </div>
+          )}
           <ul className="space-y-1.5">
             {r.checks.map((c) => { const [Icon, color] = CHECK_ICON[c.result]; return <li key={c.id} className="flex gap-2"><Icon className={`w-3.5 h-3.5 mt-0.5 shrink-0 ${color}`} /><span className="text-ink-2"><span className="font-medium text-ink">{c.label}:</span> {c.detail}</span></li> })}
           </ul>
@@ -332,11 +312,11 @@ function BandoCard({ r, picked, onToggle, onBudget }) {
                 <tr key={c.category} className="border-t border-line"><td className="py-1 text-ink-2">{c.label}{c.note ? <span className="block text-[10px] text-mute">{c.note}</span> : null}</td>
                   <td className="text-right tabular-nums">{fmtEur(c.forecast_eur)}</td><td className="text-right tabular-nums">{fmtEur(c.eligible_eur)}</td><td className="text-right tabular-nums text-emerald-700">{fmtEur(c.covered_eur)}</td></tr>))}</tbody></table>
           )}
-          {r.de_minimis?.applies && <p className="text-ink-2"><span className="font-medium text-ink">De minimis:</span> questo aiuto conta contro il tetto di 300.000 € in tre anni. {r.de_minimis.basis === 'MODELLO' ? 'Lo dichiara la scheda curata del bando.' : 'Lo dice il testo ufficiale letto:'} {r.de_minimis.basis === 'TESTO' && <>«{r.de_minimis.evidence[0]?.text}»{r.de_minimis.evidence[0]?.url && <> · <a href={r.de_minimis.evidence[0].url} target="_blank" rel="noreferrer" className="underline">fonte</a></>}</>}</p>}
-          {!r.de_minimis?.applies && r.de_minimis?.mentioned && <p className="text-mute">Il testo ufficiale cita il de minimis ma dice che questo aiuto non rientra: «{r.de_minimis.evidence[0]?.text}»</p>}
+          {r.de_minimis?.applies && <p className="text-ink-2"><span className="font-medium text-ink">De minimis:</span> conta contro il tetto di 300.000 € in tre anni.</p>}
+          {!r.de_minimis?.applies && r.de_minimis?.mentioned && <p className="text-mute">Il testo cita il de minimis ma dice che questo aiuto non rientra: «{r.de_minimis.evidence[0]?.text}»</p>}
           {r.notes.filter((n) => !n.startsWith('Il bando non dichiara')).map((n) => <p key={n} className="text-mute">• {n}</p>)}
           {r.missing_profile.length > 0 && <p className="text-amber-700">Per decidere servono ancora: {r.missing_profile.map((m) => MISSING_LABEL[m] || m).join(', ')}.</p>}
-          <p className="text-[11px] text-mute">{r.rules_count} regole e {r.requirements_count} requisiti letti dal bando. Punto di attenzione per la tua diagnosi consulenziale: stima basata solo su ciò che il bando dichiara; l’esito dipende dall’istruttoria.</p>
+          <div className="flex items-center gap-3 pt-1"><button className="btn !py-1" onClick={() => onBudget(r.bando_id)}>Bozza di budget per questo bando</button><span className="text-[11px] text-mute">{r.rules_count} regole · {r.requirements_count} requisiti</span></div>
         </div>
       )}
     </div>
@@ -350,7 +330,10 @@ export default function AllocationView({ onGoProfile, onBudgetFrom, onOpenBudget
   const [match, setMatch] = useState(null)                 // {forecast, matching}
   const [matching, setMatching] = useState(false)
   const [tab, setTab] = useState('ADATTO')
-  const [picked, setPicked] = useState([])
+  const [picked, setPicked] = useState([])                         // bandi del «Piano dell'anno»
+  const [projectPicked, setProjectPicked] = useState([])             // bandi del «Progetto»: le due scelte restano separate
+  const [mode, setMode] = useState('ANNUAL')                         // ANNUAL = tutte le spese dell'anno; PROJECT = solo le spese nuove del progetto scelto
+  const [openSteps, setOpenSteps] = useState({ risultato: true })
   const [studied, setStudied] = useState(null)
   const [studyingMore, setStudyingMore] = useState(false)
   const [studyNote, setStudyNote] = useState(null)
@@ -363,7 +346,7 @@ export default function AllocationView({ onGoProfile, onBudgetFrom, onOpenBudget
   const [plan, setPlan] = useState(null)
   const [planHigh, setPlanHigh] = useState(null)
   const [includeCurrent, setIncludeCurrent] = useState(false)       // nel progetto scelto: includere anche le spese correnti (dove i bandi scelti le ammettono)
-  const [project, setProject] = useState(null)                    // un'idea di progetto scelta: il piano si calcola sulle sue spese nuove, non sui costi annuali
+  const [project, setProject] = useState(null)                    // il progetto scelto: nello scenario «Progetto» il piano si calcola sulle sue spese nuove
   const [planLines, setPlanLines] = useState([])                      // le linee di finanziamento con cui è stato calcolato il piano (servono per i budget)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(null)
@@ -438,7 +421,9 @@ export default function AllocationView({ onGoProfile, onBudgetFrom, onOpenBudget
     } catch (e) { setError(e.message) } finally { setStudyingMore(false) }
   }
 
-  const pickedRows = (match?.matching.results || []).filter((r) => picked.includes(r.bando_id) && r.fund)
+  const inProject = mode === 'PROJECT' && !!project
+  const active = inProject ? projectPicked : picked
+  const pickedRows = (match?.matching.results || []).filter((r) => active.includes(r.bando_id) && r.fund)
   const needsDeMinimis = pickedRows.some((r) => r.fund.de_minimis)
   const dmEstimate = match?.de_minimis || null
   const overrideOk = dmOverride !== '' && Number.isFinite(Number(dmOverride)) && Number(dmOverride) >= 0         // un valore scritto non valido (vuoto, negativo, non numerico) non blocca il piano: vale la stima
@@ -458,7 +443,7 @@ export default function AllocationView({ onGoProfile, onBudgetFrom, onOpenBudget
           ? { ...r.fund, coverage_pct: r.estimate.rate_high_pct / 100, max_total_eur: r.estimate.cap_high_eur ?? r.fund.max_total_eur } : r.fund
         return grants.includes(f.fund_id) ? { ...f, excludes: [...new Set([...(f.excludes || []), ...grants.filter((id) => id !== f.fund_id)])] } : f
       }
-      const projectLines = project ? project.lines.filter((l) => (l.nature === 'NUOVA' || (includeCurrent && l.nature === 'ORDINARIA')) && l.amount_eur > 0).map((l) => ({ item_id: l.item_id, category: l.category, amount_eur: l.amount_eur, expense_type: l.expense_type || undefined, label: l.label })) : null
+      const projectLines = inProject ? project.lines.filter((l) => (l.nature === 'NUOVA' || (includeCurrent && l.nature === 'ORDINARIA')) && l.amount_eur > 0).map((l) => ({ item_id: l.item_id, category: l.category, amount_eur: l.amount_eur, expense_type: l.expense_type || undefined, label: l.label })) : null
       const base = projectLines ? { historical_expenses: projectLines } : { use_profile_forecast: true, growth_pct: applied }
       const body = (high) => ({ fiscal_year: match.forecast.fiscal_year, ...base, optimization_target: target,
         available_funding_lines: pickedRows.map((r) => line(r, high)), ...(needsDeMinimis ? { de_minimis_residual_eur: Number(deMinimis) } : {}) })
@@ -468,7 +453,7 @@ export default function AllocationView({ onGoProfile, onBudgetFrom, onOpenBudget
       if (mine === seq.current) { setPlan(res); setPlanHigh(resHigh); setPlanLines(body(false).available_funding_lines) }
     } catch (e) { if (mine === seq.current) { setPlanError(e.message); setPlan(null); setPlanHigh(null) } } finally { if (mine === seq.current) setLoading(false) }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [match, picked, target, deMinimis, project, includeCurrent])
+  }, [match, picked, projectPicked, mode, target, deMinimis, project, includeCurrent])
   useEffect(() => { run() }, [run])
   const declareAid = () => window.dispatchEvent(new CustomEvent('quanto-assistant', { detail: { task: 'deminimis', year: Number(year) } }))
   // L'assistente chiede di ricalcolare (dopo aver salvato dati nel profilo) e aspetta il risultato: lo si comunica quando il piano è pronto.
@@ -500,64 +485,95 @@ export default function AllocationView({ onGoProfile, onBudgetFrom, onOpenBudget
       deMinimis: dmEstimate ? { ...dmEstimate, residual_eur: Number(deMinimis), needed_eur: plan?.de_minimis_used_eur ?? 0 } : null } }))
   }, [tick, plan, planHigh, planError, loading, matching, match])         // eslint-disable-line react-hooks/exhaustive-deps
 
+  const openStep = (id, on = true) => setOpenSteps((o) => ({ ...o, [id]: on }))
+  const toggleStep = (id) => setOpenSteps((o) => ({ ...o, [id]: !o[id] }))
+  const goStep = (id) => { openStep(id); setTimeout(() => flashTo(`al-${id}`), 120) }
+  // «Usa questo progetto»: si passa allo scenario «Progetto» con i bandi che lo finanziano; il piano dell'anno e le sue scelte restano com'erano.
   const chooseProject = (idea) => {
     setProject(idea)
     const ids = new Set(idea.bandi.map((b) => b.bando_id))
-    const fit = (match?.matching.results || []).filter((r) => r.fund && r.fit !== 'NON_ADATTO' && ids.has(r.bando_id)).map((r) => r.bando_id)
-    if (fit.length) { allMode.current = false; setPicked(fit) }                  // i bandi che finanziano quel tipo di progetto, se adatti all'azienda
+    setProjectPicked((match?.matching.results || []).filter((r) => r.fund && r.fit !== 'NON_ADATTO' && ids.has(r.bando_id)).map((r) => r.bando_id))
+    setMode('PROJECT')
+    goStep('risultato')
   }
-  const toggle = (id) => { allMode.current = false; setPicked((p) => (p.includes(id) ? p.filter((x) => x !== id) : [...p, id])) }
-  const pick = (ids, all) => { allMode.current = !!all; setPicked(ids) }
+  const toggle = (id) => {
+    if (inProject) setProjectPicked((p) => (p.includes(id) ? p.filter((x) => x !== id) : [...p, id]))
+    else { allMode.current = false; setPicked((p) => (p.includes(id) ? p.filter((x) => x !== id) : [...p, id])) }
+  }
+  const pick = (ids, all) => { if (inProject) setProjectPicked(ids); else { allMode.current = !!all; setPicked(ids) } }
   const maxMonth = plan ? Math.max(...plan.monthly_plan.map((m) => m.gross_eur), 1) : 1
   const hasData = ov && ov.last_year != null
   const results = match?.matching.results || []
   const shown = results.filter((r) => r.fit === tab)
 
+  const nPlanFunds = plan ? plan.fund_usage.filter((u) => u.used_eur > 0).length : 0
+  const scenarioBar = (
+    <div className="space-y-2">
+      <div className="inline-flex rounded-xl border border-line p-0.5 bg-tint" role="tablist" aria-label="Cosa pianificare">
+        {[['ANNUAL', 'Piano dell’anno'], ['PROJECT', 'Progetto']].map(([id, label]) => (
+          <button key={id} role="tab" aria-selected={mode === id} onClick={() => { if (id === 'PROJECT' && !project) { goStep('progetti'); return } setMode(id) }}
+            className={`px-4 py-1.5 rounded-lg text-sm transition ${mode === id ? 'bg-white shadow-sm font-medium text-ink' : 'text-ink-2 hover:text-ink'}`}>{label}</button>
+        ))}
+      </div>
+      <p className="text-sm text-ink-2 leading-snug">
+        {inProject
+          ? <>«{project.title}»: solo le sue spese nuove, con i bandi che lo finanziano. <button className="underline text-ink" onClick={() => goStep('progetti')}>Cambia progetto</button></>
+          : mode === 'PROJECT' ? 'Scegli prima un progetto.'
+            : <>Tutte le spese del {year} dell’azienda, con tutti i bandi adatti.{project && <> <button className="underline text-ink" onClick={() => setMode('PROJECT')}>Vai al progetto «{project.title}»</button></>}</>}
+      </p>
+    </div>
+  )
+
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       <Guide page="allocation" />
 
-      <Step n={1} title="I dati della tua azienda" done={!!hasData && ov.missing.length === 0}
-        summary={ov ? `Profilo completo al ${ov.completeness_pct}%${ov.last_year != null ? `, ultimo bilancio ${ov.last_year}` : ', nessun bilancio caricato'}.` : null}
-        chart={<ProfileChart ov={ov} />}
-        sub="Il punto di partenza sono i bilanci e i documenti che hai caricato nel Profilo. Quello che manca lo completi lì: QUANTO non inventa nessun dato.">
-        {!ov && !error && <p className="text-xs text-mute flex items-center gap-2"><Loader2 className="w-3.5 h-3.5 animate-spin" />Carico il profilo…</p>}
+      <Step id="al-dati" title="Azienda" done={!!hasData && ov?.missing.length === 0} open={!!openSteps.dati} onToggle={() => toggleStep('dati')}
+        summary={ov ? `Profilo al ${ov.completeness_pct}%${ov.last_year != null ? ` · bilancio ${ov.last_year}` : ' · nessun bilancio'}` : null}
+        info="Si parte dai bilanci e dai documenti del Profilo. Quello che manca si completa lì: QUANTO non inventa dati."
+        chart={<ProfileChart ov={ov} />}>
+        {!ov && !error && <p className="text-xs text-mute flex items-center gap-2"><Loader2 className="w-3.5 h-3.5 animate-spin" />Carico…</p>}
         {ov && (
           <div className="flex flex-wrap items-center gap-x-8 gap-y-3">
-            <div><span className="label">Completezza del profilo</span><div className="text-2xl font-display font-semibold tabular-nums">{ov.completeness_pct}%</div></div>
-            <div><span className="label">Ultimo bilancio</span><div className="text-sm font-semibold">{ov.last_year ?? 'nessuno'}</div></div>
             <div><span className="label">Dimensione</span><div className="text-sm font-semibold">{ov.size ? ov.size.label : 'da indicare'}</div></div>
-            <div><span className="label">Documenti</span><div className="text-sm font-semibold">{ov.documents.total}{ov.documents.to_review ? ` · ${ov.documents.to_review} campi da verificare` : ''}</div></div>
+            <div><span className="label">Documenti</span><div className="text-sm font-semibold">{ov.documents.total}{ov.documents.to_review ? ` · ${ov.documents.to_review} da verificare` : ''}</div></div>
             <div className="ml-auto flex flex-wrap gap-2">
-              {(ov.missing.length > 0 || !hasData) && <button className="btn" onClick={() => window.dispatchEvent(new CustomEvent('quanto-assistant', { detail: { task: 'profilo' } }))}><Sparkles className="w-3.5 h-3.5" />Falli inserire all’assistente</button>}
+              {(ov.missing.length > 0 || !hasData) && <button className="btn" onClick={() => window.dispatchEvent(new CustomEvent('quanto-assistant', { detail: { task: 'profilo' } }))}><Sparkles className="w-3.5 h-3.5" />Assistente</button>}
               <button className="btn-primary" onClick={() => { const n = nextStep(ov, Array.from({ length: ov.documents.total }, () => ({}))); onGoProfile(n && !n.done ? n.t : { to: 'azienda' }) }}>{ov.missing.length || ov.documents.to_review ? 'Completa il profilo' : 'Apri il profilo'}</button>
             </div>
           </div>
         )}
-        {ov && ov.missing.length > 0 && (
-          <div className="p-3 rounded-xl border border-amber-500/30 bg-amber-500/5 text-xs text-ink-2">
-            <p className="font-medium text-amber-700 mb-1">Ancora da inserire</p>
-            <ul className="list-disc pl-5">{ov.missing.map((m) => <li key={`${m.scope}-${m.key}`}>{m.year ? `${m.label} (esercizio ${m.year})` : m.label}</li>)}</ul>
-          </div>
-        )}
-        {ov && !hasData && <p className="text-xs text-ink-2">Senza un bilancio non si può stimare l’anno successivo: caricalo nel Profilo (o scrivi a mano i costi dell’ultimo esercizio).</p>}
+        {ov && ov.missing.length > 0 && <p className="text-xs text-amber-700">Manca: {ov.missing.map((m) => (m.year ? `${m.label} (${m.year})` : m.label)).join(' · ')}</p>}
+        {ov && !hasData && <p className="text-xs text-ink-2">Senza un bilancio non si può stimare l’anno successivo.</p>}
       </Step>
 
       {hasData && (
-        <Step n={2} title="Stima dell’anno successivo" done={!!match}
-          summary={match ? `Spese stimate per il ${match.forecast.fiscal_year}: ${fmtEur(match.forecast.total_forecast_eur)} (nel bilancio ${match.forecast.base_year}: ${fmtEur(match.forecast.total_baseline_eur)}).` : (matching ? 'Calcolo la stima…' : null)}
-          chart={<ForecastChart forecast={match?.forecast} />}
-          sub="Parte dall’ultimo bilancio: costi e ricavi aumentati o diminuiti di una percentuale annua. Se hai un modello di previsione (indicato dal cliente, dal suo CFO o stimato dal tuo studio) uso quello; per le voci senza modello calcolo io la variazione dai tuoi due ultimi bilanci e la inserisco già, con la spiegazione.">
+        <Step id="al-stima" title={`Stima del ${year}`} done={!!match} open={!!openSteps.stima} onToggle={() => toggleStep('stima')}
+          summary={match ? `Spese previste ${fmtEur(match.forecast.total_forecast_eur)} · nel ${match.forecast.base_year} ${fmtEur(match.forecast.total_baseline_eur)}` : (matching ? 'Calcolo…' : null)}
+          info="Parte dall’ultimo bilancio: costi e ricavi variano di una percentuale annua. Se hai un modello di previsione uso quello; per le voci senza modello calcolo la variazione dai due ultimi bilanci, con la spiegazione."
+          chart={<ForecastChart forecast={match?.forecast} />}>
           <ForecastStep forecast={match?.forecast} overrides={growth} setOverride={setOverride} year={year} setYear={setYear} matching={matching} onEstimate={estimate} onTemplateChanged={templateChanged} />
         </Step>
       )}
       {error && <div className="p-3 rounded-xl border border-red-500/30 text-red-700 text-xs">{error}</div>}
 
       {match && (
-        <Step n={3} title="Bandi adatti alla tua azienda" done={picked.length > 0}
-          summary={`${match.matching.summary.ADATTO} ${match.matching.summary.ADATTO === 1 ? 'bando adatto' : 'bandi adatti'}, ${match.matching.summary.DA_VERIFICARE} da verificare, ${match.matching.summary.NON_ADATTO} non adatti; ${picked.length} ${picked.length === 1 ? 'incluso' : 'inclusi'} nel piano.`}
-          chart={<BandiChart match={match} />}
-          sub="Per ogni bando studiato da QUANTO: se puoi partecipare, quanto potrebbe coprire sulle tue spese, quali voci vanno ridotte per rispettare i tetti e come rientrarci.">
+        <Step id="al-risultato" title="Risultato" done={active.length > 0 && !!plan} open={!!openSteps.risultato} onToggle={() => toggleStep('risultato')} alert={planError}
+          summary={plan ? `${fmtEur(plan.covered_by_public_funds_eur)}${planHigh && planHigh.covered_by_public_funds_eur > plan.covered_by_public_funds_eur + 0.5 ? ` – ${fmtEur(planHigh.covered_by_public_funds_eur)}` : ''} coperti su ${fmtEur(plan.total_gross_expense_eur)} · ${fmtNum(plan.overall_coverage_percentage, 1)}% · ${inProject ? `progetto «${project.title}»` : 'piano dell’anno'}` : (active.length === 0 ? (inProject ? 'Nessun bando adatto cita questo tipo di progetto: includi tu i bandi da usare' : 'Scegli i bandi da includere') : 'Calcolo…')}
+          info={<><p><strong className="text-ink">Piano dell’anno</strong>: le spese previste dell’azienda per il {year}, con tutti i bandi adatti. Per molte misure (crediti d’imposta, garanzie, spese commerciali) è la base giusta.</p><p><strong className="text-ink">Progetto</strong>: solo le spese nuove di un progetto che scegli sotto, con i bandi che lo finanziano. È un calcolo più piccolo: serve per i bandi a progetto.</p><p>Le due scelte di bandi restano separate: passare da una all’altra non cancella nulla. Il risultato è un massimo teorico: non considera la probabilità di vincere né i tempi (vedi «Valore reale e incassi»).</p></>}
+          >
+          {scenarioBar}
+          <div className="max-w-xl"><PotentialChart plan={plan} nameOf={(id) => results.find((r) => r.fund?.fund_id === id)?.name || id} dm={{ estimate: dmEstimate }} /></div>
+          <PotentialStep results={results} picked={active} onPick={pick} scenario={inProject ? 'PROJECT' : 'ANNUAL'} dm={{ estimate: dmEstimate, override: overrideOk ? dmOverride : '', invalid: dmOverride !== '' && !overrideOk, setOverride: (v) => setDmOverride(String(v).replace(/[^0-9.,]/g, '').replace(',', '.')), value: Number(deMinimis), onDeclare: declareAid, onVerify: () => onGoProfile({ to: 'aiuti' }) }} plan={plan} planHigh={planHigh} loading={loading} planError={planError} onStudyMore={studyMore} studyingMore={studyingMore} />
+          {studyNote && <p className="text-[11px] text-ink-2 leading-relaxed">{studyNote}</p>}
+        </Step>
+      )}
+
+      {match && (
+        <Step id="al-bandi" title="Bandi" done={active.length > 0} open={!!openSteps.bandi} onToggle={() => toggleStep('bandi')}
+          summary={`${match.matching.summary.ADATTO} adatti · ${match.matching.summary.DA_VERIFICARE} da verificare · ${active.length} inclusi ${inProject ? 'nel progetto' : 'nel piano'}`}
+          info="Per ogni bando studiato: se puoi partecipare, quanto potrebbe coprire sulle tue spese e come rientrare nei tetti. La spunta «Includi» decide quali bandi entrano nello scenario che stai guardando (piano dell’anno o progetto)."
+          chart={<BandiChart match={match} />}>
           <div className="flex flex-wrap items-center gap-2">
             {Object.entries(FIT).map(([k, [label, tone]]) => (
               <button key={k} onClick={() => setTab(k)} aria-pressed={tab === k} className={`px-3 py-1.5 rounded-lg text-xs font-medium border transition ${tab === k ? tone : 'border-line text-ink-2 hover:border-line-strong'}`}>{label} · {match.matching.summary[k]}</button>
@@ -567,125 +583,78 @@ export default function AllocationView({ onGoProfile, onBudgetFrom, onOpenBudget
           {studied && (
             <div className="p-3 rounded-xl border border-emerald-500/30 bg-emerald-500/5 text-xs text-ink-2 space-y-1">
               <p className="font-medium text-emerald-700 inline-flex items-center gap-1.5"><CheckCircle2 className="w-4 h-4" />Studiato: {studied.name}</p>
-              {studied.report && <p>Lettura {studied.report.status === 'COMPLETA' ? 'completa' : studied.report.status === 'PARZIALE' ? 'parziale' : 'insufficiente'}: {studied.report.documents_official} documenti ufficiali, {studied.report.requirements} requisiti, {studied.report.figures} cifre, {studied.report.rules_published} regole numeriche.</p>}
-              <p>{studied.fit ? `Ora lo trovi in «${FIT[studied.fit][0]}»${studied.estimate ? `, con un contributo stimato di ${fmtEur(studied.estimate.covered_eur)}` : ''}. ${studied.fit === 'NON_ADATTO' ? 'Apri «Dettagli» sulla scheda per vedere quale controllo non è superato.' : studied.estimate ? '' : 'Il bando non dichiara un’aliquota di contributo, quindi non c’è una stima in euro.'}` : 'Il bando non risulta ancora valutabile: apri la pagina Bandi per vedere cosa è stato letto.'}</p>
+              <p>{studied.fit ? `Ora è in «${FIT[studied.fit][0]}»${studied.estimate ? `, contributo stimato ${fmtEur(studied.estimate.covered_eur)}` : ''}.` : 'Non risulta ancora valutabile.'}</p>
               <button className="underline" onClick={() => setStudied(null)}>chiudi</button>
             </div>
           )}
-          {tab === 'CATALOG' && (
-            <p className="text-[11px] text-mute leading-relaxed">Bandi del catalogo nazionale che QUANTO non ha ancora studiato, messi in ordine di affinità con la tua azienda usando la descrizione della scheda ufficiale (spese ammesse, regione, dimensione, ATECO). Non c’è ancora nessun importo: premi «Studia questo bando» e, a lettura finita, ricalcola la stima per vederne il contributo.
-              {match.matching.catalog.excluded > 0 && ` Esclusi perché non adatti a te: ${match.matching.catalog.excluded}.`}
-              {match.matching.catalog.without_description > 0 && ` Schede ancora da leggere: ${match.matching.catalog.without_description}.`}</p>
-          )}
-          {match.matching.missing_profile.length > 0 && <p className="text-xs text-amber-700">Per valutare meglio alcuni bandi indica nel profilo: {match.matching.missing_profile.map((m) => MISSING_LABEL[m] || m).join(', ')}.</p>}
+          {tab === 'CATALOG' && <Info label="Cosa sono">Bandi del catalogo nazionale che QUANTO non ha ancora studiato, in ordine di affinità con la tua azienda. Premi «Studia questo bando»: a lettura finita compare l’importo.</Info>}
+          {match.matching.missing_profile.length > 0 && <p className="text-xs text-amber-700">Per valutare meglio indica nel profilo: {match.matching.missing_profile.map((m) => MISSING_LABEL[m] || m).join(', ')}.</p>}
           {tab === 'CATALOG' ? (
             <div className="grid lg:grid-cols-2 gap-4">
-              {match.matching.catalog.items.length === 0 && <p className="text-xs text-mute">Nessuna scheda del catalogo letta ancora: il lavoro notturno le legge a gruppi.</p>}
+              {match.matching.catalog.items.length === 0 && <p className="text-xs text-mute">Nessuna scheda letta ancora.</p>}
               {match.matching.catalog.items.map((it) => <CatalogCard key={it.bando_id} it={it} onStudied={afterStudy} />)}
             </div>
           ) : (
             <>
               {shown.length === 0 && <p className="text-xs text-mute">Nessun bando in questa categoria.</p>}
-              <div className="grid lg:grid-cols-2 gap-4">{shown.map((r) => <BandoCard key={r.bando_id} r={r} picked={picked.includes(r.bando_id)} onToggle={() => toggle(r.bando_id)} onBudget={onBudgetFrom} />)}</div>
+              <div className="grid lg:grid-cols-2 gap-4">{shown.map((r) => <BandoCard key={r.bando_id} r={r} picked={active.includes(r.bando_id)} includeLabel={inProject ? 'Includi nel progetto' : 'Includi nel piano'} onToggle={() => toggle(r.bando_id)} onBudget={onBudgetFrom} />)}</div>
             </>
           )}
         </Step>
       )}
 
       {match && (
-        <Step n={4} title="Idee di progetto e misure senza progetto" done={!!project}
-          summary={project ? `Il piano è calcolato sul progetto «${project.title}».` : 'Facoltativo: scegli un progetto per pianificare solo le sue spese; senza, il piano usa le spese annuali, che per molte misure sono la base giusta.'}
-          sub="Non tutti i bandi chiedono un progetto: garanzie, crediti d’imposta automatici, incentivi alle assunzioni, spese commerciali e ristori si calcolano su altre basi, e il piano annuale parte dalle spese dell’azienda. I bandi a progetto (ricerca, investimenti) finanziano invece le spese nuove di un progetto: qui propongo progetti dai documenti dell’azienda, con le spese che li compongono, cosa manca per presentarli e i bandi che li finanziano.">
-          <ProjectIdeas year={year} active={project} onAllocate={chooseProject} onClear={() => setProject(null)} includeCurrent={includeCurrent} setIncludeCurrent={setIncludeCurrent} />
+        <Step id="al-progetti" title="Progetti" done={!!project} open={!!openSteps.progetti} onToggle={() => toggleStep('progetti')}
+          summary={project ? `Scelto: «${project.title}»${inProject ? ' · in uso' : ''}` : 'Facoltativo · per i bandi che finanziano un progetto'}
+          info="Un bando a progetto (ricerca, investimenti) finanzia le spese nuove di un progetto, non i costi correnti. Qui propongo progetti ricavati dai documenti dell’azienda. Garanzie, crediti d’imposta automatici, assunzioni e spese commerciali non chiedono un progetto: per quelli basta il piano dell’anno.">
+          <ProjectIdeas year={year} active={project} onAllocate={chooseProject} onClear={() => { setProject(null); setMode('ANNUAL') }} includeCurrent={includeCurrent} setIncludeCurrent={setIncludeCurrent} />
         </Step>
       )}
 
-      {match && (
-        <Step n={5} title="Tutti i bandi insieme: il potenziale massimo" done={picked.length > 0 && !!plan} defaultOpen
-          alert={planError}
-          summary={plan ? `Tutti i bandi scelti insieme coprirebbero ${fmtEur(plan.covered_by_public_funds_eur)}${planHigh && planHigh.covered_by_public_funds_eur > plan.covered_by_public_funds_eur + 0.5 ? ` – ${fmtEur(planHigh.covered_by_public_funds_eur)}` : ''} su ${fmtEur(plan.total_gross_expense_eur)} di spese del ${plan.fiscal_year} (${fmtNum(plan.overall_coverage_percentage, 1)}%).${needsDeMinimis ? ` Tetto de minimis residuo usato: ${fmtEur(Number(deMinimis))}${overrideOk ? ' (scritto da te)' : ' (stimato dai bilanci)'}.` : ''}` : (picked.length === 0 ? 'Scegli i bandi da combinare per vedere il potenziale.' : (loading ? 'Calcolo il piano con tutti i bandi insieme…' : null))}
-          chart={<PotentialChart plan={plan} nameOf={(id) => results.find((r) => r.fund?.fund_id === id)?.name || id} dm={{ estimate: dmEstimate }} />}
-          sub="Se l’azienda partecipasse e vincesse tutti i bandi a cui può accedere, quanto riuscirebbe a coprire in un anno? Li applico insieme rispettando cumulo, tetti e de minimis, senza pagare due volte la stessa spesa. È il massimo ammissibile: non considera le graduatorie e la probabilità di vincere, i tempi di erogazione e la cassa, né i costi di gestione di ogni bando. Per i bandi a progetto conta solo la parte di spese che il bando finanzia (vedi «Idee di progetto»); per garanzie, crediti automatici, incentivi alle assunzioni e spese commerciali la base è un’altra, e ogni bando dice quale.">
-          <PotentialStep results={results} picked={picked} onPick={pick} dm={{ estimate: dmEstimate, override: overrideOk ? dmOverride : '', invalid: dmOverride !== '' && !overrideOk, setOverride: (v) => setDmOverride(String(v).replace(/[^0-9.,]/g, '').replace(',', '.')), value: Number(deMinimis), onDeclare: declareAid, onVerify: onGoProfile }} plan={plan} planHigh={planHigh} loading={loading} planError={planError} onStudyMore={studyMore} studyingMore={studyingMore} />
-          {studyNote && <p className="text-[11px] text-ink-2 leading-relaxed">{studyNote}</p>}
-        </Step>
-      )}
-
-      {match && picked.length > 0 && (
-        <Step n={6} title="Il piano, voce per voce" done={!!plan}
-          alert={planError}
-          summary={plan ? `${plan.allocation_plan.length} voci di spesa assegnate ai bandi: ${fmtEur(plan.covered_by_public_funds_eur)} coperti, ${fmtEur(plan.net_cost_to_entity_eur)} restano a carico dell’ente.` : null}
-          chart={<PlanChart plan={plan} />}
-          sub="Con i bandi che hai incluso, il programma prova le combinazioni possibili e sceglie la migliore, rispettando i tetti dei fondi, i limiti per categoria, i fondi non cumulabili e il de minimis.">
+      {match && active.length > 0 && plan && (
+        <Step id="al-piano" title="Piano voce per voce" done open={!!openSteps.piano} onToggle={() => toggleStep('piano')} alert={planError}
+          summary={`${plan.allocation_plan.length} voci · ${fmtEur(plan.covered_by_public_funds_eur)} coperti · ${fmtEur(plan.net_cost_to_entity_eur)} a tuo carico`}
+          info="Con i bandi inclusi, il programma sceglie la combinazione migliore rispettando tetti dei fondi, limiti per categoria, fondi non cumulabili e de minimis."
+          chart={<PlanChart plan={plan} />}>
           <div className="flex flex-wrap items-end gap-3">
             <label className="flex items-center gap-2 text-xs text-ink-2">Obiettivo <Hint id="alloc_obiettivo" />
               <select value={target} onChange={(e) => setTarget(e.target.value)} className="field !w-full md:!w-auto min-w-0">{TARGETS.map(([v, l]) => <option key={v} value={v}>{l}</option>)}</select></label>
-            <span className="text-xs text-mute">{pickedRows.length} {pickedRows.length === 1 ? 'bando incluso' : 'bandi inclusi'}</span>
           </div>
-          {needsDeMinimis && <p className="text-[11px] text-ink-2 leading-relaxed max-w-3xl">Alcuni bandi scelti sono in de minimis: il tetto residuo che il piano rispetta (<strong className="text-ink">{fmtEur(Number(deMinimis))}</strong>) e come è stato stimato sono spiegati nel punto 5.</p>}
-        </Step>
-      )}
-
-
-      {plan && onOpenBudgets && (
-        <Step n={7} title="Dall’allocazione ai budget dei bandi" done={false}
-          summary={`Il piano usa ${plan.fund_usage.filter((u) => u.used_eur > 0).length} ${plan.fund_usage.filter((u) => u.used_eur > 0).length === 1 ? 'bando' : 'bandi'}: da qui ricavi il budget di ognuno, già controllato con i suoi 60 criteri e verificato insieme agli altri.`}
-          sub="Ogni bando riceve solo le spese che finanzia, con l’importo su cui calcola il suo contributo. Il personale è diviso tra i progetti senza sovrapporsi (la stessa ora non si rendiconta a due bandi), le spese finanziate da due bandi dichiarano l’altro contributo e i bandi non cumulabili non si toccano mai. Apri ogni budget per modificarlo: il controllo dei 60 criteri gira sul suo bando.">
-          <BudgetsFromPlan plan={plan} lines={planLines} onOpen={onOpenBudgets} />
-        </Step>
-      )}
-
-      {plan && (
-        <Step n={8} title="Quanto vale davvero, e quando incassi" done={false}
-          summary="Un contributo nominale non è un incasso: si vince o no, ottenerlo costa lavoro, e il rimborso arriva dopo che hai pagato."
-          sub="Scrivi per ogni bando la probabilità di successo, il costo di istruttoria e la percentuale del consulente (anche zero). QUANTO non li inventa: senza, mostra solo il nominale. Anticipo e tempi di rimborso si leggono dal bando, se le sue regole sono pubblicate. Sotto vedi quanto l’azienda deve anticipare mese per mese e quali altri aiuti si sommano.">
-          <RealityPanel plan={plan} lines={planLines} />
-        </Step>
-      )}
-
-      {plan && (
-        <>
           <div className={`grid grid-cols-2 md:grid-cols-4 gap-4 transition ${loading ? 'opacity-50' : ''}`}>
             {[['Spesa totale', fmtEur(plan.total_gross_expense_eur), 'text-ink'],
               ['Coperta dai fondi', fmtEur(plan.covered_by_public_funds_eur), 'text-emerald-700'],
-              ['A carico dell’ente', fmtEur(plan.net_cost_to_entity_eur), 'text-amber-700'],
+              ['A tuo carico', fmtEur(plan.net_cost_to_entity_eur), 'text-amber-700'],
               ['Quota coperta', `${fmtNum(plan.overall_coverage_percentage, 1)}%`, 'text-brand-ink']].map(([l, v, tone]) => (
-              <div key={l} className="card p-5 min-w-0"><span className="label">{l}</span><div className={`text-lg sm:text-xl font-semibold mt-2 whitespace-nowrap tabular-nums tracking-tight ${tone}`}>{v}</div></div>
+              <div key={l} className="rounded-2xl border border-line bg-field p-4 min-w-0"><span className="label">{l}</span><div className={`text-lg font-semibold mt-1 whitespace-nowrap tabular-nums tracking-tight ${tone}`}>{v}</div></div>
             ))}
           </div>
-
-          <div className="card p-6 space-y-3"><span className="label inline-flex items-center gap-1.5">Da dove arrivano i soldi, spesa per spesa <Hint id="alloc_flusso" /></span><Sankey plan={plan} /></div>
-
+          <div className="space-y-2"><span className="label inline-flex items-center gap-1.5">Da dove arrivano i soldi <Hint id="alloc_flusso" /></span><Sankey plan={plan} /></div>
           <div className="grid lg:grid-cols-3 gap-6">
-            <div className="lg:col-span-2 card p-6 space-y-3">
-              <span className="label">Il piano, voce per voce</span>
+            <div className="lg:col-span-2 space-y-2">
               {plan.allocation_plan.map((l) => (
-                <div key={l.item_id} className="p-4 bg-field border border-line rounded-xl text-xs space-y-2">
-                  <div className="flex justify-between gap-3 font-mono"><span className="font-medium text-sm font-sans min-w-0 break-words">{l.label || CATEGORY_LABEL[l.category] || l.category} <span className="text-mute">· {CATEGORY_LABEL[l.category] || l.category}</span></span><span>{fmtEur(l.gross_amount_eur)}</span></div>
+                <div key={l.item_id} className="p-3 bg-field border border-line rounded-xl text-xs space-y-1.5">
+                  <div className="flex justify-between gap-3"><span className="font-medium text-sm min-w-0 break-words">{l.label || CATEGORY_LABEL[l.category] || l.category}</span><span className="font-mono shrink-0">{fmtEur(l.gross_amount_eur)}</span></div>
                   {l.coverage.length ? l.coverage.map((c) => (
                     <div key={c.fund_id} className="flex justify-between gap-3 text-emerald-700 font-mono"><span className="min-w-0 break-words">{c.fund_id}</span><span className="shrink-0">{fmtEur(c.covered_amount_eur)} ({fmtNum(c.coverage_percentage, 1)}%)</span></div>
-                  )) : <div className="text-mute">Nessun bando adatto: la paga direttamente l’ente</div>}
-                  <div className="flex justify-between text-amber-700 font-mono border-t border-line pt-2"><span>A carico dell’ente</span><span>{fmtEur(l.net_cost_to_entity_eur)}</span></div>
+                  )) : <div className="text-mute">Nessun bando adatto: la paga l’azienda</div>}
+                  <div className="flex justify-between text-amber-700 font-mono border-t border-line pt-1.5"><span>A tuo carico</span><span>{fmtEur(l.net_cost_to_entity_eur)}</span></div>
                 </div>
               ))}
             </div>
-
-            <div className="space-y-6">
-              <div className="card p-6 space-y-3">
+            <div className="space-y-4">
+              <div className="space-y-2">
                 <span className="label inline-flex items-center gap-1.5">Quanto si usa di ogni bando <Hint id="alloc_uso" /></span>
                 {plan.fund_usage.map((u) => (
                   <div key={u.fund_id} className="text-xs font-mono space-y-0.5">
                     <div className="flex justify-between gap-3"><span className="text-ink-2 min-w-0 break-words">{u.fund_id}</span><span>{fmtEur(u.used_eur)}</span></div>
-                    <div className="text-mute">{u.cap_eur != null ? `disponibili ${fmtEur(u.cap_eur)} · margine ${fmtNum(u.safety_margin_pct, 1)}%` : 'nessun limite di importo'}</div>
+                    <div className="text-mute">{u.cap_eur != null ? `disponibili ${fmtEur(u.cap_eur)}` : 'nessun limite di importo'}</div>
                   </div>
                 ))}
-                {plan.de_minimis_residual_eur != null && (
-                  <div className="text-xs font-mono pt-2 border-t border-line text-ink-2">De minimis usato {fmtEur(plan.de_minimis_used_eur)} · ancora disponibile {fmtEur(plan.de_minimis_residual_eur)}</div>
-                )}
+                {plan.de_minimis_residual_eur != null && <div className="text-xs font-mono pt-2 border-t border-line text-ink-2">De minimis usato {fmtEur(plan.de_minimis_used_eur)} · disponibile {fmtEur(plan.de_minimis_residual_eur)}</div>}
               </div>
-              <div className="card p-6 space-y-2">
+              <div className="space-y-2">
                 <span className="label inline-flex items-center gap-1.5">Mese per mese <Hint id="alloc_mesi" /></span>
-                <div className="flex items-end gap-1 h-28">
+                <div className="flex items-end gap-1 h-24">
                   {plan.monthly_plan.map((m) => (
                     <div key={m.month} className="flex-1 flex flex-col justify-end h-full" title={`Mese ${m.month}: totale ${fmtEur(m.gross_eur)}, coperto ${fmtEur(m.covered_eur)}`}>
                       <div className="bg-amber-400/70" style={{ height: `${(m.net_eur / maxMonth) * 100}%` }} />
@@ -693,12 +662,27 @@ export default function AllocationView({ onGoProfile, onBudgetFrom, onOpenBudget
                     </div>
                   ))}
                 </div>
-                <div className="flex justify-between text-[11px] text-mute font-mono"><span>Gen</span><span>Dic</span></div>
-                <p className="text-[11px] text-mute"><span className="text-emerald-700">■</span> coperto dai fondi <span className="text-amber-700 ml-2">■</span> a carico dell’ente</p>
+                <p className="text-[11px] text-mute"><span className="text-emerald-700">■</span> coperto <span className="text-amber-700 ml-2">■</span> a tuo carico</p>
               </div>
             </div>
           </div>
-        </>
+        </Step>
+      )}
+
+      {plan && onOpenBudgets && (
+        <Step id="al-budget" title="Budget dei bandi" open={!!openSteps.budget} onToggle={() => toggleStep('budget')}
+          summary={`Un budget per ognuno dei ${nPlanFunds} ${nPlanFunds === 1 ? 'bando usato' : 'bandi usati'}, già controllato con i suoi 60 criteri`}
+          info="Ogni bando riceve solo le spese che finanzia. Il personale è diviso tra i progetti senza sovrapporsi, le spese pagate da due bandi dichiarano l’altro contributo, e i bandi non cumulabili non si toccano. Ogni budget si apre e si modifica nella pagina Budget.">
+          <BudgetsFromPlan plan={plan} lines={planLines} onOpen={onOpenBudgets} />
+        </Step>
+      )}
+
+      {plan && (
+        <Step id="al-incassi" title="Valore reale e incassi" open={!!openSteps.incassi} onToggle={() => toggleStep('incassi')}
+          summary="Quanto conti davvero di ottenere, e quando entrano i soldi"
+          info="Un contributo non è un incasso: si vince o no, ottenerlo costa lavoro, e il rimborso arriva dopo che hai pagato. Scrivi per ogni bando probabilità di successo, costo di istruttoria e percentuale del consulente (anche zero): QUANTO non li inventa, senza mostra solo il nominale.">
+          <RealityPanel plan={plan} lines={planLines} />
+        </Step>
       )}
     </div>
   )

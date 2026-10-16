@@ -1,4 +1,4 @@
-import React from 'react'
+import React, { useState } from 'react'
 
 // Il logotipo è una maschera: il colore lo decide il testo attorno (bianco su scuro, inchiostro su chiaro).
 export function Wordmark({ height = 22, className = '' }) {
@@ -61,5 +61,18 @@ export function Fold({ id, icon: Icon, title, summary, badge, tone = 'neutral', 
       </div>
       <div id={`${id}-body`} className={open ? 'px-5 pb-5 pt-1 space-y-4 border-t border-line' : 'hidden'}>{children}</div>
     </section>
+  )
+}
+
+// Una piccola «i»: la spiegazione sta nascosta finché non serve. Serve a tenere le pagine pulite senza togliere il perché delle cose.
+export function Info({ children, label = 'Come funziona' }) {
+  const [open, setOpen] = useState(false)
+  return (
+    <div className="text-xs text-ink-2">
+      <button type="button" onClick={() => setOpen(!open)} aria-expanded={open} className="inline-flex items-center gap-1.5 text-mute hover:text-ink">
+        <span className="w-4 h-4 rounded-full border border-line-strong inline-flex items-center justify-center text-[10px] font-semibold leading-none" aria-hidden="true">i</span>{label}
+      </button>
+      {open && <div className="mt-2 leading-relaxed max-w-2xl space-y-1.5">{children}</div>}
+    </div>
   )
 }

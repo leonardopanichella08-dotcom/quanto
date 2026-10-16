@@ -36,7 +36,7 @@ function Idea({ idea, active, onAllocate }) {
         </div>
       )}
       <div className="flex flex-wrap items-center gap-2 pt-1">
-        <button className="btn-primary !py-1" disabled={idea.new_eur + idea.ordinary_eur <= 0} onClick={() => onAllocate(idea)}>{active ? 'Progetto in uso' : 'Usa questo progetto per il piano'}</button>
+        <button className="btn-primary !py-1" disabled={idea.new_eur + idea.ordinary_eur <= 0} onClick={() => onAllocate(idea)}>{active ? 'Progetto in uso' : 'Calcola questo progetto'}</button>
         {idea.new_eur <= 0 && idea.ordinary_eur > 0 && <span className="text-mute">Senza spese nuove conta solo se includi le spese correnti (comando in alto).</span>}
         {idea.new_eur + idea.ordinary_eur <= 0 && <span className="text-mute">Senza spese quantificate non c’è ancora nulla da pianificare.</span>}
       </div>
@@ -57,11 +57,11 @@ export default function ProjectIdeas({ year, active, onAllocate, onClear, includ
   }, [year])
   return (
     <div className="space-y-4">
-      <p className="text-xs text-ink-2 leading-relaxed">Un bando non finanzia «costi»: finanzia progetti di un certo tipo. Qui propongo progetti ricavati da ciò che i documenti dell’azienda dicono: investimenti già in programma, beni a fine vita, assunzioni previste, formazione, presenza sui mercati. Sono <strong className="text-ink">ipotesi da validare con l’imprenditore</strong>; un importo che non viene da un documento non lo invento.</p>
+      <p className="text-xs text-ink-2 leading-snug">Progetti ricavati dai documenti dell’azienda. Sono ipotesi da validare: un importo che non viene da un documento non lo invento.</p>
       {loading && <p className="text-xs text-mute flex items-center gap-2"><Loader2 className="w-3.5 h-3.5 animate-spin" />Costruisco le idee…</p>}
       {error && <p className="text-xs text-red-700">{error}</p>}
-      {active && <div className="flex flex-wrap items-center gap-2 text-xs p-2.5 rounded-lg border border-brand/40 bg-brand/5"><Lightbulb className="w-3.5 h-3.5" />Il piano è calcolato su un progetto: «{active.title}».<button className="btn !py-1 ml-auto" onClick={onClear}>Torna alle spese annuali</button></div>}
-      <label className="inline-flex items-center gap-2 text-xs text-ink-2"><input type="checkbox" checked={!!includeCurrent} onChange={(e) => setIncludeCurrent?.(e.target.checked)} />Includi nel piano anche le spese correnti (valido per i bandi che le ammettono: spese commerciali, liquidità, ristori)</label>
+      {active && <div className="flex flex-wrap items-center gap-2 text-xs p-2.5 rounded-lg border border-brand/40 bg-brand/5"><Lightbulb className="w-3.5 h-3.5" />Progetto in uso: «{active.title}»<button className="btn !py-1 ml-auto" onClick={onClear}>Rimuovi il progetto</button></div>}
+      <label className="inline-flex items-center gap-2 text-xs text-ink-2"><input type="checkbox" checked={!!includeCurrent} onChange={(e) => setIncludeCurrent?.(e.target.checked)} />Conta anche le spese correnti (per i bandi che le ammettono)</label>
       {data && data.ideas.length === 0 && <p className="text-xs text-mute">Nei documenti non ci sono ancora elementi per proporre progetti: carica il piano degli investimenti, il libro cespiti o il piano delle assunzioni.</p>}
       <div className="grid lg:grid-cols-2 gap-4">{(data?.ideas || []).map((i) => <Idea key={i.id} idea={i} active={active?.id === i.id} onAllocate={onAllocate} />)}</div>
       {data?.no_project?.length > 0 && (
