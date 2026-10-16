@@ -6,9 +6,9 @@ const FLOWS = {
     title: 'Come nasce il budget',
     lead: 'Prima si legge il bando, poi si prepara la bozza, poi si controlla: i 60 criteri guardano il budget, non il bando, e lo fanno a ogni modifica.',
     steps: [
-      ['Leggo il bando', 'Dai testi ufficiali ricavo le regole: percentuali, tetti, voci escluse, date. Dove il bando tace, quel controllo non si applica.'],
+      ['Leggo il bando', 'Dai testi ufficiali ricavo le regole (percentuali, tetti, voci escluse, date). Ogni regola accende uno dei 60 controlli: puoi vedere quali sono accesi nella pagina Bandi, scheda «Controlli attivati».'],
       ['Preparo la bozza', 'Dai documenti dell’azienda: ogni persona con livello e RAL, le spese una per una. Lascio fuori ciò che il bando non ammette e riduco ciò che supera i tetti.'],
-      ['Controllo con i 60 criteri', 'Ogni voce risulta ammessa, ridotta, respinta o in attesa di un documento, con il motivo. Si ricontrolla da solo a ogni modifica.'],
+      ['Controllo con i 60 criteri', 'Ogni voce risulta ammessa, ridotta, respinta o in attesa di un documento, con il motivo. 36 controlli funzionano sempre (costo del personale, IVA, ammortamento…); 24 hanno bisogno di una regola del bando (tetto sul costo orario, tetto sulle consulenze, data di inizio spese…) e, se il bando non la dà, restano spenti: «non valutato».'],
       ['Correggi e registra', 'Sistemi le voci segnalate. Il budget ammesso si esporta e si registra con un’impronta firmata.'],
     ],
     notes: [
