@@ -7,6 +7,7 @@ import Documents from './Documents'
 import TemplateFromProfile from './TemplateFromProfile'
 import WorkPackages from './WorkPackages'
 import Guide from './Guide'
+import HowItWorks from './HowItWorks'
 import { Hint } from './Help'
 import { ChromeCard } from './ui'
 import { BANDO_STATUS_STYLE, CATEGORY_LABEL, CATEGORY_ORDER, STATUS_LABEL, STATUS_STYLE, fmtEur, fmtNum, fmtPct } from '../lib/format'
@@ -156,6 +157,7 @@ export default function BudgetCanvas({
   return (
     <div className="space-y-6">
       <Guide page="budget" />
+      <HowItWorks kind="budget" />
 
       {budgetSet && (
         <div className="card p-4 space-y-2.5">
@@ -165,9 +167,9 @@ export default function BudgetCanvas({
               <button key={b.fund_id} onClick={() => onSwitchBudget(b.fund_id)} disabled={busy} aria-pressed={budgetSet.active === b.fund_id}
                 className={`px-3 py-1.5 rounded-lg text-xs font-medium border transition ${budgetSet.active === b.fund_id ? 'bg-brand/25 text-brand-ink border-brand/60' : 'border-line text-ink-2 hover:border-line-strong'}`}>{b.name}</button>
             ))}
-            <button className="btn !py-1 ml-auto" onClick={onCloseBudgetSet}>Chiudi il gruppo</button>
+            <button className="btn !py-1 ml-auto" title="Torni a lavorare su un solo budget: quello che hai aperto resta, gli altri escono da questa barra" onClick={() => { if (window.confirm('Esci dal gruppo?' + String.fromCharCode(10, 10) + 'Non si crea un budget unico: ogni bando ha le sue regole e si presenta a parte. Resti sul budget che hai aperto; gli altri escono da questa barra e le modifiche non salvate si perdono. Li riottieni da Allocazione → «Budget dei bandi».')) onCloseBudgetSet() }}>Esci dal gruppo</button>
           </div>
-          <p className="text-[11px] text-ink-2 leading-relaxed">{budgetSet.ok ? 'Questi budget sono stati verificati insieme: nessuna spesa coperta due volte oltre il consentito, nessuna persona oltre il 100% del tempo, nessun cumulo vietato.' : 'Tra questi budget ci sono incompatibilità: vedi l’elenco nella pagina Allocazione.'} Ogni budget è controllato con i 60 criteri del suo bando; se cambi le voci ricorda che gli altri budget dipendono da quelle spese.</p>
+          <p className="text-[11px] text-ink-2 leading-relaxed">Un budget per ogni bando del piano: si presentano a parte, non si uniscono. {budgetSet.ok ? 'Questi budget sono stati verificati insieme: nessuna spesa coperta due volte oltre il consentito, nessuna persona oltre il 100% del tempo, nessun cumulo vietato.' : 'Tra questi budget ci sono incompatibilità: vedi l’elenco nella pagina Allocazione.'} Ogni budget è controllato con i 60 criteri del suo bando; se cambi le voci ricorda che gli altri budget dipendono da quelle spese.</p>
         </div>
       )}
 

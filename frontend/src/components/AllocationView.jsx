@@ -4,6 +4,7 @@ import { fmtEur, fmtNum, CATEGORY_LABEL, STATUS_LABEL, STATUS_STYLE } from '../l
 import { nextStep } from '../lib/profileSteps'
 import { AlertTriangle, CheckCircle2, ChevronDown, ChevronRight, CircleHelp, ExternalLink, FolderOpen, Loader2, Sparkles, XCircle } from 'lucide-react'
 import { Info } from './ui'
+import HowItWorks from './HowItWorks'
 import { flashTo } from '../lib/nav'
 import Guide from './Guide'
 import PipelineButton from './PipelineButton'
@@ -555,6 +556,7 @@ export default function AllocationView({ onGoProfile, onBudgetFrom, onOpenBudget
   return (
     <div className="space-y-4">
       <Guide page="allocation" />
+      <HowItWorks kind="allocation" />
 
       <Step id="al-dati" title="Azienda" done={!!hasData && ov?.missing.length === 0} open={!!openSteps.dati} onToggle={() => toggleStep('dati')}
         summary={ov ? `Profilo al ${ov.completeness_pct}%${ov.last_year != null ? ` · bilancio ${ov.last_year}` : ' · nessun bilancio'}` : null}
