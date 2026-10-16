@@ -3,6 +3,7 @@ import { AlertTriangle, CheckCircle2, Download, Eye, FileUp, FlaskConical, Loade
 import { api, download, fileToBase64 } from '../lib/api'
 import { createZip, uniqueName } from '../lib/zip'
 import { SectionTitle } from './ui'
+import { flashTo } from '../lib/nav'
 import Guide from './Guide'
 
 const TYPES = { COMPANY_REGISTRY: 'Visura camerale', BALANCE_SHEET: 'Bilancio', PAYSLIP: 'Busta paga', F24: 'Modello F24', APPLICATION_DRAFT: 'Bozza di candidatura', OTHER: 'Altro documento aziendale' }
@@ -11,7 +12,7 @@ const STATUS = {
   NEEDS_REVIEW: ['da verificare', 'text-amber-700 border-amber-500/30'], FAILED: ['non letto', 'text-red-700 border-red-500/30'],
   STORED: ['archiviato', 'text-ink-2 border-line-strong'],
 }
-const FIELD_LABEL = {
+export const FIELD_LABEL = {
   employee_name: 'Nome (token)', tax_code: 'Codice fiscale (token)', ccnl: 'Contratto (CCNL)', level: 'Livello', period: 'Periodo', gross_monthly_eur: 'Totale competenze del mese (€)',
   net_monthly_eur: 'Netto in busta (€)', tfr_accrual_eur: 'Quota TFR del mese (€)', mensilita: 'Mensilità', ral_annual_eur: 'RAL stimata (€)', fiscal_year: 'Anno del bilancio',
   expense_line: 'Riga di costo', f24_row: 'Riga F24', revenue_eur: 'Ricavi (€)', net_result_eur: 'Utile / perdita dell’esercizio (€)', total_costs_eur: 'Totale costi della produzione (€)', de_minimis_aid_eur: 'Aiuti de minimis dell’esercizio (€)',
@@ -131,13 +132,20 @@ function FieldRow({ f, doc, min, onDone }) {
   )
 }
 
-function Detail({ id, onChanged, onUsePayslip, onUseBalance, onUseDraft }) {
+function Detail({ id, onChanged, onUsePayslip, onUseBalance, onUseDraft, next, onNext, onClose }) {
   const [doc, setDoc] = useState(null)
   const [msg, setMsg] = useState(null)
   const load = useCallback(() => api.fcDocument(id).then(setDoc), [id])
   useEffect(() => { load() }, [load])
   if (!doc) return <Loader2 className="w-4 h-4 animate-spin text-brand-ink" />
   const done = (d) => { setDoc(d); onChanged() }
+  const left = doc.fields.filter((f) => f.status === 'NEEDS_REVIEW')
+  const bulk = left.filter((f) => !f.pii && f.field_key !== 'f24_row' && (f.field_key !== 'expense_line' || f.parsed?.category))      // quelle che si confermano così come sono
+  const confirmAll = async () => {
+    if (!window.confirm(`Confermi ${bulk.length} ${bulk.length === 1 ? 'lettura' : 'letture'} così come sono? Diventano valide per i calcoli: assicurati di averle guardate.`)) return
+    setMsg(null)
+    try { let last = doc; for (const f of bulk) last = await api.fcReview(id, f.id, 'CONFIRM'); done(last) } catch (e) { setMsg(e.message) }
+  }
   const usePayslip = async () => {
     setMsg(null)
     try { const r = await api.fcCostLine(id); onUsePayslip(r) } catch (e) { setMsg(e.message) }
@@ -161,7 +169,20 @@ function Detail({ id, onChanged, onUsePayslip, onUseBalance, onUseDraft }) {
           : doc.doc_type === 'OTHER' ? <span className="text-xs text-mute">Documento letto · {doc.fields.length} dati letti</span>
           : <span className="text-xs text-mute">{doc.method} · {doc.pages} pag. · lettura media {doc.mean_confidence != null ? pct(doc.mean_confidence) : '—'} · soglia {pct(doc.confidence_min)}</span>}
         <button className="btn ml-auto !py-1" onClick={async () => download(await api.fcFile(id), doc.filename)}><Download className="w-3 h-3" />Originale</button>
+        <button className="btn !py-1" onClick={onClose}><X className="w-3 h-3" />Chiudi</button>
       </div>
+      {left.length > 0 && (
+        <div className="flex flex-wrap items-center gap-2 p-2.5 rounded-xl border border-amber-500/30 bg-amber-500/5 text-xs">
+          <AlertTriangle className="w-3.5 h-3.5 text-amber-700 shrink-0" /><span className="text-ink-2">{left.length} {left.length === 1 ? 'lettura da verificare' : 'letture da verificare'} in questo documento.</span>
+          {bulk.length > 1 && <button className="btn !py-1 ml-auto" onClick={confirmAll}>Sono tutte giuste ({bulk.length})</button>}
+        </div>
+      )}
+      {left.length === 0 && doc.fields.length > 0 && next && (
+        <div className="flex flex-wrap items-center gap-2 p-2.5 rounded-xl border border-emerald-500/30 bg-emerald-500/5 text-xs">
+          <CheckCircle2 className="w-3.5 h-3.5 text-emerald-700 shrink-0" /><span className="text-ink-2">Questo documento è a posto. Ce n’è un altro da verificare.</span>
+          <button className="btn-primary !py-1 ml-auto" onClick={() => onNext(next.id)}>Vai al prossimo</button>
+        </div>
+      )}
       {doc.error && <p className="text-xs text-red-700 flex gap-2"><AlertTriangle className="w-4 h-4 shrink-0" />{doc.error}</p>}
       {doc.fields.length > 0 && doc.fields.every((f) => f.parsed && FACT_TITLE[f.field_key]) ? <SheetFacts fields={doc.fields} /> : <div className="space-y-2">{doc.fields.map((f) => <FieldRow key={f.id} f={f} doc={doc} min={doc.confidence_min} onDone={done} />)}</div>}
       <div className="flex flex-wrap items-center gap-2 pt-1">
@@ -174,15 +195,25 @@ function Detail({ id, onChanged, onUsePayslip, onUseBalance, onUseDraft }) {
   )
 }
 
-export default function Documents({ onUsePayslip, onUseBalance, onUseDraft, onProfileChanged, refreshKey = 0, defaultType = 'COMPANY_REGISTRY' }) {
+export default function Documents({ onUsePayslip, onUseBalance, onUseDraft, onProfileChanged, refreshKey = 0, defaultType = 'COMPANY_REGISTRY', focus }) {
   const [list, setList] = useState([])
   const [type, setType] = useState(defaultType)
   const [open, setOpen] = useState(null)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState(null)
+  const [onlyReview, setOnlyReview] = useState(false)
   const file = useRef(null)
   const load = useCallback(() => api.fcDocuments().then(setList).catch((e) => setError(e.message)), [])
   useEffect(() => { load() }, [load, refreshKey])          // refreshKey: un documento caricato altrove (procedura guidata) compare anche qui
+  const pending = list.filter((d) => d.to_review > 0)
+  const openDoc = useCallback((id) => { setOpen(id); flashTo(`doc-${id}`) }, [])
+  useEffect(() => {                                                    // «Vai ai documenti da verificare»: si apre il primo documento con letture incerte e ci si arriva
+    if (!focus || !list.length) return
+    if (focus.doc === 'upload') { flashTo('doc-upload'); return }
+    const id = focus.doc === 'review' ? list.find((d) => d.to_review > 0)?.id : focus.doc
+    if (id) openDoc(id)
+    else flashTo('doc-list')
+  }, [focus, list.length > 0]) // eslint-disable-line react-hooks/exhaustive-deps
   // ogni documento letto o confermato aggiorna il profilo aziendale (i valori inseriti a mano restano)
   const refresh = useCallback(async () => {
     await load()
@@ -279,7 +310,7 @@ export default function Documents({ onUsePayslip, onUseBalance, onUseDraft, onPr
   return (
     <div className="space-y-6">
       <Guide page="documents" />
-      <div className="card p-5 space-y-3">
+      <div id="doc-upload" className="card p-5 space-y-3">
         <SectionTitle icon={FileUp}>Carica un documento</SectionTitle>
         <p className="text-xs text-ink-2 leading-relaxed">Visura camerale, bilanci, buste paga, F24 o una bozza di candidatura già scritta in PDF (anche scansionati, se il server ha il lettore OCR); i fogli Excel che QUANTO riconosce (registro del personale, libro cespiti, registro delle fatture, budget, piano degli investimenti e delle assunzioni, registro degli aiuti) vengono letti e usati; qualunque altro documento aziendale (DURC, contratti…) si archivia senza essere letto. Ogni campo letto ha una percentuale di sicurezza: sotto la soglia lo controlli tu prima di usarlo. Nomi e codici fiscali diventano codici anonimi; il file è conservato cifrato.</p>
         <div className="flex flex-wrap items-center gap-3">
@@ -295,16 +326,19 @@ export default function Documents({ onUsePayslip, onUseBalance, onUseDraft, onPr
           <span className="text-xs text-mute">{demo && demo.total === 0 ? 'Preparo l’elenco…' : demo && demo.done < demo.total ? `Carico ${demo.done + 1} di ${demo.total}: ${demo.name}` : demo ? (demo.auto ? `Aggiornata da sola all’ultima versione: ${demo.total} documenti nuovi o cambiati.` : `Fatto: ${demo.total} documenti aggiornati all’ultima versione.`) : 'Meridiana Digital Solutions: visura, bilanci, business plan, fogli Excel… sempre l’ultima versione.'}</span>
         </div>
       </div>
-      <div className="card p-5 space-y-2">
+      <div id="doc-list" className="card p-5 space-y-2">
         <div className="flex flex-wrap items-center gap-2">
           <SectionTitle>I tuoi documenti ({list.length})</SectionTitle>
+          {pending.length > 0 && <button type="button" aria-pressed={onlyReview} onClick={() => setOnlyReview(!onlyReview)} className={`text-[11px] px-2 py-0.5 rounded-full border ${onlyReview ? 'bg-amber-500/15 border-amber-500/50 text-amber-800' : 'border-amber-500/40 text-amber-700'}`}>{onlyReview ? 'Mostra tutti' : `Solo da verificare (${pending.length})`}</button>}
+          {pending.length > 0 && <button type="button" className="btn-primary !py-1" onClick={() => openDoc(pending[0].id)}>Verifica il prossimo</button>}
           {list.length > 0 && <button className="btn !py-1 ml-auto" disabled={working === 'all'} onClick={saveAll} title="Un archivio ZIP con tutti i file allegati, divisi per tipo, e l'elenco in CSV">
             {working === 'all' ? <Loader2 className="w-3 h-3 animate-spin" /> : <PackageOpen className="w-3 h-3" />}Scarica tutti i file (ZIP)</button>}
         </div>
         {list.length === 0 && <p className="text-xs text-mute">Nessun documento ancora.</p>}
-        {list.map((d) => (
-          <div key={d.id} className="flex flex-wrap items-center gap-2 text-xs p-2 rounded-xl border border-line bg-field">
-            <button onClick={() => setOpen(d.id)} className="font-medium text-ink hover:underline">{TYPES[d.doc_type]} · {d.filename}</button>
+        {(onlyReview ? pending : list).map((d) => (
+          <React.Fragment key={d.id}>
+          <div id={`doc-${d.id}`} className={`flex flex-wrap items-center gap-2 text-xs p-2 rounded-xl border bg-field ${open === d.id ? 'border-brand/60' : 'border-line'}`}>
+            <button onClick={() => (open === d.id ? setOpen(null) : openDoc(d.id))} aria-expanded={open === d.id} className="font-medium text-ink hover:underline text-left">{open === d.id ? '▾ ' : '▸ '}{TYPES[d.doc_type]} · {d.filename}</button>
             <span className={`px-1.5 py-0.5 rounded border ${STATUS[d.status][1]}`}>{STATUS[d.status][0]}</span>
             <span className="text-mute">{d.fields} campi{d.to_review ? ` · ${d.to_review} da verificare` : ''} · {d.created_at.slice(0, 10)}</span>
             <span className="ml-auto flex flex-wrap items-center gap-1.5">
@@ -313,6 +347,9 @@ export default function Documents({ onUsePayslip, onUseBalance, onUseDraft, onPr
               <button className="btn !py-1" onClick={() => remove(d)}><Trash2 className="w-3 h-3" />Elimina</button>
             </span>
           </div>
+          {open === d.id && <Detail id={d.id} onChanged={refresh} onUsePayslip={onUsePayslip} onUseBalance={onUseBalance} onUseDraft={onUseDraft}
+            next={pending.find((x) => x.id !== d.id)} onNext={(id) => openDoc(id)} onClose={() => setOpen(null)} />}
+          </React.Fragment>
         ))}
       </div>
       {viewer && (
@@ -328,7 +365,6 @@ export default function Documents({ onUsePayslip, onUseBalance, onUseDraft, onPr
           </div>
         </div>
       )}
-      {open && <Detail key={open} id={open} onChanged={refresh} onUsePayslip={onUsePayslip} onUseBalance={onUseBalance} onUseDraft={onUseDraft} />}
     </div>
   )
 }

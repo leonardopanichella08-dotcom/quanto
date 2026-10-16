@@ -181,3 +181,8 @@
 .asst-send:not(:disabled):hover { transform: translateY(-1px); }
 .asst-note { font-size: 10.5px; line-height: 1.4; color: rgba(26, 26, 23, 0.55); text-align: center; }
 @media (prefers-reduced-motion: reduce) { .asst-bar, .asst-pill-btn, .asst-go, .asst-chip, .asst-send { transition: none; } }
+
+/* Il punto in cui un pulsante ti ha portato: un anello che svanisce */
+@keyframes flash-ring { 0% { box-shadow: 0 0 0 3px rgba(138, 125, 0, 0.55); } 100% { box-shadow: 0 0 0 3px rgba(138, 125, 0, 0); } }
+.flash-target { animation: flash-ring 2.2s ease-out both; border-radius: 0.75rem; }
+@media (prefers-reduced-motion: reduce) { .flash-target { animation: none; outline: 2px solid rgba(138, 125, 0, 0.6); } }

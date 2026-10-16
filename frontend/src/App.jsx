@@ -15,7 +15,7 @@ import Sidebar, { MobileBar } from './components/Sidebar'
 import { NeedClient } from './components/Clients'
 import { ArrowLeft, BookOpen, Calculator, GitCompare, Library, ShieldCheck, Split, User } from 'lucide-react'
 import { Mark, PageHead, Wordmark } from './components/ui'
-import { NavContext, scrollTop } from './lib/nav'
+import { NavContext, profileGo, scrollTop } from './lib/nav'
 import { api, download, fileToBase64, session, workspace } from './lib/api'
 import { PasswordModal } from './components/Login'
 import { AssistantProvider, useAssistant } from './assistant/AssistantContext'
@@ -331,7 +331,7 @@ function AppInner({ bridge }) {
             onValidate={() => validate(request)} onRegister={() => setModalOpen(true)} onExport={exportAs}
             onOpenLab={() => { setReplay(null); setLabFrom('canvas'); setTab('lab') }} onDismissImport={() => setImportInfo(null)} onGoBandi={() => setTab('bandi')}
             onUsePayslip={addPayslipItem} onUseBalance={() => nav.go('allocation')} onUseDraft={addDraftItems}
-            onUseTemplate={applyTemplate} onGoProfile={() => nav.go('profilo')} templateOpen={templateOpen} budgetSet={budgetSet} onSwitchBudget={switchBudget} onCloseBudgetSet={closeBudgetSet}
+            onUseTemplate={applyTemplate} onGoProfile={(t) => { nav.go('profilo'); if (t) profileGo(t) }} templateOpen={templateOpen} budgetSet={budgetSet} onSwitchBudget={switchBudget} onCloseBudgetSet={closeBudgetSet}
             incompleteItems={request.cost_items.filter(isIncomplete)} notice={notice} onDismissNotice={() => setNotice(null)} />
         </Keep>
         {tab === 'lab' && (
@@ -343,7 +343,7 @@ function AppInner({ bridge }) {
             <AlgorithmLab validation={labData} title={labData?.project_id} criteriaTitles={criteriaTitles} />
           </div>
         )}
-        <Keep id="allocation" tab={tab} visited={visited}>{clientId ? <AllocationView key={clientId} onGoProfile={() => nav.go('profilo')} onBudgetFrom={budgetFrom} onOpenBudgets={openBudgetSet} /> : gate ? <NeedClient onGo={() => nav.go('profilo')} /> : null}</Keep>
+        <Keep id="allocation" tab={tab} visited={visited}>{clientId ? <AllocationView key={clientId} onGoProfile={(t) => { nav.go('profilo'); if (t) profileGo(t) }} onBudgetFrom={budgetFrom} onOpenBudgets={openBudgetSet} /> : gate ? <NeedClient onGo={() => nav.go('profilo')} /> : null}</Keep>
         <Keep id="pattern" tab={tab} visited={visited}>{clientId ? <Confronto key={clientId} validation={validation} client={activeClient} /> : gate ? <NeedClient onGo={() => nav.go('profilo')} /> : null}</Keep>
         {tab === 'auditor' && (
           <AuditorPortal request={request} defaultProject={params.get('project') || validation?.project_id || request.project_id}

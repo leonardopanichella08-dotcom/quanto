@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react'
 import { api } from '../lib/api'
 import { fmtEur, fmtNum, CATEGORY_LABEL, STATUS_LABEL, STATUS_STYLE } from '../lib/format'
+import { nextStep } from '../lib/profileSteps'
 import { AlertTriangle, CheckCircle2, ChevronDown, ChevronRight, CircleHelp, ExternalLink, FolderOpen, Loader2, Sparkles, XCircle } from 'lucide-react'
 import { ChromeCard, SectionTitle } from './ui'
 import Guide from './Guide'
@@ -529,7 +530,7 @@ export default function AllocationView({ onGoProfile, onBudgetFrom, onOpenBudget
             <div><span className="label">Documenti</span><div className="text-sm font-semibold">{ov.documents.total}{ov.documents.to_review ? ` · ${ov.documents.to_review} campi da verificare` : ''}</div></div>
             <div className="ml-auto flex flex-wrap gap-2">
               {(ov.missing.length > 0 || !hasData) && <button className="btn" onClick={() => window.dispatchEvent(new CustomEvent('quanto-assistant', { detail: { task: 'profilo' } }))}><Sparkles className="w-3.5 h-3.5" />Falli inserire all’assistente</button>}
-              <button className="btn-primary" onClick={onGoProfile}>{ov.missing.length ? 'Completa il profilo' : 'Apri il profilo'}</button>
+              <button className="btn-primary" onClick={() => { const n = nextStep(ov, Array.from({ length: ov.documents.total }, () => ({}))); onGoProfile(n && !n.done ? n.t : { to: 'azienda' }) }}>{ov.missing.length || ov.documents.to_review ? 'Completa il profilo' : 'Apri il profilo'}</button>
             </div>
           </div>
         )}

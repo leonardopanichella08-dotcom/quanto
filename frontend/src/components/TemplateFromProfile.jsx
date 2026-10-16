@@ -59,7 +59,7 @@ export default function TemplateFromProfile({ bando, onApply, onGoProfile, start
             <button className="btn" onClick={() => window.dispatchEvent(new CustomEvent('quanto-assistant', { detail: { task: 'budget', bandoId: bando.bando_id, scale: Number(scale) > 0 ? Number(scale) : undefined } }))}><Sparkles className="w-3.5 h-3.5" />Fallo fare all’assistente</button>
           </div>
           {error && (
-            <p className="text-xs text-red-700">{error} {error.startsWith('Mancano i dati') && <button className="underline font-medium" onClick={onGoProfile}>Vai al profilo</button>}</p>
+            <p className="text-xs text-red-700">{error} {error.startsWith('Mancano i dati') && <button className="underline font-medium" onClick={() => onGoProfile({ to: 'azienda' })}>Vai ai dati mancanti</button>}</p>
           )}
           {res && (
             <div className="text-xs space-y-3 p-3 rounded-xl border border-line bg-field">
@@ -89,7 +89,7 @@ export default function TemplateFromProfile({ bando, onApply, onGoProfile, start
               {res.adjustments.map((a) => <p key={a.category} className="text-amber-700">{a.reason}: {a.label.toLowerCase()} ridotte da {fmtEur(a.forecast_eur)} a {fmtEur(a.eligible_eur)}.</p>)}
               {res.excluded_types?.length > 0 && <p className="text-amber-700">Il bando le esclude per nome e non sono nel budget: {res.excluded_types.map((t) => `${t.label.toLowerCase()} (${fmtEur(t.amount_eur)})`).join(', ')}.</p>}
               {res.excluded_categories.length > 0 && <p className="text-mute">Categorie non incluse perché il bando non le ammette: {res.excluded_categories.map((c) => c.label.toLowerCase()).join(', ')}.</p>}
-              {res.needs_personnel && <p className="text-amber-700">Personale ({fmtEur(res.needs_personnel.amount_eur)}): {res.needs_personnel.message} <button className="underline font-medium" onClick={onGoProfile}>Vai al profilo</button></p>}
+              {res.needs_personnel && <p className="text-amber-700">Personale ({fmtEur(res.needs_personnel.amount_eur)}): {res.needs_personnel.message} <button className="underline font-medium" onClick={() => onGoProfile({ to: 'documenti', doc: 'upload' })}>Carica il registro del personale</button></p>}
               {res.needs_input?.length > 0 && (
                 <div className="p-2.5 rounded-lg border border-amber-500/30 bg-amber-500/5 space-y-1">
                   <p className="font-medium text-amber-700 inline-flex items-center gap-1.5"><AlertTriangle className="w-3.5 h-3.5" />Cosa manca per completarlo</p>

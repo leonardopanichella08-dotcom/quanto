@@ -1,10 +1,8 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react'
-import { Building2, CheckCircle2, Loader2, Plus, RefreshCw, Save } from 'lucide-react'
+import { CheckCircle2, Loader2, Plus, RefreshCw, Save } from 'lucide-react'
 import { api } from '../lib/api'
 import { fmtEur } from '../lib/format'
-import { ChromeCard, SectionTitle } from './ui'
-import DocumentFacts from './DocumentFacts'
-import AidsPanel from './AidsPanel'
+import { flashTo } from '../lib/nav'
 
 const ORIGIN = {
   DOCUMENT: ['da documento', 'text-emerald-700 border-emerald-500/30'],
@@ -30,7 +28,7 @@ export function FieldInput({ f, regions, value, onChange }) {
   return <input className="field" {...props} {...common} />
 }
 
-export default function CompanyProfile({ version = 0, onChanged }) {
+export default function CompanyProfile({ version = 0, onChanged, target }) {
   const [ov, setOv] = useState(null)
   const [error, setError] = useState(null)
   const [draft, setDraft] = useState({})                 // campi modificati e non ancora salvati
@@ -46,6 +44,15 @@ export default function CompanyProfile({ version = 0, onChanged }) {
     window.addEventListener('quanto-profile-changed', on)
     return () => window.removeEventListener('quanto-profile-changed', on)
   }, [load])
+
+  useEffect(() => {                                       // un pulsante altrove porta a un campo preciso: si arriva lì e ci si mette il cursore
+    if (!target || !ov) return
+    const id = target.field ? `pf-${target.field}` : target.fin ? `fin-${target.fin.key}-${target.fin.year}` : null
+    if (!id) return
+    if (target.fin) setExtraYears((e) => (e.includes(Number(target.fin.year)) ? e : [...e, Number(target.fin.year)]))
+    flashTo(id)
+    setTimeout(() => document.getElementById(id)?.querySelector?.('input,select')?.focus?.({ preventScroll: true }) || document.getElementById(id)?.focus?.({ preventScroll: true }), 450)
+  }, [target, ov === null]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const years = useMemo(() => {
     const ys = new Set([...(ov?.financials || []).map((f) => f.fiscal_year), ...extraYears])
@@ -82,28 +89,23 @@ export default function CompanyProfile({ version = 0, onChanged }) {
   const missingFin = ov.missing.filter((m) => m.scope === 'financial')
 
   return (
-    <ChromeCard label="quanto.app/profilo/azienda" bodyClassName="p-6 space-y-6">
-      <div className="flex flex-wrap items-start justify-between gap-4 pb-4 border-b border-line">
-        <div className="max-w-xl">
-          <SectionTitle icon={Building2} className="!text-lg">Il profilo dell’azienda</SectionTitle>
-          <p className="text-xs text-ink-2 mt-0.5 leading-relaxed">Carica visura, bilanci e documenti qui sotto: QUANTO ne ricava i dati dell’impresa e i costi di ogni anno. Il profilo serve all’Allocazione (stima dell’anno dopo e bandi adatti) e al Budget (bozza di partenza per un bando). Quello che scrivi tu non viene mai sovrascritto dai documenti.</p>
-        </div>
-        <div className="min-w-[12rem]">
-          <span className="label">Completezza</span>
-          <div className="text-2xl font-display font-semibold tabular-nums text-ink">{ov.completeness_pct}%</div>
-          <div className="h-1.5 rounded-full bg-tint-2 overflow-hidden mt-1"><div className="h-full rounded-full bg-brand" style={{ width: `${ov.completeness_pct}%` }} /></div>
-          {ov.size && <p className="text-[11px] text-mute mt-2">{ov.size.label}{ov.size.provisional ? ' (indicativo: manca un dato)' : ''}</p>}
-        </div>
+    <div className="space-y-6 pt-3">
+      <div className="flex flex-wrap items-center gap-x-6 gap-y-2">
+        <p className="text-xs text-ink-2 leading-relaxed flex-1 min-w-[16rem]">QUANTO ricava questi dati da visura, bilanci e documenti. Il profilo serve all’Allocazione (stima dell’anno dopo e bandi adatti) e al Budget. Quello che scrivi tu non viene mai sovrascritto dai documenti.</p>
+        <div className="min-w-[11rem]"><span className="label">Completezza</span>
+          <div className="flex items-center gap-2"><span className="text-xl font-display font-semibold tabular-nums text-ink">{ov.completeness_pct}%</span>
+            {ov.size && <span className="text-[11px] text-mute">{ov.size.label}{ov.size.provisional ? ' (indicativo)' : ''}</span>}</div>
+          <div className="h-1.5 rounded-full bg-tint-2 overflow-hidden mt-1"><div className="h-full rounded-full bg-brand" style={{ width: `${ov.completeness_pct}%` }} /></div></div>
       </div>
 
       {error && <p className="text-xs text-red-700 p-3 rounded-xl border border-red-500/30">{error}</p>}
 
       {(missingProfile.length > 0 || missingFin.length > 0) && (
         <div className="p-3 rounded-xl border border-amber-500/30 bg-amber-500/5 text-xs text-ink-2 space-y-1">
-          <p className="font-medium text-amber-700">Da completare</p>
+          <p className="font-medium text-amber-700">Da completare — tocca una voce per andare al campo</p>
           <ul className="list-disc pl-5">
-            {missingProfile.map((m) => <li key={m.key}>{m.label}</li>)}
-            {missingFin.map((m) => <li key={`${m.key}-${m.year}`}>{m.year ? `${m.label} (esercizio ${m.year})` : m.label}</li>)}
+            {missingProfile.map((m) => <li key={m.key}><button type="button" className="underline hover:text-ink text-left" onClick={() => { flashTo(`pf-${m.key}`); setTimeout(() => document.getElementById(`pf-${m.key}`)?.querySelector('input,select')?.focus({ preventScroll: true }), 450) }}>{m.label}</button></li>)}
+            {missingFin.map((m) => <li key={`${m.key}-${m.year}`}><button type="button" className="underline hover:text-ink text-left" onClick={() => { const id = m.year ? `fin-${m.key}-${m.year}` : null; if (id) { flashTo(id); setTimeout(() => document.getElementById(id)?.focus({ preventScroll: true }), 450) } }}>{m.year ? `${m.label} (esercizio ${m.year})` : m.label}</button></li>)}
           </ul>
         </div>
       )}
@@ -114,7 +116,7 @@ export default function CompanyProfile({ version = 0, onChanged }) {
             {busy === 'sync' ? <Loader2 className="w-3 h-3 animate-spin" /> : <RefreshCw className="w-3 h-3" />}Rileggi i documenti</button></div>
         <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
           {ov.fields.map((f) => (
-            <label key={f.key} className="space-y-1 text-xs text-ink-2 block">
+            <label key={f.key} id={`pf-${f.key}`} className="space-y-1 text-xs text-ink-2 block p-1 -m-1 rounded-lg">
               <span className="flex items-center justify-between gap-2"><span className="label">{f.label}{f.required ? ' *' : ''}</span><Origin source={f.key in draft ? { origin: 'MANUAL', from: 'da salvare' } : f.source} /></span>
               <FieldInput f={f} regions={ov.regions} value={f.key in draft ? draft[f.key] : f.value} onChange={(v) => setDraft((d) => ({ ...d, [f.key]: v }))} />
             </label>
@@ -142,7 +144,7 @@ export default function CompanyProfile({ version = 0, onChanged }) {
                     <td className="py-1.5 pr-3 text-ink-2">{k.label}{k.required ? ' *' : ''}</td>
                     {years.map((y) => (
                       <td key={y} className="py-1 px-1">
-                        <input type="number" step={k.kind === 'count' ? 1 : 0.01} className="field !py-1 !w-32 text-right tabular-nums" aria-label={`${k.label} ${y}`}
+                        <input id={`fin-${k.key}-${y}`} type="number" step={k.kind === 'count' ? 1 : 0.01} className="field !py-1 !w-32 text-right tabular-nums" aria-label={`${k.label} ${y}`}
                           value={finValue(y, k.key)} onChange={(e) => setFinDraft((d) => ({ ...d, [y]: { ...(d[y] || {}), [k.key]: e.target.value } }))} />
                         <div className="text-[10px] text-mute text-right mt-0.5 h-3">{finDraft[y] && k.key in finDraft[y] ? 'da salvare' : finSource(y, k.key) ? ORIGIN[finSource(y, k.key).origin]?.[0] : ''}</div>
                       </td>
@@ -163,8 +165,6 @@ export default function CompanyProfile({ version = 0, onChanged }) {
         )}
         {ov.last_year && <p className="text-[11px] text-mute mt-2">Ultimo esercizio: {ov.last_year}. Costi complessivi per categoria: {fmtEur(ov.financials.find((f) => f.fiscal_year === ov.last_year)?.values && Object.entries(ov.financials.find((f) => f.fiscal_year === ov.last_year).values).filter(([k]) => /^(personnel|capital_assets|consulting|overhead|training)_eur$/.test(k)).reduce((s, [, v]) => s + Number(v || 0), 0))}.</p>}
       </div>
-      <DocumentFacts version={version} />
-      <AidsPanel />
-    </ChromeCard>
+    </div>
   )
 }

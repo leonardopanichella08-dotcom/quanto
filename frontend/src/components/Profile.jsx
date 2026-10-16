@@ -1,8 +1,12 @@
 import React, { useCallback, useEffect, useState } from 'react'
-import { Briefcase, Building2, Download, KeyRound, Loader2, LogOut, ShieldCheck, Sparkles, Trash2, User } from 'lucide-react'
+import { ArrowRight, Briefcase, Building2, CheckCircle2, Download, FolderOpen, KeyRound, ListChecks, Loader2, LogOut, ShieldCheck, Sparkles, Trash2, User, Wand2 } from 'lucide-react'
 import { api, download, session } from '../lib/api'
 import { fmtTs } from '../lib/format'
-import { SectionTitle } from './ui'
+import { Fold, SectionTitle } from './ui'
+import { flashTo, takeProfileTarget } from '../lib/nav'
+import { nextStep } from '../lib/profileSteps'
+import DocumentFacts from './DocumentFacts'
+import AidsPanel from './AidsPanel'
 import Documents from './Documents'
 import CompanyProfile from './CompanyProfile'
 import ProfileSetup from './ProfileSetup'
@@ -197,6 +201,79 @@ function DataAndPlan({ me }) {
   )
 }
 
+
+const OPEN_KEY = (clientId) => `quanto.profile.open.${clientId}`
+const readOpen = (clientId) => { try { return JSON.parse(sessionStorage.getItem(OPEN_KEY(clientId)) || '{}') } catch { return {} } }
+
+/** L'area di lavoro del cliente attivo: sezioni che si aprono e si chiudono, ognuna con il riassunto in testa, e un solo «prossimo passo» che porta al punto giusto. */
+function ClientWorkspace({ active, version, bump, onGoAllocation, onUsePayslip, onUseBalance, onUseDraft }) {
+  const [ov, setOv] = useState(null)
+  const [docs, setDocs] = useState([])
+  const [openMap, setOpenMap] = useState(() => readOpen(active.id))
+  const [stepReq, setStepReq] = useState(null)
+  const [aziendaTarget, setAziendaTarget] = useState(null)
+  const [docFocus, setDocFocus] = useState(null)
+  const [pending, setPending] = useState(null)
+  useEffect(() => { Promise.all([api.profile(), api.fcDocuments()]).then(([o, d]) => { setOv(o); setDocs(d) }).catch(() => {}) }, [version, active.id])
+  useEffect(() => { try { sessionStorage.setItem(OPEN_KEY(active.id), JSON.stringify(openMap)) } catch { /* storage non disponibile */ } }, [openMap, active.id])
+
+  const toReview = docs.reduce((n, d) => n + (d.to_review || 0), 0)
+  const pct = ov?.completeness_pct ?? 0
+  // per difetto: la guida è aperta finché il profilo non è completo, i documenti solo se c'è qualcosa da fare con loro, il profilo dell'azienda no
+  const defaults = { setup: pct < 100 || toReview > 0, azienda: false, documenti: docs.length === 0 || toReview > 0 }
+  const isOpen = (id) => (id in openMap ? openMap[id] : !!defaults[id])
+  const toggle = (id) => setOpenMap((m) => ({ ...m, [id]: !isOpen(id) }))
+
+  const go = useCallback((t) => {
+    if (!t) return
+    const n = Date.now()
+    setOpenMap((m) => ({ ...m, [t.to]: true }))
+    if (t.to === 'setup') { if (t.step) setStepReq({ id: t.step, n }); setTimeout(() => flashTo('sez-setup'), 120) }
+    else if (t.to === 'azienda') { setAziendaTarget({ ...t, n }); if (!t.field && !t.fin) setTimeout(() => flashTo('sez-azienda'), 120) }
+    else if (t.to === 'documenti') { setDocFocus({ doc: t.doc, n }) }
+    else if (t.to === 'letto') flashTo('sez-letto')
+    else if (t.to === 'aiuti') flashTo('sez-aiuti')
+  }, [])
+  useEffect(() => {                                       // un pulsante di un'altra pagina ha chiesto un punto del Profilo
+    const on = () => { const t = takeProfileTarget(); if (t) setPending(t) }
+    window.addEventListener('quanto-profile-goto', on)
+    on()
+    return () => window.removeEventListener('quanto-profile-goto', on)
+  }, [])
+  useEffect(() => { if (pending) { const t = pending; setPending(null); setTimeout(() => go(t), 200) } }, [pending, go])
+
+  const next = nextStep(ov, docs)
+  const go2 = (t) => (t ? go(t) : onGoAllocation?.())
+  const missingN = ov ? ov.missing.length : 0
+  return (
+    <div className="space-y-4">
+      {next && (
+        <div className={`rounded-2xl border p-4 flex flex-wrap items-center gap-3 ${next.done ? 'border-emerald-500/30 bg-emerald-500/5' : 'border-brand/50 bg-brand/5'}`} role="status">
+          <span className={`w-9 h-9 rounded-full flex items-center justify-center shrink-0 ${next.done ? 'bg-emerald-500/20 text-emerald-700' : 'bg-brand/25 text-brand-ink'}`}>{next.done ? <CheckCircle2 className="w-4 h-4" /> : <Wand2 className="w-4 h-4" />}</span>
+          <div className="min-w-0 flex-1"><p className="label">{next.done ? 'Tutto a posto' : 'Prossimo passo'}</p><p className="text-sm text-ink leading-snug">{next.text}</p></div>
+          <button className="btn-primary" onClick={() => go2(next.t)}>{next.btn}<ArrowRight className="w-3.5 h-3.5" /></button>
+        </div>
+      )}
+      <Fold id="sez-setup" icon={ListChecks} title="Configurazione guidata" summary={ov ? `${pct}% completo${next && !next.done ? ` · prossimo: ${next.btn.toLowerCase()}` : ''}` : 'Carico…'} badge={pct === 100 && toReview === 0 ? 'completa' : 'da fare'} tone={pct === 100 && toReview === 0 ? 'ok' : 'warn'}
+        open={isOpen('setup')} onToggle={() => toggle('setup')}>
+        <ProfileSetup version={version} onChanged={bump} onGoAllocation={onGoAllocation} stepRequest={stepReq}
+          onGoDocuments={(doc) => go({ to: 'documenti', doc })} onGoAzienda={(t) => go({ to: 'azienda', ...t })} />
+      </Fold>
+      <Fold id="sez-azienda" icon={Building2} title="Il profilo dell’azienda" summary={ov ? [ov.size?.label, `completezza ${pct}%`, missingN ? `${missingN} ${missingN === 1 ? 'dato da completare' : 'dati da completare'}` : 'nessun dato mancante'].filter(Boolean).join(' · ') : 'Carico…'}
+        badge={missingN ? `${missingN} da completare` : 'completo'} tone={missingN ? 'warn' : 'ok'} open={isOpen('azienda')} onToggle={() => toggle('azienda')}>
+        <CompanyProfile version={version} target={aziendaTarget} onChanged={bump} />
+      </Fold>
+      <Fold id="sez-documenti" icon={FolderOpen} title={`I documenti di ${active.name}`} summary={docs.length === 0 ? 'nessun documento ancora' : `${docs.length} ${docs.length === 1 ? 'documento' : 'documenti'}${toReview ? ` · ${toReview} letture da verificare` : ' · tutto verificato'}`}
+        badge={toReview ? `${toReview} da verificare` : null} tone="warn" open={isOpen('documenti')} onToggle={() => toggle('documenti')}>
+        <p className="text-xs text-mute pt-2">Visura, bilanci, buste paga, F24, bozze di candidatura e ogni altro documento aziendale: restano dentro questo lavoro e li vede solo il tuo studio. Clicca un documento per aprirne il dettaglio proprio sotto di lui.</p>
+        <Documents onUsePayslip={onUsePayslip} onUseBalance={onUseBalance} onUseDraft={onUseDraft} onProfileChanged={bump} refreshKey={version} focus={docFocus} />
+      </Fold>
+      <div id="sez-letto" className="scroll-mt-20"><DocumentFacts version={version} /></div>
+      <div id="sez-aiuti" className="scroll-mt-20"><AidsPanel /></div>
+    </div>
+  )
+}
+
 export default function Profile({ user, isOwner, clients, clientId, onSelectClient, onClientsChanged, onChangePassword, onGoHQ, onGoAllocation, onUsePayslip, onUseBalance, onUseDraft }) {
   const [version, setVersion] = useState(0)          // si alza quando un documento cambia: il profilo azienda si ricarica
   const [section, setSection] = useState('lavori')
@@ -205,6 +282,11 @@ export default function Profile({ user, isOwner, clients, clientId, onSelectClie
   const bump = useCallback(() => { setVersion((v) => v + 1); onClientsChanged?.(clientId) }, [onClientsChanged, clientId])
   useEffect(() => { api.meProfile().then((r) => { setMe(r.profile); setLogins(r.logins) }).catch(() => {}) }, [])
   const active = (clients || []).find((c) => c.id === clientId)
+  useEffect(() => {                                   // un pulsante di un'altra pagina porta a un punto dei lavori: si torna a quella sezione
+    const on = () => setSection('lavori')
+    window.addEventListener('quanto-profile-goto', on)
+    return () => window.removeEventListener('quanto-profile-goto', on)
+  }, [])
   return (
     <div className="space-y-6">
       <Guide page="profilo" />
@@ -228,16 +310,9 @@ export default function Profile({ user, isOwner, clients, clientId, onSelectClie
         <div className="space-y-6">
           <div className="card p-6"><ClientsPanel clients={clients} clientId={clientId} onSelect={onSelectClient} onChanged={onClientsChanged} /></div>
           {active && (
-            <div className="space-y-6" key={active.id}>
+            <div className="space-y-4" key={active.id}>
               <div className="flex items-center gap-2"><Briefcase className="w-4 h-4 text-ink-2" /><h3 className="text-[15px] font-semibold text-ink">Lavoro attivo: {active.name}</h3></div>
-              <ProfileSetup version={version} onChanged={bump} onGoAllocation={onGoAllocation}
-                onGoDocuments={() => document.getElementById('documenti-azienda')?.scrollIntoView({ behavior: 'smooth', block: 'start' })} />
-              <CompanyProfile version={version} />
-              <div id="documenti-azienda" className="space-y-3 scroll-mt-20">
-                <span className="text-sm font-medium text-ink">I documenti di {active.name}</span>
-                <p className="text-xs text-mute -mt-1">Visura, bilanci, buste paga, F24, bozze di candidatura e ogni altro documento aziendale: restano dentro questo lavoro e li vede solo il tuo studio. Da visura e bilanci si compila il profilo qui sopra.</p>
-                <Documents onUsePayslip={onUsePayslip} onUseBalance={onUseBalance} onUseDraft={onUseDraft} onProfileChanged={bump} refreshKey={version} />
-              </div>
+              <ClientWorkspace active={active} version={version} bump={bump} onGoAllocation={onGoAllocation} onUsePayslip={onUsePayslip} onUseBalance={onUseBalance} onUseDraft={onUseDraft} />
             </div>
           )}
         </div>

@@ -3,6 +3,7 @@ import { ArrowLeft, ArrowRight, Building2, CheckCircle2, ClipboardCheck, FileTex
 import { api, fileToBase64 } from '../lib/api'
 import { fmtEur } from '../lib/format'
 import { FieldInput } from './CompanyProfile'
+import { FIELD_LABEL } from './Documents'
 
 const TYPE_LABEL = { COMPANY_REGISTRY: 'Visura camerale', BALANCE_SHEET: 'Bilancio', PAYSLIP: 'Busta paga', F24: 'Modello F24', APPLICATION_DRAFT: 'Bozza di candidatura', OTHER: 'Altro documento' }
 const STATUS = { PARSED: 'letto', CONFIRMED: 'confermato', NEEDS_REVIEW: 'da verificare', FAILED: 'non letto', STORED: 'archiviato' }
@@ -109,7 +110,63 @@ function Questions({ ov, onSaved }) {
   )
 }
 
-export default function ProfileSetup({ version = 0, onChanged, onGoAllocation, onGoDocuments }) {
+
+/** Verifica rapida: tutte le letture incerte di tutti i documenti in un'unica tabella. Si guarda il valore e da dove è stato letto, si tolgono i segni a ciò che non torna, si conferma il resto con un clic. */
+function QuickReview({ docs, onGoDocuments, onChanged }) {
+  const [rows, setRows] = useState(null)
+  const [picked, setPicked] = useState({})
+  const [busy, setBusy] = useState(null)
+  const [error, setError] = useState(null)
+  const ids = docs.filter((d) => d.to_review > 0).map((d) => d.id).join(',')
+  useEffect(() => {
+    let live = true
+    Promise.all(docs.filter((d) => d.to_review > 0).map((d) => api.fcDocument(d.id))).then((full) => {
+      if (!live) return
+      const r = full.flatMap((doc) => doc.fields.filter((f) => f.status === 'NEEDS_REVIEW').map((f) => ({ doc, f, ok: !f.pii && f.field_key !== 'f24_row' && (f.field_key !== 'expense_line' || !!f.parsed?.category) })))
+      setRows(r); setPicked(Object.fromEntries(r.filter((x) => x.ok).map((x) => [x.f.id, true])))
+    }).catch((e) => setError(e.message))
+    return () => { live = false }
+  }, [ids]) // eslint-disable-line react-hooks/exhaustive-deps
+  const shown = (f) => (f.parsed ? (f.field_key === 'expense_line' ? `${f.parsed.description} — ${f.parsed.amount_eur} €` : JSON.stringify(f.parsed).slice(0, 80)) : f.value)
+  const chosen = (rows || []).filter((x) => picked[x.f.id])
+  const confirm = async () => {
+    setError(null)
+    for (let i = 0; i < chosen.length; i += 1) {
+      setBusy(`${i + 1} di ${chosen.length}`)
+      try { await api.fcReview(chosen[i].doc.id, chosen[i].f.id, 'CONFIRM') } catch (e) { setError(e.message); break }
+    }
+    setBusy(null)
+    try { await api.profileSync() } catch { /* si aggiorna alla prossima apertura */ }
+    onChanged()
+  }
+  if (error && !rows) return <p className="text-xs text-red-700">{error}</p>
+  if (!rows) return <p className="text-xs text-mute flex items-center gap-2"><Loader2 className="w-3.5 h-3.5 animate-spin" />Leggo le letture da verificare…</p>
+  return (
+    <div className="space-y-2">
+      <div className="overflow-x-auto rounded-xl border border-line">
+        <table className="w-full text-xs">
+          <thead><tr className="text-left text-mute bg-tint"><th className="p-2 w-8"><input type="checkbox" aria-label="Seleziona tutte" checked={chosen.length > 0 && chosen.length === rows.filter((x) => x.ok).length}
+            onChange={(e) => setPicked(e.target.checked ? Object.fromEntries(rows.filter((x) => x.ok).map((x) => [x.f.id, true])) : {})} /></th><th className="p-2 font-medium">Dato</th><th className="p-2 font-medium">Valore letto</th><th className="p-2 font-medium">Dove</th><th className="p-2" /></tr></thead>
+          <tbody>{rows.map(({ doc, f, ok }) => (
+            <tr key={f.id} className="border-t border-line align-top">
+              <td className="p-2"><input type="checkbox" disabled={!ok} aria-label={`Conferma ${FIELD_LABEL[f.field_key] || f.field_key}`} checked={!!picked[f.id]} onChange={(e) => setPicked((p) => ({ ...p, [f.id]: e.target.checked }))} /></td>
+              <td className="p-2 text-ink-2">{FIELD_LABEL[f.field_key] || f.field_key}<span className="block text-[10px] text-mute">{Math.round(f.confidence * 100)}% sicuro</span></td>
+              <td className="p-2 font-mono text-ink break-all">{shown(f)}</td>
+              <td className="p-2 text-mute max-w-[16rem]"><span className="block truncate" title={doc.filename}>{doc.filename}</span>{f.snippet && <span className="block text-[10px] truncate" title={f.snippet}>«{f.snippet}»</span>}</td>
+              <td className="p-2 text-right">{!ok && <button className="btn !py-0.5" onClick={() => onGoDocuments(doc.id)}>Apri</button>}</td>
+            </tr>))}</tbody>
+        </table>
+      </div>
+      <div className="flex flex-wrap items-center gap-3">
+        <button className="btn-primary" disabled={!chosen.length || !!busy} onClick={confirm}>{busy ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <CheckCircle2 className="w-3.5 h-3.5" />}{busy ? `Confermo ${busy}…` : `Confermo le ${chosen.length} selezionate`}</button>
+        <span className="text-[11px] text-mute">Tolgi il segno a quelle che non tornano: restano da verificare. Le righe che richiedono una scelta (categoria, codici F24) si aprono con «Apri».</span>
+      </div>
+      {error && <p className="text-xs text-red-700">{error}</p>}
+    </div>
+  )
+}
+
+export default function ProfileSetup({ version = 0, onChanged, onGoAllocation, onGoDocuments, onGoAzienda, stepRequest }) {
   const [ov, setOv] = useState(null)
   const [docs, setDocs] = useState([])
   const [step, setStep] = useState(null)
@@ -154,6 +211,12 @@ export default function ProfileSetup({ version = 0, onChanged, onGoAllocation, o
       setStep(first === -1 ? steps.length - 1 : first)
     }
   }, [steps])
+
+  useEffect(() => {                                  // un pulsante altrove chiede un passo preciso
+    if (!stepRequest || !steps.length) return
+    const i = steps.findIndex((x) => x.id === stepRequest.id)
+    if (i >= 0) { touched.current = true; setStep(i) }
+  }, [stepRequest, steps.length]) // eslint-disable-line react-hooks/exhaustive-deps
 
   if (error && !ov) return <p className="text-xs text-red-700">{error}</p>
   if (!ov || step === null) return <p className="text-xs text-mute flex items-center gap-2"><Loader2 className="w-3.5 h-3.5 animate-spin" />Carico la configurazione…</p>
@@ -212,6 +275,7 @@ export default function ProfileSetup({ version = 0, onChanged, onGoAllocation, o
                   <li key={l} className="flex gap-2"><CheckCircle2 className="w-4 h-4 mt-0.5 text-emerald-600 shrink-0" /><span><span className="text-mute">{l}: </span><span className="font-medium">{v}</span></span></li>))}</ul>) })()}
             {!s.done && <p className="text-xs text-amber-700">{ov.missing.filter((m) => m.scope === 'financial').map((m) => m.label).slice(0, 4).join(' · ') || 'Nessun bilancio ancora.'}</p>}
             {!s.done && <Uploader fixedType="BALANCE_SHEET" hint="Il bilancio in PDF (schema civilistico): carica quello dell’ultimo esercizio chiuso" onUploaded={changed} />}
+            {!s.done && onGoAzienda && <button className="btn" onClick={() => { const m = ov.missing.find((x) => x.scope === 'financial' && x.year); onGoAzienda(m ? { fin: { year: m.year, key: m.key } } : {}) }}>Non ho il PDF: scrivo i dati a mano</button>}
           </div>
         )}
         {s.id === 'history' && (
@@ -225,8 +289,8 @@ export default function ProfileSetup({ version = 0, onChanged, onGoAllocation, o
           <div className="space-y-3">
             {ov.documents.to_review === 0
               ? <p className="text-sm text-emerald-700 inline-flex items-center gap-2"><CheckCircle2 className="w-4 h-4" />Tutte le letture sono sicure o confermate.</p>
-              : <><p className="text-sm">{ov.documents.to_review} {ov.documents.to_review === 1 ? 'campo è' : 'campi sono'} da verificare. Aprili nei documenti: «È giusto» o correggi.</p>
-                <button className="btn-primary" onClick={onGoDocuments}>Vai ai documenti da verificare</button></>}
+              : <><p className="text-sm">{ov.documents.to_review} {ov.documents.to_review === 1 ? 'campo è' : 'campi sono'} da verificare, in {docs.filter((d) => d.to_review > 0).length} {docs.filter((d) => d.to_review > 0).length === 1 ? 'documento' : 'documenti'}. Per ognuno: «È giusto» o correggi.</p>
+                <QuickReview docs={docs} onGoDocuments={onGoDocuments} onChanged={changed} /></>}
           </div>
         )}
         {s.id === 'extra' && <Uploader hint="Buste paga, F24, bozze di candidatura, DURC, de minimis, business plan, Excel…" onUploaded={changed} />}

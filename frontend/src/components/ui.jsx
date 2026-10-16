@@ -42,3 +42,24 @@ export function ChromeCard({ label, className = '', bodyClassName = 'p-6', child
     </div>
   )
 }
+
+// Sezione che si apre e si chiude, con un riassunto sempre visibile nell'intestazione: chi la lascia chiusa vede comunque a che punto è.
+// Il contenuto resta montato anche da chiuso, così le cose scritte e le caricamenti in corso non si perdono.
+export function Fold({ id, icon: Icon, title, summary, badge, tone = 'neutral', open, onToggle, children, action }) {
+  const tones = { neutral: 'border-line text-ink-2', warn: 'border-amber-500/40 text-amber-700 bg-amber-500/5', ok: 'border-emerald-500/30 text-emerald-700 bg-emerald-500/5' }
+  return (
+    <section id={id} className="card overflow-hidden scroll-mt-20" data-open={open ? 'true' : 'false'}>
+      <div className="flex items-center gap-3 px-5 py-3.5">
+        <button type="button" onClick={onToggle} aria-expanded={!!open} aria-controls={`${id}-body`} className="flex items-center gap-3 min-w-0 flex-1 text-left">
+          <span className={`inline-block transition-transform ${open ? 'rotate-90' : ''} text-mute`} aria-hidden="true">▸</span>
+          {Icon && <Icon className="w-4 h-4 text-mute shrink-0" />}
+          <span className="min-w-0"><span className="block text-[15px] font-semibold tracking-tight text-ink">{title}</span>
+            {summary && <span className="block text-xs text-ink-2 mt-0.5 truncate">{summary}</span>}</span>
+        </button>
+        {badge && <span className={`px-2 py-0.5 rounded-full border text-[11px] font-medium whitespace-nowrap ${tones[tone]}`}>{badge}</span>}
+        {action}
+      </div>
+      <div id={`${id}-body`} className={open ? 'px-5 pb-5 pt-1 space-y-4 border-t border-line' : 'hidden'}>{children}</div>
+    </section>
+  )
+}
