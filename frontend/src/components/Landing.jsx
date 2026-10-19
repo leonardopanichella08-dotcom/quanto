@@ -6,6 +6,7 @@ import { api, session } from '../lib/api'
 import { Mark, Wordmark } from './ui'
 import { REVIEWS } from './landingReviews'
 import './Landing.css'
+import { LaunchVideo } from './TutorialVideo'
 
 gsap.registerPlugin(ScrollTrigger)
 
@@ -235,12 +236,12 @@ function PanelBandi({ live }) {
   )
 }
 function PanelAlloc({ live }) {
-  const rows = [['Personale', 0.7], ['Consulenze', 0.7], ['Spese generali', 0], ['Beni strumentali', 1], ['Formazione', 0.14]]
+  const rows = [['Personale', 0.05], ['Consulenze', 0.12], ['Spese generali', 0], ['Beni strumentali', 0.2], ['Formazione', 0.1]]
   return (
     <div className={`panel${live ? ' live' : ''}`}>
-      <div className="p-label">POTENZIALE MASSIMO · TUTTI I BANDI INSIEME</div>
-      <div className="p-big"><CountUp to={1252698.85} live={live} suffix=" €" /></div>
-      <div className="p-sub">su 1.991.026,11 € di spese · quota coperta <CountUp to={62.9} live={live} decimals={1} suffix="%" /></div>
+      <div className="p-label">SPESE DELL’ANNO · BANDI SENZA PROGETTO · ESEMPIO</div>
+      <div className="p-big"><CountUp to={148349.41} live={live} suffix=" €" /></div>
+      <div className="p-sub">su 2.100.185,69 € di spese · quota coperta <CountUp to={7.1} live={live} decimals={1} suffix="%" /></div>
       {rows.map(([l, v], i) => <div key={l} className="p-cov" style={ix(i + 1)}><span>{l}</span><div><i style={{ width: `${v * 100}%` }} /></div></div>)}
       <span className="pill v p-late">De minimis · stimato dai bilanci</span>
     </div>
@@ -269,7 +270,7 @@ const STEPS = [
   { n: '01', title: 'Carichi i documenti', body: 'Bilanci, F24, visura, buste paga: QUANTO li legge voce per voce e compila il profilo dell’azienda.', Panel: PanelDocs, url: 'quanto.app/documenti' },
   { n: '02', title: 'Stima l’anno successivo', body: 'Parte dall’ultimo bilancio e applica la variazione che risulta dai tuoi dati, con la spiegazione di ogni percentuale.', Panel: PanelForecast, url: 'quanto.app/allocazione/2' },
   { n: '03', title: 'Trova i bandi adatti', body: 'Confronta l’azienda con la biblioteca dei bandi. Quello che il bando non dice resta dichiarato, mai inventato.', Panel: PanelBandi, url: 'quanto.app/bandi' },
-  { n: '04', title: 'Calcola il massimo', body: 'Tutti i bandi insieme, senza pagare due volte la stessa spesa, con tetti, cumulo e de minimis.', Panel: PanelAlloc, url: 'quanto.app/allocazione/4' },
+  { n: '04', title: 'Assegna le spese ai bandi', body: 'Per le spese dell’anno o per un progetto, senza pagare due volte la stessa spesa, con tetti, cumulo e de minimis.', Panel: PanelAlloc, url: 'quanto.app/allocazione/4' },
   { n: '05', title: 'Consegna dossier e registro', body: 'Un dossier PDF, il budget per bando e un registro firmato che prova che i numeri non sono stati toccati.', Panel: PanelDossier, url: 'quanto.app/dossier' },
 ]
 
@@ -277,7 +278,7 @@ const PILLARS = [
   ['Legge i documenti', 'Bilanci, F24, visure e buste paga diventano dati, con la pagina da cui vengono.'],
   ['Stima l’anno', 'Previsione di bilancio per categoria di spesa, spiegata voce per voce.'],
   ['Trova i bandi', 'Una biblioteca di bandi studiati dalle fonti ufficiali.'],
-  ['Calcola il massimo', 'Quanto può recuperare l’azienda, al centesimo.'],
+  ['Assegna le spese ai bandi', 'Quale bando paga cosa, per le spese dell’anno o per un progetto, senza contare due volte la stessa spesa.'],
 ]
 
 const FUNCS = ['Lettura dei documenti', 'Profilo azienda', 'Previsione di bilancio', 'Biblioteca dei bandi', 'Allocazione ottimale', 'De minimis automatico', 'Budget per bando', 'Dossier PDF', 'Registro firmato', 'Assistente interno']
@@ -374,7 +375,7 @@ export default function Landing({ onLogin, onAuditor, onVision }) {
         <div className="hero-bg" aria-hidden="true"><i className="grid" /></div>
         <div className="wrap hero-inner">
           <h1>{split(['Il', 'motore', 'di', 'calcolo', 'per', 'la', <mark key="m">finanza agevolata.</mark>])}</h1>
-          <p className="sub">Dai bilanci dei tuoi clienti al massimo recuperabile, al centesimo.</p>
+          <p className="sub">Dai bilanci dei tuoi clienti ai bandi giusti, con ogni numero spiegato.</p>
           <div className="ctas">
             <button className="btn-solid big" onClick={() => setModal('register')}>Inizia gratis<ArrowRight size={16} /></button>
             <a className="btn-line big" href="#come-funziona">Come funziona</a>
@@ -407,8 +408,13 @@ export default function Landing({ onLogin, onAuditor, onVision }) {
       </div>
       </header>
 
+      <section className="sect" id="video"><div className="wrap">
+        <div className="sect-head center reveal"><span className="kicker">In 30 secondi</span><h2>Guarda QUANTO al lavoro</h2></div>
+        <LaunchVideo />
+      </div></section>
+
       <section className="sect" id="cosa-fa"><div className="wrap">
-        <div className="sect-head reveal"><span className="kicker">Cosa fa</span><h2>Dal bilancio al massimo recuperabile, in un solo posto</h2></div>
+        <div className="sect-head reveal"><span className="kicker">Cosa fa</span><h2>Dal bilancio ai bandi giusti, in un solo posto</h2></div>
         <div className="pillars">
           {PILLARS.map(([t, b], i) => (
             <div key={t} className="pillar reveal-card"><span className="step-n">{i + 1}</span><h3>{t}</h3><p>{b}</p></div>
@@ -446,10 +452,10 @@ export default function Landing({ onLogin, onAuditor, onVision }) {
 
       <section className="sect" id="strumenti"><div className="wrap">
         <div className="sect-head reveal"><span className="kicker">Gli strumenti</span><h2>Tutto quello che serve per un cliente, già collegato</h2>
-          <p>Un account per lo studio, un flusso dedicato per ogni azienda cliente. <b className="count" data-to="60">60</b> controlli per bando, ognuno con la fonte da cui viene la regola.</p></div>
+          <p>Un account per lo studio, un flusso dedicato per ogni azienda cliente. <b className="count" data-to="60">60</b> controlli su ogni voce del budget, con le regole del bando e la fonte da cui vengono.</p></div>
         <div className="funziona-rows last">
           <div className="funziona-row"><div className="fr-text"><span className="step-n">A</span><h3>Un account, tutti i clienti</h3><p>Ogni azienda ha il suo flusso: documenti, profilo, bandi e piano restano separati e sempre aggiornati.</p></div><div className="fr-visual"><ClientsMockup /></div></div>
-          <div className="funziona-row rev"><div className="fr-text"><span className="step-n">B</span><h3>60 controlli per bando</h3><p>Vedi subito cosa passa, cosa viene ridotto e cosa va documentato, prima di presentare la domanda.</p></div><div className="fr-visual"><HeatMockup /></div></div>
+          <div className="funziona-row rev"><div className="fr-text"><span className="step-n">B</span><h3>60 controlli sul budget</h3><p>Ogni voce è controllata con le regole del bando: vedi subito cosa passa, cosa viene ridotto e cosa va documentato, prima di presentare la domanda.</p></div><div className="fr-visual"><HeatMockup /></div></div>
         </div>
       </div></section>
 

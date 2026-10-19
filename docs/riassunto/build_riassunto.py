@@ -183,7 +183,7 @@ def decor(c, doc):
     c.drawString(20 * mm, 11 * mm, "QUANTO")
     c.setFont(F, 8)
     c.setFillColor(MUTE)
-    c.drawString(34 * mm, 11 * mm, "Riassunto · 15 ottobre 2026")
+    c.drawString(34 * mm, 11 * mm, "Riassunto · 19 ottobre 2026")
     c.drawRightString(A4[0] - 20 * mm, 11 * mm, f"{doc.page}")
     c.restoreState()
 

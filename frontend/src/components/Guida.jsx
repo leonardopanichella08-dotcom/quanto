@@ -1,11 +1,13 @@
 import React, { useEffect, useMemo, useState } from 'react'
 import { FUNCTIONS, GLOSSARY, QUICKSTART } from '../data/help'
 import { useNav } from '../lib/nav'
+import TutorialVideo from './TutorialVideo'
+import { TUTORIALS } from '../data/tutorials'
 import { BookOpen } from 'lucide-react'
 import { PageHead } from './ui'
 import MerkleLab from './MerkleLab'
 
-const SECTIONS = [['percorso', 'Percorso rapido'], ['merkle', 'Merkle Root passo passo'], ['funzioni', 'Ogni funzione, con un esempio'], ['glossario', 'Glossario']]
+const SECTIONS = [['video', 'Video'], ['percorso', 'Percorso rapido'], ['merkle', 'Merkle Root passo passo'], ['funzioni', 'Ogni funzione, con un esempio'], ['glossario', 'Glossario']]
 
 function Quickstart() {
   const nav = useNav()
@@ -86,6 +88,15 @@ function Glossary() {
   )
 }
 
+function Videos() {
+  return (
+    <div className="space-y-4">
+      <p className="text-sm text-ink-2">Video brevi che mostrano gli strumenti in azione. Li ritrovi anche nella pagina di ogni strumento. I numeri sono esempi con un’azienda di prova fittizia.</p>
+      {Object.keys(TUTORIALS).map((id) => <div key={id} className="space-y-1"><p className="text-[11px] text-mute px-1">Nell’app: {TUTORIALS[id].page}</p><TutorialVideo id={id} /></div>)}
+    </div>
+  )
+}
+
 export default function Guida({ anchor }) {
   const [section, setSection] = useState(SECTIONS.some(([id]) => id === anchor) ? anchor : 'percorso')
   useEffect(() => { if (SECTIONS.some(([id]) => id === anchor)) setSection(anchor) }, [anchor])
@@ -98,6 +109,7 @@ export default function Guida({ anchor }) {
             className={`pb-2.5 text-sm -mb-px border-b-2 transition ${section === id ? 'border-brand text-ink' : 'border-transparent text-ink-2 hover:text-ink'}`}>{label}</button>
         ))}
       </div>
+      {section === 'video' && <Videos />}
       {section === 'percorso' && <Quickstart />}
       {section === 'merkle' && <MerkleLab />}
       {section === 'funzioni' && <Functions />}

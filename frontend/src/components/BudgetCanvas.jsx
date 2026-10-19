@@ -8,6 +8,7 @@ import TemplateFromProfile from './TemplateFromProfile'
 import WorkPackages from './WorkPackages'
 import Guide from './Guide'
 import HowItWorks from './HowItWorks'
+import TutorialVideo from './TutorialVideo'
 import { Hint } from './Help'
 import { ChromeCard } from './ui'
 import { BANDO_STATUS_STYLE, CATEGORY_LABEL, CATEGORY_ORDER, STATUS_LABEL, STATUS_STYLE, fmtEur, fmtNum, fmtPct } from '../lib/format'
@@ -158,6 +159,7 @@ export default function BudgetCanvas({
     <div className="space-y-6">
       <Guide page="budget" />
       <HowItWorks kind="budget" />
+      {budgetSet && <TutorialVideo id="T13" />}
 
       {budgetSet && (
         <div className="card p-4 space-y-2.5">

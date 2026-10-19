@@ -1,6 +1,7 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react'
 import { AlertTriangle, ArrowUp, Check, Loader2, Minus, Sparkles, X } from 'lucide-react'
 import { TASKS, TASK_ORDER } from './tasks'
+import TutorialVideo from '../components/TutorialVideo'
 
 /** L'assistente guidato: una chat. Si scrive cosa si vuole fare (o si sceglie un suggerimento) e l'assistente prende in mano i passaggi in cui l'utente dovrebbe
  *  inserire dati o muoversi nell'app: li esegue lui (cambia pagina, salva, calcola) e, quando gli serve un valore, lo chiede nella chat spiegando in parole semplici
@@ -226,6 +227,7 @@ function Panel({ chat, lastRun, busy, onClose, onSubmit, onSay, onSuggest }) {
         {idle && (
           <div className="asst-suggest" aria-label="Suggerimenti">
             {TASK_ORDER.map((id) => <button key={id} type="button" className="asst-chip" onClick={() => onSuggest(id)}>{SUGGEST[id]}</button>)}
+            <TutorialVideo id="T16" variant="link" />
           </div>
         )}
         <form className="asst-input" onSubmit={send}>

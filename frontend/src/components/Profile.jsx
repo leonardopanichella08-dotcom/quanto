@@ -7,6 +7,7 @@ import { flashTo, takeProfileTarget } from '../lib/nav'
 import { nextStep } from '../lib/profileSteps'
 import DocumentFacts from './DocumentFacts'
 import AidsPanel from './AidsPanel'
+import TutorialVideo from './TutorialVideo'
 import Documents from './Documents'
 import CompanyProfile from './CompanyProfile'
 import ProfileSetup from './ProfileSetup'
@@ -308,6 +309,7 @@ export default function Profile({ user, isOwner, clients, clientId, onSelectClie
 
       {section === 'lavori' && (
         <div className="space-y-6">
+          <TutorialVideo id="T01" />
           <div className="card p-6"><ClientsPanel clients={clients} clientId={clientId} onSelect={onSelectClient} onChanged={onClientsChanged} /></div>
           {active && (
             <div className="space-y-4" key={active.id}>

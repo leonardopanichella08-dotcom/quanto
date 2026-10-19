@@ -356,3 +356,11 @@
 .qt-land .review blockquote { margin: 0; font: 600 clamp(20px, 2.1vw, 26px)/1.3 'Archivo', 'Inter', sans-serif; letter-spacing: -0.02em; color: var(--ink); }
 .qt-land .review figcaption { font: 500 11px 'JetBrains Mono', monospace; letter-spacing: .12em; text-transform: uppercase; color: var(--mute); }
 @media (max-width: 899px) { .qt-land .rev-grid { grid-template-columns: 1fr; } .qt-land .review, .qt-land .review + .review { padding: 28px 0; border-left: 0; border-bottom: 1px solid var(--line); } }
+
+/* Video di presentazione: grande, con locandina e avvio al clic (ha la musica) */
+.lp-video { position: relative; max-width: 980px; margin: 0 auto; aspect-ratio: 16 / 9; border-radius: 26px; overflow: hidden; background: #111; box-shadow: 0 40px 90px -40px rgba(0, 0, 0, 0.45), 0 0 0 1px rgba(0, 0, 0, 0.06); }
+.lp-video video, .lp-video img { width: 100%; height: 100%; display: block; object-fit: cover; }
+.lp-video-poster { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; padding: 0; background: none; cursor: pointer; }
+.lp-video-play { position: absolute; left: 50%; top: 50%; width: 76px; height: 76px; margin: -38px 0 0 -38px; border-radius: 9999px; background: rgba(255, 255, 255, 0.96); color: #1a1a17; display: flex; align-items: center; justify-content: center; box-shadow: 0 12px 40px rgba(0, 0, 0, 0.35); transition: transform 0.2s; }
+.lp-video-poster:hover .lp-video-play { transform: scale(1.06); }
+.lp-video-cap { position: absolute; left: 20px; bottom: 16px; padding: 6px 14px; border-radius: 9999px; background: rgba(255, 255, 255, 0.92); color: #1a1a17; font-size: 13px; font-weight: 500; }

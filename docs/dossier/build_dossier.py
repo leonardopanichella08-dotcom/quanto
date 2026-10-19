@@ -92,7 +92,7 @@ def page_decor(canv, doc):
     canv.saveState()
     canv.setFont("Body", 7.5)
     canv.setFillColor(MUTE)
-    canv.drawString(18 * mm, 10 * mm, "QUANTO v4.5 — Documento completo · stato reale al 15 ottobre 2026")
+    canv.drawString(18 * mm, 10 * mm, "QUANTO v4.5 — Documento completo · stato reale al 19 ottobre 2026")
     canv.drawRightString(A4[0] - 18 * mm, 10 * mm, f"pag. {doc.page}")
     canv.restoreState()
 

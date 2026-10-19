@@ -5,6 +5,7 @@ import { nextStep } from '../lib/profileSteps'
 import { AlertTriangle, CheckCircle2, ChevronDown, ChevronRight, CircleHelp, ExternalLink, FolderOpen, Loader2, Sparkles, XCircle } from 'lucide-react'
 import { Info } from './ui'
 import HowItWorks from './HowItWorks'
+import TutorialVideo from './TutorialVideo'
 import { flashTo } from '../lib/nav'
 import Guide from './Guide'
 import PipelineButton from './PipelineButton'
@@ -703,6 +704,7 @@ export default function AllocationView({ onGoProfile, onBudgetFrom, onOpenBudget
         <Step id="al-budget" title="Budget dei bandi" open={!!openSteps.budget} onToggle={() => toggleStep('budget')}
           summary={`Un budget per ognuno dei ${nPlanFunds} ${nPlanFunds === 1 ? 'bando usato' : 'bandi usati'}, già controllato con i suoi 60 criteri`}
           info="Ogni bando riceve solo le spese che finanzia. Il personale è diviso tra i progetti senza sovrapporsi, le spese pagate da due bandi dichiarano l’altro contributo, e i bandi non cumulabili non si toccano. Ogni budget si apre e si modifica nella pagina Budget.">
+          <TutorialVideo id="T13" />
           <BudgetsFromPlan plan={plan} lines={planLines} onOpen={onOpenBudgets} />
         </Step>
       )}
