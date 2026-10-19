@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react'
 import { AlertOctagon, CheckCircle2, HelpCircle } from 'lucide-react'
 import { api } from '../lib/api'
 import { useNav } from '../lib/nav'
+import TutorialVideo from './TutorialVideo'
 import { SectionTitle } from './ui'
 import { ShieldCheck } from 'lucide-react'
 import Guide from './Guide'
@@ -83,6 +84,7 @@ export default function AuditorPortal({ request, defaultProject, defaultRoot }) 
   return (
     <div className="space-y-6">
       <Guide page="auditor" />
+      <TutorialVideo id="T14" />
       <div className="card p-6 space-y-5">
         <div className="pb-3 border-b border-line">
           <SectionTitle icon={ShieldCheck} className="!text-lg">Il budget è stato cambiato dopo la certificazione?</SectionTitle>

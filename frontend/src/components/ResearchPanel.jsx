@@ -46,6 +46,8 @@ function Step({ n, state, title, children }) {
   )
 }
 
+import TutorialVideo from './TutorialVideo'
+
 export default function ResearchPanel({ onDone, pick, onUse }) {
   const [name, setName] = useState('')
   const [hint, setHint] = useState('')
@@ -185,6 +187,7 @@ export default function ResearchPanel({ onDone, pick, onUse }) {
   return (
     <div className="card p-5 space-y-4">
       <h3 className="font-semibold text-base flex items-center gap-2"><Search className="w-4 h-4 text-brand-ink" />Cerca un bando sul web <Hint id="bando_ricerca" /></h3>
+      <TutorialVideo id="T04" />
       <Info label="Come funziona">Scrivi il nome del bando. QUANTO lo cerca su internet, scarica le pagine e i PDF ufficiali (decreti, avvisi, circolari, atti della Gazzetta Ufficiale), li salva in memoria e li legge tutti. Le fonti ufficiali hanno la precedenza.</Info>
 
       <div className="grid md:grid-cols-2 gap-3">

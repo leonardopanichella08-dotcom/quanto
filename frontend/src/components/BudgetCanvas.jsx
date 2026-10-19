@@ -159,6 +159,7 @@ export default function BudgetCanvas({
     <div className="space-y-6">
       <Guide page="budget" />
       <HowItWorks kind="budget" />
+      <TutorialVideo id="T12" />
       {budgetSet && <TutorialVideo id="T13" />}
 
       {budgetSet && (

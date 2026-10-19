@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useState } from 'react'
 import { AlertTriangle, CheckCircle2, ChevronDown, ChevronRight, Loader2, Plus, ShieldCheck, Trash2 } from 'lucide-react'
 import { api } from '../lib/api'
+import TutorialVideo from './TutorialVideo'
 import { fmtEur } from '../lib/format'
 
 const STATE = {
@@ -44,6 +45,7 @@ export default function AidsPanel() {
       </button>
       {open && (
         <div className="px-4 pb-4 space-y-4 text-xs">
+          <TutorialVideo id="T11" />
           <p className="text-ink-2 leading-relaxed">Il de minimis (300.000 € in tre anni) vale per l’<strong className="text-ink">impresa unica</strong>: l’azienda più quelle che le sono collegate. QUANTO non può leggere il Registro Nazionale degli Aiuti (RNA) da solo: serve la <strong className="text-ink">visura aiuti</strong> ufficiale, scaricata dall’impresa o da un suo delegato. Qui si riportano le concessioni e si confrontano con i documenti; finché la verifica non è completa e recente (30 giorni) il piano usa un residuo ridotto di un margine di sicurezza.</p>
           {error && <p className="text-red-700">{error}</p>}
           {!st && !error && <p className="text-mute flex items-center gap-2"><Loader2 className="w-3.5 h-3.5 animate-spin" />Carico…</p>}

@@ -267,6 +267,7 @@ function ClientWorkspace({ active, version, bump, onGoAllocation, onUsePayslip, 
       <Fold id="sez-documenti" icon={FolderOpen} title={`I documenti di ${active.name}`} summary={docs.length === 0 ? 'nessun documento ancora' : `${docs.length} ${docs.length === 1 ? 'documento' : 'documenti'}${toReview ? ` · ${toReview} letture da verificare` : ' · tutto verificato'}`}
         badge={toReview ? `${toReview} da verificare` : null} tone="warn" open={isOpen('documenti')} onToggle={() => toggle('documenti')}>
         <p className="text-xs text-mute pt-2">Visura, bilanci, buste paga, F24, bozze di candidatura e ogni altro documento aziendale: restano dentro questo lavoro e li vede solo il tuo studio. Clicca un documento per aprirne il dettaglio proprio sotto di lui.</p>
+        <TutorialVideo id="T02" />
         <Documents onUsePayslip={onUsePayslip} onUseBalance={onUseBalance} onUseDraft={onUseDraft} onProfileChanged={bump} refreshKey={version} focus={docFocus} />
       </Fold>
       <div id="sez-letto" className="scroll-mt-20"><DocumentFacts version={version} /></div>

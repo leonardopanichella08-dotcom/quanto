@@ -583,6 +583,7 @@ export default function AllocationView({ onGoProfile, onBudgetFrom, onOpenBudget
           summary={match ? `Spese previste ${fmtEur(match.forecast.total_forecast_eur)} · nel ${match.forecast.base_year} ${fmtEur(match.forecast.total_baseline_eur)}` : (matching ? 'Calcolo…' : null)}
           info="Parte dall’ultimo bilancio: costi e ricavi variano di una percentuale annua. Se hai un modello di previsione uso quello; per le voci senza modello calcolo la variazione dai due ultimi bilanci, con la spiegazione."
           chart={<ForecastChart forecast={match?.forecast} />}>
+          <TutorialVideo id="T06" />
           <ForecastStep forecast={match?.forecast} overrides={growth} setOverride={setOverride} year={year} setYear={setYear} matching={matching} onEstimate={estimate} onTemplateChanged={templateChanged} />
         </Step>
       )}
@@ -593,6 +594,7 @@ export default function AllocationView({ onGoProfile, onBudgetFrom, onOpenBudget
           summary={plan ? `${fmtEur(plan.covered_by_public_funds_eur)}${planHigh && planHigh.covered_by_public_funds_eur > plan.covered_by_public_funds_eur + 0.5 ? ` – ${fmtEur(planHigh.covered_by_public_funds_eur)}` : ''} coperti su ${fmtEur(plan.total_gross_expense_eur)} · ${fmtNum(plan.overall_coverage_percentage, 1)}% · ${inProject ? `progetto «${project.title}»` : 'spese dell’anno'}` : (active.length === 0 ? (inProject ? 'Nessun bando adatto cita questo tipo di progetto: includi tu i bandi da usare' : 'Scegli i bandi da includere') : 'Calcolo…')}
           info={<><p><strong className="text-ink">Spese dell’anno</strong>: le spese che l’azienda sosterrà comunque nel {year} (personale, affitti, licenze…), coperte dai bandi che non chiedono un progetto: crediti d’imposta, spese commerciali, incentivi alle assunzioni.</p><p><strong className="text-ink">Un progetto</strong>: spese nuove e straordinarie (un investimento, una ricerca), coperte dai bandi che finanziano progetti. Un bando a progetto non paga le spese correnti: per questo non compare tra le spese dell’anno.</p><p>«Includi nel piano» e «Includi nel progetto» fanno la stessa cosa nello scenario che stai guardando: decidono quali bandi entrano nel calcolo. Le due scelte restano separate.</p><p>Le spese vengono dal budget dell’azienda e dal piano degli investimenti, se li hai caricati; altrimenti dalla stima dell’anno.</p><p>È un massimo teorico: non considera la probabilità di vincere né i tempi (vedi «Valore reale e incassi»).</p></>}
           >
+          <TutorialVideo id="T08" />
           {scenarioBar}
           <div className="max-w-xl"><PotentialChart plan={plan} nameOf={(id) => results.find((r) => r.fund?.fund_id === id)?.name || id} dm={{ estimate: dmEstimate }} /></div>
           <PotentialStep results={results} picked={active} onPick={pick} scenario={inProject ? 'PROJECT' : 'ANNUAL'} isCandidate={isCandidate} dm={{ estimate: dmEstimate, override: overrideOk ? dmOverride : '', invalid: dmOverride !== '' && !overrideOk, setOverride: (v) => setDmOverride(String(v).replace(/[^0-9.,]/g, '').replace(',', '.')), value: Number(deMinimis), onDeclare: declareAid, onVerify: () => onGoProfile({ to: 'aiuti' }) }} plan={plan} planHigh={planHigh} loading={loading} planError={planError} onStudyMore={studyMore} studyingMore={studyingMore} />
@@ -605,6 +607,8 @@ export default function AllocationView({ onGoProfile, onBudgetFrom, onOpenBudget
           summary={`${match.matching.summary.ADATTO} adatti · ${match.matching.summary.DA_VERIFICARE} da verificare · ${active.length} inclusi ${inProject ? 'nel progetto' : 'nel piano'}`}
           info="Per ogni bando studiato: se puoi partecipare, quanto potrebbe coprire sulle tue spese e come rientrare nei tetti. La spunta «Includi» decide quali bandi entrano nello scenario che stai guardando (piano dell’anno o progetto)."
           chart={<BandiChart match={match} />}>
+          <TutorialVideo id="T07" />
+          <TutorialVideo id="T05" />
           <div className="flex flex-wrap items-center gap-2">
             {Object.entries(FIT).map(([k, [label, tone]]) => (
               <button key={k} onClick={() => setTab(k)} aria-pressed={tab === k} className={`px-3 py-1.5 rounded-lg text-xs font-medium border transition ${tab === k ? tone : 'border-line text-ink-2 hover:border-line-strong'}`}>{label} · {match.matching.summary[k]}</button>
@@ -638,6 +642,7 @@ export default function AllocationView({ onGoProfile, onBudgetFrom, onOpenBudget
         <Step id="al-progetti" title="Progetti" done={!!project} open={!!openSteps.progetti} onToggle={() => toggleStep('progetti')}
           summary={project ? `Scelto: «${project.title}»${inProject ? ' · in uso' : ''}` : (ideas ? `${ideas.ideas.length} idee dai tuoi documenti · per i ${projectBandi.length} bandi che finanziano progetti` : 'Per i bandi che finanziano progetti')}
           info="I bandi a progetto (ricerca, investimenti) finanziano le spese nuove di un progetto, non i costi correnti. Le idee qui sotto nascono dai documenti dell’azienda e ognuna elenca i bandi che finanziano quel tipo di progetto. Se un bando a progetto non ha un’idea collegata, i tuoi documenti non ne suggeriscono una adatta: non ne invento. Crediti d’imposta, garanzie, assunzioni e spese commerciali non chiedono un progetto.">
+          <TutorialVideo id="T09" />
           <ProjectIdeas data={ideas} error={ideasError} loading={ideasLoading} orphans={orphans} active={project} onAllocate={chooseProject} onClear={() => { setProject(null); setMode('ANNUAL') }} includeCurrent={includeCurrent} setIncludeCurrent={setIncludeCurrent} />
         </Step>
       )}
@@ -713,6 +718,7 @@ export default function AllocationView({ onGoProfile, onBudgetFrom, onOpenBudget
         <Step id="al-incassi" title="Valore reale e incassi" open={!!openSteps.incassi} onToggle={() => toggleStep('incassi')}
           summary="Quanto conti davvero di ottenere, e quando entrano i soldi"
           info="Un contributo non è un incasso: si vince o no, ottenerlo costa lavoro, e il rimborso arriva dopo che hai pagato. Scrivi per ogni bando probabilità di successo, costo di istruttoria e percentuale del consulente (anche zero): QUANTO non li inventa, senza mostra solo il nominale.">
+          <TutorialVideo id="T10" />
           <RealityPanel plan={plan} lines={planLines} />
         </Step>
       )}

@@ -92,7 +92,7 @@ function Videos() {
   return (
     <div className="space-y-4">
       <p className="text-sm text-ink-2">Video brevi che mostrano gli strumenti in azione. Li ritrovi anche nella pagina di ogni strumento. I numeri sono esempi con un’azienda di prova fittizia.</p>
-      {Object.keys(TUTORIALS).map((id) => <div key={id} className="space-y-1"><p className="text-[11px] text-mute px-1">Nell’app: {TUTORIALS[id].page}</p><TutorialVideo id={id} /></div>)}
+      {Object.keys(TUTORIALS).filter((id) => !TUTORIALS[id].hidden).map((id) => <div key={id} className="space-y-1"><p className="text-[11px] text-mute px-1">Nell’app: {TUTORIALS[id].page}</p><TutorialVideo id={id} /></div>)}
     </div>
   )
 }
@@ -110,7 +110,7 @@ export default function Guida({ anchor }) {
         ))}
       </div>
       {section === 'video' && <Videos />}
-      {section === 'percorso' && <Quickstart />}
+      {section === 'percorso' && <><TutorialVideo id="T00" /><Quickstart /></>}
       {section === 'merkle' && <MerkleLab />}
       {section === 'funzioni' && <Functions />}
       {section === 'glossario' && <Glossary />}

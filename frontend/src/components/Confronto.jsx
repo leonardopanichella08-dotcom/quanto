@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Info } from './ui'
+import TutorialVideo from './TutorialVideo'
 import { AlertTriangle, CheckCircle2, Loader2, Trash2 } from 'lucide-react'
 import { api } from '../lib/api'
 import { fmtEur, fmtNum } from '../lib/format'
@@ -143,6 +144,7 @@ export default function Confronto({ validation, client }) {
   return (
     <div className="space-y-6">
       <Guide page="pattern" />
+      <TutorialVideo id="T15" />
       {error && <div className="p-3 rounded-xl border border-red-500/30 text-red-700 text-xs">{error}</div>}
 
       <div className="card p-5 space-y-3">

@@ -7,6 +7,7 @@ import { ChromeCard, Info } from './ui'
 import PipelineButton from './PipelineButton'
 import Guide from './Guide'
 import ResearchPanel from './ResearchPanel'
+import TutorialVideo from './TutorialVideo'
 import CatalogBrowser from './CatalogBrowser'
 import { Hint, Term } from './Help'
 
@@ -279,6 +280,7 @@ export default function BandiLibrary({ bandi, selectedId, onSelect, onReload }) 
   return (
     <div className="space-y-6">
       <Guide page="bandi" />
+      <TutorialVideo id="T03" />
       {error && <div className="p-3 rounded-xl border border-red-500/30 text-red-700 text-xs">{error}</div>}
 
       <div className="grid lg:grid-cols-3 gap-6 items-start">

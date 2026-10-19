@@ -8,15 +8,30 @@ Dopo la correzione del 16-17 ottobre, la logica dell'allocazione è cambiata in 
 
 ## Esito per video
 
-| Video | File | Esito | Dove è stato messo nell'app |
-|---|---|---|---|
-| Lancio v6 (musica) | `public/video/quanto-lancio.mp4` | **Pubblicato integrale (41,5 s)** per scelta del titolare; contiene due scene da rifare (vedi sotto) | Pagina iniziale, sezione «Guarda QUANTO al lavoro» |
-| T01 · Lo studio e i lavori | `tutorial-t01.mp4` | Coerente, con un'incongruenza da correggere (vedi sotto) | Profilo (sezione Lavori) e Guida → Video |
-| T13 · Budget dei bandi e WP | `tutorial-t13.mp4` | **Coerente** (usa già «Esci dal gruppo» e «Spese dell'anno») | Allocazione (passo «Budget dei bandi»), Budget (quando c'è un gruppo di budget), Guida → Video |
-| T16 · L'assistente guidato | `tutorial-t16.mp4` | Coerente, con un numero da correggere (vedi sotto) | Assistente («Guarda come funziona») e Guida → Video |
-| T00, T02–T12, T14, T15 | — | **Non ancora realizzati come video**: nello zip ci sono solo i sorgenti, senza la pipeline di render (cartella `common`, `v6/kit2`, foto, audio) | Si aggiungono con una riga in `frontend/src/data/tutorials.js` |
+| Video | Esito | Dove è nell'app |
+|---|---|---|
+| Lancio v6 (41,5 s) | Integrale per scelta del titolare; due scene da rifare (vedi sotto) | Homepage, «Guarda QUANTO al lavoro» |
+| T00 Percorso in 9 passi | Coerente | Guida → Percorso rapido e Video |
+| T01 Studio e lavori | Coerente, con un'incongruenza (vedi sotto) | Profilo |
+| T02 Profilo e documenti | Coerente | Profilo, sezione Documenti |
+| T03 Catalogo e affinità | Coerente | Bandi |
+| T04 Studiare un bando | Coerente | Bandi, accanto alla ricerca sul web |
+| T05 Valore in euro | Coerente | Allocazione, passo «Bandi» |
+| T06 Stima dell'anno | Coerente | Allocazione, passo «Stima» |
+| T07 Bandi adatti | Coerente | Allocazione, passo «Bandi» |
+| **T08 Allocazione** | **Racconta la logica vecchia** («Tutti i bandi insieme», «Potenziale massimo 1.307.746 – 1.863.062 €», 8 fondi): in contrasto con T09 e con l'app | Allocazione, passo «Risultato» |
+| T09 Spese dell'anno o progetto | **Coerente** (mostra i due scenari, 148.000 € su 2,1 milioni) | Allocazione, passo «Progetti» |
+| T10 Valore reale e incassi | Coerente | Allocazione, passo «Valore reale e incassi» |
+| T11 De minimis | Coerente | Profilo (aiuti ricevuti) |
+| T12 Budget e 60 criteri | Coerente | Budget |
+| T13 Budget dei bandi e WP | **Coerente** (usa «Esci dal gruppo») | Allocazione, passo «Budget dei bandi»; Budget |
+| T14 Registro e Verifica | Coerente | Verifica |
+| T15 Confronto e template | Coerente | Confronto |
+| T16 Assistente | Coerente, con un numero da correggere (vedi sotto) | Assistente |
 
-I video sono compressi per il web (da 80 MB a circa 23 MB in tutto).
+Tutti i 17 tutorial sono nell'app e raccolti in Guida → Video. Per nascondere un video senza cancellarlo: `hidden: true` nella sua riga di `frontend/src/data/tutorials.js` (oggi consigliato per T08 finché non è rifatto, se non vuoi far vedere due messaggi diversi sull'allocazione).
+
+I video sono compressi per il web (tutorial a 1280×720, circa 56 MB in tutto con il lancio).
 
 ## Lancio v6: cosa dice e cosa non è più vero
 
@@ -50,7 +65,7 @@ Scene (tempi del file originale):
 - Scena finale del compito: «Potenziale massimo 1.863.062 €» (`T16.tsx` righe 41–42, nel file renderizzato appare 1.630.179 €). Con la logica attuale il risultato dell'assistente è sul piano delle spese dell'anno: 148.349 € – 177.415 €.
 - La richiesta «Calcola il potenziale massimo» (riga 46) coincide con il suggerimento attuale dell'assistente nell'app. Se si cambia il testo nel video, cambiarlo anche in `frontend/src/assistant/AssistantContext.jsx` (`SUGGEST.allocazione`): oggi nell'app si chiama ancora «Calcola il potenziale massimo».
 
-## T08 · Allocazione (non ancora renderizzato: va riscritto prima)
+## T08 · Allocazione (renderizzato con il sorgente vecchio: da rifare)
 Il sorgente `T08.tsx` racconta la logica vecchia: «Tutti i bandi insieme», «8 fondi collegati», «Potenziale massimo · tutti i bandi insieme», prudente 1.307.746 €, massimo 1.863.062 €, somma uno per uno 2.394.221 € (righe 9, 18, 70, 188–190, 203). Va riscritto con i due scenari come già fa lo script T09: spese dell'anno con i bandi senza progetto (cifre: 148.349 € – 177.415 € su 2.100.186 €, 7,1%) e il passaggio a un progetto. Titolo suggerito: «Chi paga cosa, senza doppi conteggi».
 
 ## Altri video del programma

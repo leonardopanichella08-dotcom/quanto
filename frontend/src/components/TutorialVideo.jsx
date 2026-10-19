@@ -17,7 +17,7 @@ export default function TutorialVideo({ id, variant = 'card' }) {
     window.addEventListener('keydown', on)
     return () => window.removeEventListener('keydown', on)
   }, [variant, open])
-  if (!v) return null
+  if (!v || v.hidden) return null
 
   if (variant === 'link') {
     return (
