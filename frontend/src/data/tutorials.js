@@ -6,4 +6,4 @@ export const TUTORIALS = {
   T16: { title: 'L’assistente guidato', page: 'Assistente', seconds: 45, src: '/video/tutorial-t16.mp4', poster: '/video/tutorial-t16.jpg', about: 'L’assistente esegue i passaggi al posto tuo e ti chiede solo i dati che mancano.' },
 }
 
-export const LAUNCH = { title: 'QUANTO in 30 secondi', seconds: 31, src: '/video/quanto-lancio.mp4', poster: '/video/quanto-lancio.jpg' }
+export const LAUNCH = { title: 'QUANTO in 40 secondi', seconds: 42, src: '/video/quanto-lancio.mp4', poster: '/video/quanto-lancio.jpg' }

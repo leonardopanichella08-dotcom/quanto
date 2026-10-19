@@ -409,7 +409,7 @@ export default function Landing({ onLogin, onAuditor, onVision }) {
       </header>
 
       <section className="sect" id="video"><div className="wrap">
-        <div className="sect-head center reveal"><span className="kicker">In 30 secondi</span><h2>Guarda QUANTO al lavoro</h2></div>
+        <div className="sect-head center reveal"><span className="kicker">In 40 secondi</span><h2>Guarda QUANTO al lavoro</h2></div>
         <LaunchVideo />
       </div></section>
 

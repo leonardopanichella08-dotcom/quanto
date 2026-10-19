@@ -10,7 +10,7 @@ Dopo la correzione del 16-17 ottobre, la logica dell'allocazione è cambiata in 
 
 | Video | File | Esito | Dove è stato messo nell'app |
 |---|---|---|---|
-| Lancio v6 (musica) | `public/video/quanto-lancio.mp4` | **Pubblicato accorciato**: 30 s invece di 41,5 s | Pagina iniziale, sezione «Guarda QUANTO al lavoro» |
+| Lancio v6 (musica) | `public/video/quanto-lancio.mp4` | **Pubblicato integrale (41,5 s)** per scelta del titolare; contiene due scene da rifare (vedi sotto) | Pagina iniziale, sezione «Guarda QUANTO al lavoro» |
 | T01 · Lo studio e i lavori | `tutorial-t01.mp4` | Coerente, con un'incongruenza da correggere (vedi sotto) | Profilo (sezione Lavori) e Guida → Video |
 | T13 · Budget dei bandi e WP | `tutorial-t13.mp4` | **Coerente** (usa già «Esci dal gruppo» e «Spese dell'anno») | Allocazione (passo «Budget dei bandi»), Budget (quando c'è un gruppo di budget), Guida → Video |
 | T16 · L'assistente guidato | `tutorial-t16.mp4` | Coerente, con un numero da correggere (vedi sotto) | Assistente («Guarda come funziona») e Guida → Video |
@@ -34,7 +34,7 @@ Scene (tempi del file originale):
 | 34–37 s | Riepilogo Bilancio → Previsione → Bandi adatti → Budget | Corretto nella forma, ma l'ultima finestra mostra ancora un «massimo» (€ 523.378) |
 | 37–41,5 s | «Dal bilancio ai bandi giusti. Per studi di commercialisti e consulenti d'impresa. Inizia gratis» | Corretta; verificare se «consulenti d'impresa» vale ancora come target (la linea di prodotto è studi di commercialisti e boutique di finanza agevolata) |
 
-**Versione pubblicata (30,5 s)**: scene 0–26 s + chiusura 37–41,5 s, cioè hook → studi → bilancio → previsione → bandi adatti → «Dal bilancio ai bandi giusti». Dice solo cose vere. Il taglio tra 26 s e 37 s è netto (nessuna dissolvenza: il montaggio è su battuta, ma va guardato una volta).
+**Versione pubblicata**: integrale, come da scelta del titolare (19 ottobre). Le scene «Calcola il massimo» (26–30,5 s) e «60 controlli per ogni bando» (30,5–34 s) dicono cose non più allineate: se il video si usa anche fuori dall'app (LinkedIn, presentazioni), meglio rifarle prima. Una versione accorciata a 30,5 s (0–26 s + chiusura 37–41,5 s) è facile da ricavare con ffmpeg.
 
 **Da rifare nel sorgente (`Lancio6`, non presente nello zip)**:
 1. Scena «Calcola il massimo» → «Assegna le spese ai bandi», con l'interruttore **Spese dell'anno / Un progetto**: a sinistra 2 bandi senza progetto che coprono 148.349 € di 2,1 milioni; a destra un progetto («Rinnovo dei beni a fine vita») con i bandi che lo finanziano. Testo: «Le spese dell'anno e i progetti hanno bandi diversi.»
