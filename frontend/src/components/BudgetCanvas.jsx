@@ -414,7 +414,7 @@ export default function BudgetCanvas({
 
               <div className="card px-5 py-4 flex flex-wrap items-center gap-3">
                 <span className="text-sm font-medium">Consegna</span>
-                {delivery && <span className={`text-xs ${delivery.covered ? 'text-emerald-700' : 'text-ink-2'}`} title={delivery.reason}>{delivery.covered ? 'già inclusa' : `${fmtTok(delivery.cost)} token`}</span>}
+                {delivery && <span className={`text-xs ${delivery.covered ? 'text-emerald-700' : 'text-ink-2'}`} title={delivery.reason}>{delivery.free ? 'gratis in questa fase' : delivery.covered ? 'già inclusa' : `${fmtTok(delivery.cost)} token`}</span>}
                 <div className="ml-auto flex flex-wrap items-center gap-2">
                   <button onClick={() => onExport('xlsx')} className="btn"><Download className="w-3.5 h-3.5" />Excel</button>
                   <button onClick={() => onExport('pdf')} className="btn"><Download className="w-3.5 h-3.5" />PDF</button>

@@ -95,10 +95,11 @@ export function TokenCard() {
         )}
         {t.exempt && <p className="text-sm text-ink-2 pb-1">Account del titolare: non consuma token.</p>}
       </div>
-      {t.balance < 0 && <p className="text-sm text-amber-700">Stai usando l’anticipo di cortesia ({fmtTok(t.balance)}): il prossimo accredito lo ripiana.</p>}
+      {!t.charging && !t.exempt && <p className="text-sm rounded-2xl bg-tint px-4 py-3 text-ink-2"><span className="font-medium text-ink">Fase di prova: tutto è gratuito.</span> I costi qui sotto sono quelli previsti per il futuro: per ora nessun token viene scalato e nulla si blocca.</p>}
+      {t.charging && t.balance < 0 && <p className="text-sm text-amber-700">Stai usando l’anticipo di cortesia ({fmtTok(t.balance)}): il prossimo accredito lo ripiana.</p>}
       <Rules t={t} />
       <PlanLine t={t} />
-      {!t.exempt && <div className="space-y-2"><p className="text-sm font-medium text-ink">Ricarica</p><Packs t={t} onRequested={load} /></div>}
+      {!t.exempt && t.charging && <div className="space-y-2"><p className="text-sm font-medium text-ink">Ricarica</p><Packs t={t} onRequested={load} /></div>}
       <div>
         <button className="text-xs underline text-ink-2" onClick={() => setLog(!log)}>{log ? 'Nascondi i movimenti' : 'Mostra gli ultimi movimenti'}</button>
         {log && (

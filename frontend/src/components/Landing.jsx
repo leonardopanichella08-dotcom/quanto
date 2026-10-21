@@ -493,7 +493,7 @@ export default function Landing({ onLogin, onAuditor, onVision }) {
 
       <section className="sect tint" id="prezzi"><div className="wrap">
         <div className="sect-head center reveal"><span className="kicker">Prezzi</span><h2>Gratuito oggi. Onesto sempre.</h2>
-          <p>Lavorare con QUANTO è libero. Si spendono token solo dove serve un calcolo grande o un consegnabile: il piano di allocazione, la consegna di un budget, lo studio di un bando nuovo. Pubblicare un budget per tutti ti regala token. In questa fase la prova è gratuita e non serve la carta.</p></div>
+          <p>Lavorare con QUANTO è libero. Si spendono token solo dove serve un calcolo grande o un consegnabile: il piano di allocazione, la consegna di un budget, lo studio di un bando nuovo. Pubblicare un budget per tutti ti regala token. Oggi è una fase di prova: tutto è gratuito, nessun token viene scalato e non serve la carta.</p></div>
         <div className="pricing">
           <div className="price-card reveal-card hot">
             <div className="tier">Piano Studio · 209 € al mese o 1.999 € all’anno</div><div className="amount">15 token al mese</div>

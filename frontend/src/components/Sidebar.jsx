@@ -47,12 +47,12 @@ function Workspace({ clients, clientId, onChange, onNew }) {
 function Credits({ onClick }) {
   const [t] = useTokens()
   if (!t) return null
-  const pct = t.exempt ? 100 : Math.max(0, Math.min(100, Math.round((t.balance / t.cap) * 100)))
+  const pct = t.exempt || !t.charging ? 100 : Math.max(0, Math.min(100, Math.round((t.balance / t.cap) * 100)))
   return (
     <button onClick={onClick} className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl hover:bg-tint text-left" title={t.exempt ? 'Account del titolare: nessun consumo' : `${fmtTok(t.balance)} token · ${fmtTok(t.included)} del mese, ${fmtTok(t.extra)} che non scadono`}>
       <CreditsRing pct={pct} size={22} />
-      <span className="min-w-0"><span className={`block text-[12px] font-medium tabular-nums ${t.empty ? 'text-red-700' : t.low ? 'text-amber-700' : 'text-ink'}`}>{t.exempt ? 'Token illimitati' : `${fmtTok(t.balance)} token`}</span>
-        <span className="block text-[11px] text-mute">{t.exempt ? 'account del titolare' : t.empty ? 'ricarica per consegnare' : `${t.monthly} nuovi ogni mese`}</span></span>
+      <span className="min-w-0"><span className={`block text-[12px] font-medium tabular-nums ${t.empty ? 'text-red-700' : t.low ? 'text-amber-700' : 'text-ink'}`}>{t.exempt ? 'Token illimitati' : !t.charging ? 'Prova gratuita' : `${fmtTok(t.balance)} token`}</span>
+        <span className="block text-[11px] text-mute">{t.exempt ? 'account del titolare' : !t.charging ? 'nulla viene scalato' : t.empty ? 'ricarica per consegnare' : `${t.monthly} nuovi ogni mese`}</span></span>
     </button>
   )
 }

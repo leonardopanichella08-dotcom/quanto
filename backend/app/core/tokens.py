@@ -20,6 +20,7 @@ Non c'è nessun incasso: le ricariche sono richieste che il titolare elabora (pa
 """
 from __future__ import annotations
 
+import os
 from datetime import datetime, timedelta, timezone
 from typing import Any, Dict, List, Optional
 
@@ -77,6 +78,11 @@ def _now() -> datetime:
 
 def _iso(dt: datetime) -> str:
     return dt.isoformat().replace("+00:00", "Z")
+
+
+def charging() -> bool:
+    """Fase di prova: finché ``QUANTO_TOKENS_CHARGE`` non è 1 nessun token viene scalato e nulla si blocca. Costi e saldo si vedono, ma tutto è gratuito."""
+    return os.getenv("QUANTO_TOKENS_CHARGE", "0").strip().lower() in ("1", "true", "yes", "si", "sì")
 
 
 def exempt(user: Optional[Dict[str, Any]]) -> bool:
@@ -146,8 +152,8 @@ def balance(user_id: int) -> float:
 def spend(user: Optional[Dict[str, Any]], op: str, cost: float, ref: str = "", dedupe: Optional[str] = None, note: str = "") -> Dict[str, Any]:
     """Addebita ``cost`` token. Con la stessa ``dedupe`` non addebita due volte. Solleva ``NotEnoughTokens`` se mancano (oltre l'anticipo di cortesia)."""
     cost = n1(cost)
-    if exempt(user) or cost <= 0:
-        return {"charged": 0, "reason": "esente" if exempt(user) else "gratis", "balance": None, "ids": []}
+    if exempt(user) or cost <= 0 or not charging():
+        return {"charged": 0, "reason": "esente" if exempt(user) else "gratis" if cost <= 0 else "prova gratuita", "balance": None, "ids": []}
     uid = user["id"]
     row = _user_row(uid)
     ids: List[int] = []
@@ -228,6 +234,8 @@ def metered_status(user: Optional[Dict[str, Any]], op: str, ref: str, cost: floa
     cost = n1(cost)
     if exempt(user):
         return {"cost": 0.0, "due": 0.0, "paid": 0.0, "covered": True, "reason": "esente"}
+    if not charging():
+        return {"cost": cost, "due": 0.0, "paid": 0.0, "covered": True, "free": True, "reason": f"fase di prova: gratuito (in futuro {str(cost).replace('.', ',')} token)"}
     since = _iso(_now() - timedelta(days=WINDOW_DAYS))
     with connect() as conn:
         r = conn.execute("SELECT COALESCE(SUM(-amount), 0) s, MIN(ts) first_ts FROM token_ledger WHERE user_id=? AND op=? AND ref=? AND kind='SPEND' AND ts>=?", (user["id"], op, ref, since)).fetchone()
@@ -261,7 +269,7 @@ def undo_metered(user: Optional[Dict[str, Any]], paid: Dict[str, Any]) -> None:
 def delivery_status(user: Optional[Dict[str, Any]], key: str, items: Optional[int] = None) -> Dict[str, Any]:
     """Il budget è già stato consegnato negli ultimi 30 giorni (e quindi esportarlo o registrarlo ora non costa, o costa solo la differenza)?"""
     st = metered_status(user, "deliver", key, delivery_cost(items))
-    return {"covered": st["covered"], "cost": st["due"], "total": st["cost"], "paid": st["paid"], "reason": st["reason"]}
+    return {"covered": st["covered"], "cost": st["due"], "total": st["cost"], "paid": st["paid"], "reason": st["reason"], "free": bool(st.get("free"))}
 
 
 def charge_delivery(user: Optional[Dict[str, Any]], key: str, items: Optional[int] = None) -> Dict[str, Any]:
@@ -342,7 +350,8 @@ def overview(user: Dict[str, Any]) -> Dict[str, Any]:
         spent_30 = n1(-conn.execute("SELECT COALESCE(SUM(amount),0) s FROM token_ledger WHERE user_id=? AND kind='SPEND' AND ts>=?", (uid, since)).fetchone()["s"])
     plan = {"monthly_eur": PLAN_MONTHLY_EUR, "yearly_eur": PLAN_YEARLY_EUR, "tokens_per_month": MONTHLY_INCLUDED, "yearly_saving_eur": round(PLAN_MONTHLY_EUR * 12 - PLAN_YEARLY_EUR, 2),
             "yearly_saving_pct": round(100 * (1 - PLAN_YEARLY_EUR / (PLAN_MONTHLY_EUR * 12)), 1)}
-    return {"exempt": free, "balance": total, "included": b["INCLUDED"], "extra": b["EXTRA"], "monthly": MONTHLY_INCLUDED, "cap": ROLLOVER_CAP, "overdraft": OVERDRAFT,
+    charge = charging()
+    return {"charging": charge, "exempt": free, "balance": total, "included": b["INCLUDED"], "extra": b["EXTRA"], "monthly": MONTHLY_INCLUDED, "cap": ROLLOVER_CAP, "overdraft": OVERDRAFT,
             "next_grant": nxt.date().isoformat(), "days_until_grant": max(0, (nxt - now).days), "spent_30_days": spent_30,
-            "low": (not free) and total <= 3, "empty": (not free) and total <= 0, "plan": plan, "publish_bonus": PUBLISH_BONUS, "publish_bonus_monthly_cap": PUBLISH_BONUS_MONTHLY_CAP,
+            "low": charge and (not free) and total <= 3, "empty": charge and (not free) and total <= 0, "plan": plan, "publish_bonus": PUBLISH_BONUS, "publish_bonus_monthly_cap": PUBLISH_BONUS_MONTHLY_CAP,
             "costs": [{"op": k, **v} for k, v in COSTS.items()], "packs": PACKS, "unit_price_eur": UNIT_PRICE_EUR, "payments_active": False, "ledger": ledger}

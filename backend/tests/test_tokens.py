@@ -14,6 +14,7 @@ RULES = {}
 @pytest.fixture
 def secured(monkeypatch):
     monkeypatch.setenv("QUANTO_AUTH_REQUIRED", "1")
+    monkeypatch.setenv("QUANTO_TOKENS_CHARGE", "1")                       # i token si scalano davvero solo con questo interruttore: di base è tutto gratuito
     return monkeypatch
 
 
@@ -262,3 +263,18 @@ def test_publish_bonus_is_capped_per_month(secured):
         r = client.post("/api/v2/templates", json={"ateco_code": "62.01", "bando_id": "SMART-START-ITALIA", "shares": {"assets_pct": 0.5, "personnel_pct": 0.5}}, headers={**h, "X-Client-Id": str(c["id"])})
         got += r.json()["bonus"]["granted"]
     assert got == 5.0 and balance(h) == 30.0                                                                        # 10 premi da 0,5
+
+
+def test_in_the_free_phase_nothing_is_charged_or_blocked_but_costs_stay_visible(monkeypatch):
+    monkeypatch.setenv("QUANTO_AUTH_REQUIRED", "1")
+    monkeypatch.delenv("QUANTO_TOKENS_CHARGE", raising=False)                 # di base: prova gratuita
+    h, uid = studio("gratis@example.test")
+    o = client.get("/api/v2/tokens", headers=h).json()
+    assert o["charging"] is False and o["empty"] is False
+    tamper_sql("INSERT INTO token_ledger (user_id, ts, kind, bucket, amount, op, ref, dedupe, actor, note) VALUES (%s, '2026-01-01T00:00:00Z', 'SPEND', 'EXTRA', -40, 'x', '', 'seed-g', 't', '')", (uid,))
+    assert balance(h) < 0                                                       # saldo esaurito: in prova non cambia nulla
+    assert client.post("/api/v2/budget/export/pdf", json=body("PRJ-FREE"), headers=h).status_code == 200
+    assert _plan(h, 60).status_code == 200                                      # nessuna conferma e nessun addebito
+    q = client.get("/api/v2/tokens/quote", params={"op": "deliver", "project_id": "PRJ-X", "bando_id": RULES["r"]["bando_id"]}, headers=h).json()
+    assert q["cost"] == 0 and q["free"] is True and "gratuito" in q["reason"]
+    assert client.get("/api/v2/tokens/quote", params={"op": "study", "bando_id": "QUANTO-SANDBOX-60"}, headers=h).json()["cost"] == 0

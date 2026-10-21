@@ -49,12 +49,12 @@ def quote(request: Request, op: str, project_id: Optional[str] = None, bando_id:
         if not project_id:
             raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="Indica project_id")
         st = tokens.delivery_status(u, tokens.delivery_key(client_of(request), project_id, bando_id or ""), items)
-        return {"op": op, "cost": st["cost"], "total": st["total"], "paid": st["paid"], "covered": st["covered"], "reason": st["reason"]}
+        return {"op": op, "cost": st["cost"], "total": st["total"], "paid": st["paid"], "covered": st["covered"], "reason": st["reason"], "free": st["free"]}
     if op == "study":
         if not bando_id:
             raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="Indica bando_id")
         s = tokens.study_cost(bando_id)
-        return {"op": s["op"], "cost": 0 if tokens.exempt(u) else s["cost"], "cached": s["cached"],
+        return {"op": s["op"], "cost": 0 if (tokens.exempt(u) or not tokens.charging()) else s["cost"], "would_cost": s["cost"], "free": not tokens.charging(), "cached": s["cached"],
                 "reason": "già in memoria: rifare lo studio costa meno" if s["cached"] else "bando nuovo: se la lettura è completa 1 token torna indietro"}
     raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="Operazione sconosciuta: deliver o study")
 
