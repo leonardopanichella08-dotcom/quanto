@@ -3,6 +3,7 @@ import { Briefcase, Building2, ChevronDown, LogOut, Menu, Plus, Sparkles, X } fr
 import { Mark, Wordmark } from './ui'
 import { api } from '../lib/api'
 import { CreditsRing } from './CreditsBadge'
+import { useTokens } from './Tokens'
 
 const Item = ({ id, label, Icon, tab, onGo, extra }) => (
   <button className="nav-item" aria-current={tab === id ? 'page' : undefined} onClick={() => onGo(id)}>
@@ -44,13 +45,14 @@ function Workspace({ clients, clientId, onChange, onNew }) {
 }
 
 function Credits({ onClick }) {
-  const [c, setC] = useState(null)
-  useEffect(() => { api.meCredits().then(setC).catch(() => {}) }, [])
-  if (!c) return null
+  const [t] = useTokens()
+  if (!t) return null
+  const pct = t.exempt ? 100 : Math.max(0, Math.min(100, Math.round((t.balance / t.cap) * 100)))
   return (
-    <button onClick={onClick} className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg hover:bg-field text-left" title={`${c.remaining} crediti su ${c.limit} · si rinnovano tra ${c.days_until_renewal} giorni`}>
-      <CreditsRing pct={c.pct_remaining} size={22} />
-      <span className="min-w-0"><span className="block text-[12px] font-medium text-ink tabular-nums">{c.remaining} crediti</span><span className="block text-[11px] text-mute">dello studio · su {c.limit}</span></span>
+    <button onClick={onClick} className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl hover:bg-tint text-left" title={t.exempt ? 'Account del titolare: nessun consumo' : `${t.balance} token · ${t.included} del mese, ${t.extra} che non scadono`}>
+      <CreditsRing pct={pct} size={22} />
+      <span className="min-w-0"><span className={`block text-[12px] font-medium tabular-nums ${t.empty ? 'text-red-700' : t.low ? 'text-amber-700' : 'text-ink'}`}>{t.exempt ? 'Token illimitati' : `${t.balance} token`}</span>
+        <span className="block text-[11px] text-mute">{t.exempt ? 'account del titolare' : t.empty ? 'ricarica per consegnare' : `${t.monthly} nuovi ogni mese`}</span></span>
     </button>
   )
 }

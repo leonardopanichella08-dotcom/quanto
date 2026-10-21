@@ -9,6 +9,7 @@ export default function Users({ me }) {
   const [error, setError] = useState(null)
   const [busy, setBusy] = useState(null)
   const [reset, setReset] = useState({})
+  const [grant, setGrant] = useState({})
   const load = useCallback(() => api.users().then(setList).catch((e) => setError(e.message)), [])
   useEffect(() => { load() }, [load])
   const act = async (id, fn) => { setBusy(id); setError(null); try { await fn(); await load() } catch (e) { setError(e.message) } finally { setBusy(null) } }
@@ -40,6 +41,8 @@ export default function Users({ me }) {
             <span className="ml-auto flex flex-wrap items-center gap-2">
               {u.locked && <button className="btn !py-1" onClick={() => act(u.id, () => api.patchUser(u.id, { unlock: true }))}><Unlock className="w-3 h-3" />Sblocca</button>}
               <input className="field !w-40 !py-1" type="password" autoComplete="new-password" placeholder="nuova password" value={reset[u.id] || ''} onChange={(e) => setReset({ ...reset, [u.id]: e.target.value })} />
+              <span className="inline-flex items-center gap-1"><input className="field !w-16 !py-1 text-right" inputMode="numeric" placeholder="token" value={grant[u.id] || ''} onChange={(e) => setGrant({ ...grant, [u.id]: e.target.value.replace(/[^0-9]/g, '') })} aria-label={`Token da accreditare a ${u.name}`} />
+                <button className="btn !py-1" disabled={!Number(grant[u.id]) || busy === u.id} onClick={() => act(u.id, async () => { await api.grantTokens(u.id, Number(grant[u.id]), 'ricarica elaborata dal titolare'); setGrant({ ...grant, [u.id]: '' }) })}>Accredita</button></span>
               <button className="btn !py-1" disabled={(reset[u.id] || '').length < 12 || busy === u.id} onClick={() => act(u.id, async () => { await api.patchUser(u.id, { new_password: reset[u.id] }); setReset({ ...reset, [u.id]: '' }) })}>Reimposta</button>
               <button className="btn !py-1" disabled={busy === u.id || u.id === me?.id} onClick={() => act(u.id, () => api.patchUser(u.id, { active: !u.active }))}>{busy === u.id ? <Loader2 className="w-3 h-3 animate-spin" /> : null}{u.active ? 'Disattiva' : 'Riattiva'}</button>
             </span>

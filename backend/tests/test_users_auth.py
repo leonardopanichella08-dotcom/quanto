@@ -70,18 +70,17 @@ def test_self_registration_creates_a_free_user_and_logs_in_immediately(secured):
     assert weak.status_code == 422
 
 
-def test_credits_start_full_and_drop_by_one_per_validation(secured):
+def test_credits_endpoint_shows_the_token_balance_and_live_checks_stay_free(secured):
     make(email="crediti@example.test")
     ok = login(email="crediti@example.test")
     before = client.get("/api/v2/auth/me/credits", headers=bearer(ok)).json()
-    assert before["limit"] == 100 and before["used"] == 0 and before["pct_remaining"] == 100 and before["days_until_renewal"] <= 365
+    assert before["remaining"] == 25 and before["monthly"] == 15                                  # 10 di benvenuto + 15 del mese
     grant_rules = client.post("/api/v2/bandi/QUANTO-SANDBOX-60/select", headers=bearer(ok)).json()["grant_rules"]
     body = {"project_id": "PRJ-CREDITI", "grant_rules": grant_rules,
             "cost_items": [{"item_id": "I-1", "category": "CONSULTING", "amount_eur": 1000, "description": "test", "source_c_ref": ""}]}
-    v = client.post("/api/v2/budget/validate", json=body, headers=bearer(ok))
-    assert v.status_code == 200
-    after = client.get("/api/v2/auth/me/credits", headers=bearer(ok)).json()
-    assert after["used"] == 1 and after["remaining"] == 99
+    for _ in range(3):
+        assert client.post("/api/v2/budget/validate", json=body, headers=bearer(ok)).status_code == 200
+    assert client.get("/api/v2/auth/me/credits", headers=bearer(ok)).json()["remaining"] == 25      # controllare il budget mentre si lavora non costa
 
 
 def test_my_activity_lists_only_this_users_own_events_most_recent_first():

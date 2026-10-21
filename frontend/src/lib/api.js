@@ -46,9 +46,11 @@ async function call(path, options = {}) {
       const body = await res.json()
       detail = Array.isArray(body.detail) ? body.detail.map((d) => `${(d.loc || []).slice(1).join('.')}: ${d.msg}`).join('; ') : body.detail ?? detail
     } catch { /* corpo non JSON */ }
+    if (res.status === 402 && detail && typeof detail === 'object') window.dispatchEvent(new CustomEvent('quanto-tokens-needed', { detail }))          // token finiti: si propone la ricarica
     if (res.status === 401 && token && !path.startsWith('/auth/login')) { session.clear(); window.dispatchEvent(new Event('quanto-logout')) }   // sessione scaduta o revocata
     throw new ApiError(res.status, detail)
   }
+  if (options.method === 'POST' && /\/(budget\/export|registry\/register|bandi\/research|tokens\/)/.test(path)) window.dispatchEvent(new Event('quanto-tokens-changed'))         // il saldo può essere cambiato
   return res
 }
 
@@ -79,6 +81,10 @@ export const api = {
   deleteMe: (password, confirm_email) => call('/auth/me', { method: 'DELETE', headers: json, body: JSON.stringify({ password, confirm_email }) }).then((r) => r.json()),
   meActivity: (limit = 30) => call(`/auth/me/activity?limit=${limit}`).then((r) => r.json()),
   meCredits: () => call('/auth/me/credits').then((r) => r.json()),
+  tokens: () => call('/tokens').then((r) => r.json()),
+  tokenQuote: (params) => call(`/tokens/quote?${new URLSearchParams(params)}`).then((r) => r.json()),
+  topupRequest: (pack, note = '') => post('/tokens/topup-request', { pack, note }),
+  grantTokens: (id, tokens, note) => hqSend('POST', `/users/${id}/tokens`, { tokens, note }),
   users: () => hqGet('/users'),
   createUser: (body) => hqSend('POST', '/users', body),
   patchUser: (id, body) => hqSend('PATCH', `/users/${id}`, body),

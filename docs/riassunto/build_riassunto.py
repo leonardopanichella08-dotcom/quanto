@@ -195,7 +195,7 @@ def build() -> Path:
     story.append(Paragraph("Il riassunto", S["title"]))
     story.append(Paragraph("Cosa fa QUANTO, come lavora e perché conviene a uno studio", S["sub"]))
     bar()
-    story.append(Paragraph("QUANTO è un motore di calcolo <b>gratuito</b> per studi di commercialisti e boutique di finanza agevolata. Dato un cliente, dice <b>a quali bandi può partecipare</b>, "
+    story.append(Paragraph("QUANTO è un motore di calcolo per studi di commercialisti e boutique di finanza agevolata. Dato un cliente, dice <b>a quali bandi può partecipare</b>, "
                            "<b>quanto valgono in euro</b>, <b>come combinarli</b> senza far pagare due volte la stessa spesa, costruisce il <b>budget del progetto</b> e lo controlla con <b>60 regole</b>. "
                            "Ogni numero porta la sua fonte e, a parità di dati, il risultato è sempre lo stesso.", S["lead"]))
     P("QUANTO non scrive progetti né testi di candidatura: fa la parte che si calcola. Il resto, la parte che si racconta e si negozia con il cliente, resta allo studio.")
@@ -244,7 +244,7 @@ def build() -> Path:
 
     # ------------------------------------------------------------------ 3-4. gli strumenti
     H1("Gli strumenti")
-    P("QUANTO è un insieme di strumenti che lavorano sugli stessi dati del cliente. Sono tutti gratuiti per gli studi.")
+    P("QUANTO è un insieme di strumenti che lavorano sugli stessi dati del cliente. Il lavoro quotidiano è libero.")
     cards([("Lavori e profilo", "Un lavoro per ogni azienda cliente, con profilo, bilanci per anno, documenti e modello di previsione. Ogni dato ricorda da dove viene.", "dati ordinati per cliente, mai mescolati, con la provenienza di ogni valore"),
            ("Catalogo e studio dei bandi", "L'elenco nazionale dei bandi aperti, con la scheda ufficiale di ciascuno. Con un clic QUANTO studia un bando: cerca i documenti ufficiali, li legge e ne ricava regole, requisiti e percentuale.", "un bando letto per intero, con la fonte di ogni regola"),
            ("Allocazione e potenziale massimo", "Stima l'anno successivo, trova i bandi adatti, li combina e mostra quanto potrebbe coprire l'azienda se li ottenesse tutti, con il bilancio ricostruito e un grafico per ogni bando.", "il massimo teorico e il piano voce per voce, con ogni numero spiegato"),
@@ -274,7 +274,7 @@ def build() -> Path:
        "<b>Credibilità:</b> davanti al cliente ogni cifra si può difendere, perché porta la sua fonte e il suo calcolo.",
        "<b>Proposte:</b> lo studio può presentare al cliente il «potenziale massimo» dei bandi accessibili e il piano per ottenerlo.",
        "<b>Controllo:</b> il budget arriva alla domanda già controllato, con le voci a rischio segnalate prima dell'istruttoria.",
-       "<b>Costo:</b> gli strumenti sono gratuiti; non c'è abbonamento da giustificare ai clienti."])
+       "<b>Costo:</b> il lavoro è libero; si spende 1 token per consegnare un budget e 3 per un bando nuovo."])
     SP(4)
     P("<b>Privacy.</b> I documenti del cliente sono cifrati; nomi, codici fiscali e IBAN diventano codici che non si possono invertire; i dati di ogni cliente sono separati dagli altri. I template di budget condivisi non contengono ragione sociale né partita IVA e si usano solo in gruppi di almeno tre.", "small")
     story.append(PageBreak())
@@ -303,7 +303,7 @@ def build() -> Path:
                    ("Posso fidarmi di una cifra senza rifare il calcolo?", "Ogni cifra porta la regola e la frase del testo ufficiale da cui viene, e il calcolo è ripetibile. Per le ipotesi (per esempio «si finanzia tutto l'investimento con un prestito») l'ipotesi è scritta accanto al numero."),
                    ("Cosa succede se un bando cambia?", "Il team di QUANTO aggiorna le regole e il bando si può studiare di nuovo. Cambia l'impronta dei budget calcolati con le regole nuove, quindi si vede sempre con quale versione è stato fatto un calcolo."),
                    ("Che cosa insegna il Confronto, e a chi?", "Impara dai template dello studio e, in forma anonima e solo in gruppi di almeno tre, da quelli di tutti. Si può scegliere di confrontarsi con il solo studio. Con pochi dati lo dice invece di inventare un consiglio."),
-                   ("Quanto costa?", "Gli strumenti sono gratuiti per gli studi."),
+                   ("Quanto costa?", "Lavorare è libero. Servono token solo per consegnare un budget (1) e studiare un bando nuovo (3, uno torna se la lettura è completa): 15 al mese più 10 di benvenuto, ricariche a 8 € a token. Il pagamento online non è ancora attivo."),
                    ("Cosa non devo aspettarmi?", "Un testo di candidatura, una previsione sull'esito del bando o un importo per un bando di cui nessuna fonte ufficiale dichiara la percentuale.")]:
         H2(q)
         P(ans)
@@ -323,7 +323,7 @@ def build() -> Path:
        "Si guarda l'elenco dei bandi adatti e si preme «Combina tutti i bandi adatti».", "Si crea la bozza di budget per il bando scelto e si controlla.", "Si salva il budget come template, con il suo esito, quando il bando risponde."])
     SP(6)
     bar()
-    story.append(Paragraph("<b>QUANTO</b> · strumenti gratuiti per studi di commercialisti e boutique di finanza agevolata · quanto-self.vercel.app", S["small"]))
+    story.append(Paragraph("<b>QUANTO</b> · strumenti per studi di commercialisti e boutique di finanza agevolata · quanto-self.vercel.app", S["small"]))
 
     out = ROOT / "docs" / "riassunto" / "QUANTO_riassunto.pdf"
     doc = BaseDocTemplate(str(out), pagesize=A4, leftMargin=20 * mm, rightMargin=20 * mm, topMargin=18 * mm, bottomMargin=20 * mm, title="QUANTO — Riassunto", author="QUANTO",

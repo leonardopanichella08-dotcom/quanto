@@ -163,15 +163,18 @@ export default function Confronto({ validation, client }) {
         <div className="card p-5 space-y-2">
           <span className="label">Come sta imparando l’algoritmo · {engine === 'INTERNO' ? 'motore interno' : 'motore collettivo'}</span>
           <div className="flex flex-wrap gap-x-8 gap-y-2">
-            {[['Template tuoi', learning.templates_mine], [engine === 'INTERNO' ? 'Nel motore' : 'Nel campione', learning.templates_pool], ['Nicchie', learning.niches], ['Bandi', learning.bandi], ['Ammessi', learning.outcomes.AMMESSO]].map(([l, v]) => (
+            {[['Template tuoi', learning.templates_mine], [engine === 'INTERNO' ? 'Nel motore' : 'Nel campione', learning.templates_pool], ['Nicchie', learning.niches], ['Bandi', learning.bandi], ['Ammessi', learning.outcomes.AMMESSO], ...(engine === 'INTERNO' ? [] : [['Esempi', learning.examples?.count || 0]])].map(([l, v]) => (
               <div key={l}><span className="label">{l}</span><div className="text-xl font-display font-semibold tabular-nums">{v}</div></div>
             ))}
           </div>
           <p className="text-[11px] text-ink-2 leading-relaxed">{learning.feedback.message} Più template e più esiti inserisci, più il consiglio diventa preciso: si ricalcola da solo a ogni salvataggio.</p>
+          {engine !== 'INTERNO' && learning.examples?.count > 0 && (
+            <Info label="Cosa sono gli esempi">{learning.examples.count} budget costruiti sulle regole di {learning.examples.bandi} bandi e verificati con esse ({learning.examples.conformi} conformi, {learning.examples.con_riduzioni} con riduzioni, {learning.examples.non_conformi} non conformi). Non sono budget di aziende reali e non hanno un esito di bando: servono a far partire il consiglio. Pesano la metà e escono dal calcolo quando in un gruppo ci sono {learning.examples.fade_at} template reali.</Info>
+          )}
         </div>
       )}
 
-      <div className="card p-6 space-y-4">
+      <div id="consiglio" className="card p-6 space-y-4 scroll-mt-20">
         <div><h3 className="font-semibold text-base">Il budget consigliato</h3>
           <Info label="Come funziona">Scegli la nicchia (codice ATECO) e il bando: ti mostro come hanno ripartito il budget le aziende simili che hanno scelto quel bando, contando di più quelle ammesse.</Info></div>
         <div className="grid sm:grid-cols-4 gap-3">
@@ -206,7 +209,7 @@ export default function Confronto({ validation, client }) {
           <div className="space-y-3">
             <div className="flex flex-wrap items-center gap-2">
               <span className={`px-2 py-0.5 text-[11px] font-medium rounded border ${CONF[rec.confidence]}`}>Fiducia {rec.confidence.toLowerCase()}</span>
-              <span className="text-xs text-ink-2">{rec.templates_used} template · {rec.basis_label}{rec.wins ? ` · ${rec.wins} ammessi` : ''}{rec.average_total_eur ? ` · budget medio ${fmtEur(rec.average_total_eur)}` : ''}</span>
+              <span className="text-xs text-ink-2">{rec.real_templates} reali{rec.example_templates ? ` + ${rec.example_templates} esempi` : ''} · {rec.basis_label}{rec.wins ? ` · ${rec.wins} ammessi` : ''}{rec.average_total_eur ? ` · budget medio ${fmtEur(rec.average_total_eur)}` : ''}</span>
             </div>
             <ShareBar shares={rec.recommended} meta={shareMeta} height="h-7" />
             <Legend meta={shareMeta} />
@@ -262,10 +265,10 @@ export default function Confronto({ validation, client }) {
         {niches.length === 0 && <p className="text-xs text-mute">Nessun template ancora: salvane uno qui sopra e la mappa si costruisce.</p>}
         {niches.map((n) => (
           <div key={n.division} className="rounded-2xl border border-line bg-field p-4 space-y-2">
-            <div className="flex flex-wrap justify-between gap-2 text-sm"><span className="font-semibold text-ink">{n.niche}</span><span className="text-xs text-mute">{n.templates} template · {n.wins} ammessi</span></div>
+            <div className="flex flex-wrap justify-between gap-2 text-sm"><span className="font-semibold text-ink">{n.niche}</span><span className="text-xs text-mute">{n.templates} template{n.examples ? ` + ${n.examples} esempi` : ''} · {n.wins} ammessi</span></div>
             {n.bandi.map((b) => (
-              <button key={b.bando_id} className="w-full text-left space-y-1 hover:bg-white/60 rounded-lg p-1.5" onClick={() => { setAteco(n.division); setBandoId(b.bando_id); window.scrollTo({ top: 0, behavior: 'smooth' }) }}>
-                <div className="flex flex-wrap justify-between gap-2 text-xs"><span className="text-ink-2 min-w-0 break-words">{b.bando_name}</span><span className="text-mute">{b.templates} template · {b.submitted} presentati · {b.wins} ammessi{b.regions.length ? ` · ${b.regions.join(', ')}` : ''}</span></div>
+              <button key={b.bando_id} className="w-full text-left space-y-1 hover:bg-white/60 rounded-lg p-1.5" onClick={() => { setAteco(n.division); setBandoId(b.bando_id); document.getElementById('consiglio')?.scrollIntoView({ behavior: 'smooth', block: 'start' }) }}>
+                <div className="flex flex-wrap justify-between gap-2 text-xs"><span className="text-ink-2 min-w-0 break-words">{b.bando_name}</span><span className="text-mute">{b.templates} template{b.examples ? ` + ${b.examples} esempi` : ''} · {b.submitted} presentati · {b.wins} ammessi{b.regions.length ? ` · ${b.regions.join(', ')}` : ''}</span></div>
                 <ShareBar shares={b.shares} meta={shareMeta} height="h-3" />
               </button>
             ))}

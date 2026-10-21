@@ -90,7 +90,7 @@ function CatalogCard({ it, onStudied }) {
       {it.reasons.length > 0 && <ul className="text-xs text-ink-2 space-y-0.5">{it.reasons.map((r) => <li key={r} className="flex gap-1.5"><CheckCircle2 className="w-3.5 h-3.5 mt-0.5 text-emerald-600 shrink-0" />{r}</li>)}</ul>}
       {it.to_check.length > 0 && <p className="text-[11px] text-amber-700">Da verificare: {it.to_check.join(', ')}.</p>}
       <div className="flex flex-wrap items-start gap-3 pt-1">
-        <PipelineButton bandoId={it.bando_id} label="Studia questo bando" onDone={(r) => onStudied(it, r)} />
+        <PipelineButton bandoId={it.bando_id} cost={3} label="Studia questo bando" onDone={(r) => onStudied(it, r)} />
         {it.source_url && <a href={it.source_url} target="_blank" rel="noreferrer" className="text-xs text-sky-700 hover:underline inline-flex items-center gap-1 pt-2"><ExternalLink className="w-3 h-3" />Scheda ufficiale</a>}
       </div>
     </div>

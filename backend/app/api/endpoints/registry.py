@@ -6,6 +6,7 @@ from fastapi import APIRouter, BackgroundTasks, Body, Depends, HTTPException, Qu
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from app.api.deps import actor_of, auditor_engine, require_auth
+from app.api.endpoints.tokens import charge_delivery, undo_delivery
 from app.core import events, merkle_lab, webhooks
 from app.core.budget_service import cep_id_for
 from app.core.registry import (AlreadyRegisteredError, Registry, attestation_dict, current_public_key, project_key,
@@ -72,15 +73,19 @@ def public_key() -> dict:
              dependencies=[Depends(require_auth)], summary="Registra la Merkle Root di un budget nel registro firmato")
 def register_merkle_root(request: RegistrationRequest, background: BackgroundTasks, http: Request) -> RegistrationResponse:
     timer = events.Timer()
+    bando_id = events.bando_of_root(request.merkle_root)
+    paid = charge_delivery(http, request.project_id, bando_id)                # 1 token a consegna, valido 30 giorni (già pagato se il budget è stato esportato)
     try:
         att = Registry.register(request.project_id, request.merkle_root)
     except AlreadyRegisteredError as exc:
+        undo_delivery(http, paid)                                              # niente di nuovo registrato: il token torna
         events.record("registry.register", "Registrazione respinta: progetto già registrato" + (" (stessa radice)" if exc.same_root else " con radice diversa"),
                       status="CONFLICT", project_id=request.project_id, actor=actor_of(http), duration_ms=timer.ms, details={"same_root": exc.same_root})
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail={
             "message": "Budget già registrato per questo progetto", "already_registered": True,
             "same_root": exc.same_root, "existing_merkle_root": "0x" + exc.existing_root}) from exc
     except ValueError as exc:
+        undo_delivery(http, paid)
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
     events.record("registry.register", f"Registrata la radice {att.merkle_root[:14]}… come voce n. {att.seq}", project_id=request.project_id,
                   actor=actor_of(http), duration_ms=timer.ms,

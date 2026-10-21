@@ -6,7 +6,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response,
 from pydantic import BaseModel, ConfigDict, Field
 
 from app.api.deps import actor_of, require_hq
-from app.core import analysis, archive, consultant, events, hq, manual, users
+from app.core import analysis, archive, consultant, events, hq, manual, tokens, users
 from app.core.ingestion import Ingestion
 
 router = APIRouter()
@@ -350,3 +350,55 @@ def create_user(body: UserCreate, request: Request) -> dict:
 @router.patch("/users/{user_id}", dependencies=deps, summary="Cambia ruolo, attiva o disattiva, reimposta la password, sblocca")
 def patch_user(user_id: int, body: UserPatch, request: Request) -> dict:
     return _user_guard(users.update_user, user_id, actor_of(request), body.role, body.active, body.name, body.new_password, body.unlock)
+
+
+class TokenGrant(BaseModel):
+    tokens: int = Field(..., ge=1, le=100000)
+    note: str = Field(default="", max_length=300)
+
+
+@router.get("/users/{user_id}/tokens", dependencies=deps, summary="Saldo e movimenti dei token di un utente")
+def user_tokens(user_id: int) -> dict:
+    u = users.get(user_id)
+    if u is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Utente non trovato")
+    return tokens.overview({"id": u["id"], "email": u["email"]})
+
+
+@router.post("/users/{user_id}/tokens", dependencies=deps, status_code=status.HTTP_201_CREATED, summary="Accredita token a un utente (ricarica elaborata o regalo)")
+def grant_tokens(user_id: int, body: TokenGrant, request: Request) -> dict:
+    try:
+        return tokens.grant(user_id, body.tokens, body.note, actor_of(request), kind="TOPUP" if "ricarica" in body.note.lower() else "GRANT")
+    except KeyError:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Utente non trovato") from None
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(exc)) from exc
+
+
+@router.get("/template-examples", dependencies=deps, summary="Gli esempi del motore collettivo: budget costruiti sulle regole dei bandi e verificati con esse")
+def template_examples_list() -> dict:
+    from app.core import template_examples as te, template_learning as tl
+    from app.core.db import connect
+    te.ensure()
+    with connect() as conn:
+        rows = conn.execute("SELECT * FROM budget_templates WHERE origin='ESEMPIO' ORDER BY bando_id, ateco_code, id").fetchall()
+    items = [tl._row(r) for r in rows]
+    for t in items:
+        t.pop("owner", None)
+    return {"count": len(items), "items": items, "enabled": te.enabled(),
+            "note": "Esempi costruiti sulle regole dei bandi e verificati con esse: non sono budget reali e non hanno un esito di bando. Pesano la metà e escono dal calcolo con 8 template reali nel gruppo."}
+
+
+@router.post("/template-examples", dependencies=deps, status_code=status.HTTP_201_CREATED, summary="Crea gli esempi mancanti e rifà quelli le cui regole sono cambiate")
+def template_examples_seed(request: Request) -> dict:
+    from app.core import template_examples as te
+    if not te.enabled():
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Gli esempi sono disattivati (QUANTO_SEED_TEMPLATES=0)")
+    te._DONE["generation"] = None
+    return te.seed(actor_of(request))
+
+
+@router.delete("/template-examples", dependencies=deps, summary="Elimina tutti gli esempi: non si rimettono da soli")
+def template_examples_remove(request: Request) -> dict:
+    from app.core import template_examples as te
+    return {"deleted": te.remove_all(actor_of(request))}

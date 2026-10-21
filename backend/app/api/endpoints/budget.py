@@ -10,6 +10,7 @@ from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 
 from app.api.deps import actor_of
+from app.api.endpoints.tokens import charge_delivery, undo_delivery
 from app.core import bandi, events, webhooks, wp_allocation
 from app.core.budget_io import parse_import, template_xlsx
 from app.core.budget_service import validate_budget
@@ -77,7 +78,12 @@ def _export(request: BudgetValidationRequest, http: Request, kind: str):
     timer = events.Timer()
     _require_items(request)
     result = validate_budget(request)
-    data = build_xlsx(result) if kind == "xlsx" else build_pdf(result)
+    paid = charge_delivery(http, request.project_id, request.grant_rules.bando_id)       # 1 token a consegna, valido 30 giorni per lo stesso budget
+    try:
+        data = build_xlsx(result) if kind == "xlsx" else build_pdf(result)
+    except Exception:
+        undo_delivery(http, paid)                                                          # esportazione fallita: il token torna
+        raise
     name = f"{result.cep_id}.{kind}"
     events.add_document("EXPORT_XLSX" if kind == "xlsx" else "EXPORT_PDF", name, data, project_id=request.project_id, bando_id=request.grant_rules.bando_id,
                         meta={"cep_id": result.cep_id, "merkle_root": result.merkle_root})

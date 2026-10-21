@@ -40,6 +40,7 @@ def _isolated_env(monkeypatch, pg_url, request):
     monkeypatch.setenv("QUANTO_AUTH_REQUIRED", "0")                       # i test dell'autenticazione la accendono esplicitamente
     monkeypatch.setenv("QUANTO_JWT_SECRET", "test-jwt-secret-non-usare-in-produzione")
     monkeypatch.setenv("QUANTO_PII_KEY", "test-key")
+    monkeypatch.setenv("QUANTO_SEED_TEMPLATES", "0")                      # gli esempi del motore collettivo li accende solo test_template_examples
     monkeypatch.setenv("QUANTO_FILE_KEY", "11" * 32)
     monkeypatch.delenv("QUANTO_OCR_ENGINE", raising=False)
     reset_database(pg_url)

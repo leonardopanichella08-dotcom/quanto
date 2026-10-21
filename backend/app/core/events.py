@@ -67,6 +67,17 @@ def record(op: str, summary: str, status: str = "OK", project_id: Optional[str] 
         return None
 
 
+def bando_of_root(merkle_root: str) -> str:
+    """Il bando del controllo che ha prodotto una radice (serve a riconoscere lo stesso budget): vuoto se non si trova."""
+    raw = (merkle_root or "").lower().removeprefix("0x")
+    try:
+        with connect() as conn:
+            r = conn.execute("SELECT bando_id FROM runs WHERE kind='VALIDATE' AND (merkle_root=? OR merkle_root=?) ORDER BY id DESC LIMIT 1", (raw, "0x" + raw)).fetchone()
+        return (r["bando_id"] if r else "") or ""
+    except Exception:
+        return ""
+
+
 def save_run(kind: str, project_id: Optional[str], bando_id: Optional[str], request: Dict[str, Any], response: Dict[str, Any],
              merkle_root: Optional[str] = None) -> Optional[int]:
     try:

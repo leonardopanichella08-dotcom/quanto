@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends
 
 from app.api.deps import require_auth
-from app.api.endpoints import allocation, auth, bandi, budget, cron, fonte_b, fonte_c, hq, ingestion, pattern, profile, registry, templates, clients
+from app.api.endpoints import allocation, auth, bandi, budget, cron, fonte_b, fonte_c, hq, ingestion, pattern, profile, registry, templates, clients, tokens
 
 api_router = APIRouter(prefix="/api/v2")
 protected = [Depends(require_auth)]
@@ -17,6 +17,7 @@ api_router.include_router(budget.router, prefix="/budget", tags=["Missione Uno -
 api_router.include_router(pattern.router, prefix="/pattern", tags=["Confronto con i budget vincenti"], dependencies=protected)
 api_router.include_router(clients.router, prefix="/clients", tags=["Lavori dello studio (aziende clienti)"], dependencies=protected)
 api_router.include_router(templates.router, prefix="/templates", tags=["Confronto: template di budget per nicchia e bando"], dependencies=protected)
+api_router.include_router(tokens.router, prefix="/tokens", tags=["Token dello studio"], dependencies=protected)
 api_router.include_router(allocation.router, prefix="/allocation", tags=["Missione Due - Annual Allocation"], dependencies=protected)
 api_router.include_router(ingestion.router, prefix="/ingestion", tags=["Ingestion Fonte A"], dependencies=protected)
 # registro: register protetto per singolo endpoint; le verifiche dell'Auditor Portal restano pubbliche

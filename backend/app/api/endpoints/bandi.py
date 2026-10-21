@@ -3,13 +3,15 @@ import base64
 import binascii
 import io
 import re
+from datetime import date
 from typing import List, Optional
 
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query, Request, status
 from pydantic import BaseModel, Field, model_validator
 
-from app.api.deps import actor_of, require_auth, require_hq
-from app.core import analysis, bandi, discovery, events, pipeline, research, webhooks
+from app.api.deps import actor_of, require_auth, require_hq, user_of
+from app.api.endpoints.tokens import not_enough
+from app.core import analysis, bandi, discovery, events, pipeline, research, tokens, webhooks
 from app.core.ingestion import Ingestion
 
 router = APIRouter()
@@ -69,6 +71,30 @@ def _pdf_text(data: bytes) -> str:
     if len(reader.pages) > MAX_PDF_PAGES:
         raise ValueError(f"PDF troppo lungo ({len(reader.pages)} pagine, max {MAX_PDF_PAGES})")
     return "\n".join((p.extract_text() or "") for p in reader.pages)
+
+
+def _charge_study(request: Request, bando_id: str):
+    """Studiare un bando: 3 token se è nuovo, 1 se si rifà uno già in memoria; una volta al giorno per bando. Restituisce l'utente e ciò che è stato addebitato."""
+    user = user_of(request)
+    info = tokens.study_cost(bando_id)
+    key = f"study:{user['id'] if user else 0}:{bando_id}:{date.today().isoformat()}"
+    try:
+        res = tokens.spend(user, info["op"], info["cost"], ref=bando_id, dedupe=key,
+                           note="Studio di un bando nuovo" if not info["cached"] else "Nuovo studio di un bando già in memoria")
+    except tokens.NotEnoughTokens as exc:
+        raise not_enough(exc) from exc
+    return user, {"charged": res["charged"], "new": not info["cached"], "op": info["op"], "key": key}
+
+
+def _settle_study(user, bando_id: str, paid: dict, status_: Optional[str]) -> None:
+    """Esito dello studio: senza risultato i token tornano; un bando nuovo letto per intero ne restituisce 1 (premio al catalogo)."""
+    if not paid or not paid["charged"]:
+        return
+    if status_ in ("ERRORE", "INSUFFICIENTE"):
+        tokens.refund(user, paid["op"], paid["charged"], ref=bando_id, note="Studio senza risultato", release=paid["key"])
+    elif status_ == "COMPLETA" and paid["new"]:
+        tokens.refund(user, "study_bonus", tokens.BONUS_COMPLETE_STUDY, ref=bando_id, note="Premio al catalogo: bando nuovo letto per intero",
+                      dedupe=f"bonus:{user['id']}:{bando_id}:{date.today().isoformat()}")
 
 
 @router.post("/research/search", dependencies=[Depends(require_auth)], summary="Cerca il bando sul web: pagine e documenti, ufficiali per primi")
@@ -164,7 +190,13 @@ def research_run(body: ResearchRun, request: Request) -> dict:
     if Ingestion.get_bando(body.bando_id) is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Bando non trovato")
     Ingestion.confirm(body.bando_id)
-    report = pipeline.run(body.bando_id, body.urls, actor=actor_of(request))
+    user, paid = _charge_study(request, body.bando_id)
+    try:
+        report = pipeline.run(body.bando_id, body.urls, actor=actor_of(request))
+    except Exception:
+        _settle_study(user, body.bando_id, paid, "ERRORE")           # lo studio è fallito: i token tornano
+        raise
+    _settle_study(user, body.bando_id, paid, (report or {}).get("status"))
     return {"bando_id": body.bando_id, "report": report, "detail": bandi.get_bando_detail(body.bando_id)}
 
 
@@ -175,8 +207,14 @@ def research_analyze(body: ResearchAnalyze, request: Request, background: Backgr
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Bando non trovato")
     if not events.list_bando_sources(body.bando_id):
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Nessun documento in memoria da analizzare")
-    res = analysis.run_analysis(body.bando_id)
+    user, paid = _charge_study(request, body.bando_id)
+    try:
+        res = analysis.run_analysis(body.bando_id)
+    except Exception:
+        _settle_study(user, body.bando_id, paid, "ERRORE")
+        raise
     outcome, reqs = res["outcome"], res["requirements"]
+    _settle_study(user, body.bando_id, paid, "COMPLETA" if (reqs and outcome.published) else ("ERRORE" if not reqs and not outcome.published else "PARZIALE"))
     detail = bandi.get_bando_detail(body.bando_id)
     to_review = [r for r in reqs if r["kind"] == "DA_REVISIONARE"]
     topics = {}

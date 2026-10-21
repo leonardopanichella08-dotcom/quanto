@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useEffect, useState } from 'react'
 import { AlertTriangle, CheckCircle2, Loader2, Radar } from 'lucide-react'
 import { api } from '../lib/api'
 
@@ -10,8 +10,11 @@ const STATUS = {
 const KIND = { OBBLIGO: 'obblighi', DIVIETO: 'divieti', LIMITE: 'limiti', INFO: 'informazioni', DA_REVISIONARE: 'da rivedere' }
 
 /** Il processo standard di studio di un bando: cerca, scarica, legge, valuta. Stesso percorso per ogni bando, con il rapporto di completezza. */
-export default function PipelineButton({ bandoId, onDone, label = 'Studia il bando (cerca, scarica, leggi)' }) {
+export default function PipelineButton({ bandoId, onDone, label = 'Studia il bando (cerca, scarica, leggi)', cost }) {
   const [busy, setBusy] = useState(false)
+  const [quote, setQuote] = useState(null)
+  useEffect(() => { if (cost == null) api.tokenQuote({ op: 'study', bando_id: bandoId }).then(setQuote).catch(() => {}) }, [bandoId, cost])          // senza costo noto lo si chiede al server
+  const price = cost ?? quote?.cost
   const [report, setReport] = useState(null)
   const [error, setError] = useState(null)
 
@@ -29,7 +32,7 @@ export default function PipelineButton({ bandoId, onDone, label = 'Studia il ban
     <div className="space-y-3">
       <div className="flex flex-wrap items-center gap-3">
         <button onClick={go} disabled={busy} className="btn-primary flex items-center gap-1.5">
-          {busy ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Radar className="w-3.5 h-3.5" />}{busy ? 'Studio in corso…' : label}
+          {busy ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Radar className="w-3.5 h-3.5" />}{busy ? 'Studio in corso…' : label}{!busy && price != null && <span className="opacity-70 font-normal">· {price === 0 ? 'gratis' : `${price} token`}</span>}
         </button>
         {busy && <span className="text-xs text-mute">Cerca le fonti ufficiali, le scarica e le legge: può richiedere fino a un minuto.</span>}
       </div>

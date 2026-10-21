@@ -25,7 +25,7 @@ from typing import Any, Dict, List, Optional, Tuple
 
 import numpy as np
 
-from app.core import events
+from app.core import events, template_examples
 from app.core.db import connect
 from app.core.pattern_bank import kmeans, silhouette
 
@@ -36,8 +36,11 @@ ENGINES = {"COLLETTIVO": "motore collettivo (tutti i template)", "INTERNO": "mot
 OUTCOMES = ("BOZZA", "PRESENTATO", "AMMESSO", "NON_AMMESSO")
 OUTCOME_LABEL = {"BOZZA": "Bozza", "PRESENTATO": "Presentato", "AMMESSO": "Ammesso", "NON_AMMESSO": "Non ammesso"}
 OUTCOME_WEIGHT = {"AMMESSO": 3.0, "PRESENTATO": 1.5, "BOZZA": 1.0, "NON_AMMESSO": 0.25}
+OUTCOME_WEIGHT_EXAMPLE = {k: v / 2 for k, v in OUTCOME_WEIGHT.items()}      # i template di esempio (costruiti sulle regole, non reali) pesano la metà
+EXAMPLE_LABEL = {"AMMESSO": "Conforme alle regole", "PRESENTATO": "Conforme con riduzioni", "NON_AMMESSO": "Non conforme alle regole", "BOZZA": "Bozza"}
+EXAMPLES_FADE = 8            # in un gruppo con almeno 8 template reali gli esempi escono dal calcolo: contano i budget veri
 MIN_TEMPLATES = 3
-MIN_FOREIGN = 3              # dei template condivisi da altri si usa un gruppo solo se ne ha almeno tre: sotto, nessuno può risalire a un singolo cliente
+MIN_FOREIGN = 3             # dei template condivisi da altri si usa un gruppo solo se ne ha almeno tre: sotto, nessuno può risalire a un singolo cliente
 HIGH_MIN = 8
 CLUSTER_MIN = 6
 MAX_K = 4
@@ -127,8 +130,23 @@ def _row(r) -> Dict[str, Any]:
     for k in ("total_eur", "score", "distance"):
         d[k] = float(d[k]) if d.get(k) is not None else None
     d["niche"] = niche_label(d["ateco_code"])["label"]
-    d["outcome_label"] = OUTCOME_LABEL[d["outcome"]]
+    d["origin"] = d.get("origin") or "REALE"
+    d["verification"] = json.loads(d["verification"]) if d.get("verification") else None
+    d.pop("example_key", None)
+    d["outcome_label"] = EXAMPLE_LABEL[d["outcome"]] if d["origin"] == "ESEMPIO" else OUTCOME_LABEL[d["outcome"]]
     return d
+
+
+def _is_example(t: Dict[str, Any]) -> bool:
+    return t.get("origin") == "ESEMPIO"
+
+
+def _weight(t: Dict[str, Any]) -> float:
+    return (OUTCOME_WEIGHT_EXAMPLE if _is_example(t) else OUTCOME_WEIGHT)[t["outcome"]]
+
+
+def _real_wins(sel: List[Dict[str, Any]]) -> int:
+    return sum(1 for t in sel if t["outcome"] == "AMMESSO" and not _is_example(t))
 
 
 def _engine(engine: Optional[str]) -> str:
@@ -140,9 +158,11 @@ def _engine(engine: Optional[str]) -> str:
 
 def _pool(owner: str, engine: str = "COLLETTIVO") -> List[Dict[str, Any]]:
     """Il campione su cui lavora il motore: tutti i template (collettivo) oppure solo quelli dello studio (interno)."""
+    if _engine(engine) == "COLLETTIVO":
+        template_examples.ensure()                           # il motore collettivo parte con gli esempi verificati sulle regole dei bandi
     with connect() as conn:
         if _engine(engine) == "INTERNO":
-            rows = conn.execute("SELECT * FROM budget_templates WHERE owner=? ORDER BY id", (owner,)).fetchall()
+            rows = conn.execute("SELECT * FROM budget_templates WHERE owner=? AND origin='REALE' ORDER BY id", (owner,)).fetchall()
         else:
             rows = conn.execute("SELECT * FROM budget_templates ORDER BY id").fetchall()
     return [_row(r) for r in rows]
@@ -164,9 +184,12 @@ def _pool_hash(pool: List[Dict[str, Any]]) -> str:
 
 
 def _visible(owner: str, group: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
-    """I tuoi template contano sempre; quelli condivisi da altri solo se, in quel gruppo, sono almeno ``MIN_FOREIGN``."""
-    foreign = [t for t in group if t["owner"] != owner]
-    return group if len(foreign) >= MIN_FOREIGN else [t for t in group if t["owner"] == owner]
+    """I tuoi template contano sempre; quelli condivisi da altri solo se, in quel gruppo, sono almeno ``MIN_FOREIGN``.
+    Gli esempi (non sono di nessuno) entrano finché nel gruppo i template reali visibili sono meno di ``EXAMPLES_FADE``."""
+    real = [t for t in group if not _is_example(t)]
+    foreign = [t for t in real if t["owner"] != owner]
+    shown = real if len(foreign) >= MIN_FOREIGN else [t for t in real if t["owner"] == owner]
+    return shown if len(shown) >= EXAMPLES_FADE else shown + [t for t in group if _is_example(t)]
 
 
 # ------------------------------------------------------------------------------------------------ il consiglio
@@ -197,27 +220,35 @@ def recommend(owner: str, ateco_code: Optional[str], bando_id: Optional[str], dr
                                                      "Salva i budget dei tuoi clienti (con l'esito) e il consiglio nasce da solo."})
         return out
     sel = groups[chosen]
-    w = np.array([OUTCOME_WEIGHT[t["outcome"]] for t in sel])
+    w = np.array([_weight(t) for t in sel])
     x = np.array([_vec(t["shares"]) for t in sel])
     mean = (x * w[:, None]).sum(axis=0) / w.sum()
     std = np.sqrt((w[:, None] * (x - mean) ** 2).sum(axis=0) / w.sum())
-    wins = sum(1 for t in sel if t["outcome"] == "AMMESSO")
-    confidence = "ALTA" if chosen == "NICCHIA_E_BANDO" and len(sel) >= HIGH_MIN else "MEDIA" if chosen in ("NICCHIA_E_BANDO", "SETTORE_E_BANDO", "BANDO") else "BASSA"
+    wins = _real_wins(sel)
+    n_examples = sum(1 for t in sel if _is_example(t))
+    n_real = len(sel) - n_examples
+    confidence = ("ALTA" if chosen == "NICCHIA_E_BANDO" and n_real >= HIGH_MIN else "MEDIA" if chosen in ("NICCHIA_E_BANDO", "SETTORE_E_BANDO", "BANDO") else "BASSA")
+    if n_real < MIN_TEMPLATES:                               # senza almeno tre budget reali il consiglio poggia sugli esempi: mai più di «bassa»
+        confidence = "BASSA"
     label = dict(TIERS)[chosen]
     rec = {k: round(float(mean[i]), 4) for i, k in enumerate(SHARES)}
     rng = {k: {"low": round(max(0.0, float(mean[i] - std[i])), 4), "high": round(min(1.0, float(mean[i] + std[i])), 4)} for i, k in enumerate(SHARES)}
     explanation = [f"Ho usato {len(sel)} template con {label}" + (f", di cui {wins} ammessi" if wins else "") + ". I budget ammessi pesano 3 volte una bozza, i non ammessi un quarto."]
+    if n_examples:
+        explanation.append(f"{n_examples} sono esempi costruiti sulle regole del bando e verificati con esse (non budget reali, nessun esito di bando): pesano la metà e escono dal calcolo "
+                           f"quando i template reali del gruppo arrivano a {EXAMPLES_FADE}. Oggi i reali sono {n_real}.")
     top = sorted(SHARES, key=lambda k: -rec[k])[:3]
     explanation.append("Le voci più pesanti: " + ", ".join(f"{SHARE_LABEL[k].lower()} {_n(rec[k] * 100)}%" for k in top) + ".")
     spread = sorted(SHARES, key=lambda k: -std[SHARES.index(k)])[0]
     explanation.append(f"La voce su cui i template sono più diversi è {SHARE_LABEL[spread].lower()} (±{_n(std[SHARES.index(spread)] * 100)} punti): lì c'è più libertà.")
     if confidence != "ALTA":
-        need = (HIGH_MIN - counts["NICCHIA_E_BANDO"]) if counts["NICCHIA_E_BANDO"] < HIGH_MIN else 0
-        explanation.append(f"Fiducia {confidence.lower()}: il consiglio diventa preciso con {need or 'più'} template della stessa nicchia e dello stesso bando (oggi {counts['NICCHIA_E_BANDO']}).")
+        real_nb = sum(1 for t in groups["NICCHIA_E_BANDO"] if not _is_example(t))
+        need = (HIGH_MIN - real_nb) if real_nb < HIGH_MIN else 0
+        explanation.append(f"Fiducia {confidence.lower()}: il consiglio diventa preciso con {need or 'più'} template reali della stessa nicchia e dello stesso bando (oggi {real_nb}).")
     styles = _styles(sel, w, x) if len(sel) >= CLUSTER_MIN else []
-    out.update({"status": "OK", "basis": chosen, "basis_label": label, "templates_used": len(sel), "wins": wins, "confidence": confidence, "recommended": rec, "range": rng,
-                "average_total_eur": _avg_total(sel), "score_range": _score_range(sel), "styles": styles, "explanation": explanation,
-                "outcomes": {o: sum(1 for t in sel if t["outcome"] == o) for o in OUTCOMES}})
+    out.update({"status": "OK", "basis": chosen, "basis_label": label, "templates_used": len(sel), "real_templates": n_real, "example_templates": n_examples, "wins": wins, "confidence": confidence,
+                "recommended": rec, "range": rng, "average_total_eur": _avg_total([t for t in sel if not _is_example(t)] or sel), "score_range": _score_range(sel), "styles": styles,
+                "explanation": explanation, "outcomes": {o: sum(1 for t in sel if t["outcome"] == o and not _is_example(t)) for o in OUTCOMES}})
     if draft:
         d = clean_shares(draft)
         dev = {k: round((d[k] - rec[k]) * 100, 1) for k in SHARES}
@@ -364,24 +395,26 @@ def niche_map(owner: str, engine: str = "COLLETTIVO") -> List[Dict[str, Any]]:
             bandi.setdefault(t["bando_id"], []).append(t)
         rows = []
         for bid, ts in bandi.items():
-            w = np.array([OUTCOME_WEIGHT[t["outcome"]] for t in ts])
+            w = np.array([_weight(t) for t in ts])
             x = np.array([_vec(t["shares"]) for t in ts])
             mean = (x * w[:, None]).sum(axis=0) / w.sum()
-            rows.append({"bando_id": bid, "bando_name": ts[0]["bando_name"], "templates": len(ts), "wins": sum(1 for t in ts if t["outcome"] == "AMMESSO"),
-                         "submitted": sum(1 for t in ts if t["outcome"] in ("PRESENTATO", "AMMESSO", "NON_AMMESSO")),
+            rows.append({"bando_id": bid, "bando_name": ts[0]["bando_name"], "templates": sum(1 for t in ts if not _is_example(t)), "examples": sum(1 for t in ts if _is_example(t)), "wins": _real_wins(ts),
+                         "submitted": sum(1 for t in ts if t["outcome"] in ("PRESENTATO", "AMMESSO", "NON_AMMESSO") and not _is_example(t)),
                          "shares": {k: round(float(mean[i]), 4) for i, k in enumerate(SHARES)}, "regions": sorted({t["region"] for t in ts if t["region"]}),
                          "sizes": sorted({t["company_size"] for t in ts if t["company_size"]})})
-        rows.sort(key=lambda r: (-r["wins"], -r["templates"], r["bando_name"]))
-        out.append({"division": div, "section": items[0]["ateco_section"], "niche": niche_label(items[0]["ateco_code"])["label"], "templates": len(items),
-                    "wins": sum(1 for t in items if t["outcome"] == "AMMESSO"), "bandi": rows})
-    out.sort(key=lambda n: (-n["templates"], n["division"]))
+        rows.sort(key=lambda r: (-r["wins"], -r["templates"], -r["examples"], r["bando_name"]))
+        out.append({"division": div, "section": items[0]["ateco_section"], "niche": niche_label(items[0]["ateco_code"])["label"], "templates": sum(1 for t in items if not _is_example(t)),
+                    "examples": sum(1 for t in items if _is_example(t)), "wins": _real_wins(items), "bandi": rows})
+    out.sort(key=lambda n: (-n["templates"], -n["examples"], n["division"]))
     return out
 
 
 def learning_status(owner: str, engine: str = "COLLETTIVO") -> Dict[str, Any]:
     """Come sta imparando l'algoritmo: quanti template, con che esiti, e se i budget vicini al consiglio vincono più spesso."""
     engine = _engine(engine)
-    pool = _pool(owner, engine)
+    full = _pool(owner, engine)
+    examples = [t for t in full if _is_example(t)]
+    pool = [t for t in full if not _is_example(t)]
     mine = [t for t in pool if t["owner"] == owner]
     outcomes = {o: sum(1 for t in pool if t["outcome"] == o) for o in OUTCOMES}
     judged = [t for t in pool if t["outcome"] in ("AMMESSO", "NON_AMMESSO") and t["distance"] is not None]
@@ -397,4 +430,7 @@ def learning_status(owner: str, engine: str = "COLLETTIVO") -> Dict[str, Any]:
         feedback["message"] = (f"Servono almeno {MIN_FEEDBACK} esiti noti sia tra i budget vicini al consiglio sia tra gli altri per dire se seguire il consiglio conviene: "
                                f"oggi {len(close)} vicini e {len(far)} lontani.")
     return {"engine": engine, "engine_label": ENGINES[engine], "templates_mine": len(mine), "templates_pool": len(pool), "templates_shared_by_others": sum(1 for t in pool if t["owner"] != owner), "outcomes": outcomes,
-            "pool_hash": _pool_hash(pool), "feedback": feedback, "niches": len({t["ateco_division"] for t in pool}), "bandi": len({t["bando_id"] for t in pool})}
+            "pool_hash": _pool_hash(full), "feedback": feedback, "niches": len({t["ateco_division"] for t in full}), "bandi": len({t["bando_id"] for t in full}),
+            "examples": {"count": len(examples), "niches": len({t["ateco_division"] for t in examples}), "bandi": len({t["bando_id"] for t in examples}),
+                         "conformi": sum(1 for t in examples if t["outcome"] == "AMMESSO"), "con_riduzioni": sum(1 for t in examples if t["outcome"] == "PRESENTATO"),
+                         "non_conformi": sum(1 for t in examples if t["outcome"] == "NON_AMMESSO"), "fade_at": EXAMPLES_FADE}}

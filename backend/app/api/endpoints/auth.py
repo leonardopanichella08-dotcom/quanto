@@ -8,13 +8,10 @@ from fastapi import APIRouter, Depends, HTTPException, Request, status
 from pydantic import BaseModel, Field
 
 from app.api.deps import require_auth, user_of
-from app.core import auth, events, users
+from app.core import auth, events, tokens, users
 
 router = APIRouter()
 
-# Non esiste ancora un piano a pagamento: questo numero è un'ipotesi di lavoro (un controllo budget = un credito,
-# un abbonamento annuale da 100), usata solo per mostrare in anteprima come funzionerebbe un piano a consumo.
-CREDITS_PER_CYCLE = 100
 
 
 @router.post("/token", summary="OAuth 2.0 client-credentials: restituisce un bearer token (1 ora)")
@@ -101,24 +98,15 @@ def my_activity(request: Request, limit: int = 30) -> list:
     return events.list_events(actor=f"user:{u['email']}", limit=limit)
 
 
-@router.get("/me/credits", dependencies=[Depends(require_auth)], summary="Crediti del piano (ipotesi di abbonamento annuale a consumo): quanti restano e tra quanto si ricaricano")
+@router.get("/me/credits", dependencies=[Depends(require_auth)], summary="Saldo dei token dello studio (compatibile con la vecchia anteprima dei crediti; il dettaglio è in /tokens)")
 def my_credits(request: Request) -> dict:
     u = user_of(request)
     if u is None:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Accesso richiesto")
-    row = users.get(u["id"])
-    created = datetime.fromisoformat(row["created_at"].replace("Z", "+00:00"))
-    now = datetime.now(timezone.utc)
-    cycle = max(0, (now - created).days) // 365
-    cycle_start = created + timedelta(days=cycle * 365)
-    cycle_end = cycle_start + timedelta(days=365)
-    used = events.count_events_since("budget.validate", f"user:{u['email']}", cycle_start.isoformat().replace("+00:00", "Z"))
-    remaining = max(0, CREDITS_PER_CYCLE - used)
-    return {
-        "plan": "Gratuito — anteprima di un piano annuale", "limit": CREDITS_PER_CYCLE, "used": min(used, CREDITS_PER_CYCLE),
-        "remaining": remaining, "pct_remaining": round(remaining / CREDITS_PER_CYCLE * 100),
-        "renews_at": cycle_end.date().isoformat(), "days_until_renewal": max(0, (cycle_end - now).days),
-    }
+    o = tokens.overview(u)
+    limit = max(o["monthly"], o["balance"], 1)
+    return {"plan": "Piano Studio · prova gratuita", "limit": limit, "used": max(0, limit - max(o["balance"], 0)), "remaining": o["balance"], "pct_remaining": round(max(0, min(100, o["balance"] / limit * 100))),
+            "renews_at": o["next_grant"], "days_until_renewal": o["days_until_grant"], "exempt": o["exempt"], "low": o["low"], "empty": o["empty"], "monthly": o["monthly"]}
 
 
 class ProfileBody(BaseModel):
