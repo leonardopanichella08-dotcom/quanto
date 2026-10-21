@@ -15,9 +15,10 @@ import Sidebar, { MobileBar } from './components/Sidebar'
 import { NeedClient } from './components/Clients'
 import { ArrowLeft, BookOpen, Calculator, GitCompare, Library, ShieldCheck, Split, User } from 'lucide-react'
 import { Mark, PageHead, Wordmark } from './components/ui'
-import { NavContext, profileGo, scrollTop } from './lib/nav'
+import { NavContext, profileGo, restoreScroll, scrollTop } from './lib/nav'
 import { api, download, fileToBase64, session, workspace } from './lib/api'
 import { PasswordModal } from './components/Login'
+import { TokensModal } from './components/Tokens'
 import { AssistantProvider, useAssistant } from './assistant/AssistantContext'
 
 const TABS = [
@@ -287,8 +288,16 @@ function AppInner({ bridge }) {
     } catch (e) { setError(e.message) }
   }
 
-  const openReplay = (response) => { setReplay(response); setLabFrom('hq'); setTab('lab') }
-  const nav = useMemo(() => ({ go: (t, anchor) => { setGuideAnchor(anchor || null); setTab(t); scrollTop() } }), [])
+  const openReplay = (response) => { setReplay(response); setLabFrom('hq'); nav.go('lab') }
+  // Ogni pagina ricorda a che punto eri: con {restore: true} (i «Torna a…») ci si ritrova lì, altrimenti si parte dall'inizio.
+  const tabRef = useRef(tab); tabRef.current = tab
+  const scrollMemo = useRef({})
+  const nav = useMemo(() => ({ go: (t, anchor, opts) => {
+    scrollMemo.current[tabRef.current] = { w: window.scrollY, a: document.getElementById('app-scroll')?.scrollTop || 0 }
+    setGuideAnchor(anchor || null); setTab(t)
+    const was = opts?.restore ? scrollMemo.current[t] : null
+    if (was) restoreScroll(was); else scrollTop()
+  } }), [])
 
   const banner = registry?.offline ? { dot: 'bg-ink/30', text: 'Il server non risponde', tone: 'text-ink-2' }
     : !registry ? { dot: 'bg-ink/30', text: 'Mi collego al registro…', tone: 'text-ink-2' }
@@ -306,6 +315,7 @@ function AppInner({ bridge }) {
 
   return (
     <NavContext.Provider value={nav}>
+    <TokensModal />
     <div className="min-h-screen text-ink md:flex">
       {!assistant.open && <Sidebar user={user} isOwner={isOwner} tab={tab === 'lab' ? 'canvas' : tab} clients={clients} clientId={clientId} onClient={(id) => { chooseClient(id); setMenuOpen(false) }}
         onNewClient={() => { nav.go('profilo'); setMenuOpen(false); setTimeout(() => document.getElementById('lavori')?.scrollIntoView({ behavior: 'smooth' }), 250) }}
@@ -328,14 +338,14 @@ function AppInner({ bridge }) {
           <BudgetCanvas key={clientId || 'x'} bandi={bandi} bando={bando} request={request} fields={fields} validation={validation} loading={loading} error={error} busy={busy} importInfo={importInfo} criteriaTitles={criteriaTitles}
             onSelectBando={(id) => selectBando(id).catch(() => {})} onProjectId={changeProject} onItemsChange={changeItems} onImport={importFile}
             onValidate={() => validate(request)} onRegister={() => setModalOpen(true)} onExport={exportAs}
-            onOpenLab={() => { setReplay(null); setLabFrom('canvas'); setTab('lab') }} onDismissImport={() => setImportInfo(null)} onGoBandi={() => setTab('bandi')}
+            onOpenLab={() => { setReplay(null); setLabFrom('canvas'); nav.go('lab') }} onDismissImport={() => setImportInfo(null)} onGoBandi={() => setTab('bandi')}
             onUsePayslip={addPayslipItem} onUseBalance={() => nav.go('allocation')} onUseDraft={addDraftItems}
             onUseTemplate={applyTemplate} onGoProfile={(t) => { nav.go('profilo'); if (t) profileGo(t) }} templateOpen={templateOpen} budgetSet={budgetSet} onSwitchBudget={switchBudget} onCloseBudgetSet={closeBudgetSet}
             incompleteItems={request.cost_items.filter(isIncomplete)} notice={notice} onDismissNotice={() => setNotice(null)} />
         </Keep>
         {tab === 'lab' && (
           <div className="space-y-4">
-            <button onClick={() => nav.go(labFrom)} className="btn"><ArrowLeft className="w-3.5 h-3.5" />{labFrom === 'hq' ? 'Torna al Quartier Generale' : 'Torna al Budget'}</button>
+            <button onClick={() => nav.go(labFrom, undefined, { restore: true })} className="btn"><ArrowLeft className="w-3.5 h-3.5" />{labFrom === 'hq' ? 'Torna al Quartier Generale' : 'Torna al Budget'}</button>
             {replay && <div className="p-3 rounded-lg border border-brand/30 bg-brand/5 text-ink text-xs flex flex-wrap items-center justify-between gap-3">
               <span>Stai rivedendo un’esecuzione salvata ({replay.project_id} · {replay.bando_id}).</span>
               <button onClick={() => setReplay(null)} className="font-semibold text-brand-ink underline">Torna al controllo corrente</button></div>}

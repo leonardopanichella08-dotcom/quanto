@@ -1,5 +1,6 @@
-import React, { useMemo, useRef, useState } from 'react'
-import { AlertTriangle, ChevronDown, ChevronRight, Download, FileText, Loader2, Play, Plus, ShieldCheck, Upload, X } from 'lucide-react'
+import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import { api } from '../lib/api'
+import { AlertTriangle, ArrowLeft, ChevronDown, ChevronLeft, ChevronRight, Download, Loader2, Play, Plus, ShieldCheck, Upload, X } from 'lucide-react'
 import LineEditor from './LineEditor'
 import ItemTemplatePicker from './ItemTemplatePicker'
 import CriteriaHeatmap, { heatmapData } from './CriteriaHeatmap'
@@ -10,7 +11,8 @@ import Guide from './Guide'
 import HowItWorks from './HowItWorks'
 import TutorialVideo from './TutorialVideo'
 import { Hint } from './Help'
-import { ChromeCard } from './ui'
+import { ChromeCard, Fold, Info } from './ui'
+import { scrollTop } from '../lib/nav'
 import { BANDO_STATUS_STYLE, CATEGORY_LABEL, CATEGORY_ORDER, STATUS_LABEL, STATUS_STYLE, fmtEur, fmtNum, fmtPct } from '../lib/format'
 
 const ITEM_STATUS_DOT = { APPROVED: '#10b981', CAP_EXCEEDED_ADJUSTED: '#f59e0b', REJECTED: '#ef4444', MISSING_DOCUMENTS: '#38bdf8' }
@@ -25,11 +27,11 @@ const NEW_ITEM = {
 const OUTCOME_STYLE = { PASS: 'text-emerald-700', ADJUSTED: 'text-amber-700', REJECTED: 'text-red-700', SUSPENDED: 'text-sky-700' }
 const OUTCOME_LABEL = { PASS: 'superato', ADJUSTED: 'ridotto', REJECTED: 'respinto', SUSPENDED: 'in attesa di documento' }
 
-function SummaryCard({ label, value, tone = 'text-ink', note, hint }) {
+function SummaryCard({ label, value, tone = 'text-ink', note }) {
   return (
     <div className="card p-4 min-w-0">
-      <span className="label inline-flex items-center gap-1.5">{label}{hint && <Hint id={hint} />}</span>
-      <div className={`text-lg sm:text-xl md:text-2xl font-semibold mt-1.5 whitespace-nowrap tabular-nums tracking-tight ${tone}`}>{value}</div>
+      <span className="label">{label}</span>
+      <div className={`text-xl xl:text-2xl font-semibold mt-1.5 whitespace-nowrap tabular-nums tracking-tight ${tone}`}>{value}</div>
       <p className="text-xs text-mute mt-1">{note}</p>
     </div>
   )
@@ -46,75 +48,66 @@ function Row({ label, value }) {
 
 function Block({ title, hint, children }) {
   return (
-    <div className="p-3 bg-field rounded-xl border border-line space-y-1.5">
-      <span className="text-ink-2 text-xs font-medium inline-flex items-center gap-1.5">{title}{hint && <Hint id={hint} />}</span>
+    <div className="p-4 bg-tint rounded-2xl space-y-2">
+      <span className="text-ink text-[13px] font-medium inline-flex items-center gap-1.5">{title}{hint && <Hint id={hint} />}</span>
       {children}
     </div>
   )
 }
 
 function Inspector({ item, steps }) {
-  if (!item) return <p className="text-xs text-mute p-6 text-center">Seleziona una voce per vedere da dove vengono i dati e ogni controllo, uno per uno.</p>
   const b = item.breakdown
   return (
-    <div className="space-y-3 text-xs">
-      <div className="p-3 bg-field rounded-xl border border-line">
-        <p className="font-semibold text-sm text-ink">{item.description}</p>
-        <p className="font-mono text-mute text-xs">{item.item_id} · {CATEGORY_LABEL[item.category]}</p>
-        <p className="mt-2 flex flex-wrap gap-x-4 gap-y-1 font-mono text-xs">
-          <span>richiesto <span className="text-ink">{fmtEur(item.original_cost_eur)}</span></span>
-          <span>ammesso <span className="text-emerald-700">{fmtEur(item.computed_cost_eur)}</span></span>
-        </p>
-      </div>
-
+    <div className="space-y-4">
       {item.rejection_reason && (
-        <div className="p-3 border border-amber-500/30 text-amber-800 rounded-xl space-y-1">
-          <span className="font-semibold flex items-center gap-1"><AlertTriangle className="w-3.5 h-3.5" /> Perché</span>
-          <p className="text-xs leading-relaxed">{item.rejection_reason}</p>
+        <div className="p-4 rounded-2xl bg-amber-500/10 text-amber-900 flex gap-2.5">
+          <AlertTriangle className="w-4 h-4 mt-0.5 shrink-0" />
+          <div><p className="text-sm font-medium">Perché</p><p className="text-[13px] leading-relaxed mt-0.5">{item.rejection_reason}</p></div>
         </div>
       )}
-
-      <Block title="Da dove vengono i dati" hint="fontea">
-        <Row label="Documento (Fonte C)" value={b.source_c_ref || '— mancante —'} />
-        {b.ccnl_table_ref && <Row label="Tabella ufficiale (Fonte B)" value={b.ccnl_table_ref} />}
-        <Row label="Regole del bando (Fonte A), versione" value={b.rule_version_hash} />
-        {b.hourly_cap_eur != null && <Row label="Tetto orario del bando" value={`${fmtNum(b.hourly_cap_eur)} €/h`} />}
-        {b.budget_cap_pct != null && <Row label="Limite del bando (% del totale)" value={fmtPct(b.budget_cap_pct)} />}
-      </Block>
-
-      {item.category === 'PERSONNEL' && b.annual_cost_eur != null && (
-        <Block title="Come si calcola il costo del personale">
-          <Row label="RAL (stipendio annuo lordo)" value={fmtEur(b.ral_eur)} />
-          <Row label={`Oneri sociali (${fmtPct(b.social_charges_pct, 2)})`} value={fmtEur(b.social_charges_eur)} />
-          <Row label={`TFR (${fmtPct(b.tfr_pct, 2)})`} value={fmtEur(b.tfr_eur)} />
-          <Row label="Costo annuo per l’azienda" value={fmtEur(b.annual_cost_eur)} />
-          <Row label="Costo orario" value={`${fmtNum(item.hourly_rate_computed)} €/h (÷ ${b.working_hours} ore)`} />
-          <Row label="Tempo dedicato × durata" value={`${b.fte_allocation} × ${b.duration_months} mesi`} />
-        </Block>
-      )}
-
-      <Block title="Cosa è successo, controllo per controllo">
-        <div className="space-y-2">
-          {steps.map((s) => (
-            <div key={s.seq} className="flex gap-2 text-xs border-b border-line pb-1.5 last:border-0">
-              <span className="font-mono text-brand-ink shrink-0 w-9">#{s.criterion}</span>
-              <div className="min-w-0">
-                <span className={`font-medium ${OUTCOME_STYLE[s.outcome]}`}>{OUTCOME_LABEL[s.outcome]}</span>
-                {s.delta_eur !== 0 && <span className="font-mono text-ink-2"> {fmtEur(s.delta_eur)}</span>}
-                <p className="text-mute leading-snug">{s.note}</p>
+      <div className="grid lg:grid-cols-2 gap-4 items-start">
+        <div className="space-y-4 min-w-0">
+          <Block title="Da dove vengono i dati" hint="fontea">
+            <Row label="Documento (Fonte C)" value={b.source_c_ref || '— mancante —'} />
+            {b.ccnl_table_ref && <Row label="Tabella ufficiale (Fonte B)" value={b.ccnl_table_ref} />}
+            <Row label="Regole del bando (Fonte A), versione" value={b.rule_version_hash} />
+            {b.hourly_cap_eur != null && <Row label="Tetto orario del bando" value={`${fmtNum(b.hourly_cap_eur)} €/h`} />}
+            {b.budget_cap_pct != null && <Row label="Limite del bando (% del totale)" value={fmtPct(b.budget_cap_pct)} />}
+          </Block>
+          {item.category === 'PERSONNEL' && b.annual_cost_eur != null && (
+            <Block title="Come si calcola il costo del personale">
+              <Row label="RAL (stipendio annuo lordo)" value={fmtEur(b.ral_eur)} />
+              <Row label={`Oneri sociali (${fmtPct(b.social_charges_pct, 2)})`} value={fmtEur(b.social_charges_eur)} />
+              <Row label={`TFR (${fmtPct(b.tfr_pct, 2)})`} value={fmtEur(b.tfr_eur)} />
+              <Row label="Costo annuo per l’azienda" value={fmtEur(b.annual_cost_eur)} />
+              <Row label="Costo orario" value={`${fmtNum(item.hourly_rate_computed)} €/h (÷ ${b.working_hours} ore)`} />
+              <Row label="Tempo dedicato × durata" value={`${b.fte_allocation} × ${b.duration_months} mesi`} />
+            </Block>
+          )}
+        </div>
+        <Block title="Controllo per controllo">
+          <div className="space-y-2">
+            {steps.map((s) => (
+              <div key={s.seq} className="flex gap-3 text-xs border-b border-line pb-2 last:border-0 last:pb-0">
+                <span className="font-mono text-mute shrink-0 w-8">#{s.criterion}</span>
+                <div className="min-w-0">
+                  <span className={`font-medium ${OUTCOME_STYLE[s.outcome]}`}>{OUTCOME_LABEL[s.outcome]}</span>
+                  {s.delta_eur !== 0 && <span className="font-mono text-ink-2"> {fmtEur(s.delta_eur)}</span>}
+                  <p className="text-ink-2 leading-snug mt-0.5">{s.note}</p>
+                </div>
               </div>
-            </div>
-          ))}
-        </div>
-        {item.criteria_not_evaluated.length > 0 && (
-          <p className="text-xs text-mute">Non valutati (manca un dato o una regola): {item.criteria_not_evaluated.map((c) => `#${c}`).join(' ')}</p>
-        )}
-      </Block>
-
-      <Block title="Impronta della voce (SHA-256)" hint="hash">
-        <p className="font-code text-[11px] text-brand-ink break-all p-2 bg-tint rounded-lg">{item.item_hash_sha256}</p>
-        <p className="text-[11px] text-mute">È una “foglia” dell’albero di Merkle: la vedi con «Guarda come ha lavorato».</p>
-      </Block>
+            ))}
+          </div>
+          {item.criteria_not_evaluated.length > 0 && (
+            <p className="text-xs text-mute pt-1">Non valutati (manca un dato o una regola): {item.criteria_not_evaluated.map((c) => `#${c}`).join(' ')}</p>
+          )}
+        </Block>
+      </div>
+      <details className="text-xs text-ink-2">
+        <summary className="cursor-pointer text-mute hover:text-ink">Impronta della voce</summary>
+        <p className="font-code text-[11px] text-brand-ink break-all p-3 mt-2 bg-tint rounded-xl">{item.item_hash_sha256}</p>
+        <p className="mt-1.5 text-mute">È una foglia dell’albero di Merkle: la vedi con «Vedi l’animazione passo-passo».</p>
+      </details>
     </div>
   )
 }
@@ -125,7 +118,12 @@ export default function BudgetCanvas({
   onUsePayslip, onUseBalance, onUseDraft, onUseTemplate, onGoProfile, templateOpen, incompleteItems = [], notice, onDismissNotice, budgetSet, onSwitchBudget, onCloseBudgetSet,
 }) {
   const [selectedId, setSelectedId] = useState(null)
+  const [delivery, setDelivery] = useState(null)             // quanto costa consegnare questo budget (esportare o registrare): 1 token, oppure già incluso
   const [panel, setPanel] = useState('inspect')
+  const [view, setView] = useState('list')                  // 'list' = il budget; 'detail' = la scheda di una voce, in una vista a parte
+  const [open, setOpen] = useState({})                       // riquadri richiudibili: chiusi finché non servono
+  const toggleFold = (k) => setOpen((o) => ({ ...o, [k]: !o[k] }))
+  const back = useRef(null)                                // dove eri nella pagina quando hai aperto la scheda
   const [addOpen, setAddOpen] = useState(false)
   const [docsOpen, setDocsOpen] = useState(false)
   const docsRef = useRef(null)
@@ -146,12 +144,73 @@ export default function BudgetCanvas({
 
   const addFromTemplate = (t) => {
     const item = { item_id: nextId(), description: t.label, category: t.category, source_c_ref: '', ...NEW_ITEM[t.category], ...t.defaults }
-    onItemsChange([...items, item]); setSelectedId(item.item_id); setPanel('edit'); setAddOpen(false)
+    onItemsChange([...items, item]); setAddOpen(false); openItem(item.item_id, 'edit')
   }
   const update = (item) => { onItemsChange(items.map((i) => (i.item_id === selectedId ? item : i))); setSelectedId(item.item_id) }
-  const remove = () => { onItemsChange(items.filter((i) => i.item_id !== selectedId)); setSelectedId(null) }
+  const remove = () => { onItemsChange(items.filter((i) => i.item_id !== selectedId)); setSelectedId(null); closeItem() }
   const duplicate = () => { const c = { ...selectedInput, item_id: nextId() }; onItemsChange([...items, c]); setSelectedId(c.item_id) }
-  const pick = (id) => { setSelectedId(id); if (panel !== 'edit') setPanel('inspect') }
+  const ordered = useMemo(() => groups.flatMap(([, l]) => l), [items])      // eslint-disable-line react-hooks/exhaustive-deps
+  const here = () => ({ w: window.scrollY, a: document.getElementById('app-scroll')?.scrollTop || 0 })
+  const openItem = (id, tab) => {
+    if (view !== 'detail') back.current = here()
+    setSelectedId(id); setPanel(tab || (byId[id] ? 'inspect' : 'edit')); setView('detail'); scrollTop()
+  }
+  const closeItem = () => setView('list')
+  useLayoutEffect(() => {                                                    // tornando al budget si ritrova lo stesso punto, non l'inizio della pagina
+    if (view !== 'list' || !back.current) return
+    const p = back.current; back.current = null
+    window.scrollTo({ top: p.w }); document.getElementById('app-scroll')?.scrollTo({ top: p.a })
+  }, [view])
+
+  useEffect(() => {                                                         // il costo della consegna, letto prima di premere: si aggiorna dopo ogni esportazione o registrazione
+    let live = true
+    const load = () => { if (validation && request?.project_id) api.tokenQuote({ op: 'deliver', project_id: request.project_id, bando_id: bando?.bando_id || '' }).then((q) => { if (live) setDelivery(q) }).catch(() => {}) }
+    load()
+    window.addEventListener('quanto-tokens-changed', load)
+    return () => { live = false; window.removeEventListener('quanto-tokens-changed', load) }
+  }, [validation?.merkle_root, request?.project_id, bando?.bando_id])      // eslint-disable-line react-hooks/exhaustive-deps
+
+  if (view === 'detail' && selectedInput) {
+    const idx = ordered.findIndex((i) => i.item_id === selectedInput.item_id)
+    const r = selectedResult
+    const step = (d) => { const n = ordered[idx + d]; if (n) { setSelectedId(n.item_id); setPanel(byId[n.item_id] ? panel : 'edit'); scrollTop() } }
+    return (
+      <div className="space-y-5">
+        <div className="flex flex-wrap items-center gap-3">
+          <button onClick={closeItem} className="btn"><ArrowLeft className="w-3.5 h-3.5" />Torna al budget</button>
+          <div className="ml-auto flex items-center gap-1.5">
+            <button className="btn !px-2" disabled={idx <= 0} onClick={() => step(-1)} aria-label="Voce precedente"><ChevronLeft className="w-4 h-4" /></button>
+            <span className="text-xs text-mute tabular-nums w-12 text-center">{idx + 1} / {ordered.length}</span>
+            <button className="btn !px-2" disabled={idx >= ordered.length - 1} onClick={() => step(1)} aria-label="Voce successiva"><ChevronRight className="w-4 h-4" /></button>
+          </div>
+        </div>
+        <div className="card p-6 space-y-5">
+          <div className="flex flex-wrap items-start gap-3">
+            <div className="min-w-0 flex-1">
+              <h3 className="text-xl font-semibold tracking-tight break-words">{selectedInput.description || selectedInput.item_id}</h3>
+              <p className="text-xs text-mute mt-1">{CATEGORY_LABEL[selectedInput.category]} · <span className="font-mono">{selectedInput.item_id}</span></p>
+            </div>
+            {r && <span className={`px-2.5 py-1 text-xs font-medium rounded-full border shrink-0 ${STATUS_STYLE[r.status]}`}>{STATUS_LABEL[r.status]}</span>}
+          </div>
+          {r && (
+            <div className="flex flex-wrap gap-x-10 gap-y-2">
+              <div><span className="label">Richiesto</span><div className="text-lg font-semibold tabular-nums">{fmtEur(r.original_cost_eur)}</div></div>
+              <div><span className="label">Ammesso</span><div className="text-lg font-semibold tabular-nums text-emerald-700">{fmtEur(r.computed_cost_eur)}</div></div>
+            </div>
+          )}
+          <div className="inline-flex p-1 rounded-full bg-tint text-xs font-medium" role="tablist">
+            {[['inspect', 'Controlli', !r], ['edit', 'Modifica', false]].map(([k, l, off]) => (
+              <button key={k} role="tab" aria-selected={panel === k} disabled={off} onClick={() => setPanel(k)}
+                className={`px-4 py-1.5 rounded-full transition disabled:opacity-40 ${panel === k ? 'bg-white shadow-sm text-ink' : 'text-ink-2 hover:text-ink'}`}>{l}</button>
+            ))}
+          </div>
+          {panel === 'inspect' && r ? <Inspector item={r} steps={steps} />
+            : panel === 'inspect' ? <p className="text-sm text-mute">Premi «Controlla il budget» per vedere l’analisi di questa voce.</p>
+              : fields ? <LineEditor item={selectedInput} fields={fields} onChange={update} onDelete={remove} onDuplicate={duplicate} /> : null}
+        </div>
+      </div>
+    )
+  }
 
   const statusCount = validation ? validation.items.reduce((a, i) => ({ ...a, [i.status]: (a[i.status] || 0) + 1 }), {}) : {}
 
@@ -172,7 +231,7 @@ export default function BudgetCanvas({
             ))}
             <button className="btn !py-1 ml-auto" title="Torni a lavorare su un solo budget: quello che hai aperto resta, gli altri escono da questa barra" onClick={() => { if (window.confirm('Esci dal gruppo?' + String.fromCharCode(10, 10) + 'Non si crea un budget unico: ogni bando ha le sue regole e si presenta a parte. Resti sul budget che hai aperto; gli altri escono da questa barra e le modifiche non salvate si perdono. Li riottieni da Allocazione → «Budget dei bandi».')) onCloseBudgetSet() }}>Esci dal gruppo</button>
           </div>
-          <p className="text-[11px] text-ink-2 leading-relaxed">Un budget per ogni bando del piano: si presentano a parte, non si uniscono. {budgetSet.ok ? 'Questi budget sono stati verificati insieme: nessuna spesa coperta due volte oltre il consentito, nessuna persona oltre il 100% del tempo, nessun cumulo vietato.' : 'Tra questi budget ci sono incompatibilità: vedi l’elenco nella pagina Allocazione.'} Ogni budget è controllato con i 60 criteri del suo bando; se cambi le voci ricorda che gli altri budget dipendono da quelle spese.</p>
+          <Info label={budgetSet.ok ? 'Verificati insieme: nessun conflitto' : 'Ci sono incompatibilità'}>Un budget per ogni bando del piano: si presentano a parte, non si uniscono. {budgetSet.ok ? 'Questi budget sono stati verificati insieme: nessuna spesa coperta due volte oltre il consentito, nessuna persona oltre il 100% del tempo, nessun cumulo vietato.' : 'Tra questi budget ci sono incompatibilità: vedi l’elenco nella pagina Allocazione.'} Ogni budget è controllato con i 60 criteri del suo bando; se cambi le voci ricorda che gli altri budget dipendono da quelle spese.</Info>
         </div>
       )}
 
@@ -226,13 +285,10 @@ export default function BudgetCanvas({
 
       {bando && (
         <>
-          {/* barra strumenti */}
+          {/* strumenti: solo ciò che serve davvero */}
           <div className="flex flex-wrap items-center gap-2">
-            <button onClick={() => fileRef.current?.click()} disabled={busy} className="btn"><Upload className="w-3.5 h-3.5" />Importa Excel/CSV</button>
+            <button onClick={() => fileRef.current?.click()} disabled={busy} className="btn"><Upload className="w-3.5 h-3.5" />Importa Excel</button>
             <input ref={fileRef} type="file" accept=".xlsx,.csv" className="hidden" onChange={(e) => { if (e.target.files?.[0]) onImport(e.target.files[0]); e.target.value = '' }} />
-            <button onClick={() => { setDocsOpen(true); docsRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }) }} disabled={busy} className="btn" title="Carica il PDF di una candidatura già scritta: le voci di spesa che contiene si aggiungono qui">
-              <FileText className="w-3.5 h-3.5" />Importa da una candidatura (PDF)
-            </button>
             <div className="relative">
               <button onClick={() => setAddOpen(!addOpen)} className="btn"><Plus className="w-3.5 h-3.5" />Aggiungi voce</button>
               {addOpen && (
@@ -242,7 +298,6 @@ export default function BudgetCanvas({
                 </>
               )}
             </div>
-            <Hint id="budget_toolbar" />
             <button onClick={onValidate} disabled={loading || !items.length} className="btn-primary ml-auto flex items-center gap-1.5">
               {loading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Play className="w-3.5 h-3.5" />}{loading ? 'Controllo in corso…' : 'Controlla il budget'}
             </button>
@@ -256,7 +311,7 @@ export default function BudgetCanvas({
           )}
           {incompleteItems.length > 0 && (
             <div className="p-3 rounded-xl border border-amber-500/30 bg-amber-500/5 text-xs text-amber-800 leading-relaxed">
-              <span className="font-semibold">{incompleteItems.length} {incompleteItems.length === 1 ? 'voce di personale non è' : 'voci di personale non sono'} nel controllo</span>: mancano RAL, quota di tempo e durata ({incompleteItems.map((i) => i.description || i.item_id).join('; ')}). Aprile in «Modifica voce» e completale: il resto del budget si controlla intanto.
+              <span className="font-semibold">{incompleteItems.length} {incompleteItems.length === 1 ? 'voce di personale non è' : 'voci di personale non sono'} nel controllo</span>: mancano RAL, quota di tempo e durata ({incompleteItems.map((i) => i.description || i.item_id).join('; ')}). Aprile e completale: il resto del budget si controlla intanto.
             </div>
           )}
           {importInfo && (
@@ -280,110 +335,86 @@ export default function BudgetCanvas({
           )}
 
           {/* riepilogo */}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-            <SummaryCard label="Punteggio" hint="punteggio" value={validation ? `${validation.conformity_score}/100` : '—'} tone="text-brand-ink" note="controlli superati su quelli eseguiti" />
-            <SummaryCard label="Richiesto" hint="richiesto" value={fmtEur(validation?.total_requested_eur)} note={`${items.length} voci in ${groups.length} categorie`} />
-            <SummaryCard label="Ammesso" hint="ammesso" value={fmtEur(validation?.total_approved_eur)} tone="text-emerald-700" note={validation ? `${statusCount.APPROVED || 0} ok · ${statusCount.CAP_EXCEEDED_ADJUSTED || 0} ridotte` : 'Premi “Controlla il budget”'} />
-            <SummaryCard label="Escluso o ridotto" value={fmtEur(validation?.total_rejected_eur)} tone="text-amber-700" note={validation ? `${statusCount.REJECTED || 0} respinte · ${statusCount.MISSING_DOCUMENTS || 0} in attesa di documento` : '—'} />
+          <div className="grid grid-cols-2 xl:grid-cols-4 gap-3">
+            <SummaryCard label="Punteggio" value={validation ? `${validation.conformity_score}/100` : '—'} tone="text-brand-ink" note="controlli superati" />
+            <SummaryCard label="Richiesto" value={fmtEur(validation?.total_requested_eur)} note={`${items.length} ${items.length === 1 ? 'voce' : 'voci'}`} />
+            <SummaryCard label="Ammesso" value={fmtEur(validation?.total_approved_eur)} tone="text-emerald-700" note={validation ? `${statusCount.APPROVED || 0} ok · ${statusCount.CAP_EXCEEDED_ADJUSTED || 0} ridotte` : 'Premi «Controlla il budget»'} />
+            <SummaryCard label="Escluso o ridotto" value={fmtEur(validation?.total_rejected_eur)} tone="text-amber-700" note={validation ? `${statusCount.REJECTED || 0} respinte · ${statusCount.MISSING_DOCUMENTS || 0} in attesa` : '—'} />
+          </div>
+
+          {/* le voci: un tocco apre la scheda della voce */}
+          <div className="card p-5 space-y-5">
+            <div className="flex items-center justify-between gap-3"><span className="text-[15px] font-semibold tracking-tight">Le voci del budget</span>{validation && <span className="text-xs text-mute">tocca una voce per vedere i controlli o modificarla</span>}</div>
+            {items.length === 0 && <p className="text-sm text-mute text-center py-8">Nessuna voce. Parti dalla bozza del tuo profilo, importa un Excel o aggiungi una voce.</p>}
+            {groups.map(([cat, list]) => (
+              <div key={cat} className="space-y-1.5">
+                <div className="flex items-center justify-between text-xs text-mute font-medium px-1">
+                  <span>{CATEGORY_LABEL[cat]} · {list.length}</span>
+                  {validation && <span className="tabular-nums">{fmtEur(list.reduce((s, i) => s + (byId[i.item_id]?.computed_cost_eur || 0), 0))}</span>}
+                </div>
+                {list.map((it) => {
+                  const r = byId[it.item_id]
+                  return (
+                    <button key={it.item_id} onClick={() => openItem(it.item_id)}
+                      className="w-full text-left px-4 py-3 bg-tint hover:bg-tint-2 rounded-2xl flex items-center gap-3 transition">
+                      <div className="min-w-0 flex-1">
+                        <p className="text-sm font-medium text-ink truncate">{it.description}</p>
+                        <p className="text-[11px] text-mute font-mono truncate">{it.item_id}{r && r.criteria_failed.length ? ` · non superati: ${r.criteria_failed.map((c) => `#${c}`).join(' ')}` : ''}</p>
+                      </div>
+                      {r && <span className={`px-2 py-0.5 text-[11px] font-medium rounded-full border shrink-0 ${STATUS_STYLE[r.status]}`}>{STATUS_LABEL[r.status]}</span>}
+                      <div className="text-right shrink-0 w-24">
+                        <div className="text-sm font-medium tabular-nums text-ink">{r ? fmtEur(r.computed_cost_eur) : fmtEur(it.ral_eur ?? it.amount_eur)}</div>
+                        {r && r.original_cost_eur !== r.computed_cost_eur && <div className="text-[11px] tabular-nums text-amber-700 line-through">{fmtEur(r.original_cost_eur)}</div>}
+                      </div>
+                      <ChevronRight className="w-4 h-4 text-mute shrink-0" />
+                    </button>
+                  )
+                })}
+              </div>
+            ))}
           </div>
 
           {validation && (
-            <div className="card p-4 space-y-3">
-              <div className="flex flex-wrap items-center justify-between gap-2">
-                <span className="text-xs text-ink-2 font-medium inline-flex items-center gap-1.5">Cosa ha deciso il motore, controllo per controllo <Hint id="budget_heatmap" /></span>
-                <button onClick={onOpenLab} className="text-xs text-brand-ink hover:underline">Vedi l’animazione passo-passo →</button>
-              </div>
-              <CriteriaHeatmap items={validation.items} byKey={heat.byKey} notEval={heat.notEval} budgetChecks={validation.budget_checks || []}
-                selected={selectedId} onSelect={pick} titles={heat.titles} statusDot={ITEM_STATUS_DOT} cellSize={11} />
-              <div className="flex flex-wrap gap-3 text-[11px] text-ink-2">
-                <span><span className="inline-block w-2.5 h-2.5 rounded-sm mr-1" style={{ background: '#10b981' }} />superato</span>
-                <span><span className="inline-block w-2.5 h-2.5 rounded-sm mr-1" style={{ background: '#f59e0b' }} />ridotto</span>
-                <span><span className="inline-block w-2.5 h-2.5 rounded-sm mr-1" style={{ background: '#ef4444' }} />respinto</span>
-                <span><span className="inline-block w-2.5 h-2.5 rounded-sm mr-1" style={{ background: '#38bdf8' }} />in attesa di documento</span>
-                <span><span className="inline-block w-2.5 h-2.5 rounded-sm mr-1 border border-dashed border-line-strong" />non valutato: manca un dato o una regola del bando</span>
-                <span><span className="inline-block w-2.5 h-2.5 rounded-sm mr-1 bg-tint-2 border border-line" />non pertinente a questa voce</span>
+            <div className="space-y-3">
+              <Fold id="fold-heat" title="Controllo per controllo" summary={`${validation.items.length} ${validation.items.length === 1 ? 'voce' : 'voci'} × 60 controlli: ${heat.passed} ${heat.passed === 1 ? 'superato' : 'superati'}, ${heat.adjusted + heat.rejected} da guardare`} open={open.heat} onToggle={() => toggleFold('heat')}>
+                <div className="flex flex-wrap items-center justify-between gap-2 pt-3">
+                  <Info label="Come si legge">Ogni riga è una voce e ogni quadratino uno dei 60 controlli. Verde: superato. Ambra: ridotto. Rosso: respinto. Azzurro: in attesa di un documento. Tratteggiato: non valutato perché manca un dato o una regola del bando. Grigio chiaro: non riguarda questa voce. Tocca una riga per aprire la voce.</Info>
+                  <button onClick={onOpenLab} className="btn">Vedi l’animazione passo-passo</button>
+                </div>
+                <CriteriaHeatmap items={validation.items} byKey={heat.byKey} notEval={heat.notEval} budgetChecks={validation.budget_checks || []}
+                  selected={selectedId} onSelect={openItem} titles={heat.titles} statusDot={ITEM_STATUS_DOT} />
+              </Fold>
+
+              {validation.budget_checks?.length > 0 && (
+                <Fold id="fold-checks" title="Controlli sull’intero budget" summary={['PASS', 'FAIL', 'NOT_EVALUATED'].map((k) => { const n = validation.budget_checks.filter((c) => c.status === k).length; return `${n} ${{ PASS: n === 1 ? 'superato' : 'superati', FAIL: n === 1 ? 'non superato' : 'non superati', NOT_EVALUATED: n === 1 ? 'non valutato' : 'non valutati' }[k]}` }).join(' · ')}
+                  open={open.checks} onToggle={() => toggleFold('checks')}>
+                  <div className="space-y-2 pt-3">
+                    {validation.budget_checks.map((c) => {
+                      const tone = c.status === 'PASS' ? 'text-emerald-700' : c.status === 'FAIL' ? 'text-red-700' : 'text-mute'
+                      const word = c.status === 'PASS' ? 'ok' : c.status === 'FAIL' ? 'non superato' : 'non valutato'
+                      return <div key={c.criterion} className="text-xs flex gap-3"><span className={`shrink-0 w-28 ${tone}`}>#{c.criterion} {word}</span><span className="text-ink-2">{c.title}: {c.message}</span></div>
+                    })}
+                  </div>
+                </Fold>
+              )}
+
+              <Fold id="fold-summary" title="Riassunto" summary={validation.llm_explanation_summary} open={open.summary} onToggle={() => toggleFold('summary')}>
+                <p className="text-sm text-ink-2 leading-relaxed pt-3">{validation.llm_explanation_summary}</p>
+                <p className="text-[11px] text-mute">{validation.explanation_source === 'LLM' ? 'Scritto da un modello linguistico, cifre verificate.' : 'Scritto dal programma.'} <span className="font-code break-all">{validation.cep_id} · impronta {validation.merkle_root.slice(0, 18)}…</span></p>
+              </Fold>
+
+              <div className="card px-5 py-4 flex flex-wrap items-center gap-3">
+                <span className="text-sm font-medium">Consegna</span>
+                {delivery && <span className={`text-xs ${delivery.covered ? 'text-emerald-700' : 'text-ink-2'}`} title={delivery.reason}>{delivery.covered ? 'già inclusa' : `${delivery.cost} token`}</span>}
+                <div className="ml-auto flex flex-wrap items-center gap-2">
+                  <button onClick={() => onExport('xlsx')} className="btn"><Download className="w-3.5 h-3.5" />Excel</button>
+                  <button onClick={() => onExport('pdf')} className="btn"><Download className="w-3.5 h-3.5" />PDF</button>
+                  <button onClick={onRegister} className="btn-primary flex items-center gap-1.5"><ShieldCheck className="w-3.5 h-3.5" />Registra l’impronta</button>
+                </div>
               </div>
             </div>
           )}
 
-          <div className="grid grid-cols-1 lg:grid-cols-5 gap-6 items-start">
-            <div className="lg:col-span-3 card p-4 space-y-4">
-              <div className="flex items-center gap-2 text-xs text-ink-2"><span className="font-medium">Le voci del budget</span><Hint id="budget_lista" /></div>
-              {items.length === 0 && <p className="text-sm text-mute text-center p-8">Nessuna voce. Parti dalla bozza del tuo profilo, importa un Excel o aggiungi una voce.</p>}
-              {groups.map(([cat, list]) => (
-                <div key={cat} className="space-y-1.5">
-                  <div className="flex items-center justify-between text-xs text-mute font-medium px-1">
-                    <span>{CATEGORY_LABEL[cat]} ({list.length})</span>
-                    {validation && <span className="font-mono">{fmtEur(list.reduce((s, i) => s + (byId[i.item_id]?.computed_cost_eur || 0), 0))}</span>}
-                  </div>
-                  {list.map((it) => {
-                    const r = byId[it.item_id]
-                    return (
-                      <button key={it.item_id} onClick={() => pick(it.item_id)}
-                        className={`w-full text-left p-3 bg-field border rounded-xl flex items-center gap-3 transition hover:border-line-strong ${selectedId === it.item_id ? 'border-brand' : 'border-line'}`}>
-                        <div className="min-w-0 flex-1">
-                          <p className="text-xs font-medium text-ink truncate">{it.description}</p>
-                          <p className="text-[11px] text-mute font-mono">{it.item_id}{r && r.criteria_failed.length ? ` · non superati: ${r.criteria_failed.map((c) => `#${c}`).join(' ')}` : ''}</p>
-                        </div>
-                        {r && <span className={`px-2 py-0.5 text-[11px] font-medium rounded border shrink-0 ${STATUS_STYLE[r.status]}`}>{STATUS_LABEL[r.status]}</span>}
-                        <div className="text-right shrink-0 w-28">
-                          <div className="font-mono text-xs font-semibold text-ink">{r ? fmtEur(r.computed_cost_eur) : fmtEur(it.ral_eur ?? it.amount_eur)}</div>
-                          {r && r.original_cost_eur !== r.computed_cost_eur && <div className="font-mono text-[11px] text-amber-700 line-through">{fmtEur(r.original_cost_eur)}</div>}
-                        </div>
-                      </button>
-                    )
-                  })}
-                </div>
-              ))}
-
-              {validation && (
-                <div className="space-y-3 pt-2">
-                  <div className="p-3 bg-field border border-line rounded-xl text-xs text-ink-2 leading-relaxed">
-                    <span className="label mb-1 inline-flex items-center gap-1.5">Riassunto <Hint id="budget_sintesi" />
-                      <span className="text-mute">({validation.explanation_source === 'LLM' ? 'scritto da un modello linguistico, cifre verificate' : 'scritto dal programma'})</span></span>
-                    <p>{validation.llm_explanation_summary}</p>
-                  </div>
-                  {validation.budget_checks?.length > 0 && (
-                    <div className="p-3 bg-field border border-line rounded-xl space-y-1.5">
-                      <span className="label inline-flex items-center gap-1.5">Controlli sull’intero budget <Hint id="budget_controlli" /></span>
-                      {validation.budget_checks.map((c) => {
-                        const tone = c.status === 'PASS' ? 'text-emerald-700' : c.status === 'FAIL' ? 'text-red-700' : 'text-mute'
-                        const word = c.status === 'PASS' ? 'ok' : c.status === 'FAIL' ? 'non superato' : 'non valutato'
-                        return <div key={c.criterion} className="text-xs flex gap-2"><span className={`font-mono shrink-0 ${tone}`}>#{c.criterion} {word}</span><span className="text-ink-2">{c.title}: {c.message}</span></div>
-                      })}
-                    </div>
-                  )}
-                  <div className="flex flex-wrap items-center justify-between gap-3 pt-3 border-t border-line">
-                    <span className="font-code text-[11px] text-mute break-all">{validation.cep_id} · impronta {validation.merkle_root.slice(0, 18)}…</span>
-                    <div className="flex flex-wrap items-center gap-2">
-                      <button onClick={onOpenLab} className="btn !border-brand/40 !text-brand-ink"><Play className="w-3.5 h-3.5" />Guarda come ha lavorato</button>
-                      <button onClick={() => onExport('xlsx')} className="btn"><Download className="w-3.5 h-3.5" />Excel</button>
-                      <button onClick={() => onExport('pdf')} className="btn"><Download className="w-3.5 h-3.5" />PDF</button>
-                      <Hint id="budget_export" />
-                      <button onClick={onRegister} className="btn-primary flex items-center gap-1.5"><ShieldCheck className="w-3.5 h-3.5" />Registra l’impronta</button>
-                      <Hint id="budget_registra" />
-                    </div>
-                  </div>
-                </div>
-              )}
-            </div>
-
-            <div className="lg:col-span-2 card p-4 space-y-3 self-start lg:sticky lg:top-24 max-h-[80vh] overflow-y-auto">
-              <div className="flex items-center gap-3">
-                <div className="flex gap-4 border-b border-line flex-1">
-                  <button onClick={() => setPanel('inspect')} className={`pb-2 text-xs -mb-px border-b-2 ${panel === 'inspect' ? 'border-brand text-ink font-medium' : 'border-transparent text-ink-2'}`}>Ispettore</button>
-                  <button onClick={() => setPanel('edit')} disabled={!selectedInput} className={`pb-2 text-xs -mb-px border-b-2 disabled:opacity-40 ${panel === 'edit' ? 'border-brand text-ink font-medium' : 'border-transparent text-ink-2'}`}>Modifica voce</button>
-                </div>
-                <Hint id={panel === 'inspect' ? 'budget_ispettore' : 'budget_editor'} />
-              </div>
-              {panel === 'inspect' ? (
-                selectedResult ? <Inspector item={selectedResult} steps={steps} />
-                  : <p className="text-xs text-mute p-6 text-center">{selectedInput ? 'Premi “Controlla il budget” per vedere l’analisi di questa voce, oppure passa a “Modifica voce”.' : 'Seleziona una voce dall’elenco.'}</p>
-              ) : selectedInput && fields ? (
-                <LineEditor item={selectedInput} fields={fields} onChange={update} onDelete={remove} onDuplicate={duplicate} />
-              ) : <p className="text-xs text-mute p-6 text-center">Seleziona una voce da modificare.</p>}
-            </div>
-          </div>
           {validation && <WorkPackages bando={bando} projectId={request.project_id} validation={validation} request={request} />}
         </>
       )}

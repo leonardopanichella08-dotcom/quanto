@@ -10,6 +10,12 @@ export const scrollTop = () => {
   document.getElementById('app-scroll')?.scrollTo({ top: 0 })
 }
 
+// Riporta la pagina al punto in cui era (la pagina nascosta ha bisogno di un istante per tornare visibile).
+export const restoreScroll = (p) => {
+  const go = () => { window.scrollTo({ top: p.w }); document.getElementById('app-scroll')?.scrollTo({ top: p.a }) }
+  go(); setTimeout(go, 60); setTimeout(go, 250)
+}
+
 // Va a un punto preciso del Profilo di un lavoro: {to: 'setup'|'azienda'|'documenti'|'letto'|'aiuti', step?, field?, fin?: {year, key}, doc?: id|'review'}.
 // Funziona anche se il Profilo non è ancora stato aperto: l'indirizzo resta in attesa finché la pagina non lo prende.
 let pendingProfileTarget = null

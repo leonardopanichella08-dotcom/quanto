@@ -15,13 +15,14 @@ export function heatmapData(validation, criteriaTitles = {}) {
   const notEval = new Map(items.map((i) => [i.item_id, new Set(i.criteria_not_evaluated)]))
   const titles = { ...criteriaTitles }
   ;(validation?.budget_checks || []).forEach((c) => { titles[c.criterion] = c.title })
-  return { byKey, notEval, titles, stepsLen: steps.length }
+  const count = (o) => steps.filter((x) => x.outcome === o).length
+  return { byKey, notEval, titles, stepsLen: steps.length, passed: count('PASS'), adjusted: count('ADJUSTED'), rejected: count('REJECTED') }
 }
 
 /** Griglia dei 60 controlli, una riga per voce: verde/ambra/rosso/azzurro se il controllo è stato eseguito,
  * tratteggiato se non valutato (manca un dato o una regola del bando), grigio chiaro se non pertinente alla
  * voce. `cursor` governa fino a che passo mostrare (Infinity = tutto, a validazione conclusa). */
-export default function CriteriaHeatmap({ items, byKey, notEval, budgetChecks = [], cursor = Infinity, stepsLen = 0, selected, onSelect, titles = {}, cellSize = 13, statusDot }) {
+export default function CriteriaHeatmap({ items, byKey, notEval, budgetChecks = [], cursor = Infinity, stepsLen = 0, selected, onSelect, titles = {}, statusDot }) {
   const cols = Array.from({ length: 60 }, (_, i) => i + 1)
   const showBudget = cursor > stepsLen
   const cell = (item, n) => {
@@ -33,35 +34,35 @@ export default function CriteriaHeatmap({ items, byKey, notEval, budgetChecks = 
     if (notEval.get(item.item_id)?.has(n)) return { color: 'transparent', border: '1px dashed rgba(21,21,15,0.4)', tip: `${item.item_id} · #${n} ${titles[n] || ''}\nNON VALUTATO: manca un dato o la regola del bando` }
     return { color: 'rgba(21,21,15,0.04)', tip: `#${n}: non pertinente a questa voce` }
   }
+  const LABEL = '6.5rem'
+  const grid = { display: 'grid', gridTemplateColumns: `${LABEL} repeat(60, minmax(0, 1fr))`, columnGap: 2, alignItems: 'center' }
+  const sq = (color, border, tip, key) => <div key={key} title={tip} className="rounded-[2px] aspect-square transition-colors" style={{ background: color, border }} />
   return (
-    <div className="overflow-x-auto pb-2">
-      <div style={{ minWidth: 60 * (cellSize + 2) + 110 }} className="space-y-0.5">
-        <div className="flex" style={{ paddingLeft: 108 }}>
+    <div className="overflow-x-auto -mx-1 px-1 pb-1">
+      <div style={{ minWidth: 440 }} className="space-y-[3px]">
+        <div style={grid} className="mb-1">
+          <span />
           {CRITERIA_BLOCKS.map((b) => (
-            <div key={b.label} className="text-[9px] text-mute border-l border-line-strong pl-1 truncate" style={{ width: (b.to - b.from + 1) * (cellSize + 2) }}>{b.label}</div>
+            <div key={b.label} className="text-[10px] text-mute border-l border-line-strong pl-1.5 truncate leading-tight" style={{ gridColumn: `${b.from + 1} / span ${b.to - b.from + 1}` }} title={b.label}>{b.label}</div>
           ))}
         </div>
-        <div className="flex" style={{ paddingLeft: 108 }}>
-          {cols.map((n) => <div key={n} className="text-[7px] font-mono text-mute text-center" style={{ width: cellSize + 2 }}>{n % 5 === 0 || n === 1 ? n : ''}</div>)}
-        </div>
         {items.map((it) => (
-          <div key={it.item_id} onClick={() => onSelect?.(it.item_id)} className={`flex items-center ${onSelect ? 'cursor-pointer' : ''} rounded ${selected === it.item_id ? 'bg-brand/10 ring-1 ring-brand/50' : onSelect ? 'hover:bg-tint' : ''}`}>
-            <div className="w-[108px] shrink-0 pr-2 flex items-center gap-1.5 text-[10px] font-mono text-ink-2 truncate" title={it.description}>
+          <div key={it.item_id} style={grid} onClick={() => onSelect?.(it.item_id)} className={`rounded-md py-[1px] ${onSelect ? 'cursor-pointer' : ''} ${selected === it.item_id ? 'bg-brand/10 ring-1 ring-brand/50' : onSelect ? 'hover:bg-tint' : ''}`}>
+            <div className="pr-2 flex items-center gap-1.5 text-[11px] font-mono text-ink-2 min-w-0" title={`${it.item_id} · ${it.description || ''}`}>
               {statusDot && <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: showBudget ? (statusDot[it.status] || '#9ca3af') : 'rgba(21,21,15,0.35)' }} />}
-              {it.item_id}
+              <span className="truncate">{it.item_id}</span>
             </div>
-            {cols.map((n) => {
-              const c = cell(it, n)
-              return <div key={n} title={c.tip} className="rounded-[2px] transition-colors" style={{ width: cellSize, height: cellSize, margin: 1, background: c.color, border: c.border }} />
-            })}
+            {cols.map((n) => { const c = cell(it, n); return sq(c.color, c.border, c.tip, n) })}
           </div>
         ))}
-        <div className="flex items-center rounded bg-white/45 mt-1">
-          <div className="w-[108px] shrink-0 pr-2 text-[10px] font-mono text-fuchsia-700">BUDGET</div>
+        <div style={grid} className="pt-1 mt-1 border-t border-line">
+          <div className="text-[11px] font-mono text-fuchsia-700">Intero budget</div>
           {cols.map((n) => {
             const c = budgetChecks.find((x) => x.criterion === n)
             const color = !c ? 'rgba(21,21,15,0.04)' : !showBudget ? 'rgba(21,21,15,0.13)' : c.status === 'PASS' ? '#10b981' : c.status === 'FAIL' ? '#ef4444' : 'transparent'
-            return <div key={n} title={c ? `#${n} ${c.title}\n${c.status}\n${c.message}` : `#${n}`} style={{ width: cellSize, height: cellSize, margin: 1, background: color, border: c && c.status === 'NOT_EVALUATED' && showBudget ? '1px dashed rgba(21,21,15,0.4)' : undefined }} className="rounded-[2px]" />
+            return sq(color, c && c.status === 'NOT_EVALUATED' && showBudget ? '1px dashed rgba(21,21,15,0.4)' : undefined, c ? `#${n} ${c.title}
+${c.status}
+${c.message}` : `#${n}`, n)
           })}
         </div>
       </div>
