@@ -363,7 +363,7 @@
 .lp-video-poster { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; padding: 0; background: none; cursor: pointer; }
 .lp-video-play { position: absolute; left: 50%; top: 50%; width: 76px; height: 76px; margin: -38px 0 0 -38px; border-radius: 9999px; background: rgba(255, 255, 255, 0.96); color: #1a1a17; display: flex; align-items: center; justify-content: center; box-shadow: 0 12px 40px rgba(0, 0, 0, 0.35); transition: transform 0.2s; }
 .lp-video-poster:hover .lp-video-play { transform: scale(1.06); }
-.lp-video-cap { position: absolute; left: 20px; bottom: 16px; padding: 6px 14px; border-radius: 9999px; background: rgba(255, 255, 255, 0.92); color: #1a1a17; font-size: 13px; font-weight: 500; }
+.lp-video-cap { pointer-events: none; position: absolute; left: 20px; bottom: 16px; padding: 6px 14px; border-radius: 9999px; background: rgba(255, 255, 255, 0.92); color: #1a1a17; font-size: 13px; font-weight: 500; }
 /* la sezione del video è più compatta delle altre */
 .qt-land #video.sect { padding: 56px 0 64px; }
 .qt-land #video .sect-head { margin-bottom: 26px; }

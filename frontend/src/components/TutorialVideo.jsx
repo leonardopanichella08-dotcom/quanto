@@ -58,20 +58,40 @@ export default function TutorialVideo({ id, variant = 'card' }) {
   )
 }
 
-/** Il video di presentazione, per la pagina iniziale: grande, con locandina e avvio al clic (ha la musica, non parte da solo). */
+/** Il video di presentazione, per la pagina iniziale: parte da solo (senza audio, come impongono i browser) quando ci si passa sopra e si ferma quando si scorre oltre.
+ *  Con i controlli del lettore si attiva l'audio (ha la musica), si mette in pausa o si porta avanti. Chi preferisce meno movimento deve premere play. */
 export function LaunchVideo() {
-  const [play, setPlay] = useState(false)
+  const ref = React.useRef(null)
+  const wrap = React.useRef(null)
+  const [started, setStarted] = useState(false)
+  useEffect(() => {
+    const v = ref.current
+    const box = wrap.current
+    if (!v || !box) return undefined
+    const calm = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches
+    let userPaused = false           // chi mette in pausa da sé non viene disturbato dallo scorrimento
+    let byScroll = false
+    const play = () => { if (!calm && !userPaused) v.play().then(() => setStarted(true)).catch(() => {}) }
+    const stop = () => { if (!v.paused) { byScroll = true; v.pause() } }
+    v.addEventListener('pause', () => { if (!byScroll) userPaused = true; byScroll = false })
+    v.addEventListener('play', () => { userPaused = false })
+    // visibile per metà o più → parte; altrimenti si ferma (si controlla a ogni scorrimento)
+    const check = () => {
+      const r = box.getBoundingClientRect()
+      const seen = Math.min(r.bottom, window.innerHeight) - Math.max(r.top, 0)
+      if (r.height > 0 && seen / r.height >= 0.5) play(); else stop()
+    }
+    window.addEventListener('scroll', check, { passive: true })
+    window.addEventListener('resize', check)
+    const onEnter = () => play()
+    box.addEventListener('pointerenter', onEnter)
+    check()
+    return () => { window.removeEventListener('scroll', check); window.removeEventListener('resize', check); box.removeEventListener('pointerenter', onEnter); v.pause() }
+  }, [])
   return (
-    <div className="lp-video">
-      {play
-        ? <video src={LAUNCH.src} poster={LAUNCH.poster} controls autoPlay playsInline preload="auto" aria-label={LAUNCH.title} />
-        : (
-          <button type="button" onClick={() => setPlay(true)} className="lp-video-poster" aria-label={`Guarda il video: ${LAUNCH.title}`}>
-            <img src={LAUNCH.poster} alt="" loading="lazy" />
-            <span className="lp-video-play"><Play size={26} /></span>
-            <span className="lp-video-cap">Guarda · {LAUNCH.seconds} s</span>
-          </button>
-        )}
+    <div className="lp-video" ref={wrap}>
+      <video ref={ref} src={LAUNCH.src} poster={LAUNCH.poster} muted loop={false} controls playsInline preload="metadata" aria-label={LAUNCH.title} />
+      {!started && <span className="lp-video-cap">Scorri qui per guardarlo · {LAUNCH.seconds} s</span>}
     </div>
   )
 }
