@@ -21,14 +21,14 @@ def not_enough(exc: tokens.NotEnoughTokens) -> HTTPException:
     """Risposta 402: dice quanti token servono, quanti ce ne sono e che si può ricaricare."""
     return HTTPException(status_code=status.HTTP_402_PAYMENT_REQUIRED, detail={
         "code": "TOKENS_NEEDED", "needed": exc.needed, "balance": exc.balance,
-        "message": f"Servono {exc.needed} token e ne hai {exc.balance}. Il lavoro quotidiano (profilo, documenti, allocazione, controllo del budget) resta libero: puoi ricaricare per consegnare o studiare bandi nuovi."})
+        "message": f"Servono {str(exc.needed).replace('.', ',')} token e ne hai {str(exc.balance).replace('.', ',')}. Il lavoro quotidiano (profilo, documenti, bandi adatti, controllo del budget) resta libero: puoi ricaricare per calcolare il piano, consegnare un budget o studiare bandi nuovi."})
 
 
-def charge_delivery(request: Request, project_id: str, bando_id: Optional[str]) -> dict:  # restituisce l'addebito (da annullare con undo_delivery se la consegna fallisce)
-    """Consegna di un budget (esportazione o registrazione): 1 token, valido 30 giorni per lo stesso budget."""
+def charge_delivery(request: Request, project_id: str, bando_id: Optional[str], items: Optional[int] = None) -> dict:  # restituisce l'addebito (da annullare con undo_delivery se la consegna fallisce)
+    """Consegna di un budget (esportazione o registrazione): da 1 a 2 token secondo le voci, valida 30 giorni per lo stesso budget."""
     u = user_of(request)
     try:
-        return tokens.charge_delivery(u, tokens.delivery_key(client_of(request), project_id, bando_id or ""))
+        return tokens.charge_delivery(u, tokens.delivery_key(client_of(request), project_id, bando_id or ""), items)
     except tokens.NotEnoughTokens as exc:
         raise not_enough(exc) from exc
 
@@ -43,13 +43,13 @@ def overview(request: Request) -> dict:
 
 
 @router.get("/quote", summary="Quanto costa un'operazione, prima di farla (deliver con project_id e bando_id; study con bando_id)")
-def quote(request: Request, op: str, project_id: Optional[str] = None, bando_id: Optional[str] = None) -> dict:
+def quote(request: Request, op: str, project_id: Optional[str] = None, bando_id: Optional[str] = None, items: Optional[int] = None) -> dict:
     u = _me(request)
     if op == "deliver":
         if not project_id:
             raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="Indica project_id")
-        st = tokens.delivery_status(u, tokens.delivery_key(client_of(request), project_id, bando_id or ""))
-        return {"op": op, "cost": st["cost"], "covered": st["covered"], "reason": st["reason"]}
+        st = tokens.delivery_status(u, tokens.delivery_key(client_of(request), project_id, bando_id or ""), items)
+        return {"op": op, "cost": st["cost"], "total": st["total"], "paid": st["paid"], "covered": st["covered"], "reason": st["reason"]}
     if op == "study":
         if not bando_id:
             raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="Indica bando_id")
@@ -60,7 +60,8 @@ def quote(request: Request, op: str, project_id: Optional[str] = None, bando_id:
 
 
 class TopUp(BaseModel):
-    pack: str = Field(..., max_length=4)
+    pack: str = Field(default="S", max_length=4)
+    quantity: int = Field(default=1, ge=1, le=20, description="Quanti pacchetti")
     note: str = Field(default="", max_length=300)
 
 
@@ -70,6 +71,7 @@ def topup_request(body: TopUp, request: Request) -> dict:
     pack = next((p for p in tokens.PACKS if p["id"] == body.pack.upper()), None)
     if pack is None:
         raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="Pacchetto sconosciuto")
-    events.record("tokens.topup_request", f"{u['email']} chiede il pacchetto {pack['id']}: {pack['tokens']} token, {pack['price_eur']:.2f} €" + (f" — {body.note}" if body.note else ""),
-                  actor=f"user:{u['email']}", details={"pack": pack["id"], "tokens": pack["tokens"], "price_eur": pack["price_eur"], "user_id": u["id"]})
+    pack = {**pack, "tokens": pack["tokens"] * body.quantity, "price_eur": round(pack["price_eur"] * body.quantity, 2), "quantity": body.quantity}
+    events.record("tokens.topup_request", f"{u['email']} chiede {body.quantity} pacchett{'o' if body.quantity == 1 else 'i'}: {pack['tokens']} token, {pack['price_eur']:.2f} €" + (f" — {body.note}" if body.note else ""),
+                  actor=f"user:{u['email']}", details={"pack": pack["id"], "quantity": body.quantity, "tokens": pack["tokens"], "price_eur": pack["price_eur"], "user_id": u["id"]})
     return {"requested": pack, "message": "Richiesta registrata. Il pagamento online non è ancora attivo: il titolare la elabora e ti accredita i token."}

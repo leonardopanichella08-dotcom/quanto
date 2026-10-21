@@ -516,6 +516,11 @@ ALTER TABLE budget_templates ADD COLUMN example_key TEXT;
 CREATE UNIQUE INDEX idx_templates_example_key ON budget_templates (example_key);
 """
 
+_TOKENS_DECIMAL = """
+-- I token possono avere un decimale (l'allocazione costa da 2 a 4,8; la pubblicazione di un budget regala 0,5).
+ALTER TABLE token_ledger ALTER COLUMN amount TYPE NUMERIC(10, 1);
+"""
+
 MIGRATIONS: List[Tuple[int, str, str]] = [
     (1, "init", _INIT),
     (2, "fonte_b", _FONTE_B),
@@ -536,4 +541,5 @@ MIGRATIONS: List[Tuple[int, str, str]] = [
     (17, "funds_expense_types", _FUNDS_TYPES),
     (18, "tokens", _TOKENS),
     (19, "template_examples", _TEMPLATE_EXAMPLES),
+    (20, "tokens_decimal", _TOKENS_DECIMAL),
 ]

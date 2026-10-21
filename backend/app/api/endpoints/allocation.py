@@ -5,8 +5,10 @@ from typing import List, Optional
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request, status
 from pydantic import BaseModel, Field
 
-from app.api.deps import actor_of, scope_of, require_hq
-from app.core import allocation_budgets, allocation_reality, budget_basis, company_profile, events, funds, llm, webhooks
+from app.api.deps import actor_of, client_of, scope_of, require_hq, user_of
+from app.api.endpoints.tokens import not_enough
+from app.core import allocation_budgets, allocation_reality, budget_basis, company_profile, events, funds, llm, tokens, webhooks
+from app.core.db import connect
 from app.core.renderer import render_with_grounding
 from app.core.fonte_c import service as fonte_c
 from app.core.allocation_engine import AllocationOptimizerEngine
@@ -14,6 +16,33 @@ from app.models.allocation import AllocationOptimizationRequest, AllocationRespo
 
 router = APIRouter()
 logger = logging.getLogger("quanto.allocation")
+
+
+def _charge_allocation(http: Request, request: AllocationOptimizationRequest) -> dict:
+    """Il piano costa da 2 a 4,8 token secondo quanti dati analizza (righe del bilancio, bandi nel piano). Vale 30 giorni per lo stesso lavoro e anno;
+    prima di spendere si chiede conferma (409 con il costo): il piano si ricalcola a ogni scelta, non si addebita di nascosto."""
+    user = user_of(http)
+    if tokens.exempt(user):
+        return {"charged": 0, "ids": []}
+    fund_ids = [f.fund_id for f in request.available_funding_lines]
+    bando_ids: list = []
+    if fund_ids:
+        with connect() as conn:
+            rows = conn.execute(f"SELECT bando_id FROM funding_lines WHERE fund_id IN ({','.join('?' for _ in fund_ids)})", tuple(fund_ids)).fetchall()
+        bando_ids = [r["bando_id"] for r in rows if r["bando_id"]]
+    est = tokens.allocation_cost(len(request.historical_expenses), tokens.bandi_size(bando_ids))
+    key = tokens.allocation_key(client_of(http), request.fiscal_year)
+    st = tokens.metered_status(user, "allocate", key, est["cost"])
+    if st["covered"]:
+        return {"charged": 0, "ids": []}
+    if not request.confirm_tokens:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail={
+            "code": "TOKENS_CONFIRM", "cost": est["cost"], "due": st["due"], "paid": st["paid"], "reason": st["reason"], "breakdown": est,
+            "message": f"Calcolare il piano costa {str(st['due']).replace('.', ',')} token. Vale 30 giorni per questo lavoro e questo anno: ricalcolare con altre scelte non costa di più."})
+    try:
+        return tokens.charge_metered(user, "allocate", key, est["cost"], f"Piano di allocazione {request.fiscal_year}: {len(request.historical_expenses)} righe, {len(bando_ids)} bandi")
+    except tokens.NotEnoughTokens as exc:
+        raise not_enough(exc) from exc
 
 
 @router.post("/optimize", response_model=AllocationResponse,
@@ -53,10 +82,12 @@ def optimize_allocation_plan(request: AllocationOptimizationRequest, background:
             raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Nessuna linea di finanziamento attiva: creala dai bandi (Quartier Generale → Fondi) prima di pianificare")
     if request.de_minimis_residual_eur is None and any(f.de_minimis for f in request.available_funding_lines):
         raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="de_minimis_residual_eur è obbligatorio se almeno un fondo è in regime de minimis")
+    paid = _charge_allocation(http, request)
     try:
         result = AllocationOptimizerEngine.optimize_annual_allocation(request)
     except RuntimeError as exc:
         logger.exception("Risolutore fallito")
+        tokens.undo_metered(user_of(http), paid)                                     # nessun piano: i token tornano
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Il risolutore non ha prodotto una soluzione") from exc
     ctx = {"fiscal_year": result.fiscal_year, "total_cost_eur": result.total_gross_expense_eur, "covered_by_funds_eur": result.covered_by_public_funds_eur,
            "net_cost_to_entity_eur": result.net_cost_to_entity_eur, "coverage_percentage": result.overall_coverage_percentage,

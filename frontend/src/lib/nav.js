@@ -22,6 +22,11 @@ let pendingProfileTarget = null
 export const profileGo = (target) => { pendingProfileTarget = target; window.dispatchEvent(new CustomEvent('quanto-profile-goto')) }
 export const takeProfileTarget = () => { const t = pendingProfileTarget; pendingProfileTarget = null; return t }
 
+// Dal Budget al Confronto con «pubblica questo budget»: la richiesta resta in attesa finché il Confronto non la prende (anche se non è ancora stato aperto).
+let pendingPublish = false
+export const publishGo = () => { pendingPublish = true; window.dispatchEvent(new CustomEvent('quanto-publish-goto')) }
+export const takePublishRequest = () => { const t = pendingPublish; pendingPublish = false; return t }
+
 // Porta lo schermo su un elemento e lo evidenzia un istante, così si capisce dove si è arrivati.
 export const flashTo = (id, tries = 12) => {
   const el = document.getElementById(id)

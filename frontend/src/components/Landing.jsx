@@ -493,16 +493,16 @@ export default function Landing({ onLogin, onAuditor, onVision }) {
 
       <section className="sect tint" id="prezzi"><div className="wrap">
         <div className="sect-head center reveal"><span className="kicker">Prezzi</span><h2>Gratuito oggi. Onesto sempre.</h2>
-          <p>Lavorare con QUANTO non costa nulla. Si spendono token solo per consegnare un budget e per studiare un bando nuovo. In questa fase la prova è gratuita e non serve la carta.</p></div>
+          <p>Lavorare con QUANTO è libero. Si spendono token solo dove serve un calcolo grande o un consegnabile: il piano di allocazione, la consegna di un budget, lo studio di un bando nuovo. Pubblicare un budget per tutti ti regala token. In questa fase la prova è gratuita e non serve la carta.</p></div>
         <div className="pricing">
           <div className="price-card reveal-card hot">
-            <div className="tier">Piano Studio · prova</div><div className="amount">15 token al mese</div>
-            <ul><li>Lavoro quotidiano sempre libero: profilo, documenti, stima, allocazione, controllo del budget</li><li>1 token per consegnare un budget (30 giorni per lo stesso)</li><li>3 token per un bando nuovo, 1 torna se la lettura è completa</li><li>10 token di benvenuto che non scadono</li></ul>
+            <div className="tier">Piano Studio · 209 € al mese o 1.999 € all’anno</div><div className="amount">15 token al mese</div>
+            <ul><li>Lavoro quotidiano sempre libero: profilo, documenti, stima, allocazione, controllo del budget</li><li>Piano di allocazione: da 2 a 4,8 token secondo quanti dati analizza (30 giorni per lo stesso lavoro)</li><li>Consegnare un budget: da 1 a 2 token (30 giorni per lo stesso)</li><li>3 token per un bando nuovo, 1 torna se la lettura è completa</li><li>+0,5 token per ogni budget pubblicato per tutti</li><li>10 token di benvenuto che non scadono</li></ul>
             <button className="btn-solid big" onClick={() => setModal('register')}>Inizia gratis</button>
           </div>
           <div className="price-card reveal-card dim">
-            <div className="tier">Ricariche</div><div className="amount">da 6,80 € a token</div>
-            <ul><li>10 token a 80 €, 30 a 216 €, 100 a 680 €</li><li>Pagamento online in arrivo: oggi le ricariche le elabora il titolare</li></ul>
+            <div className="tier">Ricariche</div><div className="amount">25 € ogni 10 token</div>
+            <ul><li>Quando i token del mese finiscono: 10 token in più a 25 €</li><li>Pagamento online in arrivo: oggi le ricariche le elabora il titolare</li></ul>
           </div>
         </div>
       </div></section>

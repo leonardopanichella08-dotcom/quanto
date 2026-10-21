@@ -4,6 +4,8 @@ import TutorialVideo from './TutorialVideo'
 import { AlertTriangle, CheckCircle2, Loader2, Trash2 } from 'lucide-react'
 import { api } from '../lib/api'
 import { fmtEur, fmtNum } from '../lib/format'
+import { fmtTok } from './Tokens'
+import { flashTo, takePublishRequest } from '../lib/nav'
 import Guide from './Guide'
 
 const COLORS = ['#38bdf8', '#34d399', '#a78bfa', '#f472b6', '#fbbf24', '#fb7185', '#94a3b8', '#d4d4d8']
@@ -32,6 +34,8 @@ function sharesOfValidation(validation) {
   return sum ? { shares: Object.fromEntries(Object.entries(tot).map(([k, v]) => [k, Math.round((v / sum) * 1000) / 10])), total: Math.round(sum) } : null
 }
 
+const bonus = 0.5
+
 export default function Confronto({ validation, client }) {
   const [meta, setMeta] = useState(null)
   const [bandi, setBandi] = useState([])
@@ -50,12 +54,25 @@ export default function Confronto({ validation, client }) {
   const [region, setRegion] = useState('')
   const [rec, setRec] = useState(null)
   const [recError, setRecError] = useState(null)
-  const [form, setForm] = useState({ shares: {}, total: '', outcome: 'BOZZA', score: '', note: '' })
+  const [form, setForm] = useState({ shares: {}, total: '', outcome: 'BOZZA', score: '', note: '', shared: true })
   const [saving, setSaving] = useState(false)
   const [msg, setMsg] = useState(null)
   const [error, setError] = useState(null)
   const seq = useRef(0)
   const fromBudget = useMemo(() => sharesOfValidation(validation), [validation])
+
+  // «Pubblica questo budget» dal Budget: le quote del budget controllato si compilano da sole e si arriva al riquadro in alto
+  useEffect(() => {
+    if (!restored) return undefined
+    const go = () => {
+      if (!takePublishRequest()) return
+      if (fromBudget) setForm((f) => ({ ...f, shares: fromBudget.shares, total: String(fromBudget.total), shared: true }))
+      flashTo('pubblica')
+    }
+    go()
+    window.addEventListener('quanto-publish-goto', go)
+    return () => window.removeEventListener('quanto-publish-goto', go)
+  }, [restored, fromBudget])
 
   const refresh = useCallback(async () => {
     const [m, n, l] = await Promise.all([api.templatesMine(), api.templateNiches(engine), api.templateLearning(engine)])
@@ -122,12 +139,23 @@ export default function Confronto({ validation, client }) {
   const save = async () => {
     setSaving(true); setError(null); setMsg(null)
     try {
-      const body = { ateco_code: ateco, bando_id: bandoId, shares: draftPct, outcome: form.outcome, note: form.note,
+      const shared = form.shared !== false
+      const body = { ateco_code: ateco, bando_id: bandoId, shares: draftPct, outcome: form.outcome, note: form.note, shared,
         ...(form.total ? { total_eur: Number(form.total) } : {}), ...(form.score !== '' ? { score: Number(form.score) } : {}), ...(size ? { company_size: size } : {}), ...(region ? { region } : {}) }
       const t = await api.createTemplate(body)
-      setMsg(`Template salvato (${t.niche}) e aggiunto al motore collettivo in forma anonima. Il consiglio si è aggiornato${t.distance != null ? `: questo budget distava il ${fmtNum(t.distance * 100, 1)}% dal consiglio di prima` : ''}.`)
+      const gain = t.bonus?.granted ? ` Hai ricevuto +${fmtTok(t.bonus.granted)} token.` : (shared && t.bonus?.reason ? ` ${t.bonus.reason}` : '')
+      setMsg(`${shared ? `Pubblicato (${t.niche}): ora allena il motore collettivo, in forma anonima.` : `Salvato nello studio (${t.niche}): allena solo il tuo motore interno.`}${gain}${t.distance != null ? ` Questo budget distava il ${fmtNum(t.distance * 100, 1)}% dal consiglio di prima.` : ''}`)
+      window.dispatchEvent(new Event('quanto-tokens-changed'))
       await refresh(); await ask()
     } catch (e) { setError(e.message) } finally { setSaving(false) }
+  }
+  const togglePublish = async (t) => {
+    try {
+      const r = await api.patchTemplate(t.id, { shared: !t.shared })
+      setMsg(!t.shared ? (r.bonus?.granted ? `Pubblicato per tutti. Hai ricevuto +${fmtTok(r.bonus.granted)} token.` : `Pubblicato per tutti.${r.bonus?.reason ? ` ${r.bonus.reason}` : ''}`) : 'Ora resta solo nello studio.')
+      window.dispatchEvent(new Event('quanto-tokens-changed'))
+      await refresh(); await ask()
+    } catch (e) { setError(e.message) }
   }
   const setOutcome = async (t, outcome) => { try { await api.patchTemplate(t.id, { outcome }); await refresh(); await ask() } catch (e) { setError(e.message) } }
   const remove = async (t) => { if (!window.confirm('Eliminare questo template?')) return; try { await api.deleteTemplate(t.id); await refresh(); await ask() } catch (e) { setError(e.message) } }
@@ -144,13 +172,93 @@ export default function Confronto({ validation, client }) {
   return (
     <div className="space-y-6">
       <Guide page="pattern" />
-      <TutorialVideo id="T15" />
       {error && <div className="p-3 rounded-xl border border-red-500/30 text-red-700 text-xs">{error}</div>}
+
+      <section id="pubblica" className="rounded-3xl border border-emerald-500/40 bg-emerald-500/[0.04] ring-1 ring-emerald-500/20 p-6 space-y-5 scroll-mt-20">
+        <div className="flex flex-wrap items-start gap-3">
+          <div className="min-w-0 flex-1">
+            <h3 className="text-lg font-semibold tracking-tight">Pubblica il tuo budget</h3>
+            <p className="text-sm text-ink-2 mt-1 max-w-xl">Ogni budget pubblicato allena il motore di QUANTO: il consiglio diventa più preciso per tutti, anche per il tuo studio.</p>
+          </div>
+          <span className="px-3 py-1 rounded-full bg-emerald-600 text-white text-xs font-semibold whitespace-nowrap">+{fmtTok(bonus)} token</span>
+        </div>
+        <div className="grid sm:grid-cols-2 gap-3" role="radiogroup" aria-label="Chi vede questo budget">
+          {[[true, 'Per tutti', 'Anonimo: niente ragione sociale né partita IVA. Allena il motore collettivo e ti regala ' + fmtTok(bonus) + ' token.', 'consigliato'],
+            [false, 'Solo nel mio studio', 'Resta tuo. Allena solo il motore interno dello studio. Nessun premio.', null]].map(([val, title, text, tag]) => (
+            <button key={String(val)} type="button" role="radio" aria-checked={(form.shared !== false) === val} onClick={() => setForm({ ...form, shared: val })}
+              className={`text-left rounded-2xl p-4 transition space-y-1 ${(form.shared !== false) === val ? 'bg-white border-2 border-ink shadow-sm' : 'bg-white/50 border border-line hover:border-line-strong'}`}>
+              <span className="flex items-center gap-2 text-sm font-semibold text-ink"><span className={`w-4 h-4 rounded-full border-2 inline-flex items-center justify-center ${(form.shared !== false) === val ? 'border-ink' : 'border-line-strong'}`}>{(form.shared !== false) === val && <span className="w-2 h-2 rounded-full bg-ink" />}</span>{title}
+                {tag && <span className="ml-auto text-[11px] font-medium text-emerald-700">{tag}</span>}</span>
+              <span className="block text-xs text-ink-2 leading-relaxed pl-6">{text}</span>
+            </button>
+          ))}
+        </div>
+        <Info label="Perché pubblicare e cosa si condivide">
+          <p>Il motore collettivo è ciò che rende QUANTO più utile di un foglio di calcolo: impara da tanti budget e dice come li hanno composti le aziende simili. Più studi pubblicano, più il consiglio è preciso, anche per i tuoi clienti.</p>
+          <p><strong className="text-ink">Si condivide solo</strong>: nicchia (codice ATECO), bando, Regione, dimensione, ripartizione in percentuali ed esito. Mai ragione sociale, partita IVA, importi di una persona né la nota. Dei budget degli altri studi si usano solo gruppi di almeno 3.</p>
+          <p><strong className="text-ink">Il premio</strong> è di {fmtTok(bonus)} token, una volta per cliente e bando e al massimo 10 al mese. Per averlo il budget deve essere di un lavoro (un cliente). Se scegli «Solo nel mio studio» alimenta soltanto il motore interno; puoi pubblicarlo dopo dall’elenco in fondo e il premio arriva allora.</p>
+        </Info>
+        <div className="rounded-2xl bg-white/70 p-4 space-y-3">
+          <div className="grid sm:grid-cols-4 gap-3">
+            <label className="space-y-1"><span className="label">Codice ATECO del lavoro</span><input className="field" value={ateco} onChange={(e) => setAteco(e.target.value)} placeholder="es. 01.11 o 62.01" /></label>
+            <label className="space-y-1 sm:col-span-2"><span className="label">Bando scelto (solo quelli affini a questa azienda)</span>
+              <select className="field" value={bandoId} onChange={(e) => setBandoId(e.target.value)}>
+                <option value="">— scegli il bando —</option>
+                {bandoId && !bandoOptions.some((o) => o.bando_id === bandoId) && <option value={bandoId}>{bandoName(bandoId)}</option>}
+                {bandoOptions.map((o) => <option key={o.bando_id} value={o.bando_id}>{o.name}{o.tag ? ` — ${o.tag}` : ''}</option>)}
+              </select></label>
+            <label className="space-y-1"><span className="label">Dimensione</span>
+              <select className="field" value={size} onChange={(e) => setSize(e.target.value)}><option value="">—</option><option value="MICRO">Microimpresa</option><option value="SMALL">Piccola</option><option value="MEDIUM">Media</option><option value="LARGE">Grande</option></select></label>
+          </div>
+          {affini?.note && <p className="text-[11px] text-amber-700">{affini.note}</p>}
+          <div className="space-y-1.5">
+            <label className="space-y-1 block"><span className="label">Il cliente ha partecipato a un altro bando? Cercalo per nome</span>
+              <input className="field" value={searchQ} onChange={(e) => setSearchQ(e.target.value)} placeholder="es. Resto al Sud, Voucher digitalizzazione, Transizione 5.0…" /></label>
+            {searchRes.length > 0 && (
+              <ul className="rounded-xl border border-line bg-field divide-y divide-line text-xs">
+                {searchRes.map((m) => (
+                  <li key={m.bando_id}><button className="w-full text-left px-3 py-2 hover:bg-white/60 flex flex-wrap items-center gap-2" onClick={() => { setExtra((e) => (e.some((x) => x.bando_id === m.bando_id) ? e : [...e, { bando_id: m.bando_id, name: m.name, tag: 'scelto a mano' }])); setBandoId(m.bando_id); setSearchQ(''); setSearchRes([]) }}>
+                    <span className="text-ink-2 min-w-0 flex-1 break-words">{m.name}</span><span className="text-[10px] text-mute">{m.issuer || ''}</span></button></li>
+                ))}
+              </ul>
+            )}
+          </div>
+        </div>
+        <div className="space-y-4">
+        <div className="flex flex-wrap gap-2">
+          {fromBudget && <button className="btn" onClick={() => setForm((f) => ({ ...f, shares: fromBudget.shares, total: String(fromBudget.total) }))}>Parti dal budget che hai controllato</button>}
+          {rec?.status === 'OK' && <button className="btn" onClick={() => setForm((f) => ({ ...f, shares: Object.fromEntries(Object.entries(rec.recommended).map(([k, v]) => [k, Math.round(v * 1000) / 10])) }))}>Parti dal consiglio</button>}
+          {sum > 0 && Math.abs(sum - 1) > 0.0005 && <button className="btn" onClick={() => setForm((f) => ({ ...f, shares: Object.fromEntries(Object.entries(draftPct).map(([k, v]) => [k, Math.round((v / sum) * 1000) / 10])) }))}>Porta a 100%</button>}
+        </div>
+        <div className="grid sm:grid-cols-4 gap-3">
+          {shareMeta.map((m) => <label key={m.key} className="space-y-1"><span className="label">{m.label} %</span><input type="number" step="0.1" min="0" className="field" value={form.shares[m.key] ?? ''} onChange={(e) => setShare(m.key, e.target.value)} /></label>)}
+        </div>
+        {sum > 0 && <div className="space-y-1.5"><ShareBar shares={draftPct} meta={shareMeta} /><p className={`text-[11px] ${Math.abs(sum - 1) <= 0.0205 ? 'text-ink-2' : 'text-amber-700'}`}>Totale {pct(sum)}{Math.abs(sum - 1) > 0.0205 ? ' — deve fare 100%' : ''}</p></div>}
+        {rec?.status === 'OK' && sum > 0 && Math.abs(sum - 1) <= 0.0205 && (
+          <button className="text-xs underline text-ink-2 text-left" onClick={() => ask(draftPct)}>Confronta con il consiglio</button>
+        )}
+        {rec?.comparison && <p className="text-xs text-ink-2 leading-relaxed p-3 rounded-xl bg-field border border-line">{rec.comparison.message}</p>}
+        <div className="grid sm:grid-cols-4 gap-3">
+          <label className="space-y-1"><span className="label">Esito</span><select className="field" value={form.outcome} onChange={(e) => setForm({ ...form, outcome: e.target.value })}>{meta.outcomes.map((o) => <option key={o.key} value={o.key}>{o.label}</option>)}</select></label>
+          <label className="space-y-1"><span className="label">Importo del budget (€)</span><input type="number" className="field" value={form.total} onChange={(e) => setForm({ ...form, total: e.target.value })} /></label>
+          <label className="space-y-1"><span className="label">Punteggio (facoltativo)</span><input type="number" className="field" value={form.score} onChange={(e) => setForm({ ...form, score: e.target.value })} /></label>
+          <label className="space-y-1"><span className="label">Regione</span><input className="field" value={region} onChange={(e) => setRegion(e.target.value)} /></label>
+        </div>
+        <label className="space-y-1 block"><span className="label">Nota (facoltativa)</span><input className="field" maxLength={500} value={form.note} onChange={(e) => setForm({ ...form, note: e.target.value })} placeholder="Per esempio: progetto di meccanizzazione, cofinanziamento 40%" /></label>
+        </div>
+        <div className="flex flex-wrap items-center gap-3">
+          <button className="btn-primary" disabled={saving || !ateco || !bandoId || Math.abs(sum - 1) > 0.0205} onClick={save}>{saving && <Loader2 className="w-3.5 h-3.5 animate-spin" />}{form.shared !== false ? `Pubblica per tutti · +${fmtTok(bonus)} token` : 'Salva solo nello studio'}</button>
+          {(!ateco || !bandoId) && <span className="text-xs text-mute">Indica il codice ATECO e il bando.</span>}
+        </div>
+        {msg && <p className="text-xs text-emerald-700 leading-relaxed">{msg}</p>}
+      </section>
+
+      <TutorialVideo id="T15" />
 
       <div className="card p-5 space-y-3">
         <div className="flex flex-wrap items-center gap-3">
           <div className="min-w-0 flex-1"><span className="label">Con quale motore ti confronti</span>
-            <Info label="Come funziona">Ogni template che salvi entra sempre, in forma anonima, nel motore collettivo. Il motore interno invece lavora solo sui template del tuo studio.</Info></div>
+            <Info label="Come funziona">Il collettivo lavora sui budget pubblicati per tutti, in forma anonima. L’interno lavora solo sui template del tuo studio, anche quelli non pubblicati.</Info></div>
           <div className="inline-flex rounded-xl border border-line overflow-hidden" role="group" aria-label="Motore di confronto">
             {[['COLLETTIVO', 'Collettivo'], ['INTERNO', 'Interno dello studio']].map(([k, l]) => (
               <button key={k} aria-pressed={engine === k} onClick={() => setEngine(k)} className={`px-3.5 py-2 text-xs font-medium transition ${engine === k ? 'bg-liquid text-ink' : 'text-ink-2 hover:bg-field'}`}>{l}</button>
@@ -176,31 +284,8 @@ export default function Confronto({ validation, client }) {
 
       <div id="consiglio" className="card p-6 space-y-4 scroll-mt-20">
         <div><h3 className="font-semibold text-base">Il budget consigliato</h3>
-          <Info label="Come funziona">Scegli la nicchia (codice ATECO) e il bando: ti mostro come hanno ripartito il budget le aziende simili che hanno scelto quel bando, contando di più quelle ammesse.</Info></div>
-        <div className="grid sm:grid-cols-4 gap-3">
-          <label className="space-y-1"><span className="label">Codice ATECO del lavoro</span><input className="field" value={ateco} onChange={(e) => setAteco(e.target.value)} placeholder="es. 01.11 o 62.01" /></label>
-          <label className="space-y-1 sm:col-span-2"><span className="label">Bando scelto (solo quelli affini a questa azienda)</span>
-            <select className="field" value={bandoId} onChange={(e) => setBandoId(e.target.value)}>
-              <option value="">— scegli il bando —</option>
-              {bandoId && !bandoOptions.some((o) => o.bando_id === bandoId) && <option value={bandoId}>{bandoName(bandoId)}</option>}
-              {bandoOptions.map((o) => <option key={o.bando_id} value={o.bando_id}>{o.name}{o.tag ? ` — ${o.tag}` : ''}</option>)}
-            </select></label>
-          <label className="space-y-1"><span className="label">Dimensione</span>
-            <select className="field" value={size} onChange={(e) => setSize(e.target.value)}><option value="">—</option><option value="MICRO">Microimpresa</option><option value="SMALL">Piccola</option><option value="MEDIUM">Media</option><option value="LARGE">Grande</option></select></label>
-        </div>
-        {affini?.note && <p className="text-[11px] text-amber-700">{affini.note}</p>}
-        <div className="space-y-1.5">
-          <label className="space-y-1 block"><span className="label">Il cliente ha partecipato a un altro bando? Cercalo per nome</span>
-            <input className="field" value={searchQ} onChange={(e) => setSearchQ(e.target.value)} placeholder="es. Resto al Sud, Voucher digitalizzazione, Transizione 5.0…" /></label>
-          {searchRes.length > 0 && (
-            <ul className="rounded-xl border border-line bg-field divide-y divide-line text-xs">
-              {searchRes.map((m) => (
-                <li key={m.bando_id}><button className="w-full text-left px-3 py-2 hover:bg-white/60 flex flex-wrap items-center gap-2" onClick={() => { setExtra((e) => (e.some((x) => x.bando_id === m.bando_id) ? e : [...e, { bando_id: m.bando_id, name: m.name, tag: 'scelto a mano' }])); setBandoId(m.bando_id); setSearchQ(''); setSearchRes([]) }}>
-                  <span className="text-ink-2 min-w-0 flex-1 break-words">{m.name}</span><span className="text-[10px] text-mute">{m.issuer || ''}</span></button></li>
-              ))}
-            </ul>
-          )}
-        </div>
+          <p className="text-xs text-ink-2 mt-1">{ateco || bandoId ? <>Per ATECO <span className="font-medium text-ink">{ateco || '—'}</span> e il bando <span className="font-medium text-ink">{bandoId ? bandoName(bandoId) : '—'}</span>.</> : 'Indica il codice ATECO e il bando nel riquadro «Pubblica il tuo budget» qui sopra.'}</p>
+          <Info label="Come funziona">Ti mostro come hanno ripartito il budget le aziende simili che hanno scelto quel bando, contando di più quelle ammesse. Cambia nicchia e bando nel riquadro in alto.</Info></div>
         {recError && <p className="text-xs text-red-700">{recError}</p>}
         {rec && rec.status === 'NO_DATA' && (
           <div className="p-3 rounded-xl border border-amber-500/30 bg-amber-500/5 text-xs text-ink-2 leading-relaxed"><p className="font-medium text-amber-700 inline-flex items-center gap-1.5"><AlertTriangle className="w-3.5 h-3.5" />Ancora pochi dati</p><p className="mt-1">{rec.message}</p></div>
@@ -228,37 +313,6 @@ export default function Confronto({ validation, client }) {
         )}
       </div>
 
-      <div className="card p-6 space-y-4">
-        <div><h3 className="font-semibold text-base">Salva un budget come template</h3>
-          <Info label="Come funziona">Per un cliente di questa nicchia che ha scelto questo bando: scrivi come hai ripartito il budget del progetto e com’è andata. Il template allena il consiglio qui sopra.</Info></div>
-        <div className="flex flex-wrap gap-2">
-          {fromBudget && <button className="btn" onClick={() => setForm((f) => ({ ...f, shares: fromBudget.shares, total: String(fromBudget.total) }))}>Parti dal budget che hai controllato</button>}
-          {rec?.status === 'OK' && <button className="btn" onClick={() => setForm((f) => ({ ...f, shares: Object.fromEntries(Object.entries(rec.recommended).map(([k, v]) => [k, Math.round(v * 1000) / 10])) }))}>Parti dal consiglio</button>}
-          {sum > 0 && Math.abs(sum - 1) > 0.0005 && <button className="btn" onClick={() => setForm((f) => ({ ...f, shares: Object.fromEntries(Object.entries(draftPct).map(([k, v]) => [k, Math.round((v / sum) * 1000) / 10])) }))}>Porta a 100%</button>}
-        </div>
-        <div className="grid sm:grid-cols-4 gap-3">
-          {shareMeta.map((m) => <label key={m.key} className="space-y-1"><span className="label">{m.label} %</span><input type="number" step="0.1" min="0" className="field" value={form.shares[m.key] ?? ''} onChange={(e) => setShare(m.key, e.target.value)} /></label>)}
-        </div>
-        {sum > 0 && <div className="space-y-1.5"><ShareBar shares={draftPct} meta={shareMeta} /><p className={`text-[11px] ${Math.abs(sum - 1) <= 0.0205 ? 'text-ink-2' : 'text-amber-700'}`}>Totale {pct(sum)}{Math.abs(sum - 1) > 0.0205 ? ' — deve fare 100%' : ''}</p></div>}
-        {rec?.status === 'OK' && sum > 0 && Math.abs(sum - 1) <= 0.0205 && (
-          <button className="text-xs underline text-ink-2 text-left" onClick={() => ask(draftPct)}>Confronta con il consiglio</button>
-        )}
-        {rec?.comparison && <p className="text-xs text-ink-2 leading-relaxed p-3 rounded-xl bg-field border border-line">{rec.comparison.message}</p>}
-        <div className="grid sm:grid-cols-4 gap-3">
-          <label className="space-y-1"><span className="label">Esito</span><select className="field" value={form.outcome} onChange={(e) => setForm({ ...form, outcome: e.target.value })}>{meta.outcomes.map((o) => <option key={o.key} value={o.key}>{o.label}</option>)}</select></label>
-          <label className="space-y-1"><span className="label">Importo del budget (€)</span><input type="number" className="field" value={form.total} onChange={(e) => setForm({ ...form, total: e.target.value })} /></label>
-          <label className="space-y-1"><span className="label">Punteggio (facoltativo)</span><input type="number" className="field" value={form.score} onChange={(e) => setForm({ ...form, score: e.target.value })} /></label>
-          <label className="space-y-1"><span className="label">Regione</span><input className="field" value={region} onChange={(e) => setRegion(e.target.value)} /></label>
-        </div>
-        <label className="space-y-1 block"><span className="label">Nota (facoltativa)</span><input className="field" maxLength={500} value={form.note} onChange={(e) => setForm({ ...form, note: e.target.value })} placeholder="Per esempio: progetto di meccanizzazione, cofinanziamento 40%" /></label>
-        <Info label="Come funziona">Il template è anonimo (nessuna ragione sociale né partita IVA) e alimenta il motore collettivo; la nota resta tua.</Info>
-        <div className="flex items-center gap-3">
-          <button className="btn-primary" disabled={saving || !ateco || !bandoId || Math.abs(sum - 1) > 0.0205} onClick={save}>{saving && <Loader2 className="w-3.5 h-3.5 animate-spin" />}Salva template</button>
-          {(!ateco || !bandoId) && <span className="text-xs text-mute">Indica il codice ATECO e il bando.</span>}
-        </div>
-        {msg && <p className="text-xs text-emerald-700">{msg}</p>}
-      </div>
-
       <div className="card p-6 space-y-3">
         <div><h3 className="font-semibold text-base">Mappa: quali nicchie partecipano a quali bandi</h3>
           <Info label="Come funziona">Per ogni nicchia, i bandi scelti con la ripartizione media del budget e quanti sono stati ammessi. Clicca un bando per vedere il consiglio.</Info></div>
@@ -279,17 +333,18 @@ export default function Confronto({ validation, client }) {
 
       <div className="card p-6 space-y-3">
         <div><h3 className="font-semibold text-base">I template del tuo studio ({mine.length})</h3>
-          <Info label="Come funziona">Tutti i budget che hai salvato, con il cliente da cui vengono. Quando il bando risponde, aggiorna l’esito: i budget ammessi pesano di più e il consiglio si ricalcola da solo.</Info></div>
+          <Info label="Come funziona">Tutti i budget che hai salvato, con il cliente da cui vengono e chi li vede (per tutti o solo lo studio). Quando il bando risponde, aggiorna l’esito: i budget ammessi pesano di più e il consiglio si ricalcola da solo.</Info></div>
         {mine.length === 0 && <p className="text-xs text-mute">Nessun template salvato.</p>}
         {mine.length > 0 && (
           <div className="overflow-x-auto">
-            <table className="w-full text-xs"><thead><tr className="text-left text-mute"><th className="py-1.5 font-medium">Cliente · nicchia</th><th className="font-medium">Bando</th><th className="font-medium w-48">Ripartizione</th><th className="font-medium">Esito</th><th /></tr></thead>
+            <table className="w-full text-xs"><thead><tr className="text-left text-mute"><th className="py-1.5 font-medium">Cliente · nicchia</th><th className="font-medium">Bando</th><th className="font-medium w-48">Ripartizione</th><th className="font-medium">Esito</th><th className="font-medium">Visibile a</th><th /></tr></thead>
               <tbody>{mine.map((t) => (
                 <tr key={t.id} className="border-t border-line align-top">
                   <td className="py-2 pr-2 text-ink-2">{t.client_name && <span className="block font-medium text-ink">{t.client_name}</span>}{t.niche}{t.total_eur ? <span className="block text-[10px] text-mute">{fmtEur(t.total_eur)}</span> : null}</td>
                   <td className="pr-2 text-ink-2 max-w-[14rem] break-words">{t.bando_name || bandoName(t.bando_id)}</td>
                   <td className="pr-2"><ShareBar shares={t.shares} meta={shareMeta} height="h-3" /></td>
                   <td><select className="field !py-1 !w-auto" value={t.outcome} onChange={(e) => setOutcome(t, e.target.value)}>{meta.outcomes.map((o) => <option key={o.key} value={o.key}>{o.label}</option>)}</select></td>
+                  <td className="pr-2"><button onClick={() => togglePublish(t)} className={`px-2.5 py-1 rounded-full text-[11px] font-medium border transition ${t.shared ? 'border-emerald-500/40 text-emerald-700 bg-emerald-500/10' : 'border-line text-ink-2 hover:border-line-strong'}`} title={t.shared ? 'Pubblicato per tutti: tocca per tenerlo solo nello studio' : `Solo nello studio: tocca per pubblicarlo per tutti (+${fmtTok(bonus)} token)`}>{t.shared ? 'Per tutti' : `Solo studio · pubblica +${fmtTok(bonus)}`}</button></td>
                   <td className="text-right"><button className="text-mute hover:text-red-700" onClick={() => remove(t)} aria-label="Elimina"><Trash2 className="w-3.5 h-3.5" /></button></td>
                 </tr>
               ))}</tbody></table>

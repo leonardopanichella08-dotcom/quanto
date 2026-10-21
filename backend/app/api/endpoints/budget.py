@@ -78,7 +78,7 @@ def _export(request: BudgetValidationRequest, http: Request, kind: str):
     timer = events.Timer()
     _require_items(request)
     result = validate_budget(request)
-    paid = charge_delivery(http, request.project_id, request.grant_rules.bando_id)       # 1 token a consegna, valido 30 giorni per lo stesso budget
+    paid = charge_delivery(http, request.project_id, request.grant_rules.bando_id, len(request.cost_items))       # da 1 a 2 token a consegna secondo le voci, valida 30 giorni per lo stesso budget
     try:
         data = build_xlsx(result) if kind == "xlsx" else build_pdf(result)
     except Exception:

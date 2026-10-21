@@ -353,7 +353,7 @@ def patch_user(user_id: int, body: UserPatch, request: Request) -> dict:
 
 
 class TokenGrant(BaseModel):
-    tokens: int = Field(..., ge=1, le=100000)
+    tokens: float = Field(..., ge=0.1, le=100000)
     note: str = Field(default="", max_length=300)
 
 

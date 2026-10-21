@@ -50,7 +50,7 @@ async function call(path, options = {}) {
     if (res.status === 401 && token && !path.startsWith('/auth/login')) { session.clear(); window.dispatchEvent(new Event('quanto-logout')) }   // sessione scaduta o revocata
     throw new ApiError(res.status, detail)
   }
-  if (options.method === 'POST' && /\/(budget\/export|registry\/register|bandi\/research|tokens\/)/.test(path)) window.dispatchEvent(new Event('quanto-tokens-changed'))         // il saldo può essere cambiato
+  if (options.method === 'POST' && /\/(budget\/export|registry\/register|bandi\/research|tokens\/|templates|allocation\/optimize)/.test(path)) window.dispatchEvent(new Event('quanto-tokens-changed'))         // il saldo può essere cambiato
   return res
 }
 
@@ -83,7 +83,7 @@ export const api = {
   meCredits: () => call('/auth/me/credits').then((r) => r.json()),
   tokens: () => call('/tokens').then((r) => r.json()),
   tokenQuote: (params) => call(`/tokens/quote?${new URLSearchParams(params)}`).then((r) => r.json()),
-  topupRequest: (pack, note = '') => post('/tokens/topup-request', { pack, note }),
+  topupRequest: (pack, quantity = 1, note = '') => post('/tokens/topup-request', { pack, quantity, note }),
   grantTokens: (id, tokens, note) => hqSend('POST', `/users/${id}/tokens`, { tokens, note }),
   users: () => hqGet('/users'),
   createUser: (body) => hqSend('POST', '/users', body),

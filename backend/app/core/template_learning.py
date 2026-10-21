@@ -13,8 +13,9 @@ L'algoritmo non è un modello opaco: è statistica spiegabile e ripetibile (stes
   vincitori più pesanti. Si registra anche quanto ogni template si discostava dal consiglio che c'era al momento del salvataggio: con abbastanza esiti si vede se
   chi si avvicina al consiglio vince più spesso. Nessun testo viene generato: solo conti.
 
-Ogni template salvato alimenta SEMPRE il motore collettivo, in forma anonima (niente ragione sociale né partita IVA). Lo studio sceglie con quale motore confrontarsi: il
-**collettivo** (tutti i template) o l'**interno** (solo i suoi). Dei template altrui si usano solo gruppi di almeno ``MIN_FOREIGN``: sotto, nessuno può risalire a un cliente.
+Ogni template si **pubblica per tutti** (entra, in forma anonima, nel motore collettivo e regala 0,5 token) oppure **resta nello studio** (alimenta solo il motore interno).
+Pubblicare è la scelta predefinita: il motore collettivo è il valore aggiunto di QUANTO e migliora con i budget di tutti. Lo studio sceglie con quale motore confrontarsi: il
+**collettivo** (i template pubblicati) o l'**interno** (tutti i suoi). Dei template altrui si usano solo gruppi di almeno ``MIN_FOREIGN``: sotto, nessuno può risalire a un cliente.
 """
 from __future__ import annotations
 
@@ -164,7 +165,7 @@ def _pool(owner: str, engine: str = "COLLETTIVO") -> List[Dict[str, Any]]:
         if _engine(engine) == "INTERNO":
             rows = conn.execute("SELECT * FROM budget_templates WHERE owner=? AND origin='REALE' ORDER BY id", (owner,)).fetchall()
         else:
-            rows = conn.execute("SELECT * FROM budget_templates ORDER BY id").fetchall()
+            rows = conn.execute("SELECT * FROM budget_templates WHERE shared ORDER BY id").fetchall()     # il collettivo lavora solo su ciò che è pubblicato per tutti
     return [_row(r) for r in rows]
 
 
@@ -318,7 +319,7 @@ def _validate_common(data: Dict[str, Any]) -> Dict[str, Any]:
         raise TemplateError("Importo totale non valido")
     return {"ateco_code": ateco, "ateco_division": niche["division"], "ateco_section": niche["section"], "outcome": outcome, "score": score, "total_eur": total,
             "company_size": (str(data.get("company_size") or "")[:20] or None), "region": (str(data.get("region") or "")[:40] or None),
-            "note": str(data.get("note") or "")[:500], "shared": True}
+            "note": str(data.get("note") or "")[:500], "shared": bool(data.get("shared", True))}
 
 
 def save_template(owner: str, data: Dict[str, Any], actor: Optional[str] = None, client_id: Optional[int] = None) -> Dict[str, Any]:
@@ -342,8 +343,8 @@ def save_template(owner: str, data: Dict[str, Any], actor: Optional[str] = None,
             (owner, common["shared"], common["ateco_code"], common["ateco_division"], common["ateco_section"], common["company_size"], common["region"], bando_id, bando["name"],
              common["total_eur"], json.dumps(shares), common["outcome"], common["score"], common["note"], json.dumps(recommended) if recommended else None, distance, client_id, now, now))
         new_id = cur.fetchone()["id"]
-    events.record("template.save", f"Template salvato: {niche_label(common['ateco_code'])['label']} · {bando['name'][:50]} · {OUTCOME_LABEL[common['outcome']]}", actor=actor or owner, bando_id=bando_id,
-                  details={"template_id": new_id, "client_id": client_id, "distance_from_recommendation": distance})
+    events.record("template.save", f"Template salvato ({'pubblicato per tutti' if common['shared'] else 'solo nello studio'}): {niche_label(common['ateco_code'])['label']} · {bando['name'][:50]} · {OUTCOME_LABEL[common['outcome']]}",
+                  actor=actor or owner, bando_id=bando_id, details={"template_id": new_id, "client_id": client_id, "shared": common["shared"], "distance_from_recommendation": distance})
     with connect() as conn:
         row = conn.execute("SELECT * FROM budget_templates WHERE id=?", (new_id,)).fetchone()
     return _row(row)
@@ -356,12 +357,12 @@ def update_template(owner: str, template_id: int, data: Dict[str, Any], actor: O
         raise KeyError(template_id)
     cur = _row(row)
     merged = {"ateco_code": cur["ateco_code"], "outcome": cur["outcome"], "score": cur["score"], "total_eur": cur["total_eur"], "company_size": cur["company_size"],
-              "region": cur["region"], "note": cur["note"], "shared": True, **{k: v for k, v in data.items() if k in ("outcome", "score", "note", "total_eur")}}
+              "region": cur["region"], "note": cur["note"], "shared": bool(cur["shared"]), **{k: v for k, v in data.items() if k in ("outcome", "score", "note", "total_eur", "shared")}}
     common = _validate_common(merged)
     shares = clean_shares(data["shares"]) if data.get("shares") else cur["shares"]
     with connect() as conn:
-        conn.execute("UPDATE budget_templates SET outcome=?, score=?, note=?, shared=TRUE, total_eur=?, shares=?, updated_at=? WHERE id=?",
-                     (common["outcome"], common["score"], common["note"], common["total_eur"], json.dumps(shares), events.now_iso(), template_id))
+        conn.execute("UPDATE budget_templates SET outcome=?, score=?, note=?, shared=?, total_eur=?, shares=?, updated_at=? WHERE id=?",
+                     (common["outcome"], common["score"], common["note"], common["shared"], common["total_eur"], json.dumps(shares), events.now_iso(), template_id))
         row = conn.execute("SELECT * FROM budget_templates WHERE id=?", (template_id,)).fetchone()
     events.record("template.update", f"Template {template_id} aggiornato: {OUTCOME_LABEL[common['outcome']]}", actor=actor or owner, bando_id=cur["bando_id"], details={"template_id": template_id})
     return _row(row)

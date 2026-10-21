@@ -4,8 +4,8 @@ from typing import Dict, Optional
 from fastapi import APIRouter, HTTPException, Request, status
 from pydantic import BaseModel, ConfigDict, Field
 
-from app.api.deps import actor_of, client_of
-from app.core import template_learning as tl
+from app.api.deps import actor_of, client_of, user_of
+from app.core import template_learning as tl, tokens
 
 router = APIRouter()
 
@@ -22,6 +22,7 @@ class TemplateBody(BaseModel):
     company_size: Optional[str] = Field(default=None, max_length=20)
     region: Optional[str] = Field(default=None, max_length=40)
     note: str = Field(default="", max_length=500)
+    shared: bool = Field(default=True, description="True = pubblicato per tutti (motore collettivo, +0,5 token); False = resta nello studio (solo motore interno)")
 
 
 class TemplatePatch(BaseModel):
@@ -32,6 +33,7 @@ class TemplatePatch(BaseModel):
     total_eur: Optional[float] = Field(default=None, gt=0)
     note: Optional[str] = Field(default=None, max_length=500)
     shares: Optional[Dict[str, float]] = None
+    shared: Optional[bool] = None
 
 
 class RecommendBody(BaseModel):
@@ -64,14 +66,20 @@ def mine(request: Request) -> list:
 @router.post("", status_code=status.HTTP_201_CREATED, summary="Salva un template: nicchia, bando scelto, ripartizione del budget ed esito")
 def create(body: TemplateBody, request: Request) -> dict:
     owner = actor_of(request)
-    return _guard(tl.save_template, owner, body.model_dump(), owner, client_of(request))
+    client = client_of(request)
+    t = _guard(tl.save_template, owner, body.model_dump(), owner, client)
+    t["bonus"] = tokens.reward_publish(user_of(request), client, t["bando_id"], t["id"]) if t["shared"] else {"granted": 0, "reason": "Resta nello studio: allena solo il tuo motore interno."}
+    return t
 
 
 @router.patch("/{template_id}", summary="Aggiorna l'esito, il punteggio o le quote di un mio template: l'algoritmo si riallena da solo")
 def patch(template_id: int, body: TemplatePatch, request: Request) -> dict:
     owner = actor_of(request)
     try:
-        return _guard(tl.update_template, owner, template_id, {k: v for k, v in body.model_dump().items() if v is not None}, owner)
+        t = _guard(tl.update_template, owner, template_id, {k: v for k, v in body.model_dump().items() if v is not None}, owner)
+        if t["shared"] and body.shared:
+            t["bonus"] = tokens.reward_publish(user_of(request), t.get("client_id"), t["bando_id"], t["id"])
+        return t
     except KeyError:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Template non trovato") from None
 

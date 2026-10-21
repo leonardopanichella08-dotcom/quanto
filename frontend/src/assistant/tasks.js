@@ -170,6 +170,12 @@ export const TASKS = {
         }
       } else a.skip('aiuti', 'Nessuno dei bandi nel piano è in de minimis: non serve.')
       a.begin('esito'); await a.pause(500)
+      if (res?.needsTokens > 0) {
+        const cost = res.needsTokens.toLocaleString('it-IT', { maximumFractionDigits: 1 })
+        a.done('esito', `Il piano costa ${cost} token: serve la tua conferma.`)
+        a.finish(`Ho trovato ${res.adatti} bandi adatti. Calcolare il piano costa ${cost} token (dipende da quanti dati analizza) e vale 30 giorni: conferma nella pagina Allocazione e il piano parte.`)
+        return
+      }
       if (res) {
         a.done('esito', `Coperto ${money(res.covered)} su ${money(res.expense)} (${res.coveragePct.toLocaleString('it-IT', { maximumFractionDigits: 1 })}%).`)
         a.finish(`Con ${res.picked} bandi insieme il piano copre ${money(res.covered)}${res.coveredHigh > res.covered + 0.5 ? ` (fino a ${money(res.coveredHigh)} con tutte le maggiorazioni)` : ''} su una spesa di ${money(res.expense)}. Restano a carico dell’azienda ${money(res.net)}.${res.deMinimis && res.usesDeMinimis ? (res.deMinimis.needed_eur > 0 ? `\nDe minimis: il piano ne usa ${money(res.deMinimis.needed_eur)} su ${money(res.deMinimis.residual_eur)} disponibili.` : '\nDe minimis: nessun aiuto in de minimis serve a questo piano, il tetto non viene toccato.') : ''}\nTutti i numeri sono spiegati nella pagina, sotto il grafico.`)

@@ -3,6 +3,7 @@ import { api } from '../lib/api'
 import { fmtEur, fmtNum, CATEGORY_LABEL, STATUS_LABEL, STATUS_STYLE } from '../lib/format'
 import { nextStep } from '../lib/profileSteps'
 import { AlertTriangle, CheckCircle2, ChevronDown, ChevronRight, CircleHelp, ExternalLink, FolderOpen, Loader2, Sparkles, XCircle } from 'lucide-react'
+import { CostConfirm, fmtTok } from './Tokens'
 import { Info } from './ui'
 import HowItWorks from './HowItWorks'
 import TutorialVideo from './TutorialVideo'
@@ -367,6 +368,8 @@ export default function AllocationView({ onGoProfile, onBudgetFrom, onOpenBudget
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(null)
   const [planError, setPlanError] = useState(null)
+  const [confirm, setConfirm] = useState(null)                         // il piano costa token: si mostra il costo e si aspetta la conferma
+  const confirmRef = useRef(false)
   const seq = useRef(0)
 
   useEffect(() => { api.profile().then(setOv).catch((e) => setError(e.message)) }, [])
@@ -452,6 +455,7 @@ export default function AllocationView({ onGoProfile, onBudgetFrom, onOpenBudget
     if (!match || pickedRows.length === 0) { setPlan(null); setPlanHigh(null); setPlanError(null); return }
     const mine = ++seq.current
     setLoading(true); setPlanError(null)
+    const sent = (b) => ({ ...b, ...(confirmRef.current ? { confirm_tokens: true } : {}) })
     try {
       const applied = Object.fromEntries(match.forecast.categories.map((c) => [c.category, c.growth_applied]))                // le stesse percentuali della tabella: il piano parte dalla stessa stima
       // Due contributi a fondo perduto non si sommano sulla stessa spesa (doppio finanziamento, criterio 47): per prudenza ogni voce ne riceve uno solo, il migliore.
@@ -465,11 +469,15 @@ export default function AllocationView({ onGoProfile, onBudgetFrom, onOpenBudget
       const base = projectLines ? { historical_expenses: projectLines } : { use_profile_forecast: true, growth_pct: applied }
       const body = (high) => ({ fiscal_year: match.forecast.fiscal_year, ...base, optimization_target: target,
         available_funding_lines: pickedRows.map((r) => line(r, high)), ...(needsDeMinimis ? { de_minimis_residual_eur: Number(deMinimis) } : {}) })
-      const res = await api.optimizeAllocation(body(false))
+      const res = await api.optimizeAllocation(sent(body(false)))
       const hasRange = pickedRows.some((r) => r.estimate?.rate_high_pct > r.estimate?.rate_pct)
-      const resHigh = hasRange ? await api.optimizeAllocation(body(true)) : null
-      if (mine === seq.current) { setPlan(res); setPlanHigh(resHigh); setPlanLines(body(false).available_funding_lines) }
-    } catch (e) { if (mine === seq.current) { setPlanError(e.message); setPlan(null); setPlanHigh(null) } } finally { if (mine === seq.current) setLoading(false) }
+      const resHigh = hasRange ? await api.optimizeAllocation(sent(body(true))) : null
+      if (mine === seq.current) { setConfirm(null); setPlan(res); setPlanHigh(resHigh); setPlanLines(body(false).available_funding_lines) }
+    } catch (e) {
+      if (mine === seq.current) {
+        if (e.status === 409 && e.detail?.code === 'TOKENS_CONFIRM') { setConfirm(e.detail); setPlan(null); setPlanHigh(null) } else { setConfirm(null); setPlanError(e.message); setPlan(null); setPlanHigh(null) }
+      }
+    } finally { confirmRef.current = false; if (mine === seq.current) setLoading(false) }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [match, picked, projectPicked, mode, target, deMinimis, project, includeCurrent])
   useEffect(() => { run() }, [run])
@@ -494,14 +502,14 @@ export default function AllocationView({ onGoProfile, onBudgetFrom, onOpenBudget
   useEffect(() => {
     const r = recalc.current
     if (!r.wanted || !r.done || matching || loading || !match) return
-    if (pickedRows.length > 0 && !plan && !planError) return
+    if (pickedRows.length > 0 && !plan && !planError && !confirm) return
     r.wanted = false
     window.dispatchEvent(new CustomEvent('quanto-allocation-result', { detail: {
-      adatti: match.matching.summary.ADATTO, picked: pickedRows.length, usesDeMinimis: needsDeMinimis,
+      adatti: match.matching.summary.ADATTO, picked: pickedRows.length, usesDeMinimis: needsDeMinimis, needsTokens: confirm ? confirm.due : 0,
       covered: plan?.covered_by_public_funds_eur ?? 0, coveredHigh: planHigh?.covered_by_public_funds_eur ?? plan?.covered_by_public_funds_eur ?? 0,
       expense: plan?.total_gross_expense_eur ?? 0, net: plan?.net_cost_to_entity_eur ?? 0, coveragePct: plan?.overall_coverage_percentage ?? 0,
       deMinimis: dmEstimate ? { ...dmEstimate, residual_eur: Number(deMinimis), needed_eur: plan?.de_minimis_used_eur ?? 0 } : null } }))
-  }, [tick, plan, planHigh, planError, loading, matching, match])         // eslint-disable-line react-hooks/exhaustive-deps
+  }, [tick, plan, planHigh, planError, confirm, loading, matching, match])         // eslint-disable-line react-hooks/exhaustive-deps
 
   const hasData = ov && ov.last_year != null
   const results = match?.matching.results || []
@@ -591,9 +599,10 @@ export default function AllocationView({ onGoProfile, onBudgetFrom, onOpenBudget
 
       {match && (
         <Step id="al-risultato" title="Risultato" done={active.length > 0 && !!plan} open={!!openSteps.risultato} onToggle={() => toggleStep('risultato')} alert={planError}
-          summary={plan ? `${fmtEur(plan.covered_by_public_funds_eur)}${planHigh && planHigh.covered_by_public_funds_eur > plan.covered_by_public_funds_eur + 0.5 ? ` – ${fmtEur(planHigh.covered_by_public_funds_eur)}` : ''} coperti su ${fmtEur(plan.total_gross_expense_eur)} · ${fmtNum(plan.overall_coverage_percentage, 1)}% · ${inProject ? `progetto «${project.title}»` : 'spese dell’anno'}` : (active.length === 0 ? (inProject ? 'Nessun bando adatto cita questo tipo di progetto: includi tu i bandi da usare' : 'Scegli i bandi da includere') : 'Calcolo…')}
+          summary={confirm ? `Calcolare il piano costa ${fmtTok(confirm.due)} token: conferma per continuare` : plan ? `${fmtEur(plan.covered_by_public_funds_eur)}${planHigh && planHigh.covered_by_public_funds_eur > plan.covered_by_public_funds_eur + 0.5 ? ` – ${fmtEur(planHigh.covered_by_public_funds_eur)}` : ''} coperti su ${fmtEur(plan.total_gross_expense_eur)} · ${fmtNum(plan.overall_coverage_percentage, 1)}% · ${inProject ? `progetto «${project.title}»` : 'spese dell’anno'}` : (active.length === 0 ? (inProject ? 'Nessun bando adatto cita questo tipo di progetto: includi tu i bandi da usare' : 'Scegli i bandi da includere') : 'Calcolo…')}
           info={<><p><strong className="text-ink">Spese dell’anno</strong>: le spese che l’azienda sosterrà comunque nel {year} (personale, affitti, licenze…), coperte dai bandi che non chiedono un progetto: crediti d’imposta, spese commerciali, incentivi alle assunzioni.</p><p><strong className="text-ink">Un progetto</strong>: spese nuove e straordinarie (un investimento, una ricerca), coperte dai bandi che finanziano progetti. Un bando a progetto non paga le spese correnti: per questo non compare tra le spese dell’anno.</p><p>«Includi nel piano» e «Includi nel progetto» fanno la stessa cosa nello scenario che stai guardando: decidono quali bandi entrano nel calcolo. Le due scelte restano separate.</p><p>Le spese vengono dal budget dell’azienda e dal piano degli investimenti, se li hai caricati; altrimenti dalla stima dell’anno.</p><p>È un massimo teorico: non considera la probabilità di vincere né i tempi (vedi «Valore reale e incassi»).</p></>}
           >
+          {confirm && <CostConfirm c={confirm} busy={loading} onConfirm={() => { confirmRef.current = true; run() }} />}
           <TutorialVideo id="T08" />
           {scenarioBar}
           <div className="max-w-xl"><PotentialChart plan={plan} nameOf={(id) => results.find((r) => r.fund?.fund_id === id)?.name || id} dm={{ estimate: dmEstimate }} /></div>

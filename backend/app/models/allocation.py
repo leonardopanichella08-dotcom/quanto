@@ -64,6 +64,7 @@ class AllocationOptimizationRequest(BaseModel):
     excluded_funds: List[str] = Field(default_factory=list, description="What-if: fondi che l'utente esclude manualmente")
     de_minimis_residual_eur: Optional[float] = Field(default=None, ge=0, description="Plafond de minimis residuo nel triennio mobile")
     min_saving_ratio: float = Field(default=0.90, gt=0, le=1, description="Solo MINIMIZE_FUNDS_INVOLVED: quota minima del risparmio massimo da preservare")
+    confirm_tokens: bool = Field(default=False, description="Chi ha letto il costo in token (da 2 a 4,8) e lo accetta: senza, il server risponde 409 con il costo")
 
     @model_validator(mode="after")
     def _unique(self) -> "AllocationOptimizationRequest":

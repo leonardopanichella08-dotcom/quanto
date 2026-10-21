@@ -226,10 +226,10 @@ export const FUNCTIONS = [
   ] },
   { page: 'Confronto', items: [
     { name: 'Budget consigliato', what: 'Per una nicchia (ATECO) e un bando, la ripartizione media del budget dei template simili, con un peso maggiore per quelli ammessi, l’intervallo tipico e il livello di fiducia.', example: 'Agricoltura + bando X: 45% beni strumentali, 16,1% ricerca e sviluppo, 13% consulenze (fiducia media, 5 template).' },
-    { name: 'Salva come template', what: 'Registra come hai ripartito il budget per un cliente di quella nicchia, con l’esito. Ogni template nuovo riallena il consiglio.', example: 'Salvi «ammesso» e quel budget pesa 3 volte una bozza.' },
+    { name: 'Pubblica il tuo budget', what: 'Registra come hai ripartito il budget per un cliente di quella nicchia, con l’esito. «Per tutti» allena il motore collettivo e ti regala 0,5 token; «Solo nel mio studio» allena solo il motore interno.', example: 'Salvi «ammesso» e quel budget pesa 3 volte una bozza.' },
     { name: 'Mappa nicchie e bandi', what: 'Quali nicchie hanno scelto quali bandi, con budget medio e numero di ammessi.', example: 'Agricoltura: 3 bandi, il primo con 4 ammessi su 6.' },
     { name: 'Stili di budget', what: 'Con almeno sei template, i gruppi di budget simili e quanti di ciascuno hanno vinto.', example: 'Stile «beni strumentali»: 5 template, 4 ammessi.' },
-    { name: 'Motore collettivo o interno', what: 'Il collettivo lavora su tutti i template (ognuno entra sempre, in forma anonima); l’interno solo su quelli del tuo studio.', example: 'Interno: «come lavora il mio studio»; collettivo: «come si fa di solito in questa nicchia».' },
+    { name: 'Motore collettivo o interno', what: 'Il collettivo lavora sui budget pubblicati per tutti, in forma anonima; l’interno solo su quelli del tuo studio, anche non pubblicati.', example: 'Interno: «come lavora il mio studio»; collettivo: «come si fa di solito in questa nicchia».' },
   ] },
   { page: 'Verifica', items: [
     { name: 'Verifica impronta', what: 'Confronta un’impronta con quella registrata; controlla anche firma e integrità della catena.', example: 'Tre segni verdi: impronta, firma, catena.' },

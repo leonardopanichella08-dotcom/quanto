@@ -12,7 +12,8 @@ import HowItWorks from './HowItWorks'
 import TutorialVideo from './TutorialVideo'
 import { Hint } from './Help'
 import { ChromeCard, Fold, Info } from './ui'
-import { scrollTop } from '../lib/nav'
+import { publishGo, scrollTop, useNav } from '../lib/nav'
+import { fmtTok } from './Tokens'
 import { BANDO_STATUS_STYLE, CATEGORY_LABEL, CATEGORY_ORDER, STATUS_LABEL, STATUS_STYLE, fmtEur, fmtNum, fmtPct } from '../lib/format'
 
 const ITEM_STATUS_DOT = { APPROVED: '#10b981', CAP_EXCEEDED_ADJUSTED: '#f59e0b', REJECTED: '#ef4444', MISSING_DOCUMENTS: '#38bdf8' }
@@ -117,6 +118,7 @@ export default function BudgetCanvas({
   onSelectBando, onProjectId, onItemsChange, onImport, onValidate, onRegister, onExport, onOpenLab, onDismissImport, onGoBandi,
   onUsePayslip, onUseBalance, onUseDraft, onUseTemplate, onGoProfile, templateOpen, incompleteItems = [], notice, onDismissNotice, budgetSet, onSwitchBudget, onCloseBudgetSet,
 }) {
+  const nav = useNav()
   const [selectedId, setSelectedId] = useState(null)
   const [delivery, setDelivery] = useState(null)             // quanto costa consegnare questo budget (esportare o registrare): 1 token, oppure già incluso
   const [panel, setPanel] = useState('inspect')
@@ -164,11 +166,11 @@ export default function BudgetCanvas({
 
   useEffect(() => {                                                         // il costo della consegna, letto prima di premere: si aggiorna dopo ogni esportazione o registrazione
     let live = true
-    const load = () => { if (validation && request?.project_id) api.tokenQuote({ op: 'deliver', project_id: request.project_id, bando_id: bando?.bando_id || '' }).then((q) => { if (live) setDelivery(q) }).catch(() => {}) }
+    const load = () => { if (validation && request?.project_id) api.tokenQuote({ op: 'deliver', project_id: request.project_id, bando_id: bando?.bando_id || '', items: String(request.cost_items.length) }).then((q) => { if (live) setDelivery(q) }).catch(() => {}) }
     load()
     window.addEventListener('quanto-tokens-changed', load)
     return () => { live = false; window.removeEventListener('quanto-tokens-changed', load) }
-  }, [validation?.merkle_root, request?.project_id, bando?.bando_id])      // eslint-disable-line react-hooks/exhaustive-deps
+  }, [validation?.merkle_root, request?.project_id, bando?.bando_id, request?.cost_items?.length])      // eslint-disable-line react-hooks/exhaustive-deps
 
   if (view === 'detail' && selectedInput) {
     const idx = ordered.findIndex((i) => i.item_id === selectedInput.item_id)
@@ -403,9 +405,16 @@ export default function BudgetCanvas({
                 <p className="text-[11px] text-mute">{validation.explanation_source === 'LLM' ? 'Scritto da un modello linguistico, cifre verificate.' : 'Scritto dal programma.'} <span className="font-code break-all">{validation.cep_id} · impronta {validation.merkle_root.slice(0, 18)}…</span></p>
               </Fold>
 
+              <button onClick={() => { publishGo(); nav.go('pattern') }} className="w-full flex items-center gap-3 rounded-2xl border border-emerald-500/40 bg-emerald-500/[0.04] hover:bg-emerald-500/10 px-5 py-3.5 text-left transition">
+                <span className="min-w-0 flex-1"><span className="block text-sm font-semibold text-ink">Pubblica questo budget per tutti</span>
+                  <span className="block text-xs text-ink-2 mt-0.5">Allena il motore di QUANTO e il consiglio per tutti, anche per il tuo studio. Anonimo.</span></span>
+                <span className="px-2.5 py-1 rounded-full bg-emerald-600 text-white text-xs font-semibold whitespace-nowrap">+0,5 token</span>
+                <ChevronRight className="w-4 h-4 text-mute shrink-0" />
+              </button>
+
               <div className="card px-5 py-4 flex flex-wrap items-center gap-3">
                 <span className="text-sm font-medium">Consegna</span>
-                {delivery && <span className={`text-xs ${delivery.covered ? 'text-emerald-700' : 'text-ink-2'}`} title={delivery.reason}>{delivery.covered ? 'già inclusa' : `${delivery.cost} token`}</span>}
+                {delivery && <span className={`text-xs ${delivery.covered ? 'text-emerald-700' : 'text-ink-2'}`} title={delivery.reason}>{delivery.covered ? 'già inclusa' : `${fmtTok(delivery.cost)} token`}</span>}
                 <div className="ml-auto flex flex-wrap items-center gap-2">
                   <button onClick={() => onExport('xlsx')} className="btn"><Download className="w-3.5 h-3.5" />Excel</button>
                   <button onClick={() => onExport('pdf')} className="btn"><Download className="w-3.5 h-3.5" />PDF</button>
