@@ -3,7 +3,7 @@ import { AlertTriangle, CheckCircle2, Clock, ExternalLink, Loader2, Scale } from
 import { api } from '../lib/api'
 import { BANDO_STATUS_STYLE, KIND_STYLE, fmtTs } from '../lib/format'
 import { ruleLabel } from '../data/ruleLabels'
-import { ChromeCard, Info } from './ui'
+import { ChromeCard, Fold, Info } from './ui'
 import PipelineButton from './PipelineButton'
 import Guide from './Guide'
 import ResearchPanel from './ResearchPanel'
@@ -139,7 +139,7 @@ function Detail({ bando, onUse, using, onStudied }) {
           <span className={`inline-block mt-2 px-2 py-0.5 text-[11px] font-medium rounded border ${BANDO_STATUS_STYLE(bando.status || '')}`}>{bando.status || bando.extraction_status}</span>
         </div>
         <button onClick={() => onUse(bando.bando_id)} disabled={using || !bando.grant_rules} className="btn-primary flex items-center gap-2">
-          {using && <Loader2 className="w-3.5 h-3.5 animate-spin" />}Usa questo bando nel budget
+          {using && <Loader2 className="w-3.5 h-3.5 animate-spin" />}Fai il budget per questo bando
         </button>
       </div>
 
@@ -148,7 +148,7 @@ function Detail({ bando, onUse, using, onStudied }) {
           <span className="label block mb-1">Che tipo di aiuto è: {bando.benefit.type}</span>{bando.benefit.summary}
         </div>
       )}
-      {!bando.curated && <PipelineButton bandoId={bando.bando_id} onDone={onStudied} label={bando.requirements.length ? 'Rileggi le fonti ufficiali' : 'Studia il bando (cerca, scarica, leggi)'} />}
+      {!bando.curated && <PipelineButton bandoId={bando.bando_id} onDone={onStudied} label={bando.requirements.length ? 'Rifai lo studio del bando' : 'Studia il bando a fondo'} hint="Cerca e rilegge le fonti ufficiali, poi aggiorna regole e requisiti. Non cambia i tuoi budget." />}
       {bando.status?.startsWith('CHIUSO') && <p className="text-xs text-amber-700 flex gap-2"><AlertTriangle className="w-4 h-4 shrink-0" />Bando chiuso: utile per progetti in corso o per fare confronti.</p>}
 
       <div className="flex items-center gap-3">
@@ -261,6 +261,7 @@ export default function BandiLibrary({ bandi, selectedId, onSelect, onReload }) 
   const [catalogPick, setCatalogPick] = useState(null)
   const [picking, setPicking] = useState(null)
   const researchRef = useRef(null)
+  const [researchOpen, setResearchOpen] = useState(false)        // chiuso di base: si apre scegliendo un bando dal catalogo o toccandolo
 
   const load = useCallback(async (id) => {
     setOpenId(id); setError(null)
@@ -320,12 +321,14 @@ export default function BandiLibrary({ bandi, selectedId, onSelect, onReload }) 
             <div className="card p-10 text-center text-sm text-mute">Scegli un bando dall’elenco per vederne regole, requisiti e fonti.</div>
           )}
           <CatalogBrowser picking={picking} onPick={(item) => {
-            setPicking(item.bando_id); setCatalogPick(item)
+            setPicking(item.bando_id); setCatalogPick(item); setResearchOpen(true)
             researchRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
             setTimeout(() => setPicking((p) => (p === item.bando_id ? null : p)), 20000)   // rete di sicurezza: non resta bloccato se qualcosa fallisce prima di "onDone"
           }} />
           <div ref={researchRef}>
-            <ResearchPanel pick={catalogPick} onUse={use} onDone={async (id) => { setPicking(null); await onReload(); await load(id) }} />
+            <Fold id="fold-ricerca" title="Cerca e studia un bando sul web" summary="Scrivi il nome: QUANTO lo cerca, scarica le fonti ufficiali e le legge" open={researchOpen} onToggle={() => setResearchOpen(!researchOpen)}>
+              <ResearchPanel bare pick={catalogPick} onUse={use} onDone={async (id) => { setPicking(null); await onReload(); await load(id) }} />
+            </Fold>
           </div>
         </div>
       </div>

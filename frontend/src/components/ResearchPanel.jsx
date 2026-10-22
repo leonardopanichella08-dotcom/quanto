@@ -48,7 +48,7 @@ function Step({ n, state, title, children }) {
 
 import TutorialVideo from './TutorialVideo'
 
-export default function ResearchPanel({ onDone, pick, onUse }) {
+export default function ResearchPanel({ onDone, pick, onUse , bare = false }) {
   const [name, setName] = useState('')
   const [hint, setHint] = useState('')
   const [urls, setUrls] = useState('')
@@ -185,8 +185,8 @@ export default function ResearchPanel({ onDone, pick, onUse }) {
   const notFetched = (search?.candidates || []).filter((c) => !docs.some((d) => d.key === norm(c.url)))
 
   return (
-    <div className="card p-5 space-y-4">
-      <h3 className="font-semibold text-base flex items-center gap-2"><Search className="w-4 h-4 text-brand-ink" />Cerca un bando sul web <Hint id="bando_ricerca" /></h3>
+    <div className={bare ? 'space-y-4 pt-3' : 'card p-5 space-y-4'}>
+      {!bare && <h3 className="font-semibold text-base flex items-center gap-2"><Search className="w-4 h-4 text-brand-ink" />Cerca un bando sul web <Hint id="bando_ricerca" /></h3>}
       <TutorialVideo id="T04" />
       <Info label="Come funziona">Scrivi il nome del bando. QUANTO lo cerca su internet, scarica le pagine e i PDF ufficiali (decreti, avvisi, circolari, atti della Gazzetta Ufficiale), li salva in memoria e li legge tutti. Le fonti ufficiali hanno la precedenza.</Info>
 

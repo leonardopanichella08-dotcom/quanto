@@ -110,7 +110,7 @@ export const GUIDE = {
   bandi: {
     title: 'Bandi',
     what: 'Qui scegli il bando su cui lavorare e vedi cosa QUANTO ne ha capito: regole, obblighi e controlli che attiva. Se il bando non c’è, lo cerca lui sul web e ne scarica i documenti ufficiali.',
-    steps: ['Clicca un bando nell’elenco a sinistra, oppure scrivine il nome in “Cerca un bando sul web”.', 'La ricerca scarica pagine e PDF ufficiali, li salva in memoria e li legge: guarda l’avanzamento.', 'Apri le schede: Regole, Requisiti (con filtri), Controlli attivati, Fonti.', 'Premi “Usa questo bando nel budget”.'],
+    steps: ['Clicca un bando nell’elenco a sinistra, oppure scrivine il nome in “Cerca un bando sul web”.', 'La ricerca scarica pagine e PDF ufficiali, li salva in memoria e li legge: guarda l’avanzamento.', 'Apri le schede: Regole, Requisiti (con filtri), Controlli attivati, Fonti.', 'Premi “Fai il budget per questo bando”.'],
     example: 'Scrivi “Resto al Sud”: QUANTO trova la pagina Invitalia e la sezione Normativa, scarica i PDF collegati e nei requisiti trovi, con la fonte accanto, cose come “contributo del 75% a fondo perduto fino a 120.000 euro” e “età 18–35 anni”.',
     terms: ['bando', 'regola', 'criterio', 'confidenza'],
   },
@@ -175,7 +175,7 @@ export const GUIDE = {
 // ---------------------------------------------------------------- percorso rapido
 export const QUICKSTART = [
   { t: 'Apri un lavoro per l’azienda cliente', d: 'Pagina Profilo: crei il lavoro, poi la procedura guidata ti fa caricare visura e bilanci e rispondere a due domande. Serve per stimare l’anno dopo, trovare i bandi adatti e avere una bozza di budget.' },
-  { t: 'Scegli il bando', d: 'Pagina Bandi: cerca o apri un bando, leggi regole e requisiti, premi “Usa questo bando”.' },
+  { t: 'Scegli il bando', d: 'Pagina Bandi: cerca o apri un bando, leggi regole e requisiti, premi “Fai il budget per questo bando”.' },
   { t: 'Carica il budget', d: 'Pagina Budget: bozza dal profilo, Excel o voci a mano.' },
   { t: 'Controlla il budget', d: 'Ogni voce viene controllata con i 60 controlli. Vedi ammesso, ridotto, respinto.' },
   { t: 'Capisci perché', d: 'Ispettore per una voce; il pulsante «Guarda come ha lavorato» per il film di tutti i passaggi.' },
@@ -192,7 +192,7 @@ export const FUNCTIONS = [
     { name: 'Fonti', what: 'I documenti da cui derivano regole e requisiti, con il link alla fonte.', example: 'Decreto direttoriale dell’8 ottobre 2025 (Invitalia).' },
     { name: 'Cerca un bando sul web', what: 'Cerca il nome su internet, scarica le pagine e i PDF ufficiali (anche seguendo i link a decreti e Gazzetta), li salva in memoria e li legge tutti.', example: 'Scrivi “Resto al Sud” e guarda i documenti arrivare uno a uno.' },
     
-    { name: 'Usa questo bando', what: 'Passa le regole al Budget e registra la scelta nella timeline.', example: 'Premi il pulsante e sei già nel Budget con il bando attivo.' },
+    { name: 'Fai il budget per questo bando', what: 'Apre la pagina Budget con le regole di questo bando già caricate e registra la scelta nella timeline. Non cambia l’allocazione: lì i bandi si scelgono con «Includi nel piano».', example: 'Premi il pulsante e sei già nel Budget, pronto a inserire le spese e a controllarle con i 60 criteri.' },
   ] },
   { page: 'Budget', items: [
     { name: 'Importa Excel/CSV', what: 'Legge le voci da un file e ti dice gli errori riga per riga.', example: 'Riga 7: “importo non valido” — correggi e reimporta.' },

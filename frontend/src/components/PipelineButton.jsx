@@ -10,11 +10,11 @@ const STATUS = {
 const KIND = { OBBLIGO: 'obblighi', DIVIETO: 'divieti', LIMITE: 'limiti', INFO: 'informazioni', DA_REVISIONARE: 'da rivedere' }
 
 /** Il processo standard di studio di un bando: cerca, scarica, legge, valuta. Stesso percorso per ogni bando, con il rapporto di completezza. */
-export default function PipelineButton({ bandoId, onDone, label = 'Studia il bando (cerca, scarica, leggi)', cost }) {
+export default function PipelineButton({ bandoId, onDone, label = 'Studia il bando a fondo', hint }) {
   const [busy, setBusy] = useState(false)
   const [quote, setQuote] = useState(null)
-  useEffect(() => { if (cost == null) api.tokenQuote({ op: 'study', bando_id: bandoId }).then(setQuote).catch(() => {}) }, [bandoId, cost])          // senza costo noto lo si chiede al server
-  const price = cost ?? quote?.cost
+  useEffect(() => { api.tokenQuote({ op: 'study', bando_id: bandoId }).then(setQuote).catch(() => {}) }, [bandoId])          // il costo lo dice il server: in fase di prova non c'è nulla da pagare
+  const price = quote && !quote.free ? quote.cost : null
   const [report, setReport] = useState(null)
   const [error, setError] = useState(null)
 
@@ -34,6 +34,7 @@ export default function PipelineButton({ bandoId, onDone, label = 'Studia il ban
         <button onClick={go} disabled={busy} className="btn-primary flex items-center gap-1.5">
           {busy ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Radar className="w-3.5 h-3.5" />}{busy ? 'Studio in corso…' : label}{!busy && price != null && <span className="opacity-70 font-normal">· {price === 0 ? 'gratis' : `${price} token`}</span>}
         </button>
+        {!busy && hint && <span className="text-xs text-mute max-w-sm leading-snug">{hint}</span>}
         {busy && <span className="text-xs text-mute">Cerca le fonti ufficiali, le scarica e le legge: può richiedere fino a un minuto.</span>}
       </div>
       {error && <p className="text-xs text-red-700">{error}</p>}

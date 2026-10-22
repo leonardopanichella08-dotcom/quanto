@@ -14,6 +14,7 @@ import { Hint } from './Help'
 import { ChromeCard, Fold, Info } from './ui'
 import { publishGo, scrollTop, useNav } from '../lib/nav'
 import { fmtTok } from './Tokens'
+import PatternCompare from './PatternCompare'
 import { BANDO_STATUS_STYLE, CATEGORY_LABEL, CATEGORY_ORDER, STATUS_LABEL, STATUS_STYLE, fmtEur, fmtNum, fmtPct } from '../lib/format'
 
 const ITEM_STATUS_DOT = { APPROVED: '#10b981', CAP_EXCEEDED_ADJUSTED: '#f59e0b', REJECTED: '#ef4444', MISSING_DOCUMENTS: '#38bdf8' }
@@ -27,6 +28,36 @@ const NEW_ITEM = {
 }
 const OUTCOME_STYLE = { PASS: 'text-emerald-700', ADJUSTED: 'text-amber-700', REJECTED: 'text-red-700', SUSPENDED: 'text-sky-700' }
 const OUTCOME_LABEL = { PASS: 'superato', ADJUSTED: 'ridotto', REJECTED: 'respinto', SUSPENDED: 'in attesa di documento' }
+
+const KIND_WORD = { OBBLIGO: 'obblighi', DIVIETO: 'divieti', LIMITE: 'limiti', INFO: 'informazioni', DA_REVISIONARE: 'da rivedere' }
+const KIND_TONE = { OBBLIGO: 'text-sky-700 border-sky-500/30', DIVIETO: 'text-red-700 border-red-500/30', LIMITE: 'text-amber-700 border-amber-500/30', INFO: 'text-ink-2 border-line-strong', DA_REVISIONARE: 'text-ink-2 border-line-strong' }
+
+/** Ciò che QUANTO ha letto nel bando e che il budget deve rispettare: obblighi, divieti e limiti, ognuno con i controlli che lo verificano. Si apre solo se serve. */
+function BandoRequirements({ bando }) {
+  const [open, setOpen] = useState(false)
+  const reqs = bando.requirements || []
+  if (!reqs.length) return null
+  const by = reqs.reduce((a, r) => ({ ...a, [r.kind]: (a[r.kind] || 0) + 1 }), {})
+  const first = ['LIMITE', 'DIVIETO', 'OBBLIGO'].flatMap((k) => reqs.filter((r) => r.kind === k && r.criteria?.length)).slice(0, 12)
+  return (
+    <Fold id="fold-reqs" title="Cosa chiede il bando" summary={`${reqs.length} requisiti letti: ${Object.entries(by).map(([k, n]) => `${n} ${KIND_WORD[k] || k}`).join(', ')} · ${bando.rules.length} regole numeriche`} open={open} onToggle={() => setOpen(!open)}>
+      <div className="space-y-3 pt-3">
+        <p className="text-xs text-ink-2 leading-relaxed">Sono i requisiti che QUANTO ha estratto dai documenti ufficiali. Quelli con un numero (#) sono controllati sul tuo budget dai 60 criteri; qui ci sono i primi dodici. Tutti si vedono nella pagina Bandi.</p>
+        {first.map((r) => (
+          <div key={r.seq} className="rounded-2xl bg-tint p-3 space-y-1.5 text-xs">
+            <div className="flex flex-wrap items-center gap-2">
+              <span className={`px-2 py-0.5 rounded-full border text-[11px] font-medium ${KIND_TONE[r.kind] || KIND_TONE.INFO}`}>{KIND_WORD[r.kind] || r.kind}</span>
+              <span className="font-medium text-ink">{r.topic}</span>
+              {(r.criteria || []).map((c) => <span key={c} className="font-mono text-[11px] text-mute">#{c}</span>)}
+            </div>
+            <p className="text-ink-2 leading-relaxed">{r.text.length > 240 ? `${r.text.slice(0, 237)}…` : r.text}</p>
+          </div>
+        ))}
+        {first.length === 0 && <p className="text-xs text-mute">Nessun requisito con un controllo collegato: guarda l’elenco completo nella pagina Bandi.</p>}
+      </div>
+    </Fold>
+  )
+}
 
 function SummaryCard({ label, value, tone = 'text-ink', note }) {
   return (
@@ -220,8 +251,7 @@ export default function BudgetCanvas({
     <div className="space-y-6">
       <Guide page="budget" />
       <HowItWorks kind="budget" />
-      <TutorialVideo id="T12" />
-      {budgetSet && <TutorialVideo id="T13" />}
+      <TutorialVideo id={budgetSet ? 'T13' : 'T12'} />
 
       {budgetSet && (
         <div className="card p-4 space-y-2.5">
@@ -376,6 +406,8 @@ export default function BudgetCanvas({
             ))}
           </div>
 
+          {bando.requirements?.length > 0 && <BandoRequirements bando={bando} />}
+
           {validation && (
             <div className="space-y-3">
               <Fold id="fold-heat" title="Controllo per controllo" summary={`${validation.items.length} ${validation.items.length === 1 ? 'voce' : 'voci'} × 60 controlli: ${heat.passed} ${heat.passed === 1 ? 'superato' : 'superati'}, ${heat.adjusted + heat.rejected} da guardare`} open={open.heat} onToggle={() => toggleFold('heat')}>
@@ -399,6 +431,8 @@ export default function BudgetCanvas({
                   </div>
                 </Fold>
               )}
+
+              <PatternCompare validation={validation} bando={bando} />
 
               <Fold id="fold-summary" title="Riassunto" summary={validation.llm_explanation_summary} open={open.summary} onToggle={() => toggleFold('summary')}>
                 <p className="text-sm text-ink-2 leading-relaxed pt-3">{validation.llm_explanation_summary}</p>

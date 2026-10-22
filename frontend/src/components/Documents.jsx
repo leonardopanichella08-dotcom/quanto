@@ -187,8 +187,8 @@ function Detail({ id, onChanged, onUsePayslip, onUseBalance, onUseDraft, next, o
       {doc.fields.length > 0 && doc.fields.every((f) => f.parsed && FACT_TITLE[f.field_key]) ? <SheetFacts fields={doc.fields} /> : <div className="space-y-2">{doc.fields.map((f) => <FieldRow key={f.id} f={f} doc={doc} min={doc.confidence_min} onDone={done} />)}</div>}
       <div className="flex flex-wrap items-center gap-2 pt-1">
         {doc.doc_type === 'PAYSLIP' && doc.status !== 'FAILED' && <button className="btn-primary" onClick={usePayslip}>Aggiungi al budget come voce di personale</button>}
-        {doc.doc_type === 'BALANCE_SHEET' && doc.status !== 'FAILED' && <button className="btn-primary" onClick={() => onUseBalance(id)}>Usa per l’allocazione annuale</button>}
-        {doc.doc_type === 'APPLICATION_DRAFT' && doc.status !== 'FAILED' && <button className="btn-primary" onClick={useDraft}>Usa tutte le voci nel Budget</button>}
+        {doc.doc_type === 'BALANCE_SHEET' && doc.status !== 'FAILED' && <button className="btn-primary" onClick={() => onUseBalance(id)}>Usa questo bilancio nell’allocazione</button>}
+        {doc.doc_type === 'APPLICATION_DRAFT' && doc.status !== 'FAILED' && <button className="btn-primary" onClick={useDraft}>Aggiungi tutte le voci al budget</button>}
         {msg && <span className="text-xs text-amber-700">{msg}</span>}
       </div>
     </div>

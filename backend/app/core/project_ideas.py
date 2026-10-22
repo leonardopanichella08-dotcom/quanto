@@ -16,7 +16,7 @@ from __future__ import annotations
 
 from typing import Any, Dict, List, Optional
 
-from app.core import bandi, budget_basis, company_facts, expense_types, funding_modes, project_types
+from app.core import bandi, budget_basis, company_facts, expense_types, funding_modes, growth_needs, project_types
 
 NEW, ORDINARY, TO_QUANTIFY = "NUOVA", "ORDINARIA", "DA_QUANTIFICARE"
 _PHYSICAL = ("ATTREZZ", "MACCHIN", "ELETTRONIC", "ARREDI", "MOBILI", "IMPIANT", "HARDWARE", "AUTOMEZZ", "COMPUTER")
@@ -64,6 +64,24 @@ def generate(owner: str, year: Optional[int] = None) -> Dict[str, Any]:
     ideas: List[Dict[str, Any]] = []
     notes: List[str] = []
 
+    # 0. ciò che serve per crescere: persone e strumenti in più, dal bilancio e dalla previsione (a parità di produttività: ipotesi dichiarata)
+    needs = None
+    try:
+        needs = growth_needs.growth_needs(owner, year)
+    except cp.ProfileError:
+        needs = None
+    if needs and needs["needs"]:
+        kinds = [n["kind"] for n in needs["needs"]]
+        gl = []
+        for n in needs["needs"]:
+            people = n["kind"] == "PERSONE"
+            gl.append(_line("Nuove persone per sostenere la crescita: " + n["label"] if people else "Strumenti e attrezzature per sostenere la crescita", n["category"], "PERS_STIPENDI" if people else "CAP_ATTREZZ",
+                            n["amount_eur"], NEW, n["basis"], [{"filename": f"Bilancio {needs['base_year']} e previsione {year}"}]))
+        types = (["OCCUPAZIONE"] if "PERSONE" in kinds else []) + (["INVESTIMENTI_PRODUTTIVI"] if "STRUMENTI" in kinds else [])
+        ideas.append(_idea("crescita", "Crescita prevista: " + " e ".join("persone" if k == "PERSONE" else "strumenti" for k in kinds), types,
+                           [needs["message"], "È ciò che la previsione dei ricavi richiede, a parità di produttività: il progetto da finanziare è quello che mette l'azienda in condizione di crescere come previsto."], gl,
+                           ["Il ruolo, il livello, il contratto e la RAL di ogni nuova persona (il controllo vuole persona per persona)", "Un preventivo per gli strumenti: l'importo indicato è una stima dalla crescita prevista"],
+                           [needs["assumption"]]))
     # 1. gli investimenti già nel piano dell'azienda
     capex = [c for c in f["capex_plan"] if c["year"] == year]
     themes = {"RICERCA_SVILUPPO": ("Sviluppo e innovazione di prodotto", ["CAP_IMMATERIALI"]), "DIGITALIZZAZIONE": ("Infrastruttura digitale e software", ["CAP_CLOUD", "CAP_SOFTWARE"]),
@@ -159,7 +177,7 @@ def generate(owner: str, year: Optional[int] = None) -> Dict[str, Any]:
         else:
             idea["quoted"] = True
     # le idee con spese nuove per prime
-    ideas.sort(key=lambda i: (-i["new_eur"], -i["ordinary_eur"], i["id"]))
+    ideas.sort(key=lambda i: (i["id"] != "crescita", -i["new_eur"], -i["ordinary_eur"], i["id"]))        # il progetto che nasce dai bisogni di crescita va per primo
 
     # i bandi che finanziano quel tipo di progetto
     bt = _bando_types()
@@ -175,7 +193,7 @@ def generate(owner: str, year: Optional[int] = None) -> Dict[str, Any]:
                    "ordinary_costs_ok": b["mode"]["ordinary_costs_ok"]} for bid, b in bt.items() if b["mode"] and not b["mode"]["needs_project"]]
     notes.append("Le idee sono ipotesi costruite sui tuoi documenti: vanno validate con l'imprenditore. Un importo che non viene da un documento non è inventato: la riga resta «da quantificare».")
     notes.append("Le spese «ordinarie» sono costi che l'azienda sostiene comunque: non diventano spese di progetto. Un bando può ammetterne alcune per forma (spese generali a forfait, personale realmente dedicato con timesheet).")
-    return {"year": year, "ideas": ideas, "no_project": no_project, "notes": notes}
+    return {"year": year, "ideas": ideas, "no_project": no_project, "notes": notes, "needs": needs}
 
 
 def parsers_norm(s: str) -> str:

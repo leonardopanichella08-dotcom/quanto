@@ -276,8 +276,18 @@ function AppInner({ bridge }) {
     try { await loadSetBudget(saved, saved.budgets.find((b) => b.fund_id === fundId)); setBudgetSet(saved) } catch (e) { setError(e.message) } finally { setBusy(false) }
   }
   const closeBudgetSet = () => { setBudgetSet(null); api.saveClientState('budget-set', null).catch(() => {}) }
+  // Il budget di un bando chiede lo studio completo: se il bando è stato solo letto in breve (scheda del catalogo), lo si studia da cima a fondo prima di costruire il budget.
   const budgetFrom = async (bandoId) => {
-    try { await selectBando(bandoId); setTemplateOpen(true); nav.go('canvas'); scrollTop() } catch { nav.go('canvas') }          // l'errore (es. bando senza regole pubblicate) lo mostra la pagina Budget
+    try {
+      const d0 = await api.bandoDetail(bandoId)
+      if (!d0.grant_rules) {
+        setNotice(['Prima del budget studio questo bando da cima a fondo: cerco e leggo le fonti ufficiali, regole e requisiti. Può richiedere fino a un minuto.'])
+        nav.go('canvas'); setBusy(true)
+        try { await api.researchRun({ bando_id: bandoId }) } finally { setBusy(false) }
+        setNotice(null); await loadBandi()
+      }
+      await selectBando(bandoId); setTemplateOpen(true); nav.go('canvas'); scrollTop()
+    } catch { nav.go('canvas') }          // l'errore (es. bando ancora senza regole pubblicate) lo mostra la pagina Budget
   }
   const changeProject = (project_id) => { setRequest((r) => ({ ...r, project_id })); setAttestation(null) }
 

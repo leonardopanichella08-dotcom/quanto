@@ -145,8 +145,8 @@ export default function PotentialStep({ results, picked, onPick, dm, plan, planH
       )}
       {onStudyMore && (
         <div className="flex flex-wrap items-center gap-3">
-          <button className="btn" disabled={studyingMore} onClick={onStudyMore}>{studyingMore && <Loader2 className="w-3.5 h-3.5 animate-spin" />}{studyingMore ? 'Studio in corso…' : 'Studia 5 nuovi bandi · fino a 15 token'}</button>
-          <Info label="Cosa fa">Cerca, scarica e legge le fonti ufficiali di ciascuno, uno dopo l’altro. A lettura finita rifà la stima. Un bando nuovo costa 3 token e 1 torna indietro se la lettura è completa; se i token finiscono, lo studio si ferma e quello fatto resta.</Info>
+          <button className="btn" disabled={studyingMore} onClick={onStudyMore}>{studyingMore && <Loader2 className="w-3.5 h-3.5 animate-spin" />}{studyingMore ? 'Studio in corso…' : 'Studia a fondo i 5 più affini'}</button>
+          <Info label="Cosa fa">Tutti i bandi del catalogo sono già letti in breve (scheda ufficiale) e ordinati per affinità. Qui studi a fondo i più affini: cerca, scarica e legge le fonti ufficiali di ciascuno, uno dopo l’altro, poi rifà la stima. Solo un bando studiato a fondo ha importi veri e può avere un budget.</Info>
         </div>
       )}
 

@@ -356,8 +356,10 @@ def rank_for_profile(profile: Dict[str, Any], by_cat: Dict[str, float], limit: i
             score += 0.05
             reasons.append("Rivolto alle start-up innovative, come te")
         scored.append({"bando_id": r["bando_id"], "name": r["name"], "issuer": meta.get("manager") or r["issuer"], "source_url": r["source_url"], "deadline": r["deadline"],
-                       "summary": r["summary"], "form": meta.get("form"), "benefit_range": meta.get("benefit_range"), "costs": meta.get("costs"), "regions": regions,
+                       "summary": r["summary"], "form": meta.get("form"), "benefit_range": meta.get("benefit_range"), "costs": meta.get("costs"), "cost_categories": cats or [], "purpose": meta.get("purpose"), "regions": regions,
                        "sizes": meta.get("sizes"), "state": meta.get("state"), "opens": meta.get("opens"), "score": round(min(score, 1.0), 3),
                        "affinity": "ALTA" if score >= 0.6 else "MEDIA" if score >= 0.25 else "BASSA", "reasons": reasons, "to_check": flags})
     scored.sort(key=lambda x: (-x["score"], x["deadline"] if x["deadline"] and x["deadline"] != "non indicata" else "9999", x["name"]))      # a pari affinità, prima chi scade prima
-    return {"items": scored[:limit], "total_candidates": len(scored), "excluded": excluded, "without_description": without}
+    return {"items": scored[:limit], "total_candidates": len(scored), "excluded": excluded, "without_description": without,
+            "high": sum(1 for x in scored if x["affinity"] == "ALTA"), "medium": sum(1 for x in scored if x["affinity"] == "MEDIA"), "low": sum(1 for x in scored if x["affinity"] == "BASSA"),
+            "read": len(rows)}

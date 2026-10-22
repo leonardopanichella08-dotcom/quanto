@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { Info } from './ui'
+import { Fold, Info } from './ui'
 import TutorialVideo from './TutorialVideo'
 import { AlertTriangle, CheckCircle2, Loader2, Trash2 } from 'lucide-react'
 import { api } from '../lib/api'
@@ -59,6 +59,8 @@ export default function Confronto({ validation, client }) {
   const [msg, setMsg] = useState(null)
   const [error, setError] = useState(null)
   const seq = useRef(0)
+  const [fold, setFold] = useState({})                // le sezioni di consultazione restano chiuse finché non servono
+  const toggleFold = (k) => setFold((f) => ({ ...f, [k]: !f[k] }))
   const fromBudget = useMemo(() => sharesOfValidation(validation), [validation])
 
   // «Pubblica questo budget» dal Budget: le quote del budget controllato si compilano da sole e si arriva al riquadro in alto
@@ -238,13 +240,18 @@ export default function Confronto({ validation, client }) {
           <button className="text-xs underline text-ink-2 text-left" onClick={() => ask(draftPct)}>Confronta con il consiglio</button>
         )}
         {rec?.comparison && <p className="text-xs text-ink-2 leading-relaxed p-3 rounded-xl bg-field border border-line">{rec.comparison.message}</p>}
-        <div className="grid sm:grid-cols-4 gap-3">
-          <label className="space-y-1"><span className="label">Esito</span><select className="field" value={form.outcome} onChange={(e) => setForm({ ...form, outcome: e.target.value })}>{meta.outcomes.map((o) => <option key={o.key} value={o.key}>{o.label}</option>)}</select></label>
-          <label className="space-y-1"><span className="label">Importo del budget (€)</span><input type="number" className="field" value={form.total} onChange={(e) => setForm({ ...form, total: e.target.value })} /></label>
-          <label className="space-y-1"><span className="label">Punteggio (facoltativo)</span><input type="number" className="field" value={form.score} onChange={(e) => setForm({ ...form, score: e.target.value })} /></label>
-          <label className="space-y-1"><span className="label">Regione</span><input className="field" value={region} onChange={(e) => setRegion(e.target.value)} /></label>
+        <label className="space-y-1 block sm:max-w-xs"><span className="label">Esito</span><select className="field" value={form.outcome} onChange={(e) => setForm({ ...form, outcome: e.target.value })}>{meta.outcomes.map((o) => <option key={o.key} value={o.key}>{o.label}</option>)}</select></label>
+        <div>
+          <button type="button" className="text-xs underline text-ink-2" onClick={() => toggleFold('altri')} aria-expanded={!!fold.altri}>{fold.altri ? 'Nascondi gli altri dati' : 'Aggiungi altri dati (facoltativi: importo, punteggio, regione, nota)'}</button>
+          <div className={fold.altri ? 'mt-3 space-y-3' : 'hidden'}>
+            <div className="grid sm:grid-cols-3 gap-3">
+              <label className="space-y-1"><span className="label">Importo del budget (€)</span><input type="number" className="field" value={form.total} onChange={(e) => setForm({ ...form, total: e.target.value })} /></label>
+              <label className="space-y-1"><span className="label">Punteggio</span><input type="number" className="field" value={form.score} onChange={(e) => setForm({ ...form, score: e.target.value })} /></label>
+              <label className="space-y-1"><span className="label">Regione</span><input className="field" value={region} onChange={(e) => setRegion(e.target.value)} /></label>
+            </div>
+            <label className="space-y-1 block"><span className="label">Nota (resta tua)</span><input className="field" maxLength={500} value={form.note} onChange={(e) => setForm({ ...form, note: e.target.value })} placeholder="Per esempio: progetto di meccanizzazione, cofinanziamento 40%" /></label>
+          </div>
         </div>
-        <label className="space-y-1 block"><span className="label">Nota (facoltativa)</span><input className="field" maxLength={500} value={form.note} onChange={(e) => setForm({ ...form, note: e.target.value })} placeholder="Per esempio: progetto di meccanizzazione, cofinanziamento 40%" /></label>
         </div>
         <div className="flex flex-wrap items-center gap-3">
           <button className="btn-primary" disabled={saving || !ateco || !bandoId || Math.abs(sum - 1) > 0.0205} onClick={save}>{saving && <Loader2 className="w-3.5 h-3.5 animate-spin" />}{form.shared !== false ? `Pubblica per tutti · +${fmtTok(bonus)} token` : 'Salva solo nello studio'}</button>
@@ -268,9 +275,9 @@ export default function Confronto({ validation, client }) {
       </div>
 
       {learning && (
-        <div className="card p-5 space-y-2">
-          <span className="label">Come sta imparando l’algoritmo · {engine === 'INTERNO' ? 'motore interno' : 'motore collettivo'}</span>
-          <div className="flex flex-wrap gap-x-8 gap-y-2">
+        <Fold id="fold-learning" title="Come sta imparando l’algoritmo" summary={`${engine === 'INTERNO' ? 'Motore interno' : 'Motore collettivo'} · ${learning.templates_pool} template reali · ${learning.niches} nicchie · ${learning.bandi} bandi${engine !== 'INTERNO' && learning.examples?.count ? ` · ${learning.examples.count} esempi` : ''}`}
+          open={!!fold.learning} onToggle={() => toggleFold('learning')}>
+          <div className="flex flex-wrap gap-x-8 gap-y-2 pt-3">
             {[['Template tuoi', learning.templates_mine], [engine === 'INTERNO' ? 'Nel motore' : 'Nel campione', learning.templates_pool], ['Nicchie', learning.niches], ['Bandi', learning.bandi], ['Ammessi', learning.outcomes.AMMESSO], ...(engine === 'INTERNO' ? [] : [['Esempi', learning.examples?.count || 0]])].map(([l, v]) => (
               <div key={l}><span className="label">{l}</span><div className="text-xl font-display font-semibold tabular-nums">{v}</div></div>
             ))}
@@ -279,11 +286,13 @@ export default function Confronto({ validation, client }) {
           {engine !== 'INTERNO' && learning.examples?.count > 0 && (
             <Info label="Cosa sono gli esempi">{learning.examples.count} budget costruiti sulle regole di {learning.examples.bandi} bandi e verificati con esse ({learning.examples.conformi} conformi, {learning.examples.con_riduzioni} con riduzioni, {learning.examples.non_conformi} non conformi). Non sono budget di aziende reali e non hanno un esito di bando: servono a far partire il consiglio. Pesano la metà e escono dal calcolo quando in un gruppo ci sono {learning.examples.fade_at} template reali.</Info>
           )}
-        </div>
+        </Fold>
       )}
 
-      <div id="consiglio" className="card p-6 space-y-4 scroll-mt-20">
-        <div><h3 className="font-semibold text-base">Il budget consigliato</h3>
+      <Fold id="consiglio" title="Il budget consigliato" open={!!fold.consiglio} onToggle={() => toggleFold('consiglio')}
+        summary={rec?.status === 'OK' ? `Fiducia ${rec.confidence.toLowerCase()} · ${rec.real_templates} reali${rec.example_templates ? ` + ${rec.example_templates} esempi` : ''} · ${rec.basis_label}` : rec?.status === 'NO_DATA' ? 'Ancora pochi dati' : (ateco || bandoId ? 'Calcolo…' : 'Scegli nicchia e bando nel riquadro in alto')}>
+        <div className="space-y-4 pt-3">
+        <div>
           <p className="text-xs text-ink-2 mt-1">{ateco || bandoId ? <>Per ATECO <span className="font-medium text-ink">{ateco || '—'}</span> e il bando <span className="font-medium text-ink">{bandoId ? bandoName(bandoId) : '—'}</span>.</> : 'Indica il codice ATECO e il bando nel riquadro «Pubblica il tuo budget» qui sopra.'}</p>
           <Info label="Come funziona">Ti mostro come hanno ripartito il budget le aziende simili che hanno scelto quel bando, contando di più quelle ammesse. Cambia nicchia e bando nel riquadro in alto.</Info></div>
         {recError && <p className="text-xs text-red-700">{recError}</p>}
@@ -311,17 +320,19 @@ export default function Confronto({ validation, client }) {
             <p className="text-[11px] text-mute">Livelli cercati: {rec.tier_counts.map((t) => `${t.label} ${t.templates}`).join(' · ')}. Il consiglio è una statistica sui template, non una previsione di esito: stessi template, stesso consiglio (impronta {rec.pool_hash}).</p>
           </div>
         )}
-      </div>
+        </div>
+      </Fold>
 
-      <div className="card p-6 space-y-3">
-        <div><h3 className="font-semibold text-base">Mappa: quali nicchie partecipano a quali bandi</h3>
-          <Info label="Come funziona">Per ogni nicchia, i bandi scelti con la ripartizione media del budget e quanti sono stati ammessi. Clicca un bando per vedere il consiglio.</Info></div>
+      <Fold id="fold-mappa" title="Mappa: quali nicchie partecipano a quali bandi" open={!!fold.mappa} onToggle={() => toggleFold('mappa')}
+        summary={niches.length ? `${niches.length} nicchie · ${niches.reduce((a, n) => a + n.bandi.length, 0)} bandi` : 'Nessun template ancora'}>
+        <div className="space-y-3 pt-3">
+        <Info label="Come funziona">Per ogni nicchia, i bandi scelti con la ripartizione media del budget e quanti sono stati ammessi. Clicca un bando per vedere il consiglio.</Info>
         {niches.length === 0 && <p className="text-xs text-mute">Nessun template ancora: salvane uno qui sopra e la mappa si costruisce.</p>}
         {niches.map((n) => (
           <div key={n.division} className="rounded-2xl border border-line bg-field p-4 space-y-2">
             <div className="flex flex-wrap justify-between gap-2 text-sm"><span className="font-semibold text-ink">{n.niche}</span><span className="text-xs text-mute">{n.templates} template{n.examples ? ` + ${n.examples} esempi` : ''} · {n.wins} ammessi</span></div>
             {n.bandi.map((b) => (
-              <button key={b.bando_id} className="w-full text-left space-y-1 hover:bg-white/60 rounded-lg p-1.5" onClick={() => { setAteco(n.division); setBandoId(b.bando_id); document.getElementById('consiglio')?.scrollIntoView({ behavior: 'smooth', block: 'start' }) }}>
+              <button key={b.bando_id} className="w-full text-left space-y-1 hover:bg-white/60 rounded-lg p-1.5" onClick={() => { setAteco(n.division); setBandoId(b.bando_id); setFold((f) => ({ ...f, consiglio: true })); setTimeout(() => document.getElementById('consiglio')?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 120) }}>
                 <div className="flex flex-wrap justify-between gap-2 text-xs"><span className="text-ink-2 min-w-0 break-words">{b.bando_name}</span><span className="text-mute">{b.templates} template{b.examples ? ` + ${b.examples} esempi` : ''} · {b.submitted} presentati · {b.wins} ammessi{b.regions.length ? ` · ${b.regions.join(', ')}` : ''}</span></div>
                 <ShareBar shares={b.shares} meta={shareMeta} height="h-3" />
               </button>
@@ -329,11 +340,13 @@ export default function Confronto({ validation, client }) {
             <Legend meta={shareMeta} />
           </div>
         ))}
-      </div>
+        </div>
+      </Fold>
 
-      <div className="card p-6 space-y-3">
-        <div><h3 className="font-semibold text-base">I template del tuo studio ({mine.length})</h3>
-          <Info label="Come funziona">Tutti i budget che hai salvato, con il cliente da cui vengono e chi li vede (per tutti o solo lo studio). Quando il bando risponde, aggiorna l’esito: i budget ammessi pesano di più e il consiglio si ricalcola da solo.</Info></div>
+      <Fold id="fold-miei" title={`I template del tuo studio (${mine.length})`} open={!!fold.miei} onToggle={() => toggleFold('miei')}
+        summary={mine.length ? `${mine.filter((t) => t.shared).length} pubblicati per tutti · ${mine.filter((t) => !t.shared).length} solo nello studio` : 'Nessun template salvato'}>
+        <div className="space-y-3 pt-3">
+          <Info label="Come funziona">Tutti i budget che hai salvato, con il cliente da cui vengono e chi li vede (per tutti o solo lo studio). Quando il bando risponde, aggiorna l’esito: i budget ammessi pesano di più e il consiglio si ricalcola da solo.</Info>
         {mine.length === 0 && <p className="text-xs text-mute">Nessun template salvato.</p>}
         {mine.length > 0 && (
           <div className="overflow-x-auto">
@@ -350,7 +363,8 @@ export default function Confronto({ validation, client }) {
               ))}</tbody></table>
           </div>
         )}
-      </div>
+        </div>
+      </Fold>
     </div>
   )
 }
