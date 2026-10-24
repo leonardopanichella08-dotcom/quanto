@@ -83,6 +83,27 @@ def test_profile_overview_adapts_to_the_company_type_and_lists_the_quick_questio
     assert cp.profile_values(owner)["is_innovative_startup"] is False
     with pytest.raises(cp.ProfileError):
         cp.update_profile(owner, {"company_type": "SPA"})
-    cp.update_profile(owner, {"founders_under35": True, "company_status": "DA_COSTITUIRE", "durc_regular": "no"})
+    cp.update_profile(owner, {"founders_age": "U35", "company_status": "DA_COSTITUIRE", "durc_regular": "no"})
     vals = cp.profile_values(owner)
-    assert vals["founders_under35"] is True and vals["company_status"] == "DA_COSTITUIRE" and vals["durc_regular"] is False
+    assert vals["founders_under35"] is True and vals["founders_under40"] is True                       # una sola domanda: meno di 35 anni implica meno di 40
+    assert vals["company_status"] == "DA_COSTITUIRE" and vals["durc_regular"] is False
+    cp.update_profile(owner, {"founders_age": "U40"})
+    assert cp.profile_values(owner)["founders_under35"] is False and cp.profile_values(owner)["founders_under40"] is True
+    cp.update_profile(owner, {"founders_age": "OVER40"})
+    assert cp.profile_values(owner)["founders_under40"] is False
+    with pytest.raises(cp.ProfileError):
+        cp.update_profile(owner, {"founders_age": "boh"})
+    assert "founders_under35" not in {f["key"] for f in cp.overview(owner)["fields"]} and "founders_under40" not in {f["key"] for f in cp.overview(owner)["fields"]}
+
+
+def test_a_sole_trader_never_reads_the_word_balance_sheet():
+    owner = "ditta-test"
+    cp.update_profile(owner, {"legal_form": "Impresa individuale", "legal_name": "Bianchi Mario", "vat_number": "12345678903", "ateco_code": "47.11", "region": "Lazio", "employees": 0})
+    assert cp.company_type_of(owner) == "DITTA"
+    assert cp.say(owner, "Mancano i dati di bilancio: carica un bilancio nel profilo o inserisci i costi dell'ultimo esercizio") == "Mancano i dati della dichiarazione dei redditi: inserisci ricavi e spese di personale dell'ultimo periodo d'imposta"
+    out = cp.localize(owner, {"forecast": {"categories": [{"explanation": ["Nel bilancio 2024 il personale era 1 €, dai due ultimi bilanci risulta"], "source": {"filename": "Bilancio_2025.pdf"}}]}})
+    assert out["forecast"]["categories"][0]["explanation"][0] == "Nella dichiarazione dei redditi 2024 il personale era 1 €, dalle due ultime dichiarazioni dei redditi risulta"
+    assert out["forecast"]["categories"][0]["source"]["filename"] == "Bilancio_2025.pdf"                # i nomi dei file non si toccano
+    assert cp.say("capitali-test", "Nel bilancio 2024") == "Nel bilancio 2024"                           # le società di capitali leggono «bilancio»
+    ov = cp.overview(owner)
+    assert ov["document"]["kind"] == "DICHIARAZIONE_REDDITI" and all("bilanci" not in m["label"].lower() for m in ov["missing"])

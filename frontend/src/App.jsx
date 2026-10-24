@@ -345,7 +345,7 @@ function AppInner({ bridge }) {
           </div>
         </PageHead>}
 
-        <Keep id="agevolazioni" tab={tab} visited={visited}>{clientId ? <Agevolazioni key={clientId} clientId={clientId} /> : gate ? <NeedClient onGo={() => nav.go('profilo')} /> : null}</Keep>
+        <Keep id="agevolazioni" tab={tab} visited={visited}>{clientId ? <Agevolazioni key={clientId} clientId={clientId} onBudgetFrom={budgetFrom} /> : gate ? <NeedClient onGo={() => nav.go('profilo')} /> : null}</Keep>
         <Keep id="bandi" tab={tab} visited={visited}><BandiLibrary bandi={bandi} selectedId={bando?.bando_id} onSelect={selectBando} onReload={loadBandi} /></Keep>
         <Keep id="canvas" tab={tab} visited={visited}>
           <BudgetCanvas key={clientId || 'x'} bandi={bandi} bando={bando} request={request} fields={fields} validation={validation} loading={loading} error={error} busy={busy} importInfo={importInfo} criteriaTitles={criteriaTitles}

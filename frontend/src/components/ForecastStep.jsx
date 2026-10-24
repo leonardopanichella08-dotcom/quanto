@@ -1,4 +1,5 @@
 import React, { useState } from 'react'
+import { useWords } from '../lib/words'
 import { Info } from './ui'
 import { ChevronDown, ChevronRight, Loader2, RotateCcw, Trash2 } from 'lucide-react'
 import { api } from '../lib/api'
@@ -18,6 +19,7 @@ const sourceText = (s) => (!s ? null : s.filename ? `«${s.filename}»` : s.orig
 
 /** Una riga della stima: percentuale già compilata (modello dell'utente o ricavata dai bilanci), modificabile, con la spiegazione sotto. */
 function ForecastRow({ r, overrides, setOverride, showWhy, base }) {
+  const w = useWords()
   const mine = overrides[r.category]
   const value = mine !== undefined ? mine : pctStr(r.growth_applied)
   const changed = mine !== undefined && mine !== '' && Number(mine) !== Math.round(r.growth_applied * 1000) / 10
@@ -45,8 +47,8 @@ function ForecastRow({ r, overrides, setOverride, showWhy, base }) {
             <div className="rounded-xl bg-field border border-line px-3 py-2 text-[11px] text-ink-2 leading-relaxed space-y-1">
               {r.explanation.map((t, i) => <p key={i} className={t.startsWith('Attenzione') ? 'text-amber-700' : ''}>{t}</p>)}
               <p className="text-mute">
-                Dati da: bilancio {base} · {sourceText(r.base_source)}
-                {r.previous_source && <> · bilancio {r.previous_year} · {sourceText(r.previous_source)}</>}
+                Dati da: {w.doc} {base} · {sourceText(r.base_source)}
+                {r.previous_source && <> · {w.doc} {r.previous_year} · {sourceText(r.previous_source)}</>}
               </p>
             </div>
           </td>
@@ -58,6 +60,7 @@ function ForecastRow({ r, overrides, setOverride, showWhy, base }) {
 
 /** Il modello di previsione dell'utente (indicato dal cliente, dal suo CFO o stimato dallo studio): percentuali annue per ogni voce, salvate e usate al posto di quelle ricavate dai bilanci. */
 function TemplateEditor({ forecast, onSaved }) {
+  const w = useWords()
   const tpl = forecast.template
   const rows = [forecast.revenue, ...forecast.categories].filter(Boolean)
   const [open, setOpen] = useState(false)
@@ -79,7 +82,7 @@ function TemplateEditor({ forecast, onSaved }) {
     try { await api.saveForecastTemplate(growth, label, note); setOpen(false); await onSaved() } catch (e) { setError(e.message) } finally { setBusy(false) }
   }
   const remove = async () => {
-    if (!window.confirm('Eliminare il modello? Le percentuali torneranno a essere ricavate dai tuoi bilanci.')) return
+    if (!window.confirm(`Eliminare il modello? Le percentuali torneranno a essere ricavate dalle tue ${w.docs}.`)) return
     setBusy(true); setError(null)
     try { await api.deleteForecastTemplate(); setOpen(false); await onSaved() } catch (e) { setError(e.message) } finally { setBusy(false) }
   }
@@ -92,7 +95,7 @@ function TemplateEditor({ forecast, onSaved }) {
           {tpl ? (
             <p className="text-ink-2 leading-relaxed">Sto usando il modello{tpl.label ? <> «<strong>{tpl.label}</strong>»</> : ''} per {Object.keys(tpl.growth).length} {Object.keys(tpl.growth).length === 1 ? 'voce' : 'voci'}; le altre hanno la percentuale ricavata dai tuoi bilanci. Salvato il {String(tpl.updated_at).slice(0, 10).split('-').reverse().join('/')}.</p>
           ) : (
-            <Info label="Come funziona">Non hai un modello: per ogni voce uso la variazione che risulta dai tuoi due ultimi bilanci, già inserita qui sotto e spiegata. Se il cliente o il suo CFO ha indicato percentuali di crescita o di calo di costi e ricavi (o le hai stimate tu), salvale come modello: sostituiranno quelle automatiche.</Info>
+            <Info label="Come funziona">Non hai un modello: per ogni voce uso la variazione che risulta dalle tue due ultime {w.docs}, già inserita qui sotto e spiegata. Se il cliente o il suo CFO ha indicato percentuali di crescita o di calo di costi e ricavi (o le hai stimate tu), salvale come modello: sostituiranno quelle automatiche.</Info>
           )}
         </div>
         {!open && <button className="btn !py-1" onClick={start}>{tpl ? 'Modifica il modello' : 'Inserisci il mio modello'}</button>}
@@ -102,14 +105,14 @@ function TemplateEditor({ forecast, onSaved }) {
           <div className="grid sm:grid-cols-3 gap-3">
             {KEYS.map(([k, l]) => (
               <label key={k} className="space-y-1"><span className="label">{l} · % annua</span>
-                <input type="number" step="0.5" className="field" placeholder="vuoto = dai bilanci" value={draft[k] ?? ''} onChange={(e) => setDraft((d) => ({ ...d, [k]: e.target.value }))} /></label>
+                <input type="number" step="0.5" className="field" placeholder={`vuoto = dalle ${w.docs}`} value={draft[k] ?? ''} onChange={(e) => setDraft((d) => ({ ...d, [k]: e.target.value }))} /></label>
             ))}
           </div>
           <div className="grid sm:grid-cols-2 gap-3">
             <label className="space-y-1"><span className="label">Chi l’ha indicato (facoltativo)</span><input className="field" maxLength={80} placeholder="Per esempio: cliente, CFO, il tuo studio" value={label} onChange={(e) => setLabel(e.target.value)} /></label>
             <label className="space-y-1"><span className="label">Nota (facoltativa)</span><input className="field" maxLength={500} placeholder="Il motivo, in una riga" value={note} onChange={(e) => setNote(e.target.value)} /></label>
           </div>
-          <Info label="Come funziona">Numeri positivi = crescita, negativi = calo (per esempio −3 per un calo del 3% l’anno). Le caselle vuote restano ricavate dai bilanci.</Info>
+          <Info label="Come funziona">Numeri positivi = crescita, negativi = calo (per esempio −3 per un calo del 3% l’anno). Le caselle vuote restano ricavate dalle {w.docs}.</Info>
           <div className="flex flex-wrap items-center gap-2">
             <button className="btn-primary" disabled={busy} onClick={save}>{busy && <Loader2 className="w-3.5 h-3.5 animate-spin" />}Salva il modello</button>
             <button className="btn" onClick={fromCurrent} disabled={busy}>Parti dalle percentuali attuali</button>
@@ -124,6 +127,7 @@ function TemplateEditor({ forecast, onSaved }) {
 }
 
 export default function ForecastStep({ forecast, overrides, setOverride, year, setYear, matching, onEstimate, onTemplateChanged }) {
+  const w = useWords()
   const [showWhy, setShowWhy] = useState(true)
   const rows = forecast ? [forecast.revenue, ...forecast.categories].filter(Boolean) : []
   const dirty = rows.some((r) => overrides[r.category] !== undefined && overrides[r.category] !== '' && Number(overrides[r.category]) !== Math.round(r.growth_applied * 1000) / 10)
@@ -161,9 +165,9 @@ export default function ForecastStep({ forecast, overrides, setOverride, year, s
                 )}
               </tbody>
             </table>
-            {forecast.missing.length > 0 && <p className="text-xs text-amber-700 mt-2">Senza dato nel bilancio {forecast.base_year}: {forecast.missing.map((m) => m.label.toLowerCase()).join(', ')} (non entrano nella stima).</p>}
+            {forecast.missing.length > 0 && <p className="text-xs text-amber-700 mt-2">Senza dato {w.inThe} {forecast.base_year}: {forecast.missing.map((m) => m.label.toLowerCase()).join(', ')} (non entrano nella stima).</p>}
             {forecast.warnings.map((w) => <p key={w} className="text-xs text-amber-700 mt-1">{w}</p>)}
-            <Info label="Come funziona">Le percentuali ricavate dai bilanci sono la variazione tra i tuoi due ultimi esercizi e valgono per ogni anno fino a quello pianificato. «Costi sui ricavi» considera solo le cinque categorie di spesa qui sopra.</Info>
+            <Info label="Come funziona">Le percentuali ricavate dalle {w.docs} sono la variazione tra i tuoi due ultimi anni e valgono per ogni anno fino a quello pianificato. «Costi sui ricavi» considera solo le cinque categorie di spesa qui sopra.</Info>
           </div>
         </div>
       )}

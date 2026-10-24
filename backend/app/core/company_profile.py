@@ -50,8 +50,7 @@ PROFILE_FIELDS: Dict[str, Tuple[str, str, bool]] = {
     "employees": ("Numero di dipendenti", "count", True),
     "is_innovative_startup": ("Start-up innovativa iscritta al registro", "bool", True),
     "ateco_secondary": ("Codici ATECO secondari", "text", False),
-    "founders_under35": ("Almeno un socio o titolare ha meno di 35 anni", "bool", False),
-    "founders_under40": ("Almeno un socio o titolare ha meno di 40 anni", "bool", False),
+    "founders_age": ("Età del socio più giovane (o del titolare)", "founders_age", False),
     "women_majority": ("L'impresa è a prevalenza femminile (soci o titolare)", "bool", False),
     "founders_unemployed": ("Un socio o promotore è disoccupato o inoccupato", "bool", False),
     "durc_regular": ("L'impresa è regolare con DURC, contributi e imposte", "bool", False),
@@ -64,7 +63,48 @@ TAX_FIN_REQUIRED = ["revenue_eur", "personnel_eur"]          # con la dichiarazi
 TAX_LABELS = {"revenue_eur": "Ricavi o compensi dichiarati", "personnel_eur": "Spese per lavoro dipendente e collaboratori", "capital_assets_eur": "Acquisti di beni strumentali e ammortamenti",
               "consulting_eur": "Spese per servizi e consulenze", "overhead_eur": "Altre spese (affitti, utenze, generali)", "training_eur": "Formazione",
               "net_result_eur": "Reddito (o perdita) dichiarato", "total_costs_eur": "Totale spese deducibili", "employees_avg": "Numero medio di dipendenti"}
-QUICK_SET = ["company_type", "region", "province", "ateco_code", "employees", "company_status", "founded_year", "founders_under35", "women_majority", "founders_unemployed", "durc_regular", "is_innovative_startup"]
+QUICK_SET = ["company_type", "region", "province", "ateco_code", "employees", "company_status", "founded_year", "founders_age", "women_majority", "founders_unemployed", "durc_regular", "is_innovative_startup"]
+FOUNDERS_AGES = {"U35": "Meno di 35 anni", "U40": "Da 35 a 39 anni", "OVER40": "40 anni o più"}      # una sola domanda: «meno di 35» implica «meno di 40», non si chiede due volte
+
+# Parole diverse per chi non ha il bilancio: nelle frasi che l'app scrive, «bilancio» diventa «dichiarazione dei redditi» (società di persone e ditte individuali).
+_PERSONS_WORDS = [("Ricavata dai tuoi bilanci", "Ricavata dalle tue dichiarazioni dei redditi"), ("dai due ultimi bilanci", "dalle due ultime dichiarazioni dei redditi"), ("dai suoi due ultimi bilanci", "dalle sue due ultime dichiarazioni dei redditi"),
+                  ("Mancano i dati di bilancio: carica un bilancio nel profilo o inserisci i costi dell'ultimo esercizio", "Mancano i dati della dichiarazione dei redditi: inserisci ricavi e spese di personale dell'ultimo periodo d'imposta"),
+                  ("Manca il bilancio di un esercizio precedente al", "Manca la dichiarazione dei redditi di un anno precedente al"), ("L'ultimo bilancio disponibile è del", "L'ultima dichiarazione disponibile è del"),
+                  ("tra i due esercizi", "tra i due anni"), ("dall'ultimo bilancio", "dall'ultima dichiarazione"), ("dal bilancio", "dalla dichiarazione dei redditi"), ("dai bilanci", "dalle dichiarazioni dei redditi"),
+                  ("Nel bilancio", "Nella dichiarazione dei redditi"), ("nel bilancio", "nella dichiarazione dei redditi"), ("Bilancio ", "Dichiarazione "), ("del bilancio", "della dichiarazione dei redditi"),
+                  ("ultimo bilancio", "ultima dichiarazione dei redditi"), ("il bilancio", "la dichiarazione dei redditi"), ("un bilancio", "una dichiarazione dei redditi"), ("i bilanci", "le dichiarazioni dei redditi"),
+                  ("bilanci", "dichiarazioni dei redditi"), ("bilancio", "dichiarazione dei redditi")]
+
+
+def company_type_of(owner: str) -> Optional[str]:
+    """Il tipo di impresa dell'azienda (scelto o dedotto dalla forma giuridica), senza ricalcolare tutto il profilo."""
+    data, _src = _load_profile(owner)
+    return data.get("company_type") or infer_company_type(data.get("legal_form"))
+
+
+def say(owner: str, text: str) -> str:
+    """La frase come la deve leggere questa impresa: per società di persone e ditte «bilancio» diventa «dichiarazione dei redditi»."""
+    if not isinstance(text, str) or "ilanci" not in text and "ilancio" not in text:
+        return text
+    if company_type_of(owner) not in ("PERSONE", "DITTA"):
+        return text
+    for old, new in _PERSONS_WORDS:
+        text = text.replace(old, new)
+    return text
+
+
+def localize(owner: str, obj: Any, keys=("explanation", "growth_origin_label", "warnings", "notes", "detail", "message", "note", "reason", "basis", "summary", "missing", "assumption", "label_origin")) -> Any:
+    """Applica ``say`` ai soli testi che l'app scrive (non ai nomi dei file né ai dati dell'utente)."""
+    if company_type_of(owner) not in ("PERSONE", "DITTA"):
+        return obj
+
+    def walk(o: Any, under: bool = False) -> Any:
+        if isinstance(o, dict):
+            return {k: walk(v, under or k in keys) for k, v in o.items()}
+        if isinstance(o, list):
+            return [walk(v, under) for v in o]
+        return say(owner, o) if under and isinstance(o, str) else o
+    return walk(obj)
 
 
 def infer_company_type(legal_form: Optional[str]) -> Optional[str]:
@@ -84,7 +124,7 @@ def infer_company_type(legal_form: Optional[str]) -> Optional[str]:
 def required_for(company_type: Optional[str]) -> Dict[str, Any]:
     """Quali dati servono davvero, secondo il tipo di impresa: meno dati dove il documento di partenza è più povero."""
     persons = company_type in ("PERSONE", "DITTA")
-    return {"skip_profile": {"is_innovative_startup"} if persons else set(), "fin_required": TAX_FIN_REQUIRED if persons else FIN_REQUIRED,
+    return {"skip_profile": {"is_innovative_startup", "legal_form"} if persons else set(), "fin_required": TAX_FIN_REQUIRED if persons else FIN_REQUIRED,
             "document": "DICHIARAZIONE_REDDITI" if persons else "BILANCIO", "document_label": "dichiarazione dei redditi" if persons else "bilancio", "period_label": "periodo d'imposta" if persons else "esercizio"}
 FIN_FIELDS: Dict[str, Tuple[str, str]] = {
     "revenue_eur": ("Ricavi delle vendite e delle prestazioni", "money"),
@@ -150,6 +190,11 @@ def _clean(kind: str, value: Any) -> Any:
         v = str(value).strip().upper()
         if v not in COMPANY_TYPES:
             raise ProfileError("Scegli società di capitali, società di persone o ditta individuale")
+        return v
+    if kind == "founders_age":
+        v = str(value).strip().upper()
+        if v not in FOUNDERS_AGES:
+            raise ProfileError("Scegli meno di 35 anni, da 35 a 39 o 40 e oltre")
         return v
     if kind == "company_status":
         v = str(value).strip().upper()
@@ -489,7 +534,7 @@ def overview(owner: str) -> Dict[str, Any]:
     return {"fields": fields, "financials": financials, "last_year": last_year, "missing": missing, "completeness_pct": round(100 * done / total),
             "size": size_class(effective.get("employees"), last.get("revenue_eur")), "documents": {"total": len(docs), "to_review": sum(d["to_review"] for d in docs)},
             "fin_fields": [{"key": k, "label": labels.get(k, v[0]), "kind": v[1], "required": k in fin_required} for k, v in FIN_FIELDS.items()], "regions": REGIONS,
-            "company_type": ctype, "company_types": [{"value": k, "label": v} for k, v in COMPANY_TYPES.items()], "company_statuses": [{"value": k, "label": v} for k, v in COMPANY_STATUS.items()],
+            "company_type": ctype, "founders_ages": [{"value": k, "label": v} for k, v in FOUNDERS_AGES.items()], "company_types": [{"value": k, "label": v} for k, v in COMPANY_TYPES.items()], "company_statuses": [{"value": k, "label": v} for k, v in COMPANY_STATUS.items()],
             "document": {"kind": need["document"], "label": need["document_label"], "period": need["period_label"]}, "quick": {"fields": quick, "answered": sum(1 for q in quick if q["answered"]), "total": len(quick)}}
 
 
@@ -500,6 +545,10 @@ def profile_values(owner: str) -> Dict[str, Any]:
     out["size"] = ov["size"]
     if out.get("company_type") in ("PERSONE", "DITTA") and out.get("is_innovative_startup") is None:
         out["is_innovative_startup"] = False                   # la start-up innovativa è una società di capitali: per le altre non è una domanda
+    age = out.get("founders_age")
+    if age:                                                    # un'unica risposta, due fatti: sotto i 35 anni implica sotto i 40
+        out["founders_under35"] = age == "U35"
+        out["founders_under40"] = age in ("U35", "U40")
     return out
 
 

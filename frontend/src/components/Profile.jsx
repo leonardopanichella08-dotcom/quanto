@@ -14,6 +14,7 @@ import ProfileSetup from './ProfileSetup'
 import Guide from './Guide'
 import { TokenCard } from './Tokens'
 import QuickProfile from './QuickProfile'
+import { docWords } from '../lib/words'
 import { ClientsPanel } from './Clients'
 
 const STATUS_TONE = { OK: 'text-emerald-700', WARN: 'text-amber-700', FAIL: 'text-red-700', DENIED: 'text-red-700', LOCKED: 'text-red-700', CONFLICT: 'text-amber-700', NOT_FOUND: 'text-amber-700' }
@@ -245,7 +246,7 @@ function ClientWorkspace({ active, version, bump, onGoAllocation, onUsePayslip, 
       </Fold>
       <Fold id="sez-documenti" icon={FolderOpen} title={`I documenti di ${active.name}`} summary={docs.length === 0 ? 'nessun documento ancora' : `${docs.length} ${docs.length === 1 ? 'documento' : 'documenti'}${toReview ? ` · ${toReview} letture da verificare` : ' · tutto verificato'}`}
         badge={toReview ? `${toReview} da verificare` : null} tone="warn" open={isOpen('documenti')} onToggle={() => toggle('documenti')}>
-        <p className="text-xs text-mute pt-2">Visura, bilanci, buste paga, F24, bozze di candidatura e ogni altro documento aziendale: restano dentro questo lavoro e li vede solo il tuo studio. Clicca un documento per aprirne il dettaglio proprio sotto di lui.</p>
+        <p className="text-xs text-mute pt-2">{docWords(ov).tax ? 'Visura, dichiarazione dei redditi (se vuoi allegarla), buste paga, F24, bozze di candidatura e ogni altro documento aziendale:' : 'Visura, bilanci, buste paga, F24, bozze di candidatura e ogni altro documento aziendale:'} restano dentro questo lavoro e li vede solo il tuo studio. Clicca un documento per aprirne il dettaglio proprio sotto di lui.</p>
         <TutorialVideo id="T02" />
         <Documents onUsePayslip={onUsePayslip} onUseBalance={onUseBalance} onUseDraft={onUseDraft} onProfileChanged={bump} refreshKey={version} focus={docFocus} />
       </Fold>

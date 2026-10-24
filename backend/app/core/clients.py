@@ -44,7 +44,7 @@ def _summary(owner: str, c: Dict[str, Any]) -> Dict[str, Any]:
     with connect() as conn:
         saved = conn.execute("SELECT key, updated_at FROM client_state WHERE scope=? ORDER BY key", (sc,)).fetchall()
     return {"id": c["id"], "name": c["name"], "note": c["note"], "created_at": c["created_at"], "legal_name": vals.get("legal_name"), "ateco_code": vals.get("ateco_code"),
-            "region": vals.get("region"), "size": (ov["size"] or {}).get("label"), "completeness_pct": ov["completeness_pct"], "last_year": ov["last_year"],
+            "region": vals.get("region"), "size": (ov["size"] or {}).get("label"), "completeness_pct": ov["completeness_pct"], "last_year": ov["last_year"], "document_label": ov["document"]["label"], "company_type": ov.get("company_type"),
             "documents": len(fonte_c.list_documents(sc)), "saved": [{"key": s["key"], "updated_at": s["updated_at"]} for s in saved]}
 
 

@@ -7,7 +7,8 @@ import { CostConfirm, fmtTok } from './Tokens'
 import { Info } from './ui'
 import HowItWorks from './HowItWorks'
 import TutorialVideo from './TutorialVideo'
-import { flashTo, useNav } from '../lib/nav'
+import { flashTo, takeAllocationTarget, useNav } from '../lib/nav'
+import { WordsContext, docWords } from '../lib/words'
 import Guide from './Guide'
 import PipelineButton from './PipelineButton'
 import { Hint } from './Help'
@@ -605,6 +606,12 @@ export default function AllocationView({ onGoProfile, onBudgetFrom, onOpenBudget
   const openStep = (id, on = true) => setOpenSteps((o) => ({ ...o, [id]: on }))
   const toggleStep = (id) => setOpenSteps((o) => ({ ...o, [id]: !o[id] }))
   const goStep = (id) => { openStep(id); setTimeout(() => flashTo(`al-${id}`), 120) }
+  useEffect(() => {                                       // un pulsante di un'altra pagina (Agevolazioni) porta a un passo preciso
+    const on = () => { const t = takeAllocationTarget(); if (t) setTimeout(() => goStep(t), 500) }
+    window.addEventListener('quanto-allocation-goto', on)
+    on()
+    return () => window.removeEventListener('quanto-allocation-goto', on)
+  }, [])        // eslint-disable-line react-hooks/exhaustive-deps
   // «Usa questo progetto»: si passa allo scenario «Progetto» con i bandi che lo finanziano; il piano dell'anno e le sue scelte restano com'erano.
   const chooseProject = (idea) => {
     setProject(idea)
@@ -639,8 +646,8 @@ export default function AllocationView({ onGoProfile, onBudgetFrom, onOpenBudget
   )
 
   const stages = [
-    { id: 'dati', go: 'dati', title: 'Azienda', done: !!hasData, line: ov ? `Profilo al ${ov.completeness_pct}%` : '…', cta: 'Carica il bilancio' },
-    { id: 'stima', go: 'stima', title: 'Stima', done: !!match, off: !hasData, line: match ? `Spese ${year}: ${fmtEur(match.forecast.total_forecast_eur)}` : 'dal bilancio', cta: 'Vedi la stima' },
+    { id: 'dati', go: 'dati', title: 'Azienda', done: !!hasData, line: ov ? `Profilo al ${ov.completeness_pct}%` : '…', cta: docWords(ov).tax ? 'Inserisci i dati' : 'Carica il bilancio' },
+    { id: 'stima', go: 'stima', title: 'Stima', done: !!match, off: !hasData, line: match ? `Spese ${year}: ${fmtEur(match.forecast.total_forecast_eur)}` : `dalla ${docWords(ov).doc}`, cta: 'Vedi la stima' },
     { id: 'bisogni', go: 'bisogni', title: 'Bisogni', done: !!needs, off: !hasData, line: needs ? (needs.people?.total ? `${needs.people.total} ${needs.people.total === 1 ? 'persona' : 'persone'}${needs.needs.some((n) => n.kind === 'STRUMENTI') ? ' e strumenti' : ''}` : needs.needs.length ? 'strumenti' : 'nessuno in più') : 'persone e strumenti', cta: 'Vedi cosa serve per crescere' },
     { id: 'bandi', go: 'bandi', title: 'Bandi', done: !!match && (match.matching.summary.ADATTO > 0), off: !match, line: match ? `${match.matching.summary.ADATTO} adatti${st ? ` su ${st.open_total + st.studied} letti` : ''}` : 'tutti letti', cta: 'Guarda i bandi' },
     { id: 'progetti', go: 'progetti', title: 'Progetto', done: !!project || (!!match && projectBandi.length === 0), off: !match, line: project ? project.title : (projectBandi.length ? `${projectBandi.length} bandi a progetto` : 'non serve'), cta: 'Scegli il progetto' },
@@ -649,14 +656,15 @@ export default function AllocationView({ onGoProfile, onBudgetFrom, onOpenBudget
   ]
 
   return (
+    <WordsContext.Provider value={docWords(ov)}>
     <div className="space-y-4">
       <Guide page="allocation" />
       <HowItWorks kind="allocation" />
       <Journey stages={stages} onGo={goStep} />
 
       <Step id="al-dati" title="Azienda" done={!!hasData && ov?.missing.length === 0} open={!!openSteps.dati} onToggle={() => toggleStep('dati')}
-        summary={ov ? `Profilo al ${ov.completeness_pct}%${ov.last_year != null ? ` · bilancio ${ov.last_year}` : ' · nessun bilancio'}` : null}
-        info="Si parte dai bilanci e dai documenti del Profilo. Quello che manca si completa lì: QUANTO non inventa dati."
+        summary={ov ? `Profilo al ${ov.completeness_pct}%${ov.last_year != null ? ` · ${docWords(ov).doc} ${ov.last_year}` : ` · nessuna ${docWords(ov).doc}`}` : null}
+        info={`Si parte dai dati del Profilo (${docWords(ov).docs} e documenti). Quello che manca si completa lì: QUANTO non inventa dati.`}
         chart={<ProfileChart ov={ov} />}>
         {!ov && !error && <p className="text-xs text-mute flex items-center gap-2"><Loader2 className="w-3.5 h-3.5 animate-spin" />Carico…</p>}
         {ov && (
@@ -670,13 +678,13 @@ export default function AllocationView({ onGoProfile, onBudgetFrom, onOpenBudget
           </div>
         )}
         {ov && ov.missing.length > 0 && <p className="text-xs text-amber-700">Manca: {ov.missing.map((m) => (m.year ? `${m.label} (${m.year})` : m.label)).join(' · ')}</p>}
-        {ov && !hasData && <p className="text-xs text-ink-2">Senza un bilancio non si può stimare l’anno successivo.</p>}
+        {ov && !hasData && <p className="text-xs text-ink-2">Senza {docWords(ov).the} non si può stimare l’anno successivo.</p>}
       </Step>
 
       {hasData && (
         <Step id="al-stima" title={`Stima del ${year}`} done={!!match} open={!!openSteps.stima} onToggle={() => toggleStep('stima')}
           summary={match ? `Spese previste ${fmtEur(match.forecast.total_forecast_eur)} · nel ${match.forecast.base_year} ${fmtEur(match.forecast.total_baseline_eur)}` : (matching ? 'Calcolo…' : null)}
-          info="Parte dall’ultimo bilancio: costi e ricavi variano di una percentuale annua. Se hai un modello di previsione uso quello; per le voci senza modello calcolo la variazione dai due ultimi bilanci, con la spiegazione."
+          info={`Parte dall’${docWords(ov).last}: costi e ricavi variano di una percentuale annua. Se hai un modello di previsione uso quello; per le voci senza modello calcolo la variazione dalle due ultime ${docWords(ov).docs}, con la spiegazione.`}
           chart={<ForecastChart forecast={match?.forecast} />}>
           <TutorialVideo id="T06" />
           <ForecastStep forecast={match?.forecast} overrides={growth} setOverride={setOverride} year={year} setYear={setYear} matching={matching} onEstimate={estimate} onTemplateChanged={templateChanged} />
@@ -686,7 +694,7 @@ export default function AllocationView({ onGoProfile, onBudgetFrom, onOpenBudget
 
       {hasData && (
         <Step id="al-bisogni" title="Cosa serve per crescere" done={!!needs} open={!!openSteps.bisogni} onToggle={() => toggleStep('bisogni')} summary={needsSummary}
-          info="Dal bilancio e dalla previsione dei ricavi: se l’azienda cresce come previsto, quante persone e quanti strumenti servono in più, a parità di produttività. È un’ipotesi da confermare con l’imprenditore, non una previsione: ogni numero mostra i dati da cui viene, e se un dato manca lo dice.">
+          info={`${docWords(ov).fromThe[0].toUpperCase()}${docWords(ov).fromThe.slice(1)} e dalla previsione dei ricavi: se l’azienda cresce come previsto, quante persone e quanti strumenti servono in più, a parità di produttività. È un’ipotesi da confermare con l’imprenditore, non una previsione: ogni numero mostra i dati da cui viene, e se un dato manca lo dice.`}>
           {ideasLoading && !needs && <p className="text-xs text-mute flex items-center gap-2"><Loader2 className="w-3.5 h-3.5 animate-spin" />Calcolo…</p>}
           {needs && (
             <div className="space-y-5">
@@ -901,5 +909,6 @@ export default function AllocationView({ onGoProfile, onBudgetFrom, onOpenBudget
         </Step>
       )}
     </div>
+    </WordsContext.Provider>
   )
 }

@@ -26,7 +26,7 @@ export function NeedClient({ onGo }) {
     <div className="card p-8 text-center space-y-3 max-w-xl mx-auto">
       <Briefcase className="w-8 h-8 text-mute mx-auto" />
       <h3 className="font-semibold text-base">Prima apri un lavoro</h3>
-      <p className="text-xs text-ink-2 leading-relaxed">Ogni azienda cliente ha il suo profilo, i suoi bilanci e i suoi risultati. Apri il lavoro dell’azienda dal Profilo dello studio e poi torna qui.</p>
+      <p className="text-xs text-ink-2 leading-relaxed">Ogni azienda cliente ha il suo profilo, i suoi dati economici e i suoi risultati. Apri il lavoro dell’azienda dal Profilo dello studio e poi torna qui.</p>
       <button className="btn-primary" onClick={onGo}>Vai al Profilo</button>
     </div>
   )
@@ -59,7 +59,7 @@ export function ClientsPanel({ clients, clientId, onSelect, onChanged }) {
     <div className="space-y-4" id="lavori">
       <div className="flex flex-wrap items-end gap-3">
         <div className="min-w-0 flex-1"><h3 className="font-semibold text-base">I lavori dello studio</h3>
-          <p className="text-xs text-ink-2 mt-0.5 max-w-2xl leading-relaxed">Ogni azienda con cui lavori su QUANTO è un lavoro: ha il suo profilo, i suoi bilanci, i suoi documenti e i risultati salvati. I crediti sono dello studio.</p></div>
+          <p className="text-xs text-ink-2 mt-0.5 max-w-2xl leading-relaxed">Ogni azienda con cui lavori su QUANTO è un lavoro: ha il suo profilo, i suoi dati economici, i suoi documenti e i risultati salvati. I crediti sono dello studio.</p></div>
         <form onSubmit={create} className="flex items-center gap-2">
           <input className="field !w-56" value={name} onChange={(e) => setName(e.target.value)} placeholder="Nome dell'azienda (nuovo lavoro)" aria-label="Nome del nuovo lavoro" />
           <button className="btn-primary" disabled={busy || name.trim().length < 2}>{busy ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Plus className="w-3.5 h-3.5" />}Apri lavoro</button>
@@ -79,7 +79,7 @@ export function ClientsPanel({ clients, clientId, onSelect, onChanged }) {
               </div>
               <div className="flex flex-wrap gap-x-4 gap-y-1 text-[11px] text-ink-2">
                 <span>Profilo {fmtNum(c.completeness_pct, 0)}%</span>
-                <span>{c.last_year ? `Ultimo bilancio ${c.last_year}` : 'Nessun bilancio'}</span>
+                <span>{c.last_year ? `${c.document_label === 'dichiarazione dei redditi' ? 'Ultima dichiarazione' : 'Ultimo bilancio'} ${c.last_year}` : `Nessuna ${c.document_label || 'bilancio'}`.replace('Nessuna bilancio', 'Nessun bilancio')}</span>
                 <span>{c.documents} {c.documents === 1 ? 'documento' : 'documenti'}</span>
                 {c.saved.length > 0 && <span>Salvati: {c.saved.map((s) => ({ allocation: 'allocazione', budget: 'budget', confronto: 'confronto' }[s.key] || s.key)).join(', ')}</span>}
               </div>

@@ -1,5 +1,6 @@
 import { api } from '../lib/api'
 import { fmtEur } from '../lib/format'
+import { docWords } from '../lib/words'
 
 /** Le attività dell'assistente. Ogni passaggio è dichiarato in anticipo (così si vedono tutti a destra) e il programma li esegue uno alla volta:
  *  azioni sull'app (cambio pagina, salvataggi, calcoli) fatte dall'assistente, domande all'utente solo quando serve un dato che non c'è. */
@@ -34,10 +35,11 @@ async function ensureProfile(a, stepId) {
   a.begin(stepId, 'Leggo il profilo del lavoro…')
   await a.pause(500)
   let ov = await api.profile()
+  const dw = docWords(ov)                                     // società di persone e ditte: «dichiarazione dei redditi», mai «bilancio»
   const missingProfile = ov.missing.filter((m) => m.scope === 'profile')
   const needsBalance = ov.last_year == null
   if (!missingProfile.length && !needsBalance) {
-    a.done(stepId, `Profilo completo: bilancio ${ov.last_year}, nessun dato mancante.`)
+    a.done(stepId, `Profilo completo: ${dw.doc} ${ov.last_year}, nessun dato mancante.`)
     return ov
   }
   if (missingProfile.length) {
@@ -58,23 +60,24 @@ async function ensureProfile(a, stepId) {
   if (ov.last_year == null) {
     const years = [THIS_YEAR - 1, THIS_YEAR - 2, THIS_YEAR - 3].map((y) => ({ value: String(y), label: String(y) }))
     const fields = [
-      { key: 'year', label: 'Anno del bilancio', kind: 'select', options: years, default: String(THIS_YEAR - 1), what: 'L’esercizio a cui si riferiscono i numeri che scrivi sotto.', why: 'La stima dell’anno prossimo parte dall’ultimo anno chiuso.', where: 'Intestazione del bilancio.', example: String(THIS_YEAR - 1) },
-      ...COST_KEYS.map((k) => ({ key: k, kind: 'money', optional: true, zeroLabel: 'Zero', min: 0, ...COST_HELP[k] })),
+      { key: 'year', label: dw.tax ? 'Anno della dichiarazione' : 'Anno del bilancio', kind: 'select', options: years, default: String(THIS_YEAR - 1), what: 'L’esercizio a cui si riferiscono i numeri che scrivi sotto.', why: 'La stima dell’anno prossimo parte dall’ultimo anno chiuso.', where: 'Intestazione del bilancio.', example: String(THIS_YEAR - 1) },
+      ...(dw.tax ? ['revenue_eur', 'personnel_eur'] : COST_KEYS).map((k) => ({ key: k, kind: 'money', optional: true, zeroLabel: 'Zero', min: 0, ...COST_HELP[k] })),
     ]
     for (;;) {
       const vals = await a.ask(stepId, {
-        title: 'Mancano i dati di bilancio', intro: 'Non c’è ancora nessun bilancio. Scrivi i totali dell’ultimo anno chiuso (puoi caricare il PDF del bilancio nel Profilo, ma così sei più veloce). Lascia vuoto ciò che non sai: non lo invento.',
-        fields, submitLabel: 'Salva il bilancio', skipLabel: 'Lo faccio dopo',
-        validate: (v) => (COST_KEYS.slice(1).every((k) => v[k] == null) ? 'Scrivi almeno una voce di costo (anche zero se l’azienda non la sostiene).' : null),
+        title: dw.tax ? 'Mancano i dati della dichiarazione dei redditi' : 'Mancano i dati di bilancio',
+        intro: dw.tax ? 'Bastano due numeri dell’ultima dichiarazione dei redditi: i ricavi (quadro RF o RG, o i compensi del quadro RE) e le spese per lavoro dipendente. Lascia vuoto ciò che non sai: non lo invento.' : 'Non c’è ancora nessun bilancio. Scrivi i totali dell’ultimo anno chiuso (puoi caricare il PDF del bilancio nel Profilo, ma così sei più veloce). Lascia vuoto ciò che non sai: non lo invento.',
+        fields, submitLabel: dw.tax ? 'Salva i dati' : 'Salva il bilancio', skipLabel: 'Lo faccio dopo',
+        validate: (v) => (dw.tax ? (v.revenue_eur == null ? 'Scrivi almeno i ricavi (o i compensi) dell’anno.' : null) : (COST_KEYS.slice(1).every((k) => v[k] == null) ? 'Scrivi almeno una voce di costo (anche zero se l’azienda non la sostiene).' : null)),
       })
-      if (!vals) { a.skip(stepId, 'Bilancio non inserito: senza non posso stimare l’anno prossimo.'); return null }
+      if (!vals) { a.skip(stepId, `${dw.tax ? 'Dichiarazione dei redditi non inserita' : 'Bilancio non inserito'}: senza non posso stimare l’anno prossimo.`); return null }
       const { year, ...numbers } = vals
       ov = await api.saveFinancials(Number(year), numbers)
       evt('quanto-profile-changed')
       break
     }
   }
-  a.done(stepId, `Dati salvati nel profilo (bilancio ${ov.last_year}).`)
+  a.done(stepId, `Dati salvati nel profilo (${dw.doc} ${ov.last_year}).`)
   return ov
 }
 
@@ -151,7 +154,7 @@ export const TASKS = {
       const year = Number(p.year) || THIS_YEAR + 1
       b.go('profilo'); await a.pause(300)
       const ov = await ensureProfile(a, 'dati')
-      if (!ov || ov.last_year == null) { for (const s of ['vai', 'stima', 'aiuti', 'esito']) a.skip(s); a.finish('Mi manca il bilancio: appena lo inserisci (anche a mano) riparto da qui.'); return }
+      if (!ov || ov.last_year == null) { for (const s of ['vai', 'stima', 'aiuti', 'esito']) a.skip(s); a.finish(`Mi manca ${docWords(ov).the}: appena inserisci i dati (anche a mano) riparto da qui.`); return }
       a.begin('vai'); b.go('allocation'); await a.pause(700); a.done('vai', 'Pagina Allocazione aperta.')
       a.begin('stima', 'Calcolo… può volerci qualche secondo.')
       evt('quanto-recalc', { year, allMode: true })
@@ -197,7 +200,7 @@ export const TASKS = {
     async run(a, p) {
       const b = a.bridge()
       const ov = await ensureProfile(a, 'dati')
-      if (!ov || ov.last_year == null) { for (const s of ['bando', 'quota', 'bozza', 'personale', 'controllo']) a.skip(s); a.finish('Senza i costi del bilancio non posso creare la bozza: appena li inserisci riparto da qui.'); return }
+      if (!ov || ov.last_year == null) { for (const s of ['bando', 'quota', 'bozza', 'personale', 'controllo']) a.skip(s); a.finish(`Senza i costi ${docWords(ov).tax ? 'della dichiarazione dei redditi' : 'del bilancio'} non posso creare la bozza: appena li inserisci riparto da qui.`); return }
 
       // 1. il bando
       a.begin('bando')

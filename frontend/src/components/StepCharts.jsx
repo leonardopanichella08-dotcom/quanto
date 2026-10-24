@@ -1,4 +1,5 @@
 import React from 'react'
+import { useWords } from '../lib/words'
 import { fmtEur, fmtNum, CATEGORY_LABEL } from '../lib/format'
 
 /** Piccoli grafici per le intestazioni dei passi dell'allocazione: usano solo numeri già calcolati (profilo, stima, piano), nessun calcolo nuovo. */
@@ -34,18 +35,20 @@ function Hbar({ label, value, max, color, right }) {
 
 /** Passo 1 · quanto è completo il profilo. */
 export function ProfileChart({ ov }) {
+  const w = useWords()
   if (!ov) return null
   return (
     <div className="space-y-2">
       <div className="flex items-center justify-between text-[11px] text-ink-2"><span>Completezza del profilo</span><span className="font-semibold text-ink tabular-nums">{ov.completeness_pct}%</span></div>
       <Stack parts={[{ v: ov.completeness_pct, c: GREEN, l: 'Compilato' }, { v: 100 - ov.completeness_pct, c: 'transparent', l: 'Da inserire' }]} />
-      <p className="text-[11px] text-mute">{ov.missing.length ? `${ov.missing.length} ${ov.missing.length === 1 ? 'dato da inserire' : 'dati da inserire'}` : 'Nessun dato mancante'} · ultimo bilancio {ov.last_year ?? '—'}</p>
+      <p className="text-[11px] text-mute">{ov.missing.length ? `${ov.missing.length} ${ov.missing.length === 1 ? 'dato da inserire' : 'dati da inserire'}` : 'Nessun dato mancante'} · {w.last} {ov.last_year ?? '—'}</p>
     </div>
   )
 }
 
 /** Passo 2 · spese per categoria: ultimo bilancio contro stima dell'anno. */
 export function ForecastChart({ forecast }) {
+  const w = useWords()
   if (!forecast) return null
   const rows = [...forecast.categories].sort((a, b) => b.forecast_eur - a.forecast_eur)
   const max = Math.max(...rows.map((r) => Math.max(r.baseline_eur, r.forecast_eur)), 1)
@@ -61,7 +64,7 @@ export function ForecastChart({ forecast }) {
           <span className="w-24 text-right tabular-nums text-mute">{fmtEur(r.forecast_eur)}</span>
         </div>
       ))}
-      <Legend items={[[GREY, `Bilancio ${forecast.base_year}`], [AMBER, `Stima ${forecast.fiscal_year}`]]} />
+      <Legend items={[[GREY, `${w.cap} ${forecast.base_year}`], [AMBER, `Stima ${forecast.fiscal_year}`]]} />
     </div>
   )
 }

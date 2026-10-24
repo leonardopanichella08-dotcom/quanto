@@ -27,6 +27,11 @@ let pendingPublish = false
 export const publishGo = () => { pendingPublish = true; window.dispatchEvent(new CustomEvent('quanto-publish-goto')) }
 export const takePublishRequest = () => { const t = pendingPublish; pendingPublish = false; return t }
 
+// Dalle Agevolazioni (o da altrove) a un passo preciso dell'Allocazione: la richiesta resta in attesa finché l'Allocazione non la prende.
+let pendingAllocation = null
+export const allocationGo = (step) => { pendingAllocation = step; window.dispatchEvent(new CustomEvent('quanto-allocation-goto')) }
+export const takeAllocationTarget = () => { const t = pendingAllocation; pendingAllocation = null; return t }
+
 // Porta lo schermo su un elemento e lo evidenzia un istante, così si capisce dove si è arrivati.
 export const flashTo = (id, tries = 12) => {
   const el = document.getElementById(id)

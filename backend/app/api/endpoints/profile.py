@@ -12,10 +12,12 @@ router = APIRouter()
 
 
 def _guard(fn, *a, **kw):
+    owner = a[0] if a and isinstance(a[0], str) else None
     try:
-        return fn(*a, **kw)
+        out = fn(*a, **kw)
     except cp.ProfileError as exc:
-        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(exc)) from exc
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=cp.say(owner, str(exc)) if owner else str(exc)) from exc
+    return cp.localize(owner, out) if owner else out            # per società di persone e ditte «bilancio» si legge «dichiarazione dei redditi»
 
 
 class ProfileBody(BaseModel):
@@ -110,7 +112,7 @@ def match(body: ForecastBody, request: Request) -> dict:
     result = matching.match_all(cp.profile_values(owner), by_cat, body.year, by_type)
     events.record("profile.match", f"Bandi per l'esercizio {body.year}: {result['summary']['ADATTO']} adatti, {result['summary']['DA_VERIFICARE']} da verificare, "
                   f"{result['summary']['NON_ADATTO']} non adatti", actor=owner, details={"summary": result["summary"]})
-    return {"forecast": fc, "matching": result, "de_minimis": de_minimis.estimate(owner, body.year)}
+    return cp.localize(owner, {"forecast": fc, "matching": result, "de_minimis": de_minimis.estimate(owner, body.year)})
 
 
 @router.post("/template", summary="Bozza di budget per un bando, ricavata dai bilanci dell'azienda (da modificare)")

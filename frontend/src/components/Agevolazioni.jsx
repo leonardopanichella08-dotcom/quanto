@@ -3,8 +3,7 @@ import { AlertTriangle, CheckCircle2, ChevronDown, Loader2, Search } from 'lucid
 import { api } from '../lib/api'
 import { Info } from './ui'
 import Guide from './Guide'
-import PipelineButton from './PipelineButton'
-import { profileGo, useNav } from '../lib/nav'
+import { allocationGo, profileGo, useNav } from '../lib/nav'
 
 const STATUS = {
   APPLICABILE: ['Per te sì', 'bg-emerald-500/15 text-emerald-700'],
@@ -15,10 +14,14 @@ const STATUS = {
 }
 const VERIFIED = { SECONDARIA: 'letta su fonti secondarie: conferma sul sito INPS', DA_VERIFICARE: 'parametri da leggere nel bando o nella circolare' }
 
-/** Cerca nel catalogo nazionale le misure di una famiglia regionale (tirocini, apprendistato, incentivi all'occupazione) nella Regione dell'impresa. */
-function CatalogSearch({ item, region }) {
+/** Cerca nel catalogo nazionale le misure di una famiglia regionale nella Regione dell'impresa; ogni bando trovato porta dritto agli altri strumenti: budget e allocazione. */
+function CatalogSearch({ item, region, onBudgetFrom }) {
+  const nav = useNav()
   const [res, setRes] = useState(null)
   const [busy, setBusy] = useState(false)
+  const [working, setWorking] = useState(null)        // bando in lavorazione: {id, what}
+  const [studied, setStudied] = useState({})
+  const [error, setError] = useState(null)
   const run = async () => {
     setBusy(true)
     try {
@@ -27,26 +30,49 @@ function CatalogSearch({ item, region }) {
       setRes(all.flat().filter((m) => (seen.has(m.bando_id) ? false : seen.add(m.bando_id))).slice(0, 6))
     } finally { setBusy(false) }
   }
+  const isStudied = (m) => m.rules > 0 || studied[m.bando_id]
+  // un bando letto in breve si studia a fondo prima di tutto il resto: senza regole non c'è né budget né importo
+  const ensure = async (m) => { if (!isStudied(m)) { await api.researchRun({ bando_id: m.bando_id }); setStudied((x) => ({ ...x, [m.bando_id]: true })) } }
+  const go = async (m, what) => {
+    setWorking({ id: m.bando_id, what }); setError(null)
+    try {
+      await ensure(m)
+      if (what === 'budget') await onBudgetFrom?.(m.bando_id)
+      else { allocationGo('bandi'); nav.go('allocation') }
+    } catch (e) { setError(e.message) } finally { setWorking(null) }
+  }
   return (
     <div className="space-y-2">
       <button className="btn" disabled={busy} onClick={run}>{busy ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Search className="w-3.5 h-3.5" />}Cerca nel catalogo{region ? ` · ${region}` : ''}</button>
       {res && res.length === 0 && <p className="text-xs text-mute">Nessun bando con questi nomi nel catalogo: prova dalla pagina Bandi.</p>}
+      {error && <p className="text-xs text-red-700">{error}</p>}
       {res && res.length > 0 && (
         <ul className="space-y-2">
-          {res.map((m) => (
-            <li key={m.bando_id} className="rounded-xl bg-tint p-3 space-y-1.5">
-              <p className="text-sm font-medium text-ink break-words">{m.name}</p>
-              <p className="text-[11px] text-mute">{m.issuer || 'Ente non indicato'}</p>
-              <PipelineButton bandoId={m.bando_id} label="Studia a fondo" />
-            </li>
-          ))}
+          {res.map((m) => {
+            const busyHere = working?.id === m.bando_id
+            return (
+              <li key={m.bando_id} className="rounded-xl bg-white p-3 space-y-2">
+                <div className="flex flex-wrap items-start gap-2"><p className="text-sm font-medium text-ink flex-1 min-w-0 break-words">{m.name}</p>
+                  <span className={`px-2 py-0.5 rounded-full text-[11px] font-medium ${isStudied(m) ? 'bg-emerald-500/15 text-emerald-700' : 'bg-tint text-ink-2'}`}>{isStudied(m) ? 'Studiato a fondo' : 'Letto in breve'}</span></div>
+                <p className="text-[11px] text-mute">{m.issuer || 'Ente non indicato'}{m.deadline && m.deadline !== 'non indicata' ? ` · scade il ${m.deadline.split('-').reverse().join('/')}` : ''}</p>
+                {m.summary && <p className="text-xs text-ink-2 leading-relaxed line-clamp-3">{m.summary}</p>}
+                <div className="flex flex-wrap items-center gap-2">
+                  <button className="btn-primary !py-1" disabled={!!working} onClick={() => go(m, 'budget')}>{busyHere && working.what === 'budget' ? <Loader2 className="w-3 h-3 animate-spin" /> : null}{isStudied(m) ? 'Fai il budget per questo bando' : 'Studia e fai il budget'}</button>
+                  <button className="btn !py-1" disabled={!!working} onClick={() => go(m, 'allocazione')}>{busyHere && working.what === 'allocazione' ? <Loader2 className="w-3 h-3 animate-spin" /> : null}{isStudied(m) ? 'Vedi nell’allocazione' : 'Studia e vedi nell’allocazione'}</button>
+                  {busyHere && <span className="text-[11px] text-mute">Cerco e leggo le fonti ufficiali: può richiedere fino a un minuto.</span>}
+                </div>
+              </li>
+            )
+          })}
         </ul>
       )}
+      {res && res.length > 0 && <Info label="Cosa fanno questi tasti">«Fai il budget» apre la pagina Budget con le regole di quel bando e una bozza dalle spese dell’impresa. «Vedi nell’allocazione» lo porta nel piano che decide quale bando paga cosa. Un bando letto solo in breve si studia a fondo prima: senza regole non ci sono importi né controlli.</Info>}
     </div>
   )
 }
 
-function Item({ it, region, onAnswer }) {
+function Item({ it, region, onAnswer, onBudgetFrom }) {
+  const nav = useNav()
   const [open, setOpen] = useState(false)
   const [label, tone] = STATUS[it.status] || STATUS.DA_VERIFICARE
   return (
@@ -74,7 +100,13 @@ function Item({ it, region, onAnswer }) {
           <div><p className="label">Come si ottiene</p><p>{it.how}</p></div>
           {it.note && <p className="text-amber-700">{it.note}</p>}
           <p className="text-[11px] text-mute">Fonte: {it.source.label} · {VERIFIED[it.verified]}</p>
-          {it.search && <CatalogSearch item={it} region={it.regional ? region : null} />}
+          {it.search && <CatalogSearch item={it} region={it.regional ? region : null} onBudgetFrom={onBudgetFrom} />}
+          {it.family === 'ESONERI_INPS' && it.value && (
+            <div className="rounded-xl bg-white p-3 space-y-2">
+              <p>Per gli sgravi non c’è un budget da compilare: il vantaggio si applica in busta paga. Si collega ai <span className="font-medium text-ink">bisogni di crescita</span>: quante assunzioni servono, in quale reparto e quanto valgono al massimo.</p>
+              <button className="btn" onClick={() => { allocationGo('bisogni'); nav.go('allocation') }}>Usa nelle assunzioni dell’Allocazione</button>
+            </div>
+          )}
         </div>
       )}
     </li>
@@ -82,7 +114,7 @@ function Item({ it, region, onAnswer }) {
 }
 
 /** Tutte le agevolazioni, non solo i bandi: esoneri INPS, tirocini, apprendistato, incentivi regionali, nuove imprese. Una famiglia alla volta, nessuna sovrapposizione. */
-export default function Agevolazioni({ clientId }) {
+export default function Agevolazioni({ clientId, onBudgetFrom }) {
   const nav = useNav()
   const [data, setData] = useState(null)
   const [error, setError] = useState(null)
@@ -125,7 +157,7 @@ export default function Agevolazioni({ clientId }) {
       {current && (
         <div className="space-y-3">
           <p className="text-sm text-ink-2 leading-relaxed">{current.text}</p>
-          <ul className="space-y-2.5">{current.items.map((it) => <Item key={it.id} it={it} region={c.region} onAnswer={answer} />)}</ul>
+          <ul className="space-y-2.5">{current.items.map((it) => <Item key={it.id} it={{ ...it, family: fam }} region={c.region} onAnswer={answer} onBudgetFrom={onBudgetFrom} />)}</ul>
         </div>
       )}
       <p className="text-[11px] text-mute leading-relaxed">Ultimo controllo delle regole: {data.verified_on.split('-').reverse().join('/')}. {data.warning}</p>

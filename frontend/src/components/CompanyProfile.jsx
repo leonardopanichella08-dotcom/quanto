@@ -3,6 +3,7 @@ import { CheckCircle2, Loader2, Plus, RefreshCw, Save } from 'lucide-react'
 import { api } from '../lib/api'
 import { fmtEur } from '../lib/format'
 import { flashTo } from '../lib/nav'
+import { docWords } from '../lib/words'
 
 const ORIGIN = {
   DOCUMENT: ['da documento', 'text-emerald-700 border-emerald-500/30'],
@@ -95,7 +96,7 @@ export default function CompanyProfile({ version = 0, onChanged, target }) {
   return (
     <div className="space-y-6 pt-3">
       <div className="flex flex-wrap items-center gap-x-6 gap-y-2">
-        <p className="text-xs text-ink-2 leading-relaxed flex-1 min-w-[16rem]">QUANTO ricava questi dati da visura, bilanci e documenti. Il profilo serve all’Allocazione (stima dell’anno dopo e bandi adatti) e al Budget. Quello che scrivi tu non viene mai sovrascritto dai documenti.</p>
+        <p className="text-xs text-ink-2 leading-relaxed flex-1 min-w-[16rem]">QUANTO ricava questi dati da visura, {docWords(ov).docs} e documenti. Il profilo serve all’Allocazione (stima dell’anno dopo e bandi adatti) e al Budget. Quello che scrivi tu non viene mai sovrascritto dai documenti.</p>
         <div className="min-w-[11rem]"><span className="label">Completezza</span>
           <div className="flex items-center gap-2"><span className="text-xl font-display font-semibold tabular-nums text-ink">{ov.completeness_pct}%</span>
             {ov.size && <span className="text-[11px] text-mute">{ov.size.label}{ov.size.provisional ? ' (indicativo)' : ''}</span>}</div>
@@ -133,11 +134,11 @@ export default function CompanyProfile({ version = 0, onChanged, target }) {
       </div>
 
       <div>
-        <div className="flex flex-wrap items-center gap-2 mb-1"><span className="label">Bilanci per esercizio</span>
+        <div className="flex flex-wrap items-center gap-2 mb-1"><span className="label">{docWords(ov).tax ? 'Dichiarazioni dei redditi per anno' : 'Bilanci per esercizio'}</span>
           <span className="ml-auto flex items-center gap-2"><input type="number" className="field !w-24 !py-1" placeholder="Anno" value={newYear} onChange={(e) => setNewYear(e.target.value)} aria-label="Nuovo esercizio" />
-            <button className="btn !py-1" onClick={addYear}><Plus className="w-3 h-3" />Aggiungi esercizio</button></span></div>
-        <p className="text-[11px] text-mute mb-3">I costi per categoria arrivano dalle righe del bilancio già assegnate o confermate; puoi completare o correggere a mano. L’ultimo esercizio è la base per la stima dell’anno successivo.</p>
-        {years.length === 0 && <p className="text-xs text-mute">Nessun esercizio ancora: carica un bilancio oppure aggiungi un anno e scrivi i dati a mano.</p>}
+            <button className="btn !py-1" onClick={addYear}><Plus className="w-3 h-3" />{docWords(ov).tax ? 'Aggiungi anno' : 'Aggiungi esercizio'}</button></span></div>
+        <p className="text-[11px] text-mute mb-3">{docWords(ov).tax ? 'Bastano ricavi e spese di personale; il resto è facoltativo. L’ultimo anno è la base per la stima dell’anno successivo.' : 'I costi per categoria arrivano dalle righe del bilancio già assegnate o confermate; puoi completare o correggere a mano. L’ultimo esercizio è la base per la stima dell’anno successivo.'}</p>
+        {years.length === 0 && <p className="text-xs text-mute">{docWords(ov).tax ? 'Nessun anno ancora: aggiungi un anno e scrivi ricavi e spese di personale.' : 'Nessun esercizio ancora: carica un bilancio oppure aggiungi un anno e scrivi i dati a mano.'}</p>}
         {years.length > 0 && (
           <div className="overflow-x-auto">
             <table className="w-full text-xs">

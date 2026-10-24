@@ -4,6 +4,7 @@ import { api, fileToBase64 } from '../lib/api'
 import { fmtEur } from '../lib/format'
 import { FieldInput } from './CompanyProfile'
 import { FIELD_LABEL } from './Documents'
+import { docWords } from '../lib/words'
 
 const TYPE_LABEL = { COMPANY_REGISTRY: 'Visura camerale', BALANCE_SHEET: 'Bilancio', PAYSLIP: 'Busta paga', F24: 'Modello F24', APPLICATION_DRAFT: 'Bozza di candidatura', OTHER: 'Altro documento' }
 const STATUS = { PARSED: 'letto', CONFIRMED: 'confermato', NEEDS_REVIEW: 'da verificare', FAILED: 'non letto', STORED: 'archiviato' }
@@ -218,14 +219,14 @@ export default function ProfileSetup({ version = 0, onChanged, onGoAllocation, o
   const steps = useMemo(() => {
     if (!ov) return []
     return [
-      { id: 'all', icon: FolderOpen, title: 'Carica i documenti dell’azienda', optional: false, done: docs.length > 0,
-        text: 'Trascina insieme tutto quello che hai: visura camerale, bilanci, buste paga, F24, bozze di candidatura e ogni altro documento. QUANTO riconosce il tipo dal nome del file (lo puoi correggere) e legge quello che può.' },
+      { id: 'all', icon: FolderOpen, title: tax ? 'I documenti (facoltativi)' : 'Carica i documenti dell’azienda', optional: tax, done: docs.length > 0 || (tax && ov.last_year != null),
+        text: tax ? 'Se hai la visura camerale, caricala: ne ricavo sede, ATECO e forma giuridica. Buste paga, F24 e altri documenti sono facoltativi. Per i dati economici bastano due numeri della dichiarazione dei redditi: li scrivi nel passo dopo.' : 'Trascina insieme tutto quello che hai: visura camerale, bilanci, buste paga, F24, bozze di candidatura e ogni altro documento. QUANTO riconosce il tipo dal nome del file (lo puoi correggere) e legge quello che può.' },
       { id: 'registry', icon: Building2, title: 'Visura camerale', done: filled('legal_name') && filled('vat_number') && filled('ateco_code'),
         text: 'Dalla visura ricavo ragione sociale, partita IVA, forma giuridica, codice ATECO, sede e anno di costituzione.' },
       { id: 'balance', icon: Landmark, title: tax ? 'Dichiarazione dei redditi dell’ultimo anno' : 'Bilancio dell’ultimo esercizio', done: !!lastComplete,
         text: tax ? 'Bastano due numeri dal Modello Redditi: i ricavi (quadro RF o RG, o i compensi del quadro RE) e le spese per lavoro dipendente. Sono la base della stima dell’anno successivo; il resto è facoltativo.' : 'È la base della stima dell’anno successivo: ricavi, utile, dipendenti e i costi per categoria (personale, beni strumentali, consulenze, spese generali, formazione).' },
       { id: 'history', icon: Receipt, title: tax ? 'Dichiarazioni degli anni precedenti' : 'Bilanci degli anni precedenti', optional: true, done: finYears.length >= 2,
-        text: 'Con due o più bilanci posso suggerirti di quanto sono cresciuti i tuoi costi. Non è obbligatorio: la variazione la scegli sempre tu.' },
+        text: tax ? 'Con due dichiarazioni posso suggerirti di quanto sono cresciuti i tuoi costi. Non è obbligatorio: la variazione la scegli sempre tu.' : 'Con due o più bilanci posso suggerirti di quanto sono cresciuti i tuoi costi. Non è obbligatorio: la variazione la scegli sempre tu.' },
       { id: 'questions', icon: HelpCircle, title: 'Due domande che nessun documento può dire', done: ov.missing.filter((m) => m.scope === 'profile').length === 0,
         text: 'Servono per capire a quali bandi puoi partecipare.' },
       { id: 'review', icon: ClipboardCheck, title: 'Controllo delle righe incerte', done: ov.documents.to_review === 0,
@@ -304,7 +305,7 @@ export default function ProfileSetup({ version = 0, onChanged, onGoAllocation, o
                 {[['Esercizio', f.fiscal_year], ['Ricavi', fmtEur(f.values.revenue_eur)], ['Utile (perdita)', f.values.net_result_eur != null ? fmtEur(f.values.net_result_eur) : '—'], ['Costi del personale', fmtEur(f.values.personnel_eur)],
                   ['Consulenze', fmtEur(f.values.consulting_eur)], ['Beni strumentali', fmtEur(f.values.capital_assets_eur)]].map(([l, v]) => (
                   <li key={l} className="flex gap-2"><CheckCircle2 className="w-4 h-4 mt-0.5 text-emerald-600 shrink-0" /><span><span className="text-mute">{l}: </span><span className="font-medium">{v}</span></span></li>))}</ul>) })()}
-            {!s.done && <p className="text-xs text-amber-700">{ov.missing.filter((m) => m.scope === 'financial').map((m) => m.label).slice(0, 4).join(' · ') || 'Nessun bilancio ancora.'}</p>}
+            {!s.done && <p className="text-xs text-amber-700">{ov.missing.filter((m) => m.scope === 'financial').map((m) => m.label).slice(0, 4).join(' · ') || `Nessuna ${docWords(ov).doc} ancora.`}</p>}
             {!s.done && tax && <TaxReturnForm ov={ov} onSaved={changed} />}
             {!s.done && !tax && <Uploader fixedType="BALANCE_SHEET" hint="Il bilancio in PDF (schema civilistico): carica quello dell’ultimo esercizio chiuso" onUploaded={changed} />}
             {!s.done && !tax && onGoAzienda && <button className="btn" onClick={() => { const m = ov.missing.find((x) => x.scope === 'financial' && x.year); onGoAzienda(m ? { fin: { year: m.year, key: m.key } } : {}) }}>Non ho il PDF: scrivo i dati a mano</button>}
