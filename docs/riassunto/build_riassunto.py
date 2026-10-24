@@ -212,7 +212,7 @@ def build() -> Path:
        "<b>Boutique di finanza agevolata</b> che costruiscono budget e piani di allocazione e hanno bisogno di ripetibilità e di una fonte per ogni cifra.",
        "<b>Direttori finanziari e consulenti d'impresa</b> che pianificano più fondi insieme per l'azienda che seguono e vogliono sapere chi paga cosa lungo l'anno."])
     SP(4)
-    kpis([("60", "regole applicate a ogni voce di budget"), ("8", "bandi con un modello di calcolo curato a mano"), ("90", "fonti ufficiali dei bandi, controllate ogni notte"), ("641", "test automatici sul motore")])
+    kpis([("60", "regole applicate a ogni voce di budget"), ("8", "bandi con un modello di calcolo curato a mano"), ("90", "fonti ufficiali dei bandi, controllate ogni notte"), ("642", "test automatici sul motore")])
     story.append(PageBreak())
 
     # ------------------------------------------------------------------ 2. come lavora

@@ -64,3 +64,8 @@ def test_evaluate_marks_an_irrelevant_studied_bando_as_non_adatto(monkeypatch):
 def test_friuli_venezia_giulia_is_not_read_as_the_veneto_province_of_venezia():
     assert relevance.regions_in("Regione Autonoma Friuli Venezia Giulia") == {"Friuli Venezia Giulia"}
     assert relevance.regions_in("Camera di commercio di Venezia") == {"Veneto"}
+
+
+def test_research_development_and_innovation_projects_are_for_research_and_production_activities():
+    assert "sector" in ids(relevance.text_fails("Progetti di ricerca, sviluppo e innovazione per la transizione ecologica", "MASE", "", RETAIL))
+    assert relevance.text_fails("Progetti di ricerca, sviluppo e innovazione per la transizione ecologica", "MASE", "", {**RETAIL, "ateco_code": "62.01.00"}) == []

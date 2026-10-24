@@ -61,7 +61,7 @@ SECTOR_LEXICON: List[Dict[str, Any]] = [
     {"label": "cultura, cinema e spettacolo", "rx": r"cinema|audiovisiv|spettacolo dal vivo|teatr|musei|editoria|culturali e creative|filiera del libro|\blibrerie\b",
      "ateco": ["58", "59", "60", "73", "74", "90", "91", "92", "93", "4761", "4762"]},
     {"label": "sanità e assistenza", "rx": r"sanitari[ao]|socio-?sanitar|ospedal|assistenza sociale|farmacie", "ateco": ["21", "32", "86", "87", "88", "4773", "4774"]},
-    {"label": "ricerca industriale e produzione", "rx": r"ricerca industriale|sviluppo sperimentale|\bhorizon\b|\btrl\b|ricerca e sviluppo|contratti? di sviluppo|programmi? di sviluppo industriale",
+    {"label": "ricerca industriale e produzione", "rx": r"ricerca industriale|sviluppo sperimentale|\bhorizon\b|\btrl\b|ricerca e sviluppo|ricerca,? sviluppo e innovazione|progetti di ricerca|contratti? di sviluppo|programmi? di sviluppo industriale",
      "ateco": _MANUF + ["35", "36", "37", "38", "39", "58", "59", "60", "61", "62", "63", "69", "70", "71", "72", "73", "74", "85", "86", "87", "88"]},
     {"label": "sport", "rx": r"impianti sportivi|societ[aà] sportive|palestr|\bsport\b", "ateco": ["93", "85"]},
     {"label": "commercio e servizi alla persona", "rx": r"distrett[oi] del commercio|centri commerciali naturali|esercizi commerciali|negozi di vicinato|commercio al dettaglio|botteghe",
