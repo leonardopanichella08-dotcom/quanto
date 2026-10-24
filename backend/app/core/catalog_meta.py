@@ -180,6 +180,35 @@ def parse_page(raw_html: str) -> Dict[str, Any]:
     if closes:
         out["closes"] = closes
     out["state"] = lifecycle.classify(opens, closes)
+    out["grant_signals"] = grant_signals(text)
+    return out
+
+
+# Quanto un testo «parla come un bando»: quante delle espressioni tipiche di un bando compaiono davvero nella pagina o nel documento.
+GRANT_SIGNALS = ("beneficiari", "soggetti ammessi", "soggetti ammissibili", "destinatari", "requisiti di ammissibilit", "spese ammissibili", "dotazione finanziaria", "risorse disponibili",
+                 "presentazione delle domande", "presentare la domanda", "presentazione della domanda", "termine per la presentazione", "a fondo perduto", "intensit", "importo massimo",
+                 "contributo massimo", "modalit", "domanda di agevolazione", "domanda di contributo", "cosa prevede", "a chi si rivolge", "come partecipare", "come presentare", "scadenza")
+
+
+def grant_signals(text: str) -> int:
+    low = (text or "").lower()
+    return sum(1 for s in GRANT_SIGNALS if s in low)
+
+
+def parse_document(text: str, title: Optional[str] = None) -> Dict[str, Any]:
+    """Scheda di un documento (PDF o Word): descrizione = primo paragrafo di senso compiuto, date e segnali da bando. Mai riempito oltre ciò che il testo dice."""
+    out: Dict[str, Any] = {"read_v": READ_VERSION}
+    paras = [p.strip() for p in re.split(r"\n\s*\n|\n", text or "") if len(p.strip()) >= 90 and sum(c.isalpha() for c in p) > len(p) * 0.6]
+    if paras:
+        out["summary"] = _sentences(paras[0])
+        out["summary_source"] = "primo paragrafo del documento ufficiale"
+    opens, closes = lifecycle.parse_dates(text or "")
+    if opens:
+        out["opens"] = opens
+    if closes:
+        out["closes"] = closes
+    out["state"] = lifecycle.classify(opens, closes)
+    out["grant_signals"] = grant_signals(text or "")
     return out
 
 
@@ -206,19 +235,25 @@ NEEDS_READING = "(meta_at IS NULL OR catalog_meta IS NULL OR catalog_meta NOT LI
 
 def _fetch(url: str):
     try:
-        raw, _, ctype = research.http_get(url, limited=False)
+        raw, final, ctype = research.http_get(url, limited=False)
+        if raw[:4] == b"%PDF" or ctype == "application/pdf":
+            text, _, _ = research.pdf_to_text(raw, budget=8.0)
+            return parse_document(text), None
         return parse_page(research._decode(raw, ctype)), None
     except Exception as exc:  # noqa: BLE001 - una pagina che non risponde non ferma il lotto
         return None, type(exc).__name__
 
 
+MIN_GRANT_SIGNALS = 3          # una voce raccolta da un sito ufficiale resta nel catalogo solo se la sua pagina parla davvero come un bando
+
+
 def describe_batch(limit: int = 120, workers: int = 16, budget_s: float = 40.0, actor: str = "cron") -> Dict[str, Any]:
     """Legge la scheda di un lotto di voci del catalogo senza descrizione (prima le aperte o senza data) e salva descrizione e caratteristiche."""
     with connect() as conn:
-        rows = conn.execute(f"SELECT bando_id, source_url, deadline FROM bandi WHERE bando_id LIKE 'CAT-%' AND {NEEDS_READING} AND source_url IS NOT NULL "
+        rows = conn.execute(f"SELECT bando_id, source_url, deadline, catalog_meta FROM bandi WHERE bando_id LIKE 'CAT-%' AND extraction_status <> 'REJECTED' AND {NEEDS_READING} AND source_url IS NOT NULL "
                             "AND (deadline IS NULL OR deadline = 'non indicata' OR deadline >= ?) ORDER BY bando_id LIMIT ?",
                             (TITLE_PATTERN, date.today().isoformat(), limit)).fetchall()
-        remaining = conn.execute(f"SELECT COUNT(*) c FROM bandi WHERE bando_id LIKE 'CAT-%' AND {NEEDS_READING} AND source_url IS NOT NULL "
+        remaining = conn.execute(f"SELECT COUNT(*) c FROM bandi WHERE bando_id LIKE 'CAT-%' AND extraction_status <> 'REJECTED' AND {NEEDS_READING} AND source_url IS NOT NULL "
                                  "AND (deadline IS NULL OR deadline = 'non indicata' OR deadline >= ?)", (TITLE_PATTERN, date.today().isoformat())).fetchone()["c"]
     report: Dict[str, Any] = {"read": 0, "errors": 0, "closed": 0, "remaining": remaining}
     if not rows:
@@ -239,15 +274,70 @@ def describe_batch(limit: int = 120, workers: int = 16, budget_s: float = 40.0, 
             summary = meta.pop("summary", None)
             if meta.get("state") == "CHIUSO":
                 report["closed"] += 1
+            seed = json.loads(r["catalog_meta"] or "{}")
+            harvested = bool(seed.get("harvested"))
+            for k in ("harvested", "source_id", "regions"):                  # ciò che si sa dall'ente che l'ha pubblicato resta
+                if k in seed:
+                    meta.setdefault(k, seed[k])
+            title = None if harvested else meta.get("title")               # il nome di una voce raccolta è il testo del collegamento: l'og:title di molti siti è solo il nome del sito
+            if harvested:
+                meta.pop("title", None)
+            rejected = harvested and meta.get("grant_signals", 0) < MIN_GRANT_SIGNALS
+            if rejected:
+                meta["not_a_grant"] = True
+                report["rejected"] = report.get("rejected", 0) + 1
             conn.execute("UPDATE bandi SET summary=?, catalog_meta=?, meta_at=?, name=COALESCE(?, name), "
-                         "deadline=CASE WHEN deadline IS NULL OR deadline='non indicata' THEN ? ELSE deadline END WHERE bando_id=?",
-                         (summary, json.dumps(meta, ensure_ascii=False), now, meta.get("title"), meta.get("closes") or "non indicata", r["bando_id"]))
+                         "deadline=CASE WHEN deadline IS NULL OR deadline='non indicata' THEN ? ELSE deadline END" + (", extraction_status='REJECTED'" if rejected else "") + " WHERE bando_id=?",
+                         (summary, json.dumps(meta, ensure_ascii=False), now, title, meta.get("closes") or "non indicata", r["bando_id"]))
             report["read"] += 1
     report["remaining"] = max(0, remaining - report["read"])
     report["seconds"] = round(time.monotonic() - t0, 1)
     if report["read"]:
         events.record("catalog.describe", f"Lette le schede di {report['read']} bandi del catalogo ({report['remaining']} ancora da leggere)", actor=actor, details=report)
     return report
+
+
+# ------------------------------------------------------------------------------------------------ stima provvisoria dalla scheda
+_AMOUNT = re.compile(r"(\d{1,3}(?:\.\d{3})+|\d+)(?:,\d{1,2})?")
+
+
+def amount_range(text: Optional[str]) -> Optional[Dict[str, Optional[float]]]:
+    """«Fino a 300.000 €» → min None, max 300000; «Da 10.000 € a 150.000 €» → 10000 / 150000. Solo ciò che la scheda scrive."""
+    if not text:
+        return None
+    nums = [float(m.group(1).replace(".", "")) for m in _AMOUNT.finditer(text)]
+    if not nums:
+        return None
+    low = text.lower()
+    if low.startswith("fino") or len(nums) == 1:
+        return {"min": None, "max": nums[0]}
+    return {"min": min(nums[:2]), "max": max(nums[:2])}
+
+
+def provisional_estimate(meta: Dict[str, Any], by_cat: Dict[str, float]) -> Optional[Dict[str, Any]]:
+    """«Fino a X €» per l'azienda, dalle sole cifre della scheda: intensità massima implicita = agevolazione massima ÷ spesa massima (se entrambe dichiarate),
+    applicata alle spese dell'azienda che i costi ammessi coprono, mai oltre l'agevolazione massima. È un tetto, non una stima: non conosce graduatorie, de minimis,
+    punteggi né regole. Per finanziamenti e garanzie il valore è il risparmio sugli interessi: si calcola solo dopo lo studio."""
+    forms = " ".join(meta.get("form") or []).lower()
+    if not forms or not any(w in forms for w in ("fondo perduto", "contribut", "credito d")):
+        return None
+    ben, spend = amount_range(meta.get("benefit_range")), amount_range(meta.get("spend_range"))
+    cats = cost_categories(meta)
+    if not ben or not ben["max"] or cats is None:
+        return None
+    base = sum(by_cat.get(c, 0.0) for c in cats)
+    if base <= 0:
+        return None
+    if spend and spend["max"]:
+        intensity = min(1.0, ben["max"] / spend["max"])
+        base = min(base, spend["max"])
+        how = f"agevolazione massima {int(ben['max']):,} € su spesa massima {int(spend['max']):,} € = al massimo il {round(intensity * 100)}% delle spese ammesse".replace(",", ".")
+    else:
+        intensity = 1.0
+        how = f"la scheda indica solo l'agevolazione massima ({int(ben['max']):,} €): senza percentuale il tetto è quel valore".replace(",", ".")
+    amount = min(ben["max"], base * intensity)
+    return {"ceiling_eur": round(amount, 2), "intensity_pct": round(intensity * 100), "covered_base_eur": round(base, 2), "how": how,
+            "provisional": True, "note": "Tetto ricavato dalle cifre della scheda: non è una stima. Lo studio a fondo lo trasforma in importo vero."}
 
 
 # ------------------------------------------------------------------------------------------------ affinità con un'azienda
@@ -260,7 +350,7 @@ def _size_ok(sizes: List[str], code: Optional[str]) -> Optional[bool]:
     return SIZE_LABEL[code] in low
 
 
-def rank_for_profile(profile: Dict[str, Any], by_cat: Dict[str, float], limit: int = 40) -> Dict[str, Any]:
+def rank_for_profile(profile: Dict[str, Any], by_cat: Dict[str, float], limit: int = 150) -> Dict[str, Any]:
     """Voci del catalogo non ancora studiate, ordinate per affinità con l'azienda. Nessun importo: solo i motivi, uno per uno.
 
     Esclusi: scadute, riservate a un'altra regione o a un'altra dimensione d'impresa, o a ATECO diversi dal suo. Punteggio = 0,75 × la quota delle
@@ -358,8 +448,9 @@ def rank_for_profile(profile: Dict[str, Any], by_cat: Dict[str, float], limit: i
         scored.append({"bando_id": r["bando_id"], "name": r["name"], "issuer": meta.get("manager") or r["issuer"], "source_url": r["source_url"], "deadline": r["deadline"],
                        "summary": r["summary"], "form": meta.get("form"), "benefit_range": meta.get("benefit_range"), "costs": meta.get("costs"), "cost_categories": cats or [], "purpose": meta.get("purpose"), "regions": regions,
                        "sizes": meta.get("sizes"), "state": meta.get("state"), "opens": meta.get("opens"), "score": round(min(score, 1.0), 3),
+                       "provisional": provisional_estimate(meta, by_cat), "benefit_text": meta.get("benefit_range"), "spend_text": meta.get("spend_range"),
                        "affinity": "ALTA" if score >= 0.6 else "MEDIA" if score >= 0.25 else "BASSA", "reasons": reasons, "to_check": flags})
     scored.sort(key=lambda x: (-x["score"], x["deadline"] if x["deadline"] and x["deadline"] != "non indicata" else "9999", x["name"]))      # a pari affinità, prima chi scade prima
     return {"items": scored[:limit], "total_candidates": len(scored), "excluded": excluded, "without_description": without,
             "high": sum(1 for x in scored if x["affinity"] == "ALTA"), "medium": sum(1 for x in scored if x["affinity"] == "MEDIA"), "low": sum(1 for x in scored if x["affinity"] == "BASSA"),
-            "read": len(rows)}
+            "read": len(rows), "study_queue": [x["bando_id"] for x in scored if x["affinity"] in ("ALTA", "MEDIA")][:60]}

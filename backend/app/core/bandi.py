@@ -282,6 +282,8 @@ def search_catalog(query: str, limit: int = 8) -> List[Dict[str, Any]]:
                             "(SELECT COUNT(*) FROM requirements q2 WHERE q2.bando_id=b.bando_id) AS reqs FROM bandi b").fetchall()
     out = []
     for r in rows:
+        if r["extraction_status"] == "REJECTED":
+            continue
         catalogued = r["bando_id"].startswith("CAT-") and r["source_url"]          # voce del catalogo nazionale: solo metadati, ma è un bando vero
         if r["catalog_status"] != "CURATED" and not catalogued and not (r["rules"] or r["sources"] or r["reqs"]):
             continue                                      # ricerche senza esito: non sono bandi da proporre
@@ -318,7 +320,7 @@ def browse_catalog(query: str = "", issuer: Optional[str] = None, only_new: bool
     ensure_seeded()
     page = max(1, page)
     page_size = max(1, min(page_size, 100))
-    where, params = [], []
+    where, params = ["b.extraction_status <> 'REJECTED'"], []          # le voci raccolte la cui pagina non è un bando restano in memoria ma non si mostrano
     q = query.strip()
     if q:
         where.append("(b.name ILIKE ? OR b.issuer ILIKE ?)")
@@ -360,7 +362,7 @@ def catalog_stats() -> Dict[str, Any]:
             "SELECT COUNT(*) total, COALESCE(SUM((meta_at IS NOT NULL AND catalog_meta LIKE ?)::int),0) described, "
             "COALESCE(SUM((deadline IS NULL OR deadline='non indicata')::int),0) undated, "
             "COALESCE(SUM((deadline IS NOT NULL AND deadline <> 'non indicata' AND deadline >= ?)::int),0) open_dated, "
-            "COALESCE(SUM((extraction_status <> 'NOT_STARTED')::int),0) studied, MAX(meta_at) last_read "
-            "FROM bandi WHERE bando_id LIKE 'CAT-%'", ('%"read_v": 2%', today)).fetchone()
+            "COALESCE(SUM((extraction_status NOT IN ('NOT_STARTED','REJECTED'))::int),0) studied, MAX(meta_at) last_read "
+            "FROM bandi WHERE bando_id LIKE 'CAT-%' AND extraction_status <> 'REJECTED'", ('%"read_v": 2%', today)).fetchone()
     return {"total": r["total"], "described": int(r["described"]), "to_describe": r["total"] - int(r["described"]), "undated": int(r["undated"]),
             "open_dated": int(r["open_dated"]), "studied": int(r["studied"]), "last_read_at": r["last_read"]}

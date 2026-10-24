@@ -9,6 +9,8 @@ import Guide from './Guide'
 import ResearchPanel from './ResearchPanel'
 import TutorialVideo from './TutorialVideo'
 import CatalogBrowser from './CatalogBrowser'
+import SourcesPanel from './SourcesPanel'
+import ApplicationDocs from './ApplicationDocs'
 import { Hint, Term } from './Help'
 
 const COV_STYLE = {
@@ -129,7 +131,7 @@ function Detail({ bando, onUse, using, onStudied }) {
   const rules = bando.rules.filter((r) => r.status === 'PUBLISHED')        // le regole in disaccordo le vede solo il Quartier Generale
   const requirements = bando.requirements.filter((r) => r.kind !== 'DA_REVISIONARE')
   const scope = bando.expense_scope || { excluded: [], eligible: [] }
-  const tabs = [['rules', `Regole (${rules.length})`], ['reqs', `Requisiti (${requirements.length})`], ['spese', `Progetti e voci di spesa (${(bando.project_types || []).length + scope.excluded.length + scope.eligible.length})`], ['cov', 'Controlli attivati'], ['src', 'Fonti']]
+  const tabs = [['rules', `Regole (${rules.length})`], ['reqs', `Requisiti (${requirements.length})`], ['spese', `Progetti e voci di spesa (${(bando.project_types || []).length + scope.excluded.length + scope.eligible.length})`], ['cov', 'Controlli attivati'], ['dom', 'Per fare la domanda'], ['src', 'Fonti']]
   return (
     <ChromeCard label={`quanto.app/bandi/${bando.bando_id}`} bodyClassName="p-5 space-y-4">
       <div className="flex flex-wrap items-start justify-between gap-3">
@@ -220,6 +222,8 @@ function Detail({ bando, onUse, using, onStudied }) {
           ))}
         </div>
       )}
+
+      {tab === 'dom' && <ApplicationDocs bandoId={bando.bando_id} auto />}
 
       {tab === 'cov' && (
         <div className="space-y-3">
@@ -320,6 +324,7 @@ export default function BandiLibrary({ bandi, selectedId, onSelect, onReload }) 
           {detail ? <Detail bando={detail} onUse={use} using={using} onStudied={async () => { await onReload(); await load(detail.bando_id) }} /> : (
             <div className="card p-10 text-center text-sm text-mute">Scegli un bando dall’elenco per vederne regole, requisiti e fonti.</div>
           )}
+          <SourcesPanel />
           <CatalogBrowser picking={picking} onPick={(item) => {
             setPicking(item.bando_id); setCatalogPick(item); setResearchOpen(true)
             researchRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })

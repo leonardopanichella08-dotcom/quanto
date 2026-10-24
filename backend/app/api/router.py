@@ -1,13 +1,14 @@
 from fastapi import APIRouter, Depends
 
 from app.api.deps import require_auth
-from app.api.endpoints import allocation, auth, bandi, budget, cron, fonte_b, fonte_c, hq, ingestion, pattern, profile, registry, templates, clients, tokens
+from app.api.endpoints import allocation, auth, bandi, budget, cron, fonte_b, fonte_c, hq, ingestion, pattern, profile, registry, sources, templates, clients, tokens
 
 api_router = APIRouter(prefix="/api/v2")
 protected = [Depends(require_auth)]
 
 api_router.include_router(auth.router, prefix="/auth", tags=["Autenticazione ERP (OAuth 2.0 / HMAC)"])
 api_router.include_router(bandi.router, prefix="/bandi", tags=["Biblioteca dei bandi"], dependencies=protected)
+api_router.include_router(sources.router, prefix="/sources", tags=["Fonti ufficiali dei bandi"], dependencies=protected)
 api_router.include_router(fonte_b.router, prefix="/fonte-b", tags=["Fonte B - tabelle ufficiali versionate"], dependencies=protected)
 api_router.include_router(fonte_c.router, prefix="/fonte-c", tags=["Fonte C - documenti del cliente"], dependencies=protected)
 api_router.include_router(profile.router, prefix="/profile", tags=["Profilo aziendale, stima e bandi adatti"], dependencies=protected)

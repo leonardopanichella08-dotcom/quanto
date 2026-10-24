@@ -6,12 +6,12 @@ import re
 from datetime import date
 from typing import List, Optional
 
-from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query, Request, status
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query, Request, Response, status
 from pydantic import BaseModel, Field, model_validator
 
 from app.api.deps import actor_of, require_auth, require_hq, user_of
 from app.api.endpoints.tokens import not_enough
-from app.core import analysis, bandi, discovery, events, pipeline, research, tokens, webhooks
+from app.core import analysis, application_forms, bandi, discovery, events, pipeline, research, tokens, webhooks
 from app.core.ingestion import Ingestion
 
 router = APIRouter()
@@ -231,6 +231,32 @@ def research_analyze(body: ResearchAnalyze, request: Request, background: Backgr
     return {"bando_id": body.bando_id, "sources": res["sources"], "rules_published": outcome.published, "requirements_total": len(reqs),
             "requirements_to_review": len(to_review), "topics": topics, "legal_refs": detail["legal_refs"], "sources_report": res["report"],
             "warning": None if reqs else "Non sono riuscito a ricavare requisiti da nessun documento: vedi il motivo per ciascuno e aggiungi il testo ufficiale a mano.", "detail": detail}
+
+
+@router.get("/{bando_id}/application", summary="Documenti pubblici per fare la domanda (modulo, formulario, allegati) e che cosa chiedono: documenti, domande, dati, dichiarazioni")
+def application(bando_id: str) -> dict:
+    if Ingestion.get_bando(bando_id) is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Bando non trovato")
+    return application_forms.get(bando_id)
+
+
+@router.post("/{bando_id}/application/collect", dependencies=[Depends(require_auth)],
+             summary="Cerca e scarica i documenti pubblici di domanda del bando e ne ricava che cosa chiedono")
+def application_collect(bando_id: str, request: Request) -> dict:
+    if Ingestion.get_bando(bando_id) is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Bando non trovato")
+    res = application_forms.collect(bando_id, actor=actor_of(request))
+    return {**res, "application": application_forms.get(bando_id)}
+
+
+@router.get("/{bando_id}/application/file/{sha256}", summary="Scarica il documento originale di domanda (PDF, Word, Excel) salvato da QUANTO")
+def application_file(bando_id: str, sha256: str) -> Response:
+    f = events.get_bando_file(bando_id, sha256) if re.fullmatch(r"[0-9a-f]{64}", sha256) else None
+    if not f:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Documento non trovato")
+    name = re.sub(r'[^A-Za-z0-9._\- ]+', "_", f["name"] or "documento")[:120]
+    return Response(content=f["data"], media_type=f.get("content_type") or "application/octet-stream",
+                    headers={"Content-Disposition": f'attachment; filename="{name}"', "X-Content-Type-Options": "nosniff"})
 
 
 @router.get("/{bando_id}/sources/{sha256}", dependencies=[Depends(require_hq)], summary="Testo integrale di una fonte salvata in memoria (solo Quartier Generale)")

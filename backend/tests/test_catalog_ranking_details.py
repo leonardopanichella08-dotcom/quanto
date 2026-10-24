@@ -27,3 +27,18 @@ def test_a_measure_open_to_many_regions_is_not_called_reserved_and_young_company
     assert by_id["CAT-NAZIONALE"]["reasons"][0] == "Ammette la tua regione (Piemonte)" and by_id["CAT-NAZIONALE"]["score"] == 0.75          # nessun bonus: non distingue
     assert by_id["CAT-SOLO-PIEMONTE"]["reasons"][0] == "Riservato alla tua regione (Piemonte)" and by_id["CAT-SOLO-PIEMONTE"]["score"] == 0.85
     assert by_id["CAT-GIOVANE"]["score"] == 0.35 and "2016" in by_id["CAT-GIOVANE"]["to_check"][0]
+
+
+def test_catalog_items_carry_a_provisional_ceiling_and_the_queue_to_study_them_all():
+    grant = {"form": ["Contributo/Fondo perduto"], "benefit_range": "Fino a 40.000 €", "spend_range": "Fino a 100.000 €", "costs": ["Spese per impianti e macchinari"], "state": "APERTO"}
+    seed("CAT-CON-CIFRE", "Contributo macchinari", grant)
+    seed("CAT-SENZA-CIFRE", "Bando senza cifre", {"form": ["Contributo/Fondo perduto"], "costs": ["Spese per impianti e macchinari"], "state": "APERTO"})
+    seed("CAT-PRESTITO", "Prestito agevolato", {**grant, "form": ["Finanziamento agevolato"]})
+    with connect() as conn:
+        conn.execute("INSERT INTO bandi (bando_id, name, issuer, catalog_status, extraction_status, catalog_meta, meta_at) VALUES ('CAT-RIFIUTATO','Non è un bando','Ente','CATALOGED','REJECTED','{}','2026-10-03T00:00:00+00:00')")
+    out = catalog_meta.rank_for_profile({"region": "Piemonte"}, {"CAPITAL_ASSETS": 500_000.0})
+    by_id = {i["bando_id"]: i for i in out["items"]}
+    assert by_id["CAT-CON-CIFRE"]["provisional"]["ceiling_eur"] == 40_000.0 and by_id["CAT-CON-CIFRE"]["provisional"]["intensity_pct"] == 40     # 40.000 su 100.000 scritti nella scheda
+    assert by_id["CAT-SENZA-CIFRE"]["provisional"] is None and by_id["CAT-PRESTITO"]["provisional"] is None                                    # senza cifre o per un prestito non si inventa un tetto
+    assert "CAT-RIFIUTATO" not in by_id                                                                                                          # le voci scartate non compaiono
+    assert set(out["study_queue"]) == {"CAT-CON-CIFRE", "CAT-SENZA-CIFRE", "CAT-PRESTITO"} and out["total_candidates"] == 3

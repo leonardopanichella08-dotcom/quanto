@@ -96,7 +96,7 @@ def delete_bando(bando_id: str) -> Optional[Dict[str, int]]:
             return None
         meta = bandi._meta(conn, bando_id)
         counts = {}
-        for table in ("bando_files", "bando_sources", "requirements", "rules", "documents"):
+        for table in ("bando_files", "bando_sources", "requirements", "rules", "documents", "application_docs", "application_runs"):
             counts[table] = conn.execute(f"SELECT COUNT(*) c FROM {table} WHERE bando_id=?", (bando_id,)).fetchone()["c"]
             conn.execute(f"DELETE FROM {table} WHERE bando_id=?", (bando_id,))
         conn.execute("DELETE FROM bando_meta WHERE bando_id=?", (bando_id,))

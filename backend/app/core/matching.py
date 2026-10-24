@@ -281,7 +281,7 @@ def match_all(profile: Dict[str, Any], by_cat: Dict[str, float], year: int, by_t
     from app.core import catalog_meta
     catalog = catalog_meta.rank_for_profile(profile, by_cat)
     with connect() as conn:
-        open_total = conn.execute("SELECT COUNT(*) c FROM bandi WHERE bando_id LIKE 'CAT-%' AND (deadline IS NULL OR deadline = 'non indicata' OR deadline >= ?)", (date.today().isoformat(),)).fetchone()["c"]
+        open_total = conn.execute("SELECT COUNT(*) c FROM bandi WHERE bando_id LIKE 'CAT-%' AND extraction_status <> 'REJECTED' AND (deadline IS NULL OR deadline = 'non indicata' OR deadline >= ?)", (date.today().isoformat(),)).fetchone()["c"]
     catalog["stats"] = {"open_total": int(open_total), "read": catalog.get("read", 0), "unread": catalog.get("without_description", 0), "studied": len(out),
                         "studied_fit": sum(1 for r in out if r["fit"] != "NON_ADATTO"), "candidates": catalog["total_candidates"], "high": catalog.get("high", 0), "medium": catalog.get("medium", 0),
                         "excluded": catalog.get("excluded", 0)}

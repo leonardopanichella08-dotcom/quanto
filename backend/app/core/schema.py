@@ -521,6 +521,43 @@ _TOKENS_DECIMAL = """
 ALTER TABLE token_ledger ALTER COLUMN amount TYPE NUMERIC(10, 1);
 """
 
+_SOURCES_FORMS = """
+-- Stato dell'ultimo controllo di ogni fonte ufficiale e documenti di domanda scaricati per ogni bando (con le voci che contengono: domande, allegati, campi, dichiarazioni).
+CREATE TABLE source_checks (
+    source_id TEXT PRIMARY KEY,
+    checked_at TEXT NOT NULL,
+    ok BOOLEAN NOT NULL,
+    http_error TEXT,
+    pages INTEGER NOT NULL DEFAULT 0,
+    links INTEGER NOT NULL DEFAULT 0,
+    found INTEGER NOT NULL DEFAULT 0,
+    inserted INTEGER NOT NULL DEFAULT 0
+);
+CREATE TABLE application_docs (
+    bando_id TEXT NOT NULL,
+    sha256 TEXT NOT NULL,
+    url TEXT NOT NULL,
+    title TEXT NOT NULL,
+    kind TEXT NOT NULL,
+    content_type TEXT,
+    size_bytes BIGINT,
+    pages INTEGER,
+    fetched_at TEXT NOT NULL,
+    items TEXT,
+    warnings TEXT,
+    PRIMARY KEY (bando_id, sha256)
+);
+CREATE TABLE application_runs (
+    bando_id TEXT PRIMARY KEY,
+    ts TEXT NOT NULL,
+    docs INTEGER NOT NULL DEFAULT 0,
+    note TEXT
+);
+ALTER TABLE source_checks ENABLE ROW LEVEL SECURITY;
+ALTER TABLE application_docs ENABLE ROW LEVEL SECURITY;
+ALTER TABLE application_runs ENABLE ROW LEVEL SECURITY;
+"""
+
 MIGRATIONS: List[Tuple[int, str, str]] = [
     (1, "init", _INIT),
     (2, "fonte_b", _FONTE_B),
@@ -542,4 +579,5 @@ MIGRATIONS: List[Tuple[int, str, str]] = [
     (18, "tokens", _TOKENS),
     (19, "template_examples", _TEMPLATE_EXAMPLES),
     (20, "tokens_decimal", _TOKENS_DECIMAL),
+    (21, "sources_forms", _SOURCES_FORMS),
 ]

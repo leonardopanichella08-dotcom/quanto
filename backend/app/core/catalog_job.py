@@ -53,7 +53,7 @@ def cleanup_stale(actor: str = "cron") -> Dict[str, Any]:
                 stale.append(r["bando_id"])
         if stale:
             placeholders = ",".join("?" * len(stale))
-            for table in ("rules", "requirements", "bando_sources", "bandi"):
+            for table in ("rules", "requirements", "bando_sources", "application_docs", "application_runs", "bandi"):
                 conn.execute(f"DELETE FROM {table} WHERE bando_id IN ({placeholders})", stale)
     if stale:
         events.record("catalog.cleanup", f"Eliminate {len(stale)} voci del catalogo ormai chiuse (misure passate, mai toccate)", actor=actor,

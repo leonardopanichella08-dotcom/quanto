@@ -11,6 +11,7 @@ import { flashTo, takeAllocationTarget, useNav } from '../lib/nav'
 import { WordsContext, docWords } from '../lib/words'
 import Guide from './Guide'
 import PipelineButton from './PipelineButton'
+import ApplicationDocs from './ApplicationDocs'
 import { Hint } from './Help'
 import ForecastStep from './ForecastStep'
 import PotentialStep from './PotentialStep'
@@ -75,6 +76,7 @@ const AFFINITY = { ALTA: ['Molto affine', 'bg-emerald-500/15 text-emerald-700 bo
 /** Voce del catalogo non ancora studiata: descrizione ufficiale e motivi dell'affinità; se serve, la si studia con il processo standard. */
 function CatalogCard({ it, onStudied }) {
   const [label, tone] = AFFINITY[it.affinity]
+  const [docs, setDocs] = useState(false)
   return (
     <div className="rounded-2xl border border-line bg-field p-4 space-y-2.5">
       <div className="flex flex-wrap items-start gap-2">
@@ -87,14 +89,22 @@ function CatalogCard({ it, onStudied }) {
       {it.summary && <p className="text-xs text-ink-2 leading-relaxed">{it.summary}</p>}
       <div className="flex flex-wrap gap-1.5 text-[11px]">
         {(it.form || []).map((f) => <span key={f} className="px-1.5 py-0.5 rounded border border-line-strong text-ink-2">{f}</span>)}
-        {it.benefit_range && <span className="px-1.5 py-0.5 rounded border border-emerald-500/30 text-emerald-700">Agevolazione: {it.benefit_range}</span>}
+        {(it.benefit_text || it.benefit_range) && <span className="px-1.5 py-0.5 rounded border border-emerald-500/30 text-emerald-700">Agevolazione: {it.benefit_text || it.benefit_range}</span>}
       </div>
+      {it.provisional && (
+        <div className="rounded-xl bg-white border border-amber-500/30 px-3 py-2 text-xs text-ink-2 leading-relaxed">
+          <p><span className="font-semibold text-ink">Fino a {fmtEur(it.provisional.ceiling_eur)}</span> per la tua azienda <span className="text-amber-700">· tetto provvisorio</span></p>
+          <p className="text-[11px] text-mute">Dalla scheda: {it.provisional.how}, applicato alle tue spese ammesse ({fmtEur(it.provisional.covered_base_eur)}). Non è una stima: non conosce graduatoria, de minimis né requisiti. Studialo a fondo per avere l’importo vero.</p>
+        </div>
+      )}
       {it.reasons.length > 0 && <ul className="text-xs text-ink-2 space-y-0.5">{it.reasons.map((r) => <li key={r} className="flex gap-1.5"><CheckCircle2 className="w-3.5 h-3.5 mt-0.5 text-emerald-600 shrink-0" />{r}</li>)}</ul>}
       {it.to_check.length > 0 && <p className="text-[11px] text-amber-700">Da verificare: {it.to_check.join(', ')}.</p>}
       <div className="flex flex-wrap items-start gap-3 pt-1">
         <PipelineButton bandoId={it.bando_id} label="Studia a fondo questo bando" onDone={(r) => onStudied(it, r)} />
         {it.source_url && <a href={it.source_url} target="_blank" rel="noreferrer" className="text-xs text-sky-700 hover:underline inline-flex items-center gap-1 pt-2"><ExternalLink className="w-3 h-3" />Scheda ufficiale</a>}
+        <button className="text-xs text-sky-700 hover:underline pt-2" aria-expanded={docs} onClick={() => setDocs(!docs)}>{docs ? 'Chiudi i documenti' : 'Documenti per la domanda'}</button>
       </div>
+      {docs && <ApplicationDocs bandoId={it.bando_id} />}
     </div>
   )
 }
@@ -405,6 +415,7 @@ export default function AllocationView({ onGoProfile, onBudgetFrom, onOpenBudget
   const [studied, setStudied] = useState(null)
   const [studyingMore, setStudyingMore] = useState(false)
   const [studyNote, setStudyNote] = useState(null)
+  const [catalogShown, setCatalogShown] = useState(30)               // i bandi da studiare si mostrano a gruppi di 30
   const auto = useRef(false)
   const pending = useRef(null)                           // bandi inclusi nel piano al momento dell'ultimo salvataggio
   const allMode = useRef(true)                           // vero finché il piano include TUTTI i bandi adatti: quelli nuovi entrano da soli
@@ -485,19 +496,25 @@ export default function AllocationView({ onGoProfile, onBudgetFrom, onOpenBudget
     } catch (e) { setError(e.message) }
   }
 
-  const studyMore = async () => {
-    const todo = (match?.matching.catalog.items || []).slice(0, 5)
+  // Studio a fondo in fila: i 5 più affini, oppure tutti i molto affini e affini (fino a 60). Uno alla volta, con avanzamento; si può fermare. Alla fine si rifà la stima.
+  const studyAbort = useRef(false)
+  const studyMore = async (all = false) => {
+    const cat = match?.matching.catalog
+    const byId = Object.fromEntries((cat?.items || []).map((x) => [x.bando_id, x]))
+    const todo = (all ? (cat?.study_queue || []) : (cat?.items || []).slice(0, 5).map((x) => x.bando_id)).map((id) => byId[id]).filter(Boolean)
     if (!todo.length) { setStudyNote('Nessuna scheda del catalogo da studiare ora.'); return }
-    setStudyingMore(true); setStudyNote(null)
+    setStudyingMore(true); setStudyNote(null); studyAbort.current = false
     const done = []
     try {
       for (let i = 0; i < todo.length; i += 1) {
+        if (studyAbort.current) { done.push(`interrotto prima di ${todo[i].name}`); break }
         setStudyNote(`Studio ${i + 1} di ${todo.length}: ${todo[i].name}`)
         try { const r = await api.researchRun({ bando_id: todo[i].bando_id }); done.push(`${todo[i].name} (${r.report?.status === 'COMPLETA' ? 'lettura completa' : r.report?.status === 'PARZIALE' ? 'lettura parziale' : 'lettura insufficiente'})`) } catch (e) { done.push(`${todo[i].name} (non riuscito: ${e.message})`) }
+        if ((i + 1) % 8 === 0) await runMatch()                  // ogni tanto la stima si aggiorna, così gli importi veri compaiono man mano
       }
       await runMatch()
       setIdeasTick((t) => t + 1)
-      setStudyNote(`Ho studiato ${done.length} bandi: ${done.join('; ')}. Stima e bandi aggiornati.`)
+      setStudyNote(`Ho studiato ${done.filter((d) => !d.startsWith('interrotto')).length} bandi: ${done.join('; ')}. Stima e bandi aggiornati.`)
     } catch (e) { setError(e.message) } finally { setStudyingMore(false) }
   }
 
@@ -776,7 +793,7 @@ export default function AllocationView({ onGoProfile, onBudgetFrom, onOpenBudget
           <TutorialVideo id="T05" />
           {st && (
             <div className="rounded-2xl bg-tint p-4 space-y-1.5">
-              <p className="text-sm text-ink-2 leading-relaxed"><span className="font-medium text-ink">Li uso tutti.</span> Ho letto in breve la scheda di {st.read} dei {st.open_total} bandi aperti del catalogo: {st.high} molto affini, {st.medium} affini. {st.studied} sono già studiati a fondo e fanno il piano con importi veri.{st.unread > 0 ? ` Altre ${st.unread} schede si leggono man mano.` : ''}</p>
+              <p className="text-sm text-ink-2 leading-relaxed"><span className="font-medium text-ink">Li uso tutti.</span> Ho letto in breve la scheda di {st.read} dei {st.open_total} bandi aperti del catalogo: {st.high} molto affini, {st.medium} affini. {st.studied} sono già studiati a fondo e fanno il piano con importi veri. Gli altri li vedi in «Da studiare» con un tetto provvisorio ricavato dalla scheda: «Studia a fondo tutti i bandi affini» li porta uno dopo l’altro nel piano.{st.unread > 0 ? ` Altre ${st.unread} schede si leggono man mano.` : ''}</p>
               <Info label="Come lavora">Due letture. La prima è veloce e riguarda tutti i bandi: la scheda ufficiale dice chi può partecipare, che spese ammette e di quale regione è, e serve a scegliere quelli che somigliano all’azienda. La seconda è lo studio a fondo, solo per i bandi che servono: cerca e legge regole e requisiti, ed è ciò che permette di calcolare gli importi e di fare il budget.</Info>
             </div>
           )}
@@ -798,7 +815,8 @@ export default function AllocationView({ onGoProfile, onBudgetFrom, onOpenBudget
           {tab === 'CATALOG' ? (
             <div className="grid lg:grid-cols-2 gap-4">
               {match.matching.catalog.items.length === 0 && <p className="text-xs text-mute">Nessuna scheda letta ancora.</p>}
-              {match.matching.catalog.items.map((it) => <CatalogCard key={it.bando_id} it={it} onStudied={afterStudy} />)}
+              {match.matching.catalog.items.slice(0, catalogShown).map((it) => <CatalogCard key={it.bando_id} it={it} onStudied={afterStudy} />)}
+              {match.matching.catalog.items.length > catalogShown && <button className="btn lg:col-span-2 justify-self-start" onClick={() => setCatalogShown(catalogShown + 30)}>Mostra altri {Math.min(30, match.matching.catalog.items.length - catalogShown)} bandi da studiare</button>}
             </div>
           ) : (
             <>
@@ -828,7 +846,7 @@ export default function AllocationView({ onGoProfile, onBudgetFrom, onOpenBudget
           {scenarioBar}
           {inProject && <ProjectCandidates items={(match.matching.catalog?.items || []).filter((it) => (it.cost_categories || []).some((c) => project.lines.some((l) => l.nature === 'NUOVA' && l.category === c))).slice(0, 6)} onStudied={afterStudy} />}
           <div className="max-w-xl"><PotentialChart plan={plan} nameOf={(id) => results.find((r) => r.fund?.fund_id === id)?.name || id} dm={{ estimate: dmEstimate }} /></div>
-          <PotentialStep results={results} picked={active} onPick={pick} scenario={inProject ? 'PROJECT' : 'ANNUAL'} isCandidate={isCandidate} dm={{ estimate: dmEstimate, override: overrideOk ? dmOverride : '', invalid: dmOverride !== '' && !overrideOk, setOverride: (v) => setDmOverride(String(v).replace(/[^0-9.,]/g, '').replace(',', '.')), value: Number(deMinimis), onDeclare: declareAid, onVerify: () => onGoProfile({ to: 'aiuti' }) }} plan={plan} planHigh={planHigh} loading={loading} planError={planError} onStudyMore={studyMore} studyingMore={studyingMore} />
+          <PotentialStep results={results} picked={active} onPick={pick} scenario={inProject ? 'PROJECT' : 'ANNUAL'} isCandidate={isCandidate} dm={{ estimate: dmEstimate, override: overrideOk ? dmOverride : '', invalid: dmOverride !== '' && !overrideOk, setOverride: (v) => setDmOverride(String(v).replace(/[^0-9.,]/g, '').replace(',', '.')), value: Number(deMinimis), onDeclare: declareAid, onVerify: () => onGoProfile({ to: 'aiuti' }) }} plan={plan} planHigh={planHigh} loading={loading} planError={planError} onStudyMore={studyMore} studyingMore={studyingMore} studyQueue={(match.matching.catalog?.study_queue || []).length} onStudyStop={() => { studyAbort.current = true }} />
           {studyNote && <p className="text-[11px] text-ink-2 leading-relaxed">{studyNote}</p>}
         </Step>
       )}

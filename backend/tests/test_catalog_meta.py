@@ -105,3 +105,15 @@ def test_summaries_are_visible_in_the_catalog_browser_and_the_detail():
     assert page["items"][0]["summary"] == "Descrizione breve."
     detail = client.get("/api/v2/bandi/CAT-VISIBILE").json()
     assert detail["catalog"]["summary"] == "Descrizione breve." and detail["catalog"]["meta"]["form"] == ["Prestito"]
+
+
+def test_provisional_ceiling_comes_only_from_the_figures_written_on_the_scheda_and_never_for_loans():
+    meta = {"form": ["Contributo/Fondo perduto"], "benefit_range": "Da 10.000 € a 150.000 €", "spend_range": "Da 20.000 € a 250.000 €", "costs": ["Spese per impianti e macchinari"]}
+    assert catalog_meta.amount_range("Fino a 300.000 €") == {"min": None, "max": 300000.0}
+    assert catalog_meta.amount_range("Da 10.000 € a 150.000 €") == {"min": 10000.0, "max": 150000.0}
+    est = catalog_meta.provisional_estimate(meta, {"CAPITAL_ASSETS": 100_000.0})
+    assert est["ceiling_eur"] == 60_000.0 and est["intensity_pct"] == 60 and est["provisional"] is True          # 150.000 / 250.000 = 60% delle spese dell'azienda
+    assert catalog_meta.provisional_estimate(meta, {"CAPITAL_ASSETS": 900_000.0})["ceiling_eur"] == 150_000.0     # mai oltre l'agevolazione massima della scheda
+    assert catalog_meta.provisional_estimate(meta, {"PERSONNEL": 50_000.0}) is None                                # nessuna spesa dell'azienda tra quelle ammesse
+    assert catalog_meta.provisional_estimate({**meta, "form": ["Finanziamento agevolato"]}, {"CAPITAL_ASSETS": 100_000.0}) is None   # il valore di un prestito è il risparmio sugli interessi
+    assert catalog_meta.provisional_estimate({k: v for k, v in meta.items() if k != "costs"}, {"CAPITAL_ASSETS": 100_000.0}) is None   # costi ammessi non dichiarati: non si deduce

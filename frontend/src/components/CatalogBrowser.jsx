@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from 'react'
 import { ChevronLeft, ChevronRight, ExternalLink, Layers, Loader2, Search, Sparkles } from 'lucide-react'
 import { api } from '../lib/api'
 import { Hint } from './Help'
+import ApplicationDocs from './ApplicationDocs'
 
 const PAGE_SIZE = 20
 
@@ -17,6 +18,7 @@ export default function CatalogBrowser({ onPick, picking }) {
   const [issuers, setIssuers] = useState([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(null)
+  const [docsOf, setDocsOf] = useState(null)         // voce di cui si stanno guardando i documenti di domanda
   const debounce = useRef(null)
 
   useEffect(() => { if (open && !issuers.length) api.bandiCatalogIssuers().then(setIssuers).catch(() => {}) }, [open, issuers.length])
@@ -50,7 +52,7 @@ export default function CatalogBrowser({ onPick, picking }) {
         <div>
           <h3 className="font-semibold text-base flex items-center gap-2"><Layers className="w-4 h-4 text-brand-ink" />Catalogo nazionale dei bandi <Hint id="bando_catalogo" /></h3>
           <p className="text-xs text-ink-2 leading-relaxed max-w-2xl mt-1">
-            Ogni notte QUANTO scarica da solo l'elenco di tutti i bandi nazionali, regionali e comunali (incentivi.gov.it, Invitalia):
+            Ogni notte QUANTO scarica da solo l'elenco dei bandi nazionali, regionali e comunali (incentivi.gov.it, Invitalia e le pagine di ministeri, Regioni e agenzie):
             {total > 0 && <> oggi ne ha in memoria <strong className="text-ink">{total.toLocaleString('it-IT')}</strong>.</>} Per la maggior parte
             si conosce solo nome, ente e link ufficiale: non sono ancora stati letti. Cercane uno e chiedi a QUANTO di analizzarlo per intero.
           </p>
@@ -88,6 +90,8 @@ export default function CatalogBrowser({ onPick, picking }) {
               : (it.rules || it.sources) ? <span className="px-1.5 py-0.5 rounded border border-sky-500/30 text-sky-700 text-[10px] shrink-0">già cercato: {it.rules} regole</span>
                 : <span className="px-1.5 py-0.5 rounded border border-line-strong text-mute text-[10px] shrink-0">da analizzare</span>}
             {it.summary && <p className="w-full text-ink-2 leading-relaxed">{it.summary}</p>}
+            <button onClick={() => setDocsOf(docsOf === it.bando_id ? null : it.bando_id)} aria-expanded={docsOf === it.bando_id} className="text-sky-700 hover:underline shrink-0">{docsOf === it.bando_id ? 'Chiudi i documenti' : 'Documenti per la domanda'}</button>
+            {docsOf === it.bando_id && <div className="w-full pt-1"><ApplicationDocs bandoId={it.bando_id} /></div>}
             {!it.curated && !(it.rules || it.sources) && (
               <button onClick={() => onPick({ name: it.name, bando_id: it.bando_id, source_url: it.source_url })} disabled={picking === it.bando_id}
                 className="btn-primary !py-1 !px-2.5 ml-auto shrink-0 flex items-center gap-1.5">

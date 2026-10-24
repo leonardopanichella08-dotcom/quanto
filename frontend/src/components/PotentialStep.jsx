@@ -113,7 +113,7 @@ function RebuiltBudget({ plan, nameOf }) {
 
 /** Tutti i bandi a cui l'azienda può partecipare, applicati insieme: quanto potrebbe coprire se li vincesse tutti. Il calcolo è quello del piano (stesse regole di
  *  cumulo, tetti e de minimis): qui si scelgono i bandi e si legge il confronto con la somma dei bandi presi uno per uno. */
-export default function PotentialStep({ results, picked, onPick, dm, plan, planHigh, loading, planError, onStudyMore, studyingMore, scenario = 'ANNUAL', isCandidate = () => true, projectOnly = 0, onGoProjects }) {
+export default function PotentialStep({ results, picked, onPick, dm, plan, planHigh, loading, planError, onStudyMore, studyingMore, studyQueue = 0, onStudyStop, scenario = 'ANNUAL', isCandidate = () => true, projectOnly = 0, onGoProjects }) {
   const [withMaybe, setWithMaybe] = useState(false)
   const sure = results.filter((r) => r.fit === 'ADATTO' && r.fund && isCandidate(r))
   const maybe = results.filter((r) => r.fit === 'DA_VERIFICARE' && r.fund && isCandidate(r))
@@ -145,8 +145,10 @@ export default function PotentialStep({ results, picked, onPick, dm, plan, planH
       )}
       {onStudyMore && (
         <div className="flex flex-wrap items-center gap-3">
-          <button className="btn" disabled={studyingMore} onClick={onStudyMore}>{studyingMore && <Loader2 className="w-3.5 h-3.5 animate-spin" />}{studyingMore ? 'Studio in corso…' : 'Studia a fondo i 5 più affini'}</button>
-          <Info label="Cosa fa">Tutti i bandi del catalogo sono già letti in breve (scheda ufficiale) e ordinati per affinità. Qui studi a fondo i più affini: cerca, scarica e legge le fonti ufficiali di ciascuno, uno dopo l’altro, poi rifà la stima. Solo un bando studiato a fondo ha importi veri e può avere un budget.</Info>
+          <button className="btn" disabled={studyingMore} onClick={() => onStudyMore(false)}>{studyingMore && <Loader2 className="w-3.5 h-3.5 animate-spin" />}{studyingMore ? 'Studio in corso…' : 'Studia a fondo i 5 più affini'}</button>
+          {!studyingMore && studyQueue > 5 && <button className="btn-primary" onClick={() => onStudyMore(true)}>Studia a fondo tutti i bandi affini ({studyQueue})</button>}
+          {studyingMore && onStudyStop && <button className="btn" onClick={onStudyStop}>Ferma dopo questo bando</button>}
+          <Info label="Cosa fa">Tutti i bandi del catalogo sono già letti in breve (scheda ufficiale) e ordinati per affinità. Qui studi a fondo i più affini: cerca, scarica e legge le fonti ufficiali di ciascuno, uno dopo l’altro (circa un minuto ciascuno: lascia aperta la pagina), poi rifà la stima. Solo un bando studiato a fondo ha importi veri e può avere un budget; fino ad allora la scheda mostra un tetto provvisorio ricavato dalle sue cifre.</Info>
         </div>
       )}
 

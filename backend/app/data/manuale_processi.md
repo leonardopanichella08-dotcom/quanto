@@ -77,7 +77,7 @@ Le pagine costruite interamente con JavaScript danno poco testo; i PDF scansiona
 
 ## 4. Il catalogo nazionale
 
-**Da dove viene.** Dalle mappe del sito dei cataloghi ufficiali (incentivi.gov.it e Invitalia). Ogni voce ha nome, ente e link. Una volta, in totale, erano circa 6.000 voci; la maggior parte è chiusa.
+**Da dove viene.** Dalle mappe del sito dei cataloghi ufficiali (incentivi.gov.it e Invitalia) e dalle pagine di ministeri, agenzie, Regioni e Unione europea (sezione 4 bis). Ogni voce ha nome, ente e link. Una volta, in totale, erano circa 6.000 voci; la maggior parte è chiusa.
 
 **Cosa succede ogni notte** (orari Vercel, ora UTC):
 1. **03:00, aggiornamento.** Si scarica l'elenco e si aggiungono le voci nuove.
@@ -91,6 +91,41 @@ Le pagine costruite interamente con JavaScript danno poco testo; i PDF scansiona
 Si escludono: bandi chiusi, di un'altra Regione, di altra dimensione o ATECO, per soggetti che non sono imprese. Affinità ALTA da 0,6, MEDIA da 0,25.
 
 Esempio: un'azienda informatica di Torino. «Voucher per la digitalizzazione» di una Regione del Sud viene esclusa (Regione); «Bando SWIch Piemonte» sale in alto perché è piemontese e copre personale e consulenze, che sono le sue spese principali.
+
+## 4 bis. Da dove arrivano i bandi: le fonti ufficiali
+
+**Il problema.** Il catalogo nasceva da due sole mappe del sito (incentivi.gov.it e Invitalia): circa 5.500 voci, di cui solo una parte con la scheda letta e pochissime studiate a fondo. Per questo i bandi nel piano erano pochi: il piano usa solo quelli studiati.
+
+**Il registro delle fonti** (`backend/app/core/official_sources.py`, pagina Bandi → «Da dove arrivano i bandi»). Ogni ente che pubblica bandi ha una riga con indirizzo, tipo e stato dell'ultimo controllo: 16 ministeri e dipartimenti nazionali, agenzie e fondi (MIMIT, Invitalia, SIMEST, Mediocredito Centrale, GSE, ENEA, ISMEA, INPS, ANPAL, INAIL, ICE, CDP, Agenzia delle Entrate, SACE, i fondi interprofessionali Fondimpresa, Fon.Ter, Fondartigianato e For.Te), il sistema delle Camere di commercio (Unioncamere, Punto Impresa Digitale), l'Unione europea (Funding & Tenders, CORDIS, EIC, Erasmus+, EEN, LIFE, EIF) e tutte le 20 Regioni e province autonome con le loro finanziarie e portali dei fondi europei (Lazio Innova, Finpiemonte, FILSE, Sviluppo Toscana, Sviluppumbria, Veneto Sviluppo, Sardegna Impresa, Euro Info Sicilia e altre): 90 fonti in tutto. Il 24 ottobre 2026 ne rispondevano 65 su 75 controllate; le altre (certificato non valido, sito spento, blocco dei programmi) sono segnate «Non raggiungibile» e riprovate a ogni controllo.
+
+**Come si raccolgono i bandi.** Il raccoglitore parte dalla pagina dell'ente, apre al massimo quattro pagine-elenco collegate («Bandi e avvisi», «Incentivi»…) e tiene i collegamenti il cui testo nomina un bando, avviso, contributo, voucher, incentivo o finanziamento. Scarta gare d'appalto, concorsi, elenchi, graduatorie, delibere, bandi per i Comuni, immobili, personale, edizioni passate e programmazioni chiuse (es. «14-20»), e i nomi di sezione («Bandi e avvisi»). Il nome della voce è il testo ESATTO del collegamento; l'ente e la Regione vengono dal registro; **date, importi e requisiti non si scrivono mai dal nome**.
+
+**Controllo sulla pagina.** Quando si legge la scheda di una voce raccolta, la pagina deve «parlare come un bando»: devono comparire almeno 3 espressioni tipiche (beneficiari, spese ammissibili, dotazione finanziaria, presentazione delle domande, a fondo perduto, scadenza…). Altrimenti la voce è marcata «scartata»: resta in memoria (così non rientra) ma non si mostra né si conta. Il 24 ottobre 2026 su 329 voci raccolte, 191 sono state scartate dal controllo e 133 tenute.
+
+**Quando.** Ogni notte, nel lavoro delle 03:30, prima della lettura delle schede (15 secondi di raccolta, poi le schede). Chiunque può anche premere «Cerca nuovi bandi adesso» (una volta ogni 90 secondi). Le fonti meno recenti si controllano per prime.
+
+**Cosa NON si vede.** Le pagine che costruiscono l'elenco con JavaScript (es. Lombardia – Bandi online, Marche – Bandi, Lazio Innova) non sono leggibili da un server: lo stato dice «Solo JavaScript». L'EU Funding & Tenders Portal richiede la sua interfaccia dati, non ancora collegata. Gli sgravi INPS sono inseriti a mano e verificati (Agevolazioni). Una fonte che funziona oggi può cambiare pagina domani: lo stato lo mostra.
+
+**Perché gli studiati sono pochi, e cosa cambia.** Studiare un bando = scaricare e leggere per intero i documenti ufficiali: circa un minuto. Leggere la scheda è veloce ma non dà regole. Ora l'Allocazione parte da TUTTI i bandi letti: mostra per ciascuno un **tetto provvisorio** ricavato solo dalle cifre della scheda («agevolazione massima ÷ spesa massima», applicata alle spese dell'azienda coperte dai costi ammessi, mai oltre l'agevolazione massima; nessun tetto per prestiti, garanzie o schede senza cifre) e il pulsante «Studia a fondo tutti i bandi affini» li studia uno dopo l'altro (con avanzamento e pulsante per fermarsi), aggiornando la stima. Solo i bandi studiati entrano nel piano con importi veri.
+
+Esempio: la scheda di «Contributo macchinari» dice «agevolazione fino a 40.000 €, spesa fino a 100.000 €» e ammette impianti e macchinari. L'azienda ha 500.000 € di beni strumentali: tetto provvisorio 40.000 € (intensità 40%). Dopo lo studio, regole, de minimis e requisiti danno l'importo vero (che può essere zero).
+
+## 4 ter. I documenti per fare la domanda
+
+**Cosa fa.** Per ogni bando (anche non ancora studiato) QUANTO cerca nella pagina ufficiale e nei documenti già letti i collegamenti a modulo di domanda, formulario / scheda progetto, allegati, dichiarazioni e istruzioni (PDF, Word, Excel), li scarica, li conserva per riaprirli e ne ricava che cosa chiedono (`backend/app/core/application_forms.py`, scheda «Per fare la domanda» nei Bandi e «Documenti per la domanda» nelle voci del catalogo e dell'Allocazione).
+
+**Che cosa si legge** (regole fisse, nessun modello linguistico; ogni voce è la riga del documento con il nome del documento):
+- **Documenti da presentare:** elenchi introdotti da «alla domanda devono essere allegati…», «da allegare», «documentazione da presentare», «allegare obbligatoriamente», e i titoli «Allegato B – …» nei bandi;
+- **Domande a cui rispondere:** frasi che iniziano con Descrivere, Indicare, Specificare, Illustrare, Elencare, Motivare, Quantificare…, domande che finiscono con «?» e le sezioni numerate dei formulari;
+- **Dati da inserire:** voci seguite da una riga da compilare («Denominazione ______», «Codice fiscale ……»);
+- **Dichiarazioni da rendere:** caselle da spuntare (☐) e punti dopo «DICHIARA» («di essere una micro, piccola o media impresa…»).
+Nei bandi e nei decreti si leggono solo gli allegati: domande, campi e dichiarazioni stanno nei moduli.
+
+**Cosa si scarta.** Informative privacy, graduatorie, elenchi, delibere, regolamenti europei, proroghe e riaperture dei termini, siti di consulenti (si seguono solo siti ufficiali). Una pagina «Modulistica» si apre per un salto per prendere i file che elenca.
+
+**Limiti dichiarati.** I PDF scansionati non si leggono (manca l'OCR) e i vecchi .doc / .xls nemmeno: il file resta scaricabile e porta un avviso. Molti enti pubblicano la domanda solo sulla piattaforma con accesso: in quel caso QUANTO dice che non ci sono documenti, non li inventa. Le frasi spezzate su due righe nel PDF possono comparire tagliate. **Prima di presentare si controlla sempre il testo ufficiale.**
+
+Esempio vero (24 ottobre 2026, Invitalia «Investimenti sostenibili 4.0»): trovati modulo di domanda fac-simile (9 domande, 15 campi, 11 dichiarazioni), dichiarazione sui dati contabili e decreto direttoriale; «Avviso STEP 2026» di Sviluppumbria: domande di ammissione, procura, schede progetto (33 domande, 27 campi).
 
 ## 5. La lettura delle regole di un bando
 
