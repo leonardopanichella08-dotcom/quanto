@@ -97,8 +97,9 @@ function RebuiltBudget({ plan, nameOf }) {
     </div>
   )
   return (
-    <div className="space-y-3">
+    <div className="space-y-3 overflow-x-auto"><div className="space-y-3 min-w-[520px]">
       <span className="label">Il bilancio ricostruito: spese dell’anno, coperte dai bandi e a carico</span>
+      <p className="text-xs text-ink-2 leading-relaxed max-w-2xl">Ogni riga è un tipo di spesa: i colori sono i bandi che ne pagano una parte, l’arancio è ciò che resta a tuo carico. La riga in alto è il totale.</p>
       <Bar c={total} width={100} label="Totale spese" strong />
       <div className="space-y-1.5 pt-1 border-t border-line">
         {rows.map(([cat, c]) => <Bar key={cat} c={c} width={Math.max(8, (c.gross / max) * 100)} label={CATEGORY_LABEL[cat] || cat} />)}
@@ -107,19 +108,17 @@ function RebuiltBudget({ plan, nameOf }) {
         {funds.map((id) => <span key={id} className={`inline-flex items-center gap-1.5 ${total.funds[id] > 0 ? '' : 'text-mute'}`}><i className="w-2.5 h-2.5 rounded-sm" style={{ background: color(id), opacity: total.funds[id] > 0 ? 1 : 0.35 }} />{nameOf(id)} · {total.funds[id] > 0 ? fmtEur(total.funds[id]) : 'non usato'}</span>)}
         <span className="inline-flex items-center gap-1.5"><i className="w-2.5 h-2.5 rounded-sm" style={{ background: NET }} />A carico · {fmtEur(total.net)}</span>
       </div>
-    </div>
+    </div></div>
   )
 }
 
 /** Tutti i bandi a cui l'azienda può partecipare, applicati insieme: quanto potrebbe coprire se li vincesse tutti. Il calcolo è quello del piano (stesse regole di
  *  cumulo, tetti e de minimis): qui si scelgono i bandi e si legge il confronto con la somma dei bandi presi uno per uno. */
 export default function PotentialStep({ results, picked, onPick, dm, plan, planHigh, loading, planError, onStudyMore, studyingMore, studyQueue = 0, onStudyStop, scenario = 'ANNUAL', isCandidate = () => true, projectOnly = 0, onGoProjects }) {
-  const [withMaybe, setWithMaybe] = useState(false)
   const sure = results.filter((r) => r.fit === 'ADATTO' && r.fund && isCandidate(r))
-  const maybe = results.filter((r) => r.fit === 'DA_VERIFICARE' && r.fund && isCandidate(r))
   const noAmount = results.filter((r) => r.fit !== 'NON_ADATTO' && !r.fund && !r.guarantee)
   const guarantees = results.filter((r) => r.fit !== 'NON_ADATTO' && r.guarantee)
-  const wanted = [...sure, ...(withMaybe ? maybe : [])]
+  const wanted = sure                                  // nel piano entrano solo i bandi ADATTI: quelli da verificare non si sommano mai
   const wantedIds = wanted.map((r) => r.bando_id)
   const isAll = wantedIds.length > 0 && wantedIds.length === picked.length && wantedIds.every((id) => picked.includes(id))
   const pickedRows = results.filter((r) => picked.includes(r.bando_id) && r.fund)
@@ -129,14 +128,9 @@ export default function PotentialStep({ results, picked, onPick, dm, plan, planH
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center gap-3">
-        <button className="btn-primary" disabled={wanted.length === 0} onClick={() => onPick(wantedIds, !withMaybe)}>
-          <Sparkles className="w-3.5 h-3.5" />{isAll ? (scenario === 'PROJECT' ? 'Tutti i bandi del progetto inclusi' : 'Tutti i bandi inclusi') : `${scenario === 'PROJECT' ? 'Includi i bandi del progetto' : 'Includi tutti'} (${sure.length}${withMaybe ? ` + ${maybe.length}` : ''})`}
+        <button className="btn-primary" disabled={wanted.length === 0} onClick={() => onPick(wantedIds, true)}>
+          <Sparkles className="w-3.5 h-3.5" />{isAll ? (scenario === 'PROJECT' ? 'Tutti i bandi del progetto inclusi' : 'Tutti i bandi inclusi') : `${scenario === 'PROJECT' ? 'Includi i bandi del progetto' : 'Includi tutti'} (${sure.length})`}
         </button>
-        {maybe.length > 0 && (
-          <label className="inline-flex items-center gap-2 text-xs text-ink-2 cursor-pointer">
-            <input type="checkbox" checked={withMaybe} onChange={(e) => setWithMaybe(e.target.checked)} />Anche {maybe.length === 1 ? 'il bando da verificare' : `i ${maybe.length} da verificare`} (ottimistico)
-          </label>
-        )}
         {picked.length > 0 && <button className="btn" onClick={() => onPick([], false)}>Nessuno</button>}
       </div>
       {sure.length === 0 && <p className="text-xs text-amber-700">{scenario === 'PROJECT' ? 'Nessun bando adatto cita questo tipo di progetto: puoi includere tu i bandi dalla lista «Bandi».' : 'Nessun bando adatto per le spese annuali con un importo stimabile: studia altri bandi del catalogo.'}</p>}
@@ -167,6 +161,7 @@ export default function PotentialStep({ results, picked, onPick, dm, plan, planH
                   <div><span className="label">A tuo carico</span><div className="text-sm font-semibold tabular-nums text-amber-700">{fmtEur(plan.net_cost_to_entity_eur)}</div></div>
                 </div>
               </div>
+              {plan.covered_by_public_funds_eur <= 0 && <p className="text-xs text-amber-700 leading-relaxed">I bandi inclusi non coprono nessuna di queste spese: le categorie che ammettono (o la finestra di spesa, o i tetti) non coincidono con quelle {scenario === 'PROJECT' ? 'del progetto' : 'dell’anno'}. Apri «Dettagli» di ciascun bando per vedere cosa ammette.</p>}
               {pickedRows.length > 1 && (
                 <div className="overflow-x-auto">
                   <table className="w-full text-xs">

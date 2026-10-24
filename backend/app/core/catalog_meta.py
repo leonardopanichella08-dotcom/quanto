@@ -15,7 +15,7 @@ from concurrent.futures import ThreadPoolExecutor, wait
 from datetime import date
 from typing import Any, Dict, List, Optional
 
-from app.core import events, lifecycle, research
+from app.core import events, lifecycle, relevance, research
 from app.core.db import connect
 
 # etichetta nella pagina -> chiave
@@ -370,6 +370,9 @@ def rank_for_profile(profile: Dict[str, Any], by_cat: Dict[str, float], limit: i
     for r in rows:
         meta = json.loads(r["catalog_meta"] or "{}")
         if meta.get("state") == "CHIUSO":
+            excluded += 1
+            continue
+        if relevance.text_fails(r["name"], r["issuer"] or "", "", profile):          # altra regione (anche da provincia), altro settore o soggetti che non sono imprese
             excluded += 1
             continue
         reasons: List[str] = []

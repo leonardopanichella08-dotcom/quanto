@@ -190,7 +190,9 @@ def generate(owner: str, year: Optional[int] = None, split: Optional[Dict[str, i
     ideas.sort(key=lambda i: (i["id"] != "crescita", -i["new_eur"], -i["ordinary_eur"], i["id"]))        # il progetto che nasce dai bisogni di crescita va per primo
 
     # i bandi che finanziano quel tipo di progetto
-    bt = _bando_types()
+    from app.core import matching
+    profile = cp.profile_values(owner)
+    bt = {bid: b for bid, b in _bando_types().items() if matching.is_relevant(bid, profile)}          # solo bandi che possono riguardare l'azienda: territorio, settore e soggetti
     for idea in ideas:
         idea["bandi"] = [{"bando_id": bid, "name": b["name"], "issuer": b["issuer"], "status": b["status"], "types": [b["types"][t]["label"] for t in idea["project_types"] if t in b["types"]],
                           "evidence": next((b["types"][t]["evidence"][0] for t in idea["project_types"] if t in b["types"] and b["types"][t]["evidence"]), None),

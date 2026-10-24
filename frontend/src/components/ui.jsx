@@ -76,3 +76,18 @@ export function Info({ children, label = 'Come funziona' }) {
     </div>
   )
 }
+
+/** Una riga di schede scorribile di lato (a scatti): accorcia pagine lunghe senza nascondere nulla. */
+export function HScroll({ children, label = 'Schede scorribili di lato' }) {
+  const items = React.Children.toArray(children).filter(Boolean)
+  return (
+    <div role="region" aria-label={label} tabIndex={0} className="flex gap-4 overflow-x-auto snap-x snap-mandatory pb-3 -mx-1 px-1">
+      {items.map((c, i) => <div key={c.key ?? i} className="snap-start shrink-0 w-[300px] sm:w-[340px]">{c}</div>)}
+    </div>
+  )
+}
+
+/** Spiegazione sempre visibile sopra un grafico o un elenco: dice che cos'è e come si legge. */
+export function Note({ children, className = '' }) {
+  return <p className={`text-xs text-ink-2 leading-relaxed max-w-2xl ${className}`}>{children}</p>
+}

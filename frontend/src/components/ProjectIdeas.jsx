@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react'
 import { AlertTriangle, ChevronDown, ChevronRight, Lightbulb, Loader2 } from 'lucide-react'
 import { CATEGORY_LABEL, fmtEur } from '../lib/format'
+import { HScroll, Note } from './ui'
 
 const NATURE = {
   NUOVA: ['nuova', 'border-emerald-500/30 text-emerald-700', 'Una spesa che il progetto causa (un acquisto, un’assunzione): è ciò che un bando finanzia.'],
@@ -60,14 +61,15 @@ export default function ProjectIdeas({ data, error, loading, active, onAllocate,
       {active && <div className="flex flex-wrap items-center gap-2 text-xs p-2.5 rounded-lg border border-brand/40 bg-brand/5"><Lightbulb className="w-3.5 h-3.5" />Progetto in uso: «{active.title}»<button className="btn !py-1 ml-auto" onClick={onClear}>Rimuovi il progetto</button></div>}
       <label className="inline-flex items-center gap-2 text-xs text-ink-2"><input type="checkbox" checked={!!includeCurrent} onChange={(e) => setIncludeCurrent?.(e.target.checked)} />Conta anche le spese correnti (per i bandi che le ammettono)</label>
       {data && data.ideas.length === 0 && <p className="text-xs text-mute">Nei documenti non ci sono ancora elementi per proporre progetti: carica il piano degli investimenti, il libro cespiti o il piano delle assunzioni.</p>}
-      <div className="grid lg:grid-cols-2 gap-4">{(data?.ideas || []).map((i) => <Idea key={i.id} idea={i} active={active?.id === i.id} onAllocate={onAllocate} />)}</div>
+      {(data?.ideas || []).length > 0 && <Note>Scorri di lato per vedere tutti i progetti. Ognuno elenca le spese che lo compongono e i bandi che lo finanziano.</Note>}
+      <HScroll>{(data?.ideas || []).map((i) => <Idea key={i.id} idea={i} active={active?.id === i.id} onAllocate={onAllocate} />)}</HScroll>
       {data?.no_project?.length > 0 && (
         <div className="space-y-2 pt-2 border-t border-line">
           <p className="text-sm font-medium text-ink">Misure che non chiedono un progetto · {data.no_project.length}</p>
           <p className="text-xs text-ink-2 leading-relaxed">Si accede per requisiti, per acquisti qualificati, per un finanziamento o per spese commerciali: il budget è un’altra cosa, e per molte di queste le spese e i dati dell’azienda sono la base giusta.</p>
-          <div className="grid lg:grid-cols-2 gap-3">{data.no_project.map((m) => (
+          <HScroll label="Misure senza progetto">{data.no_project.map((m) => (
             <div key={m.bando_id} className="rounded-xl border border-line bg-field p-3 text-xs space-y-1"><p className="font-medium text-ink">{m.name}</p><p className="text-[11px] text-mute">{m.mode}</p>
-              <p className="text-ink-2">Si calcola su {m.base}.</p><p className="text-mute">Esempio: {m.example}</p></div>))}</div>
+              <p className="text-ink-2">Si calcola su {m.base}.</p><p className="text-mute">Esempio: {m.example}</p></div>))}</HScroll>
         </div>
       )}
       {data?.notes.map((n) => <p key={n} className="text-[11px] text-mute">• {n}</p>)}

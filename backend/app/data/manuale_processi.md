@@ -252,24 +252,26 @@ La formula è: stima = ultimo bilancio × (1 + variazione) elevato al numero di 
 
 ## 9. I bandi adatti
 
-Per ogni bando studiato QUANTO fa questi controlli sull'azienda:
+**Regola ferrea (24 ottobre 2026): un bando che non può riguardare l'azienda non è mai «da verificare».** Prima bastava che mancasse una percentuale o un dato perché un bando finisse tra i «da verificare»: così un bando sugli autobus elettrici del PNRR era comparso per un negozio di abbigliamento. Ora ogni bando studiato passa per questi controlli (`backend/app/core/relevance.py`), e basta un NO per escluderlo, con il motivo scritto:
 - **Apertura**: stato dichiarato, scadenza letta, finestra delle regole.
 - **Spese ammesse**: almeno una categoria di spesa dell'azienda è ammessa?
-- **Settore**: se il bando ammette solo certi codici ATECO.
-- **Territorio**: se il bando è riservato a una Regione.
+- **Territorio**: se il nome o l'ente nominano una Regione, una provincia o un capoluogo («Camera di commercio di Chieti e Pescara» = Abruzzo), la sede deve essere lì; per i bandi del catalogo conta anche la Regione della scheda ufficiale.
+- **Settore (ATECO)**: se il bando nomina un settore (trasporti e autobus, agricoltura e pesca, semiconduttori, turismo, cultura e cinema, sanità, ricerca industriale, sport, commercio) il codice ATECO dell'azienda deve rientrarci; se il bando non nomina settori non si esclude nulla; se l'ATECO manca non si esclude per un dato che manca. Per i bandi del catalogo valgono anche codici ATECO, settori elencati e dimensione della scheda.
+- **Chi può presentare domanda**: se il testo nomina solo enti pubblici, Comuni, scuole, associazioni, famiglie o persone fisiche e nessuna impresa, non è per un'azienda.
 - **Start-up**: se è riservato alle start-up innovative.
-- **Chi può presentare domanda**: dimensione, forma giuridica (controllo informativo).
 
 Ogni controllo vale OK (dimostrato dai dati), NO (smentito dai dati) o DA VERIFICARE (manca un dato, e si dice quale). Il risultato:
-- **Adatto**: nessun NO, nessun controllo decisivo da verificare, e c'è un valore in euro;
-- **Da verificare**: manca un dato decisivo o manca il valore;
-- **Non adatto**: almeno un NO.
+- **Adatto**: nessun NO, nessun controllo decisivo da verificare, e c'è un valore in euro. **Solo gli adatti entrano nei calcoli e nel piano.**
+- **Da verificare**: nulla lo esclude, ma manca un dato decisivo o il valore. Ogni scheda dice che cosa manca. **Non si somma mai e non entra mai da solo in un piano o in un progetto.**
+- **Non adatto**: almeno un NO. Ogni scheda mostra il motivo («Il bando è rivolto a: trasporti e mezzi di trasporto. Il tuo codice ATECO 47.71.10 non rientra.»).
+
+Le stesse regole filtrano il catalogo («Da studiare») e i bandi collegati a ogni idea di progetto. Esempio: per un negozio di abbigliamento in Abruzzo (ATECO 47.71.10) il bando Horizon Europe e il bando FVG per la validazione di tecnologie sono «Non adatti» (settore e Regione), mentre il voucher digitalizzazione di una Camera di commercio abruzzese resta tra gli adatti.
 
 Quando una voce supera un tetto del bando (consulenze, spese generali), QUANTO dice quanto è ammissibile e quanto resta a carico.
 
 ## 10. Il piano, il potenziale massimo e il bilancio ricostruito
 
-**Il percorso, in una riga.** In cima alla pagina Allocazione c'è «Dall'azienda al budget, passo dopo passo»: Azienda → Stima → Bisogni → Bandi → Progetto → Piano → Budget. Ogni passo è una sezione chiusa con una riga di riassunto; il tasto in alto porta al prossimo passo da fare.
+**La barra in alto (dal 24 ottobre 2026).** In cima alla pagina Allocazione una barra fissa divide il lavoro in quattro parti, una alla volta: **1 · L'azienda** (profilo, stima delle spese, bisogni di crescita), **2 · Bandi adatti** (ogni bando da solo: adatti alle spese dell'anno, adatti a un progetto, da verificare, non adatti con il motivo, da studiare dal catalogo; le schede si scorrono di lato e ogni gruppo si apre e si chiude), **3 · Tutti insieme** (la somma dei bandi adatti alle spese dell'anno senza contare due volte la stessa spesa, il piano voce per voce, i budget e il valore reale) e **4 · Progetti** (i bisogni dell'azienda, i progetti possibili, i bandi a progetto adatti, e per il progetto scelto il piano e un budget per ogni bando). Sopra ogni grafico c'è una riga che dice che cos'è e come si legge; sotto ogni riga di numeri la spiegazione resta visibile.
 
 **Cosa serve per crescere (Bisogni).** Dal bilancio e dalla previsione dei ricavi QUANTO calcola, a parità di produttività, quante persone e quanti strumenti servono in più. Esempio: nel 2025 i ricavi sono 1.583.200 € con 15 persone (105.547 € a persona); nel 2027 si prevedono 2.249.512 € (+42,1%), quindi servono 21,3 persone; 5 sono già nel piano delle assunzioni e ne manca circa 1, a 59.380 € l'anno (personale 890.700 € ÷ 15). Per gli strumenti si usa il libro cespiti: beni per euro di ricavi (38,5%); a ricavi più alti servono più beni, meno quelli già nel piano degli investimenti. È un'ipotesi dichiarata, non una previsione: ogni cifra mostra i dati da cui viene, e se un dato manca (organico, libro cespiti) lo dice senza stimare. Da questi bisogni nasce il progetto **«Crescita prevista»**, il primo della lista: persone (tipo «Occupazione e assunzioni») e strumenti (tipo «Macchinari, impianti e beni strumentali»). Il tasto «Cerca i bandi che lo finanziano» lo calcola come scenario «Un progetto».
 

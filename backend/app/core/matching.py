@@ -8,10 +8,11 @@ Tutto si decide sulle regole PUBBLICATE di ciascun bando (le stesse che accendon
 """
 from __future__ import annotations
 
+import json
 from datetime import date
 from typing import Any, Dict, List, Optional
 
-from app.core import bandi, funds, valuation
+from app.core import bandi, funds, relevance, valuation
 from app.core.company_profile import CATEGORIES, CATEGORY_LABEL, REGIONS
 from app.core.db import connect
 from app.core.ingestion import Ingestion
@@ -148,6 +149,38 @@ def _without_excluded_types(rules: Dict[str, Any], by_cat: Dict[str, float], by_
     return eff, out
 
 
+def relevance_checks(bando_id: str, detail: Dict[str, Any], profile: Dict[str, Any]):
+    """Pertinenza: territorio (anche da provincia), settore nominato, chi può presentare domanda, e la scheda ufficiale del catalogo se c'è.
+    Un bando che non può riguardare l'azienda è NON ADATTO, mai «da verificare». Ritorna (verifiche, dati del profilo che mancano)."""
+    checks: List[Dict[str, Any]] = []
+    missing: List[str] = []
+    named_regions = relevance.regions_in(f"{detail.get('name', '')} {detail.get('issuer', '')}")
+    if named_regions and not profile.get("region"):
+        missing.append("region")
+        checks.append({"id": "territory", "label": "Territorio", "decisive": True, "result": "UNKNOWN", "detail": f"Bando di {' / '.join(sorted(named_regions))}: indica la regione della tua sede nel profilo."})
+    elif named_regions:
+        mine = profile["region"]
+        checks.append({"id": "territory", "label": "Territorio", "decisive": True, "result": "OK" if mine in named_regions else "FAIL",
+                       "detail": f"Sede in {mine}, come richiesto." if mine in named_regions else f"Bando di {' / '.join(sorted(named_regions))}; la tua sede è in {mine}."})
+    applicants_text = " ".join(_applicant_hints(detail))
+    seen_ids = {c["id"] for c in checks}
+    with connect() as conn:
+        row_meta = conn.execute("SELECT catalog_meta FROM bandi WHERE bando_id=?", (bando_id,)).fetchone()
+    cat_meta = json.loads(row_meta["catalog_meta"]) if row_meta and row_meta["catalog_meta"] else {}
+    for f in relevance.text_fails(detail.get("name", ""), detail.get("issuer") or "", applicants_text, profile) + relevance.meta_fails(cat_meta, profile):
+        if f["id"] in seen_ids:
+            continue
+        seen_ids.add(f["id"])
+        checks.append({"id": f["id"], "label": f["label"], "decisive": True, "result": "FAIL", "detail": f["detail"]})
+    return checks, missing
+
+
+def is_relevant(bando_id: str, profile: Dict[str, Any]) -> bool:
+    """Falso se il bando non può riguardare l'azienda (altra regione, altro settore, soggetti che non sono imprese)."""
+    detail = bandi.get_bando_detail(bando_id)
+    return detail is None or not any(c["result"] == "FAIL" for c in relevance_checks(bando_id, detail, profile)[0])
+
+
 def evaluate(bando_id: str, profile: Dict[str, Any], by_cat: Dict[str, float], year: int, today: Optional[date] = None, by_type: Optional[Dict[str, Dict[str, Any]]] = None) -> Optional[Dict[str, Any]]:
     today = today or date.today()
     detail = bandi.get_bando_detail(bando_id)
@@ -184,16 +217,9 @@ def evaluate(bando_id: str, profile: Dict[str, Any], by_cat: Dict[str, float], y
         else:
             checks.append({"id": "ateco", "label": "Settore (ATECO)", "decisive": True, "result": "FAIL", "detail": f"Il codice {ateco} non rientra tra i settori ammessi."})
 
-    region_in_name = _region_in_text(f"{detail.get('name', '')} {detail.get('issuer', '')}")
-    if region_in_name:
-        mine = profile.get("region")
-        if not mine:
-            missing.append("region")
-            checks.append({"id": "territory", "label": "Territorio", "decisive": True, "result": "UNKNOWN", "detail": f"Bando della regione {region_in_name}: indica la regione della tua sede nel profilo."})
-        elif mine == region_in_name:
-            checks.append({"id": "territory", "label": "Territorio", "decisive": True, "result": "OK", "detail": f"Sede in {mine}, come richiesto."})
-        else:
-            checks.append({"id": "territory", "label": "Territorio", "decisive": True, "result": "FAIL", "detail": f"Bando riservato a {region_in_name}; la tua sede è in {mine}."})
+    rel_checks, rel_missing = relevance_checks(bando_id, detail, profile)
+    checks += rel_checks
+    missing += rel_missing
 
     name_low = f"{detail.get('name', '')}".lower()
     if "start-up" in name_low or "startup" in name_low:
