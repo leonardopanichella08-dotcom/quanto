@@ -16,8 +16,12 @@ function Origin({ source }) {
   return <span className={`px-1.5 py-0.5 rounded border text-[11px] ${tone}`} title={source.from || (source.document_id ? `Documento n. ${source.document_id}` : '')}>{label}{source.from ? ` · ${source.from}` : ''}</span>
 }
 
-export function FieldInput({ f, regions, value, onChange }) {
+export function FieldInput({ f, regions, choices, value, onChange }) {
   const common = { 'aria-label': f.label, value: value ?? '', onChange: (e) => onChange(e.target.value) }
+  if (f.kind === 'company_type' || f.kind === 'company_status') {
+    const list = f.kind === 'company_type' ? choices?.company_types : choices?.company_statuses
+    return <select className="field" {...common}><option value="">— scegli —</option>{(list || []).map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}</select>
+  }
   if (f.kind === 'region') return <select className="field" {...common}><option value="">— scegli —</option>{regions.map((r) => <option key={r}>{r}</option>)}</select>
   if (f.kind === 'bool') {
     const v = value === true ? 'yes' : value === false ? 'no' : ''
@@ -118,7 +122,7 @@ export default function CompanyProfile({ version = 0, onChanged, target }) {
           {ov.fields.map((f) => (
             <label key={f.key} id={`pf-${f.key}`} className="space-y-1 text-xs text-ink-2 block p-1 -m-1 rounded-lg">
               <span className="flex items-center justify-between gap-2"><span className="label">{f.label}{f.required ? ' *' : ''}</span><Origin source={f.key in draft ? { origin: 'MANUAL', from: 'da salvare' } : f.source} /></span>
-              <FieldInput f={f} regions={ov.regions} value={f.key in draft ? draft[f.key] : f.value} onChange={(v) => setDraft((d) => ({ ...d, [f.key]: v }))} />
+              <FieldInput f={f} regions={ov.regions} choices={ov} value={f.key in draft ? draft[f.key] : f.value} onChange={(v) => setDraft((d) => ({ ...d, [f.key]: v }))} />
             </label>
           ))}
         </div>

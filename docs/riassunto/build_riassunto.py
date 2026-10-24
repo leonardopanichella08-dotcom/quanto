@@ -195,7 +195,7 @@ def build() -> Path:
     story.append(Paragraph("Il riassunto", S["title"]))
     story.append(Paragraph("Cosa fa QUANTO, come lavora e perché conviene a uno studio", S["sub"]))
     bar()
-    story.append(Paragraph("QUANTO è un motore di calcolo per studi di commercialisti e boutique di finanza agevolata. Dato un cliente, dice <b>a quali bandi può partecipare</b>, "
+    story.append(Paragraph("QUANTO è un motore di calcolo per studi di commercialisti e boutique di finanza agevolata. Segue tre tipi di impresa (società di capitali, società di persone, ditte individuali) e non cerca solo bandi: anche sgravi INPS, tirocini e apprendistato. Dato un cliente, dice <b>a quali bandi può partecipare</b>, "
                            "<b>quanto valgono in euro</b>, <b>come combinarli</b> senza far pagare due volte la stessa spesa, costruisce il <b>budget del progetto</b> e lo controlla con <b>60 regole</b>. "
                            "Ogni numero porta la sua fonte e, a parità di dati, il risultato è sempre lo stesso.", S["lead"]))
     P("QUANTO non scrive progetti né testi di candidatura: fa la parte che si calcola. Il resto, la parte che si racconta e si negozia con il cliente, resta allo studio.")

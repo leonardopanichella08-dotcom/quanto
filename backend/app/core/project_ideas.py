@@ -50,7 +50,7 @@ def _bando_types() -> Dict[str, Dict[str, Any]]:
     return out
 
 
-def generate(owner: str, year: Optional[int] = None) -> Dict[str, Any]:
+def generate(owner: str, year: Optional[int] = None, split: Optional[Dict[str, int]] = None) -> Dict[str, Any]:
     from app.core import company_profile as cp
     fin = cp._load_financials(owner)
     years = [y for y in sorted(fin) if any(fin[y][0].get(cp.FIN_KEY[c]) is not None for c in cp.CATEGORIES)]
@@ -67,19 +67,29 @@ def generate(owner: str, year: Optional[int] = None) -> Dict[str, Any]:
     # 0. ciò che serve per crescere: persone e strumenti in più, dal bilancio e dalla previsione (a parità di produttività: ipotesi dichiarata)
     needs = None
     try:
-        needs = growth_needs.growth_needs(owner, year)
+        needs = growth_needs.growth_needs(owner, year, split)
     except cp.ProfileError:
         needs = None
     if needs and needs["needs"]:
         kinds = [n["kind"] for n in needs["needs"]]
         gl = []
+        types: List[str] = []
+        src = [{"filename": f"Bilancio o dichiarazione {needs['base_year']} e previsione {year}"}]
         for n in needs["needs"]:
-            people = n["kind"] == "PERSONE"
-            gl.append(_line("Nuove persone per sostenere la crescita: " + n["label"] if people else "Strumenti e attrezzature per sostenere la crescita", n["category"], "PERS_STIPENDI" if people else "CAP_ATTREZZ",
-                            n["amount_eur"], NEW, n["basis"], [{"filename": f"Bilancio {needs['base_year']} e previsione {year}"}]))
-        types = (["OCCUPAZIONE"] if "PERSONE" in kinds else []) + (["INVESTIMENTI_PRODUTTIVI"] if "STRUMENTI" in kinds else [])
-        ideas.append(_idea("crescita", "Crescita prevista: " + " e ".join("persone" if k == "PERSONE" else "strumenti" for k in kinds), types,
-                           [needs["message"], "È ciò che la previsione dei ricavi richiede, a parità di produttività: il progetto da finanziare è quello che mette l'azienda in condizione di crescere come previsto."], gl,
+            if n["kind"] == "PERSONE":
+                depts = n.get("departments") or []
+                if depts:
+                    for d in depts:
+                        gl.append(_line(f"{d['label']}: {d['count']} {'persona' if d['count'] == 1 else 'persone'} in più", "PERSONNEL", "PERS_STIPENDI", round(d["count"] * n["unit_cost_eur"], 2), NEW, n["basis"], src))
+                        types += d["types"]
+                else:
+                    gl.append(_line("Nuove persone per sostenere la crescita: " + n["label"], "PERSONNEL", "PERS_STIPENDI", n["amount_eur"], NEW, n["basis"], src))
+                    types.append("OCCUPAZIONE")
+            else:
+                gl.append(_line("Strumenti e attrezzature per sostenere la crescita", n["category"], "CAP_ATTREZZ", n["amount_eur"], NEW, n["basis"], src))
+                types.append("INVESTIMENTI_PRODUTTIVI")
+        ideas.append(_idea("crescita", "Crescita prevista: " + " e ".join("persone" if k == "PERSONE" else "strumenti" for k in kinds), list(dict.fromkeys(types)),
+                           [needs["summary"], "È ciò che la previsione dei ricavi richiede, a parità di produttività: il progetto da finanziare è quello che mette l'azienda in condizione di crescere come previsto."], gl,
                            ["Il ruolo, il livello, il contratto e la RAL di ogni nuova persona (il controllo vuole persona per persona)", "Un preventivo per gli strumenti: l'importo indicato è una stima dalla crescita prevista"],
                            [needs["assumption"]]))
     # 1. gli investimenti già nel piano dell'azienda

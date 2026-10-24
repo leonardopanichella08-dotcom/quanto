@@ -4,6 +4,7 @@ import BudgetCanvas from './components/BudgetCanvas'
 import AlgorithmLab from './components/AlgorithmLab'
 import AllocationView from './components/AllocationView'
 import Confronto from './components/Confronto'
+import Agevolazioni from './components/Agevolazioni'
 import AuditorPortal from './components/AuditorPortal'
 import RegistrationModal from './components/RegistrationModal'
 import HQ from './components/hq/HQ'
@@ -13,7 +14,7 @@ import Landing from './components/Landing'
 import Vision from './components/Vision'
 import Sidebar, { MobileBar } from './components/Sidebar'
 import { NeedClient } from './components/Clients'
-import { ArrowLeft, BookOpen, Calculator, GitCompare, Library, ShieldCheck, Split, User } from 'lucide-react'
+import { ArrowLeft, BookOpen, Calculator, GitCompare, HandCoins, Library, ShieldCheck, Split, User } from 'lucide-react'
 import { Mark, PageHead, Wordmark } from './components/ui'
 import { NavContext, profileGo, restoreScroll, scrollTop } from './lib/nav'
 import { api, download, fileToBase64, session, workspace } from './lib/api'
@@ -22,11 +23,12 @@ import { TokensModal } from './components/Tokens'
 import { AssistantProvider, useAssistant } from './assistant/AssistantContext'
 
 const TABS = [
-  ['bandi', 'Bandi', Library], ['canvas', 'Budget', Calculator], ['allocation', 'Allocazione', Split],
+  ['agevolazioni', 'Agevolazioni', HandCoins], ['bandi', 'Bandi', Library], ['canvas', 'Budget', Calculator], ['allocation', 'Allocazione', Split],
   ['pattern', 'Confronto', GitCompare], ['auditor', 'Verifica', ShieldCheck], ['guida', 'Guida', BookOpen], ['profilo', 'Profilo', User],
 ]
 // Una riga per pagina: a cosa serve, in parole semplici.
 const HEADS = {
+  agevolazioni: ['Agevolazioni', 'Tutto ciò che può aiutare l’impresa a crescere, non solo i bandi: sgravi, tirocini, apprendistato, incentivi regionali.'],
   bandi: ['Bandi', 'Cerca un bando, leggi le sue regole e scegli quello per il tuo budget.'],
   canvas: ['Budget', 'Inserisci le spese e controlla ogni regola del bando.'],
   allocation: ['Allocazione', 'Scopri quale fondo paga ogni spesa e quanto resta a carico tuo.'],
@@ -330,7 +332,7 @@ function AppInner({ bridge }) {
       {!assistant.open && <Sidebar user={user} isOwner={isOwner} tab={tab === 'lab' ? 'canvas' : tab} clients={clients} clientId={clientId} onClient={(id) => { chooseClient(id); setMenuOpen(false) }}
         onNewClient={() => { nav.go('profilo'); setMenuOpen(false); setTimeout(() => document.getElementById('lavori')?.scrollIntoView({ behavior: 'smooth' }), 250) }}
         onGo={(id) => { nav.go(id); setMenuOpen(false) }} onLogout={logout} open={menuOpen} onClose={() => setMenuOpen(false)}
-        groups={[{ title: 'Analisi', items: TABS.filter(([id]) => ['allocation', 'pattern'].includes(id)) }, { title: 'Bandi e budget', items: TABS.filter(([id]) => ['bandi', 'canvas'].includes(id)) },
+        groups={[{ title: 'Analisi', items: TABS.filter(([id]) => ['agevolazioni', 'allocation', 'pattern'].includes(id)) }, { title: 'Bandi e budget', items: TABS.filter(([id]) => ['bandi', 'canvas'].includes(id)) },
           { title: 'Controllo', items: TABS.filter(([id]) => id === 'auditor') }]}
         footer={TABS.filter(([id]) => ['guida', 'profilo'].includes(id))} onAssistant={assistant.openMenu} />}
       <div className="flex-1 min-w-0">
@@ -343,6 +345,7 @@ function AppInner({ bridge }) {
           </div>
         </PageHead>}
 
+        <Keep id="agevolazioni" tab={tab} visited={visited}>{clientId ? <Agevolazioni key={clientId} clientId={clientId} /> : gate ? <NeedClient onGo={() => nav.go('profilo')} /> : null}</Keep>
         <Keep id="bandi" tab={tab} visited={visited}><BandiLibrary bandi={bandi} selectedId={bando?.bando_id} onSelect={selectBando} onReload={loadBandi} /></Keep>
         <Keep id="canvas" tab={tab} visited={visited}>
           <BudgetCanvas key={clientId || 'x'} bandi={bandi} bando={bando} request={request} fields={fields} validation={validation} loading={loading} error={error} busy={busy} importInfo={importInfo} criteriaTitles={criteriaTitles}

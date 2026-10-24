@@ -6,7 +6,7 @@ from pydantic import BaseModel, Field
 
 from app.api.deps import actor_of, scope_of
 from app.core import company_profile as cp
-from app.core import aids_register, budget_basis, company_facts, de_minimis, events, expense_types, matching, project_ideas, project_types
+from app.core import aids_register, budget_basis, company_facts, de_minimis, events, expense_types, growth_needs, matching, measures, project_ideas, project_types
 
 router = APIRouter()
 
@@ -152,8 +152,18 @@ def expense_type_list() -> dict:
 
 # ------------------------------------------------------------------------------------------------ idee di progetto
 @router.get("/project-ideas", summary="Idee di progetto per l'azienda, dai suoi documenti, con le spese (nuove o ordinarie), cosa manca e i bandi che le finanziano")
-def ideas(request: Request, year: Optional[int] = None) -> dict:
-    return _guard(project_ideas.generate, scope_of(request), year)
+def ideas(request: Request, year: Optional[int] = None, split: Optional[str] = None) -> dict:
+    return _guard(project_ideas.generate, scope_of(request), year, growth_needs.parse_split(split))
+
+
+@router.get("/needs", summary="Di cosa ha bisogno l'impresa per crescere: persone per reparto e strumenti, in al massimo 40 parole, e come farli finanziare")
+def needs(request: Request, year: Optional[int] = None, split: Optional[str] = None) -> dict:
+    return _guard(growth_needs.growth_needs, scope_of(request), year, growth_needs.parse_split(split))
+
+
+@router.get("/measures", summary="Le agevolazioni che non sono bandi (esoneri INPS, tirocini, apprendistato, incentivi regionali, nuove imprese) e come valgono per questa impresa")
+def measures_list(request: Request) -> dict:
+    return measures.for_company(cp.profile_values(scope_of(request)))
 
 
 @router.get("/project-types", summary="Le tipologie di progetto che un bando può finanziare")

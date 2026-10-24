@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useState } from 'react'
-import { ArrowRight, Briefcase, Building2, CheckCircle2, Download, FolderOpen, KeyRound, ListChecks, Loader2, LogOut, ShieldCheck, Sparkles, Trash2, User, Wand2 } from 'lucide-react'
+import { ArrowRight, Briefcase, Building2, CheckCircle2, Download, FolderOpen, HandCoins, KeyRound, ListChecks, Loader2, LogOut, ShieldCheck, Sparkles, Trash2, User, Wand2 } from 'lucide-react'
 import { api, download, session } from '../lib/api'
 import { fmtTs } from '../lib/format'
 import { Fold, SectionTitle } from './ui'
@@ -13,6 +13,7 @@ import CompanyProfile from './CompanyProfile'
 import ProfileSetup from './ProfileSetup'
 import Guide from './Guide'
 import { TokenCard } from './Tokens'
+import QuickProfile from './QuickProfile'
 import { ClientsPanel } from './Clients'
 
 const STATUS_TONE = { OK: 'text-emerald-700', WARN: 'text-amber-700', FAIL: 'text-red-700', DENIED: 'text-red-700', LOCKED: 'text-red-700', CONFLICT: 'text-amber-700', NOT_FOUND: 'text-amber-700' }
@@ -194,7 +195,7 @@ function ClientWorkspace({ active, version, bump, onGoAllocation, onUsePayslip, 
   const toReview = docs.reduce((n, d) => n + (d.to_review || 0), 0)
   const pct = ov?.completeness_pct ?? 0
   // per difetto: la guida è aperta finché il profilo non è completo, i documenti solo se c'è qualcosa da fare con loro, il profilo dell'azienda no
-  const defaults = { setup: pct < 100 || toReview > 0, azienda: false, documenti: docs.length === 0 || toReview > 0 }
+  const defaults = { quick: !ov?.company_type, setup: pct < 100 || toReview > 0, azienda: false, documenti: docs.length === 0 || toReview > 0 }
   const isOpen = (id) => (id in openMap ? openMap[id] : !!defaults[id])
   const toggle = (id) => setOpenMap((m) => ({ ...m, [id]: !isOpen(id) }))
 
@@ -203,6 +204,7 @@ function ClientWorkspace({ active, version, bump, onGoAllocation, onUsePayslip, 
     const n = Date.now()
     setOpenMap((m) => ({ ...m, [t.to]: true }))
     if (t.to === 'setup') { if (t.step) setStepReq({ id: t.step, n }); setTimeout(() => flashTo('sez-setup'), 120) }
+    else if (t.to === 'quick') { setTimeout(() => flashTo(t.field ? `pf-${t.field}` : 'sez-quick'), 150) }
     else if (t.to === 'azienda') { setAziendaTarget({ ...t, n }); if (!t.field && !t.fin) setTimeout(() => flashTo('sez-azienda'), 120) }
     else if (t.to === 'documenti') { setDocFocus({ doc: t.doc, n }) }
     else if (t.to === 'letto') flashTo('sez-letto')
@@ -228,6 +230,10 @@ function ClientWorkspace({ active, version, bump, onGoAllocation, onUsePayslip, 
           <button className="btn-primary" onClick={() => go2(next.t)}>{next.btn}<ArrowRight className="w-3.5 h-3.5" /></button>
         </div>
       )}
+      <Fold id="sez-quick" icon={HandCoins} title="La scheda in un minuto" summary={ov ? `${ov.quick.answered} di ${ov.quick.total} risposte · ${{ CAPITALI: 'società di capitali', PERSONE: 'società di persone', DITTA: 'ditta individuale' }[ov.company_type] || 'tipo di impresa da indicare'}` : 'Carico…'}
+        badge={ov && ov.quick.answered < ov.quick.total ? `${ov.quick.total - ov.quick.answered} da rispondere` : 'completa'} tone={ov && ov.quick.answered < ov.quick.total ? 'warn' : 'ok'} open={isOpen('quick')} onToggle={() => toggle('quick')}>
+        <QuickProfile version={version} onChanged={bump} />
+      </Fold>
       <Fold id="sez-setup" icon={ListChecks} title="Configurazione guidata" summary={ov ? `${pct}% completo${next && !next.done ? ` · prossimo: ${next.btn.toLowerCase()}` : ''}` : 'Carico…'} badge={pct === 100 && toReview === 0 ? 'completa' : 'da fare'} tone={pct === 100 && toReview === 0 ? 'ok' : 'warn'}
         open={isOpen('setup')} onToggle={() => toggle('setup')}>
         <ProfileSetup version={version} onChanged={bump} onGoAllocation={onGoAllocation} stepRequest={stepReq}

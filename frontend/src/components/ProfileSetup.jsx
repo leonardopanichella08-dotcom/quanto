@@ -100,7 +100,7 @@ function Questions({ ov, onSaved }) {
             ? <div className="flex gap-2">
               <button className="btn-primary" disabled={busy} onClick={() => save({ [f.key]: true })}>Sì</button>
               <button className="btn" disabled={busy} onClick={() => save({ [f.key]: false })}>No</button></div>
-            : <FieldInput f={f} regions={ov.regions} value={vals[f.key]} onChange={(v) => setVals((d) => ({ ...d, [f.key]: v }))} />}
+            : <FieldInput f={f} regions={ov.regions} choices={ov} value={vals[f.key]} onChange={(v) => setVals((d) => ({ ...d, [f.key]: v }))} />}
           {f.key === 'is_innovative_startup' && <p className="text-[11px] text-mute">Rispondi «Sì» solo se sei iscritta alla sezione speciale del Registro delle Imprese: la visura lo riporta. Alcuni bandi sono riservati a chi lo è.</p>}
         </div>
       ))}
@@ -166,6 +166,36 @@ function QuickReview({ docs, onGoDocuments, onChanged }) {
   )
 }
 
+/** Società di persone e ditte individuali: due numeri dalla dichiarazione dei redditi bastano per partire. */
+function TaxReturnForm({ ov, onSaved, older = false }) {
+  const now = new Date().getFullYear()
+  const [year, setYear] = useState(older ? now - 2 : now - 1)
+  const [vals, setVals] = useState({})
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState(null)
+  const labels = Object.fromEntries(ov.fin_fields.map((f) => [f.key, f.label]))
+  const save = async () => {
+    setBusy(true); setError(null)
+    try { await api.saveFinancials(year, vals); setVals({}); onSaved?.() } catch (e) { setError(e.message) } finally { setBusy(false) }
+  }
+  const rows = [['revenue_eur', 'Dal quadro RF (ricavi) o RG (ricavi e compensi) o RE (compensi)'], ['personnel_eur', 'Stipendi, contributi e collaboratori della dichiarazione'], ['employees_avg', 'Facoltativo: numero medio di dipendenti']]
+  return (
+    <div className="space-y-3">
+      <div className="grid sm:grid-cols-4 gap-3">
+        <label className="space-y-1 block"><span className="label">Periodo d’imposta</span>
+          <select className="field" value={year} onChange={(e) => setYear(Number(e.target.value))}>{[now - 1, now - 2, now - 3, now - 4].map((y) => <option key={y} value={y}>{y}</option>)}</select></label>
+        {rows.map(([k, hint]) => (
+          <label key={k} className="space-y-1 block"><span className="label">{labels[k] || k}</span>
+            <input className="field text-right tabular-nums" type="number" min="0" step={k === 'employees_avg' ? 1 : 0.01} value={vals[k] ?? ''} placeholder="€" onChange={(e) => setVals((v) => ({ ...v, [k]: e.target.value }))} />
+            <span className="block text-[11px] text-mute leading-snug">{hint}</span></label>
+        ))}
+      </div>
+      {error && <p className="text-xs text-red-700">{error}</p>}
+      <button className="btn-primary" disabled={busy || !Object.values(vals).some((v) => v !== '' && v != null)} onClick={save}>{busy && <Loader2 className="w-3.5 h-3.5 animate-spin" />}Salva i dati del {year}</button>
+    </div>
+  )
+}
+
 export default function ProfileSetup({ version = 0, onChanged, onGoAllocation, onGoDocuments, onGoAzienda, stepRequest }) {
   const [ov, setOv] = useState(null)
   const [docs, setDocs] = useState([])
@@ -183,6 +213,7 @@ export default function ProfileSetup({ version = 0, onChanged, onGoAllocation, o
   const filled = (k) => ov?.fields.find((f) => f.key === k)?.value != null
   const finYears = ov?.financials.filter((f) => f.values.revenue_eur != null) || []
   const lastComplete = ov && ov.last_year != null && !ov.missing.some((m) => m.scope === 'financial')
+  const tax = ov?.document?.kind === 'DICHIARAZIONE_REDDITI'          // società di persone e ditte: non hanno il bilancio, hanno la dichiarazione dei redditi
 
   const steps = useMemo(() => {
     if (!ov) return []
@@ -191,9 +222,9 @@ export default function ProfileSetup({ version = 0, onChanged, onGoAllocation, o
         text: 'Trascina insieme tutto quello che hai: visura camerale, bilanci, buste paga, F24, bozze di candidatura e ogni altro documento. QUANTO riconosce il tipo dal nome del file (lo puoi correggere) e legge quello che può.' },
       { id: 'registry', icon: Building2, title: 'Visura camerale', done: filled('legal_name') && filled('vat_number') && filled('ateco_code'),
         text: 'Dalla visura ricavo ragione sociale, partita IVA, forma giuridica, codice ATECO, sede e anno di costituzione.' },
-      { id: 'balance', icon: Landmark, title: 'Bilancio dell’ultimo esercizio', done: !!lastComplete,
-        text: 'È la base della stima dell’anno successivo: ricavi, utile, dipendenti e i costi per categoria (personale, beni strumentali, consulenze, spese generali, formazione).' },
-      { id: 'history', icon: Receipt, title: 'Bilanci degli anni precedenti', optional: true, done: finYears.length >= 2,
+      { id: 'balance', icon: Landmark, title: tax ? 'Dichiarazione dei redditi dell’ultimo anno' : 'Bilancio dell’ultimo esercizio', done: !!lastComplete,
+        text: tax ? 'Bastano due numeri dal Modello Redditi: i ricavi (quadro RF o RG, o i compensi del quadro RE) e le spese per lavoro dipendente. Sono la base della stima dell’anno successivo; il resto è facoltativo.' : 'È la base della stima dell’anno successivo: ricavi, utile, dipendenti e i costi per categoria (personale, beni strumentali, consulenze, spese generali, formazione).' },
+      { id: 'history', icon: Receipt, title: tax ? 'Dichiarazioni degli anni precedenti' : 'Bilanci degli anni precedenti', optional: true, done: finYears.length >= 2,
         text: 'Con due o più bilanci posso suggerirti di quanto sono cresciuti i tuoi costi. Non è obbligatorio: la variazione la scegli sempre tu.' },
       { id: 'questions', icon: HelpCircle, title: 'Due domande che nessun documento può dire', done: ov.missing.filter((m) => m.scope === 'profile').length === 0,
         text: 'Servono per capire a quali bandi puoi partecipare.' },
@@ -274,14 +305,15 @@ export default function ProfileSetup({ version = 0, onChanged, onGoAllocation, o
                   ['Consulenze', fmtEur(f.values.consulting_eur)], ['Beni strumentali', fmtEur(f.values.capital_assets_eur)]].map(([l, v]) => (
                   <li key={l} className="flex gap-2"><CheckCircle2 className="w-4 h-4 mt-0.5 text-emerald-600 shrink-0" /><span><span className="text-mute">{l}: </span><span className="font-medium">{v}</span></span></li>))}</ul>) })()}
             {!s.done && <p className="text-xs text-amber-700">{ov.missing.filter((m) => m.scope === 'financial').map((m) => m.label).slice(0, 4).join(' · ') || 'Nessun bilancio ancora.'}</p>}
-            {!s.done && <Uploader fixedType="BALANCE_SHEET" hint="Il bilancio in PDF (schema civilistico): carica quello dell’ultimo esercizio chiuso" onUploaded={changed} />}
-            {!s.done && onGoAzienda && <button className="btn" onClick={() => { const m = ov.missing.find((x) => x.scope === 'financial' && x.year); onGoAzienda(m ? { fin: { year: m.year, key: m.key } } : {}) }}>Non ho il PDF: scrivo i dati a mano</button>}
+            {!s.done && tax && <TaxReturnForm ov={ov} onSaved={changed} />}
+            {!s.done && !tax && <Uploader fixedType="BALANCE_SHEET" hint="Il bilancio in PDF (schema civilistico): carica quello dell’ultimo esercizio chiuso" onUploaded={changed} />}
+            {!s.done && !tax && onGoAzienda && <button className="btn" onClick={() => { const m = ov.missing.find((x) => x.scope === 'financial' && x.year); onGoAzienda(m ? { fin: { year: m.year, key: m.key } } : {}) }}>Non ho il PDF: scrivo i dati a mano</button>}
           </div>
         )}
         {s.id === 'history' && (
           <div className="space-y-3">
             <p className="text-sm">Esercizi presenti: <span className="font-semibold">{finYears.map((f) => f.fiscal_year).join(', ') || 'nessuno'}</span></p>
-            <Uploader fixedType="BALANCE_SHEET" hint="Bilanci degli esercizi precedenti, in PDF" onUploaded={changed} />
+            {tax ? <TaxReturnForm ov={ov} onSaved={changed} older /> : <Uploader fixedType="BALANCE_SHEET" hint="Bilanci degli esercizi precedenti, in PDF" onUploaded={changed} />}
           </div>
         )}
         {s.id === 'questions' && <Questions ov={ov} onSaved={changed} />}

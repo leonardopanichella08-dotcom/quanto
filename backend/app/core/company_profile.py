@@ -12,6 +12,7 @@ Tre regole, uguali per ogni dato:
 from __future__ import annotations
 
 import json
+import unicodedata
 import re
 from datetime import date
 from typing import Any, Dict, List, Optional, Tuple
@@ -40,13 +41,51 @@ PROFILE_FIELDS: Dict[str, Tuple[str, str, bool]] = {
     "legal_name": ("Ragione sociale", "text", True),
     "vat_number": ("Partita IVA", "vat", True),
     "legal_form": ("Forma giuridica", "text", True),
+    "company_type": ("Che tipo di impresa è", "company_type", True),
+    "company_status": ("Impresa già costituita o da costituire", "company_status", False),
     "ateco_code": ("Codice ATECO", "ateco", True),
     "region": ("Regione della sede", "region", True),
     "province": ("Provincia della sede", "province", False),
     "founded_year": ("Anno di costituzione", "year", False),
     "employees": ("Numero di dipendenti", "count", True),
     "is_innovative_startup": ("Start-up innovativa iscritta al registro", "bool", True),
+    "ateco_secondary": ("Codici ATECO secondari", "text", False),
+    "founders_under35": ("Almeno un socio o titolare ha meno di 35 anni", "bool", False),
+    "founders_under40": ("Almeno un socio o titolare ha meno di 40 anni", "bool", False),
+    "women_majority": ("L'impresa è a prevalenza femminile (soci o titolare)", "bool", False),
+    "founders_unemployed": ("Un socio o promotore è disoccupato o inoccupato", "bool", False),
+    "durc_regular": ("L'impresa è regolare con DURC, contributi e imposte", "bool", False),
 }
+
+# I tre tipi di impresa cambiano quali dati servono: le società di capitali hanno il bilancio; le società di persone e le ditte individuali hanno la dichiarazione dei redditi.
+COMPANY_TYPES = {"CAPITALI": "Società di capitali (SRL, SRLS, SPA…)", "PERSONE": "Società di persone (SNC, SAS, società semplice)", "DITTA": "Ditta individuale o libero professionista"}
+COMPANY_STATUS = {"COSTITUITA": "Già costituita (iscritta al Registro delle imprese)", "DA_COSTITUIRE": "Nuova impresa o da costituire"}
+TAX_FIN_REQUIRED = ["revenue_eur", "personnel_eur"]          # con la dichiarazione dei redditi bastano ricavi e costo del personale: il resto è facoltativo
+TAX_LABELS = {"revenue_eur": "Ricavi o compensi dichiarati", "personnel_eur": "Spese per lavoro dipendente e collaboratori", "capital_assets_eur": "Acquisti di beni strumentali e ammortamenti",
+              "consulting_eur": "Spese per servizi e consulenze", "overhead_eur": "Altre spese (affitti, utenze, generali)", "training_eur": "Formazione",
+              "net_result_eur": "Reddito (o perdita) dichiarato", "total_costs_eur": "Totale spese deducibili", "employees_avg": "Numero medio di dipendenti"}
+QUICK_SET = ["company_type", "region", "province", "ateco_code", "employees", "company_status", "founded_year", "founders_under35", "women_majority", "founders_unemployed", "durc_regular", "is_innovative_startup"]
+
+
+def infer_company_type(legal_form: Optional[str]) -> Optional[str]:
+    """Dal testo della forma giuridica (visura): società di capitali, società di persone o ditta/professionista. None se non si riconosce: si chiede."""
+    t = re.sub(r"[^A-Z]", "", unicodedata.normalize("NFKD", str(legal_form or "")).encode("ascii", "ignore").decode().upper())                  # solo lettere: «S.R.L.», «S.r.l.» e «SRL» sono la stessa cosa; apostrofi e punti non contano
+    if not t:
+        return None
+    if any(x in t for x in ("RESPONSABILITALIMITATA", "SRLS", "SRL", "SAPA", "PERAZIONI", "SPA", "CONSORTILE", "COOPERATIVA")):
+        return "CAPITALI"
+    if t == "SS" or any(x in t for x in ("NOMECOLLETTIVO", "SNC", "ACCOMANDITASEMPLICE", "SAS", "SOCIETASEMPLICE", "STUDIOASSOCIATO", "ASSOCIAZIONEPROFESSIONALE")):
+        return "PERSONE"
+    if any(x in t for x in ("INDIVIDUALE", "DITTA", "LIBEROPROFESSION", "PROFESSIONISTA", "ARTIGIAN", "COLTIVATOREDIRETTO", "LAVORATOREAUTONOMO")):
+        return "DITTA"
+    return None
+
+
+def required_for(company_type: Optional[str]) -> Dict[str, Any]:
+    """Quali dati servono davvero, secondo il tipo di impresa: meno dati dove il documento di partenza è più povero."""
+    persons = company_type in ("PERSONE", "DITTA")
+    return {"skip_profile": {"is_innovative_startup"} if persons else set(), "fin_required": TAX_FIN_REQUIRED if persons else FIN_REQUIRED,
+            "document": "DICHIARAZIONE_REDDITI" if persons else "BILANCIO", "document_label": "dichiarazione dei redditi" if persons else "bilancio", "period_label": "periodo d'imposta" if persons else "esercizio"}
 FIN_FIELDS: Dict[str, Tuple[str, str]] = {
     "revenue_eur": ("Ricavi delle vendite e delle prestazioni", "money"),
     "net_result_eur": ("Utile (perdita) dell'esercizio", "money"),
@@ -107,6 +146,16 @@ def _clean(kind: str, value: Any) -> Any:
         if not 0 <= n <= 1_000_000:
             raise ProfileError("Numero non valido")
         return n
+    if kind == "company_type":
+        v = str(value).strip().upper()
+        if v not in COMPANY_TYPES:
+            raise ProfileError("Scegli società di capitali, società di persone o ditta individuale")
+        return v
+    if kind == "company_status":
+        v = str(value).strip().upper()
+        if v not in COMPANY_STATUS:
+            raise ProfileError("Scegli già costituita o da costituire")
+        return v
     if kind == "bool":
         if isinstance(value, bool):
             return value
@@ -407,9 +456,15 @@ def overview(owner: str) -> Dict[str, Any]:
     if effective.get("employees") is None and last.get("employees_avg") is not None:       # dipendenti dall'ultimo bilancio se la visura non li dice
         effective["employees"] = last["employees_avg"]; eff_src["employees"] = {"origin": "DOCUMENT", "document_id": fin[last_year][1].get("employees_avg", {}).get("document_id"), "from": f"bilancio {last_year}"}
 
+    if effective.get("company_type") is None and infer_company_type(effective.get("legal_form")):         # il tipo si deduce dalla forma giuridica della visura: nessuna domanda in più
+        effective["company_type"] = infer_company_type(effective.get("legal_form")); eff_src["company_type"] = {"origin": "DERIVED", "from": "forma giuridica"}
+    ctype = effective.get("company_type")
+    need = required_for(ctype)
+    fin_required = need["fin_required"]
     fields = []
     missing: List[Dict[str, Any]] = []
     for key, (label, kind, required) in PROFILE_FIELDS.items():
+        required = required and key not in need["skip_profile"]
         filled = key in effective and effective[key] is not None
         fields.append({"key": key, "label": label, "kind": kind, "required": required, "value": effective.get(key), "source": eff_src.get(key)})
         if required and not filled:
@@ -418,18 +473,24 @@ def overview(owner: str) -> Dict[str, Any]:
     for y in years:
         fdata, fsrc = fin[y]
         financials.append({"fiscal_year": y, "values": fdata, "sources": {k: v for k, v in fsrc.items() if not k.startswith("_")}, "partial": fsrc.get("_partial")})
+    labels = TAX_LABELS if need["document"] == "DICHIARAZIONE_REDDITI" else {k: v[0] for k, v in FIN_FIELDS.items()}
     if last_year is not None:
-        for key in FIN_REQUIRED:
+        for key in fin_required:
             if last.get(key) is None:
-                missing.append({"scope": "financial", "key": key, "year": last_year, "label": FIN_FIELDS[key][0]})
+                missing.append({"scope": "financial", "key": key, "year": last_year, "label": labels.get(key, FIN_FIELDS[key][0])})
     else:
-        missing.append({"scope": "financial", "key": "balance", "year": None, "label": "Nessun bilancio: carica un bilancio o inserisci i dati dell'ultimo esercizio"})
-    total = sum(1 for f in fields if f["required"]) + len(FIN_REQUIRED)
-    done = sum(1 for f in fields if f["required"] and f["value"] is not None) + (sum(1 for k in FIN_REQUIRED if last.get(k) is not None) if last_year is not None else 0)
+        missing.append({"scope": "financial", "key": "balance", "year": None, "label": (f"Nessuna dichiarazione dei redditi: inserisci ricavi e spese di personale dell'ultimo periodo d'imposta" if need["document"] == "DICHIARAZIONE_REDDITI" else f"Nessun bilancio: carica il documento o inserisci i dati dell'ultimo esercizio")})
+    total = sum(1 for f in fields if f["required"]) + len(fin_required)
+    done = sum(1 for f in fields if f["required"] and f["value"] is not None) + (sum(1 for k in fin_required if last.get(k) is not None) if last_year is not None else 0)
+    by_key = {f["key"]: f for f in fields}
+    quick = [{"key": k, "label": by_key[k]["label"], "kind": by_key[k]["kind"], "value": by_key[k]["value"], "answered": by_key[k]["value"] is not None, "source": by_key[k]["source"]}
+             for k in QUICK_SET if k in by_key and not (k in need["skip_profile"])]
     docs = fonte_c.list_documents(owner)
     return {"fields": fields, "financials": financials, "last_year": last_year, "missing": missing, "completeness_pct": round(100 * done / total),
             "size": size_class(effective.get("employees"), last.get("revenue_eur")), "documents": {"total": len(docs), "to_review": sum(d["to_review"] for d in docs)},
-            "fin_fields": [{"key": k, "label": v[0], "kind": v[1], "required": k in FIN_REQUIRED} for k, v in FIN_FIELDS.items()], "regions": REGIONS}
+            "fin_fields": [{"key": k, "label": labels.get(k, v[0]), "kind": v[1], "required": k in fin_required} for k, v in FIN_FIELDS.items()], "regions": REGIONS,
+            "company_type": ctype, "company_types": [{"value": k, "label": v} for k, v in COMPANY_TYPES.items()], "company_statuses": [{"value": k, "label": v} for k, v in COMPANY_STATUS.items()],
+            "document": {"kind": need["document"], "label": need["document_label"], "period": need["period_label"]}, "quick": {"fields": quick, "answered": sum(1 for q in quick if q["answered"]), "total": len(quick)}}
 
 
 def profile_values(owner: str) -> Dict[str, Any]:
@@ -437,6 +498,8 @@ def profile_values(owner: str) -> Dict[str, Any]:
     ov = overview(owner)
     out = {f["key"]: f["value"] for f in ov["fields"] if f["value"] is not None}
     out["size"] = ov["size"]
+    if out.get("company_type") in ("PERSONE", "DITTA") and out.get("is_innovative_startup") is None:
+        out["is_innovative_startup"] = False                   # la start-up innovativa è una società di capitali: per le altre non è una domanda
     return out
 
 

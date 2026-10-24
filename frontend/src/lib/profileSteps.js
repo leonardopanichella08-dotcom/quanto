@@ -1,5 +1,5 @@
 // Dati che nessun documento può dire: li chiede una domanda. Tutti gli altri dati mancanti si ricavano dai documenti giusti.
-const ASKED = new Set(['is_innovative_startup'])
+const ASKED = new Set(['is_innovative_startup', 'company_type'])
 
 /** Il prossimo passo da fare per questo lavoro: uno solo, con il pulsante che porta esattamente lì. ``docs`` = elenco dei documenti (senza doc_type = tipo sconosciuto). */
 export function nextStep(ov, docs) {
@@ -13,7 +13,7 @@ export function nextStep(ov, docs) {
   const mf = ov.missing.filter((m) => m.scope === 'financial')
   if (mf.length && !has('BALANCE_SHEET')) return { text: 'Manca il bilancio: da lì ricavo ricavi, utile, dipendenti e i costi per categoria, base della stima dell’anno dopo.', btn: 'Carica il bilancio', t: { to: 'setup', step: 'balance' } }
   if (mf.length) return { text: `Nel bilancio manca: ${mf[0].label}${mf[0].year ? ` (esercizio ${mf[0].year})` : ''}${mf.length > 1 ? ` e altre ${mf.length - 1} voci` : ''}.`, btn: 'Completa i dati', t: mf[0].year ? { to: 'azienda', fin: { year: mf[0].year, key: mf[0].key } } : { to: 'setup', step: 'balance' } }
-  if (mp.length) return { text: `Rispondi a ${mp.length === 1 ? 'una domanda' : `${mp.length} domande`} che nessun documento può dire: ${mp.map((m) => m.label).slice(0, 2).join(' · ')}.`, btn: 'Rispondi ora', t: { to: 'setup', step: 'questions' } }
+  if (mp.length) return { text: `Rispondi a ${mp.length === 1 ? 'una domanda' : `${mp.length} domande`} che nessun documento può dire: ${mp.map((m) => m.label).slice(0, 2).join(' · ')}.`, btn: 'Rispondi ora', t: { to: 'quick' } }
   if (ov.documents.to_review > 0) return { text: `${ov.documents.to_review} ${ov.documents.to_review === 1 ? 'lettura è' : 'letture sono'} poco sicure e non entrano nei calcoli finché non le verifichi.`, btn: 'Verifica ora', t: { to: 'documenti', doc: 'review' } }
   return { done: true, text: 'Il profilo è completo e le letture sono tutte verificate.', btn: 'Stima l’anno e cerca i bandi', t: null }
 }

@@ -7,7 +7,7 @@ import { CostConfirm, fmtTok } from './Tokens'
 import { Info } from './ui'
 import HowItWorks from './HowItWorks'
 import TutorialVideo from './TutorialVideo'
-import { flashTo } from '../lib/nav'
+import { flashTo, useNav } from '../lib/nav'
 import Guide from './Guide'
 import PipelineButton from './PipelineButton'
 import { Hint } from './Help'
@@ -144,6 +144,8 @@ function Step({ id, title, info, summary, chart, alert, children, done, open, on
 
 
 /** Il percorso dall'azienda al budget, in una riga: dove sei, cosa viene dopo e un tasto per andarci. Ogni passo si apre solo se serve. */
+const DEPT_ORDER = [['COMMERCIALE', 'Marketing e vendite'], ['TECNICO', 'Tecnici e ingegneri'], ['PRODUZIONE', 'Produzione e operai'], ['MAGAZZINO', 'Magazzino e logistica'], ['AMMINISTRAZIONE', 'Amministrazione'], ['IT', 'Informatica e digitale']]
+
 function Journey({ stages, onGo }) {
   const next = stages.find((x) => !x.done && !x.off)
   return (
@@ -388,6 +390,7 @@ function BandoCard({ r, picked, onToggle, onBudget, includeLabel = 'Includi', sc
 }
 
 export default function AllocationView({ onGoProfile, onBudgetFrom, onOpenBudgets }) {
+  const goTab = useNav().go
   const [ov, setOv] = useState(null)
   const [year, setYear] = useState(new Date().getFullYear() + 1)
   const [growth, setGrowth] = useState({})                 // percentuali che l'utente ha scritto a mano in questa schermata (le altre arrivano dal modello o dai bilanci)
@@ -412,7 +415,9 @@ export default function AllocationView({ onGoProfile, onBudgetFrom, onOpenBudget
   const [ideas, setIdeas] = useState(null)                       // le idee di progetto: servono sia alla sezione «Progetti» sia alle schede dei bandi a progetto
   const [ideasError, setIdeasError] = useState(null)
   const [ideasLoading, setIdeasLoading] = useState(false)
-  const [ideasTick, setIdeasTick] = useState(0)                   // cresce dopo lo studio di un bando: le idee e i bandi che le finanziano si rifanno
+  const [deptSplit, setDeptSplit] = useState({})                // reparti dove servono persone, se lo studio li ha scelti (altrimenti si propone la composizione di oggi)
+  const [ideasTick, setIdeasTick] = useState(0)
+  const splitKey = Object.entries(deptSplit).filter(([, v]) => v > 0).map(([k, v]) => `${k}:${v}`).join(',') || undefined                   // cresce dopo lo studio di un bando: le idee e i bandi che le finanziano si rifanno
   const [includeCurrent, setIncludeCurrent] = useState(false)       // nel progetto scelto: includere anche le spese correnti (dove i bandi scelti le ammettono)
   const [project, setProject] = useState(null)                    // il progetto scelto: nello scenario «Progetto» il piano si calcola sulle sue spese nuove
   const [planLines, setPlanLines] = useState([])                      // le linee di finanziamento con cui è stato calcolato il piano (servono per i budget)
@@ -428,14 +433,14 @@ export default function AllocationView({ onGoProfile, onBudgetFrom, onOpenBudget
   useEffect(() => {
     api.clientState('allocation').then((st) => {
       const v = st.value
-      if (v) { if (v.year) setYear(v.year); setGrowth(v.growth || {}); if (v.target) setTarget(v.target); setDmOverride(Number(v.dmOverride) >= 0 ? String(v.dmOverride) : ''); allMode.current = v.allMode ?? false; pending.current = v.allMode ? null : (v.picked || []) }
+      if (v) { if (v.year) setYear(v.year); setGrowth(v.growth || {}); if (v.target) setTarget(v.target); setDmOverride(Number(v.dmOverride) >= 0 ? String(v.dmOverride) : ''); allMode.current = v.allMode ?? false; pending.current = v.allMode ? null : (v.picked || []); if (v.deptSplit) setDeptSplit(v.deptSplit) }
     }).catch(() => {}).finally(() => setRestored(true))
   }, [])
   useEffect(() => {
     if (!restored) return undefined
-    const t = setTimeout(() => { api.saveClientState('allocation', { year, growth, picked, target, dmOverride, allMode: allMode.current }).catch(() => {}) }, 800)
+    const t = setTimeout(() => { api.saveClientState('allocation', { year, growth, picked, target, dmOverride, allMode: allMode.current, deptSplit }).catch(() => {}) }, 800)
     return () => clearTimeout(t)
-  }, [restored, year, growth, picked, target, dmOverride])
+  }, [restored, year, growth, picked, target, dmOverride, deptSplit])
 
   const growthBody = useCallback(() => Object.fromEntries(Object.entries(growth).filter(([, v]) => v !== undefined && v !== '' && !Number.isNaN(Number(v))).map(([k, v]) => [k, Number(v) / 100])), [growth])
   const setOverride = (key, v) => setGrowth((g) => { const n = { ...g }; if (v === undefined) delete n[key]; else n[key] = v; return n })
@@ -571,10 +576,15 @@ export default function AllocationView({ onGoProfile, onBudgetFrom, onOpenBudget
     if (!hasData) return undefined
     let live = true
     setIdeasLoading(true); setIdeasError(null)
-    api.profileIdeas(year ? Number(year) : undefined).then((d) => { if (live) setIdeas(d) }).catch((e) => { if (live) { setIdeasError(e.message); setIdeas(null) } }).finally(() => { if (live) setIdeasLoading(false) })
+    api.profileIdeas(year ? Number(year) : undefined, splitKey).then((d) => { if (live) setIdeas(d) }).catch((e) => { if (live) { setIdeasError(e.message); setIdeas(null) } }).finally(() => { if (live) setIdeasLoading(false) })
     return () => { live = false }
-  }, [year, hasData, match === null, ideasTick])        // eslint-disable-line react-hooks/exhaustive-deps
+  }, [year, hasData, match === null, ideasTick, splitKey])        // eslint-disable-line react-hooks/exhaustive-deps
   const needs = ideas?.needs || null
+  const setDept = (id, n) => {                                 // un tocco su − o +: parte dai reparti proposti e cambia solo quello
+    const base = Object.keys(deptSplit).length ? { ...deptSplit } : Object.fromEntries((needs?.people?.departments || []).map((d) => [d.id, d.count]))
+    const next = { ...base, [id]: Math.max(0, Math.min(50, n)) }
+    setDeptSplit(Object.fromEntries(Object.entries(next).filter(([, v]) => v > 0)))
+  }
   const growthIdea = (ideas?.ideas || []).find((i) => i.id === 'crescita') || null
   const needsSummary = needs ? (needs.needs.length ? `${needs.needs.map((n) => n.label).join(' e ')} · circa ${fmtEur(needs.total_eur)} l’anno` : (needs.missing.length ? 'Mancano dati per dirlo' : 'Nessun bisogno in più con la crescita prevista')) : (ideasLoading ? 'Calcolo…' : 'Da bilancio e previsione')
   const st = match?.matching.catalog?.stats || null
@@ -631,7 +641,7 @@ export default function AllocationView({ onGoProfile, onBudgetFrom, onOpenBudget
   const stages = [
     { id: 'dati', go: 'dati', title: 'Azienda', done: !!hasData, line: ov ? `Profilo al ${ov.completeness_pct}%` : '…', cta: 'Carica il bilancio' },
     { id: 'stima', go: 'stima', title: 'Stima', done: !!match, off: !hasData, line: match ? `Spese ${year}: ${fmtEur(match.forecast.total_forecast_eur)}` : 'dal bilancio', cta: 'Vedi la stima' },
-    { id: 'bisogni', go: 'bisogni', title: 'Bisogni', done: !!needs, off: !hasData, line: needs ? (needs.needs.length ? `${needs.needs.length} da finanziare` : 'nessuno in più') : 'persone e strumenti', cta: 'Vedi cosa serve per crescere' },
+    { id: 'bisogni', go: 'bisogni', title: 'Bisogni', done: !!needs, off: !hasData, line: needs ? (needs.people?.total ? `${needs.people.total} ${needs.people.total === 1 ? 'persona' : 'persone'}${needs.needs.some((n) => n.kind === 'STRUMENTI') ? ' e strumenti' : ''}` : needs.needs.length ? 'strumenti' : 'nessuno in più') : 'persone e strumenti', cta: 'Vedi cosa serve per crescere' },
     { id: 'bandi', go: 'bandi', title: 'Bandi', done: !!match && (match.matching.summary.ADATTO > 0), off: !match, line: match ? `${match.matching.summary.ADATTO} adatti${st ? ` su ${st.open_total + st.studied} letti` : ''}` : 'tutti letti', cta: 'Guarda i bandi' },
     { id: 'progetti', go: 'progetti', title: 'Progetto', done: !!project || (!!match && projectBandi.length === 0), off: !match, line: project ? project.title : (projectBandi.length ? `${projectBandi.length} bandi a progetto` : 'non serve'), cta: 'Scegli il progetto' },
     { id: 'risultato', go: 'risultato', title: 'Piano', done: !!plan, off: !match, line: plan ? `${fmtEur(plan.covered_by_public_funds_eur)} coperti` : 'chi paga cosa', cta: 'Calcola il piano' },
@@ -679,8 +689,29 @@ export default function AllocationView({ onGoProfile, onBudgetFrom, onOpenBudget
           info="Dal bilancio e dalla previsione dei ricavi: se l’azienda cresce come previsto, quante persone e quanti strumenti servono in più, a parità di produttività. È un’ipotesi da confermare con l’imprenditore, non una previsione: ogni numero mostra i dati da cui viene, e se un dato manca lo dice.">
           {ideasLoading && !needs && <p className="text-xs text-mute flex items-center gap-2"><Loader2 className="w-3.5 h-3.5 animate-spin" />Calcolo…</p>}
           {needs && (
-            <div className="space-y-3">
-              <p className="text-sm text-ink-2 leading-relaxed">{needs.message}</p>
+            <div className="space-y-5">
+              <div className="rounded-2xl bg-tint p-4"><p className="text-[15px] text-ink leading-relaxed">{needs.summary}</p></div>
+
+              {needs.people && (
+                <div className="space-y-2">
+                  <p className="text-sm font-medium text-ink">In quali reparti servono le persone?</p>
+                  <p className="text-xs text-ink-2 leading-relaxed">{needs.people.ask_departments ? 'Indica i reparti: i ruoli già presenti non bastano a proporli.' : needs.people.departments_basis === 'MIX_ATTUALE' ? 'Proposta dalla composizione di oggi (i ruoli del registro del personale). Toccane uno per cambiarla.' : 'Scelti dallo studio.'}</p>
+                  <div className="grid sm:grid-cols-3 gap-2">
+                    {DEPT_ORDER.map(([id, label]) => {
+                      const n = (Object.keys(deptSplit).length ? deptSplit : Object.fromEntries(needs.people.departments.map((d) => [d.id, d.count])))[id] || 0
+                      return (
+                        <div key={id} className={`rounded-2xl px-3 py-2 flex items-center gap-2 ${n ? 'bg-white border-2 border-ink' : 'bg-tint border border-transparent'}`}>
+                          <span className="text-xs text-ink flex-1 min-w-0 leading-tight">{label}</span>
+                          <button className="btn !px-2 !py-0.5" aria-label={`Meno ${label}`} disabled={n <= 0} onClick={() => setDept(id, n - 1)}>−</button>
+                          <span className="w-5 text-center text-sm tabular-nums">{n}</span>
+                          <button className="btn !px-2 !py-0.5" aria-label={`Più ${label}`} onClick={() => setDept(id, n + 1)}>+</button>
+                        </div>
+                      )
+                    })}
+                  </div>
+                </div>
+              )}
+
               {needs.needs.map((n) => (
                 <div key={n.kind} className="rounded-2xl bg-tint p-4 space-y-1.5">
                   <div className="flex flex-wrap items-baseline justify-between gap-2"><span className="text-sm font-semibold text-ink">{n.label}</span><span className="text-sm tabular-nums text-ink">{fmtEur(n.amount_eur)} l’anno</span></div>
@@ -690,11 +721,37 @@ export default function AllocationView({ onGoProfile, onBudgetFrom, onOpenBudget
               {needs.people_message && <p className="text-xs text-ink-2 leading-relaxed">{needs.people_message}</p>}
               {needs.assets_message && <p className="text-xs text-ink-2 leading-relaxed">{needs.assets_message}</p>}
               {needs.missing.map((m) => <p key={m} className="text-xs text-amber-700">{m}</p>)}
+
+              {needs.without_project?.length > 0 && (
+                <div className="space-y-2">
+                  <p className="text-sm font-medium text-ink">Senza scrivere nessun progetto</p>
+                  <p className="text-xs text-ink-2 leading-relaxed">Esoneri INPS per chi assume. Non si sommano: per ogni assunzione conta il più ricco.</p>
+                  <ul className="space-y-2">
+                    {needs.without_project.slice(0, 3).map((m) => (
+                      <li key={m.id} className="rounded-2xl bg-tint p-3 space-y-0.5">
+                        <div className="flex flex-wrap items-baseline justify-between gap-2"><span className="text-sm font-medium text-ink">{m.name}</span><span className="text-sm tabular-nums text-emerald-700">fino a {fmtEur(m.total_max_eur)}</span></div>
+                        <p className="text-xs text-ink-2">{m.value.text} a persona. Chi assumere: {m.who[0].replace(/\.$/, '').toLowerCase()}.{m.status === 'DA_VERIFICARE' && m.to_check[0] ? ` Da verificare: ${m.to_check[0].label}` : ''}</p>
+                      </li>
+                    ))}
+                  </ul>
+                  <button className="text-xs underline text-ink-2" onClick={() => goTab('agevolazioni')}>Tutte le agevolazioni: tirocini, apprendistato, incentivi regionali…</button>
+                </div>
+              )}
+
+              {needs.with_project?.length > 0 && (
+                <div className="space-y-2">
+                  <p className="text-sm font-medium text-ink">Con un nuovo progetto</p>
+                  <p className="text-xs text-ink-2 leading-relaxed">Un bando finanzia un progetto, non un’assunzione. Questi sono i tipi di progetto che puoi scrivere per far finanziare quelle persone:</p>
+                  <ul className="space-y-1.5">{(needs.project_examples || []).map((e) => <li key={e.department} className="text-xs text-ink-2 leading-relaxed"><span className="font-medium text-ink">{e.department}.</span> {e.example}</li>)}</ul>
+                  <p className="text-[11px] text-mute">Tipi: {needs.with_project.map((t) => t.label).join(' · ')}.</p>
+                </div>
+              )}
+
               {needs.needs.length > 0 && <p className="text-[11px] text-mute">{needs.assumption}</p>}
               {growthIdea && (
                 <div className="flex flex-wrap items-center gap-3 pt-1">
                   <button className="btn-primary" onClick={() => chooseProject(growthIdea)}>Cerca i bandi che lo finanziano</button>
-                  <span className="text-xs text-ink-2">Lo trasformo in un progetto e calcolo quanto coprono i bandi che lo finanziano.</span>
+                  <span className="text-xs text-ink-2">Lo trasformo in un progetto e calcolo quanto coprono i bandi adatti. Il budget con le persone per reparto lo costruisce per ogni bando.</span>
                 </div>
               )}
             </div>

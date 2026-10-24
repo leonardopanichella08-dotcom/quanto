@@ -135,6 +135,13 @@ export const GUIDE = {
     example: 'Le consulenze del bilancio sono 40.000 €, ma il bando le ammette solo fino al 10% delle spese: la scheda ti dice quanto è ammissibile e di quanto ridurre la voce.',
     terms: ['milp', 'whatif', 'deminimis', 'cumulo'],
   },
+  agevolazioni: {
+    title: 'Agevolazioni',
+    what: 'Tutte le agevolazioni che servono a far crescere un’impresa, non solo i bandi: esoneri e sgravi INPS per chi assume, tirocini, apprendistato, incentivi regionali all’occupazione, misure per le nuove imprese. Per ognuna dice se vale per questa impresa e cosa manca per saperlo.',
+    steps: ['Rispondi alla scheda in un minuto nel Profilo: tipo di impresa, sede, dipendenti, soci, DURC.', 'Scegli una famiglia: ogni misura dice «per te sì», «da verificare» o «non per te» e perché.', 'Apri una misura per vedere chi assumere, che contratto serve, come si ottiene e da quale fonte viene.', 'Per le misure regionali cerca nel catalogo e studia a fondo il bando della tua Regione.'],
+    example: 'Una srl di Bari con 8 dipendenti e DURC regolare: il Bonus Giovani vale fino a 650 € al mese per 12-24 mesi per ogni under 35 svantaggiato assunto a tempo indeterminato; il Bonus Donne fino a 800 €. Non si sommano: si sceglie quello più ricco per ogni assunzione.',
+    terms: ['deminimis', 'cumulo'],
+  },
   pattern: {
     title: 'Confronto',
     what: 'Qui salvi come i tuoi clienti hanno ripartito il budget per vincere un bando, nicchia per nicchia. Ogni template allena un consiglio: «per un’azienda di questa nicchia che sceglie questo bando, il budget di solito è fatto così».',
