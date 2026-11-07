@@ -81,7 +81,7 @@ export function ClientsPanel({ clients, clientId, onSelect, onChanged }) {
                 <span>Profilo {fmtNum(c.completeness_pct, 0)}%</span>
                 <span>{c.last_year ? `${c.document_label === 'dichiarazione dei redditi' ? 'Ultima dichiarazione' : 'Ultimo bilancio'} ${c.last_year}` : `Nessuna ${c.document_label || 'bilancio'}`.replace('Nessuna bilancio', 'Nessun bilancio')}</span>
                 <span>{c.documents} {c.documents === 1 ? 'documento' : 'documenti'}</span>
-                {c.saved.length > 0 && <span>Salvati: {c.saved.map((s) => ({ allocation: 'allocazione', budget: 'budget', confronto: 'confronto' }[s.key] || s.key)).join(', ')}</span>}
+                {c.saved.length > 0 && <span>Salvati: {c.saved.map((s) => ({ allocation: 'allocazione', allocation_measures: 'agevolazioni scelte', budget: 'budget', confronto: 'confronto', 'budget-set': 'budget dei bandi', 'aids-register': 'aiuti ricevuti', 'project-ideas': 'idee di progetto' }[s.key] || s.key)).join(', ')}</span>}
               </div>
               <div className="flex flex-wrap gap-2 pt-1">
                 <button className="btn !py-1" onClick={() => onSelect(c.id)} disabled={on}>{on ? 'In uso' : 'Apri'}</button>

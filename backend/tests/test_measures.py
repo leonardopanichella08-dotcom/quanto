@@ -151,3 +151,8 @@ def test_the_chosen_measures_are_saved_per_work_so_the_allocation_can_use_them()
     items = [{"id": "BONUS_GIOVANI_2026", "hires": None}, {"id": "BONUS_ZES_2026", "hires": 2}]
     assert c.put("/api/v2/clients/current/state/allocation_measures", json={"value": {"items": items}}, headers=h).status_code == 200
     assert c.get("/api/v2/clients/current/state/allocation_measures", headers=h).json()["value"]["items"] == items
+
+
+def test_a_conversion_of_an_existing_contract_is_flagged_so_it_is_never_offered_as_a_new_hire():
+    items = {i["id"]: i for f in measures.for_company(PROFILE, D)["families"] for i in f["items"]}
+    assert items["BONUS_STABILIZZAZIONE_2026"]["existing_contract"] is True and items["BONUS_GIOVANI_2026"]["existing_contract"] is False

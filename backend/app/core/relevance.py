@@ -54,16 +54,16 @@ _MANUF = [f"{d:02d}" for d in range(1, 34)]
 SECTOR_LEXICON: List[Dict[str, Any]] = [
     {"label": "trasporti e mezzi di trasporto", "rx": r"autobus|trasporto pubblico|trasporto passeggeri|\btpl\b|ferrovi|trasporto marittimo|armator|aeroport|autotrasport|trasporto merci|trasporto stradale",
      "ateco": ["29", "30", "49", "50", "51", "52", "53"]},
-    {"label": "agricoltura, pesca e agroalimentare", "rx": r"agricol|agroalimentar|zootecn|allevament|\bpesca\b|acquacoltura|forestal|vitivinicol|\bpsr\b|\bfeasr\b|filiera del vino",
+    {"label": "agricoltura, pesca e agroalimentare", "rx": r"agricol|agroalimentar|zootecn|allevament|\bpesca\b|acquacoltura|forestal|vitivinicol|\bismea\b|\bmasaf\b|ministero dell.agricoltura|\bpsr\b|\bfeasr\b|filiera del vino",
      "ateco": ["01", "02", "03", "10", "11", "12", "55"]},
     {"label": "semiconduttori ed elettronica", "rx": r"semiconduttor|microelettronic|\bchips?\b", "ateco": ["26", "27", "28", "62"]},
     {"label": "turismo e ricettività", "rx": r"turism|ricettiv|albergh|agenzie di viaggio|tour operator|termal|stabilimenti balneari", "ateco": ["55", "56", "79", "90", "91", "92", "93", "96"]},
-    {"label": "cultura, cinema e spettacolo", "rx": r"cinema|audiovisiv|spettacolo dal vivo|teatr|musei|editoria|culturali e creative|filiera del libro|\blibrerie\b",
+    {"label": "cultura, cinema e spettacolo", "rx": r"cinema|audiovisiv|ministero della cultura|ad alta voce|lettura|spettacolo dal vivo|teatr|musei|editoria|culturali e creative|filiera del libro|\blibrerie\b",
      "ateco": ["58", "59", "60", "73", "74", "90", "91", "92", "93", "4761", "4762"]},
     {"label": "sanità e assistenza", "rx": r"sanitari[ao]|socio-?sanitar|ospedal|assistenza sociale|farmacie", "ateco": ["21", "32", "86", "87", "88", "4773", "4774"]},
     {"label": "ricerca industriale e produzione", "rx": r"ricerca industriale|sviluppo sperimentale|\bhorizon\b|\btrl\b|ricerca e sviluppo|ricerca,? sviluppo e innovazione|progetti di ricerca|contratti? di sviluppo|programmi? di sviluppo industriale",
      "ateco": _MANUF + ["35", "36", "37", "38", "39", "58", "59", "60", "61", "62", "63", "69", "70", "71", "72", "73", "74", "85", "86", "87", "88"]},
-    {"label": "sport", "rx": r"impianti sportivi|societ[aà] sportive|palestr|\bsport\b", "ateco": ["93", "85"]},
+    {"label": "sport", "rx": r"impianti sportivi|natator|oratori|societ[aà] sportive|palestr|\bsport\b", "ateco": ["93", "85"]},
     {"label": "commercio e servizi alla persona", "rx": r"distrett[oi] del commercio|centri commerciali naturali|esercizi commerciali|negozi di vicinato|commercio al dettaglio|botteghe",
      "ateco": ["45", "46", "47", "55", "56", "79", "82", "95", "96", "68", "73"]},
 ]
@@ -132,7 +132,7 @@ def text_fails(name: str, issuer: str, applicants: str, profile: Dict[str, Any])
     named = regions_in(f"{name} {issuer}")
     if named and region and region not in named:
         out.append({"id": "territory", "label": "Territorio", "detail": f"Bando di {' / '.join(sorted(named))}; la tua sede è in {region}."})
-    bad = sector_fails(f"{name} {applicants}", ateco)
+    bad = sector_fails(f"{name} {issuer} {applicants}", ateco)
     if bad:
         out.append({"id": "sector", "label": "Settore", "detail": f"Il bando è rivolto a: {', '.join(bad)}. Il tuo codice ATECO {ateco} non rientra."})
     who = applicant_fails(f"{name} {applicants}")

@@ -127,6 +127,8 @@ Nei bandi e nei decreti si leggono solo gli allegati: domande, campi e dichiaraz
 
 Esempio vero (24 ottobre 2026, Invitalia «Investimenti sostenibili 4.0»): trovati modulo di domanda fac-simile (9 domande, 15 campi, 11 dichiarazioni), dichiarazione sui dati contabili e decreto direttoriale; «Avviso STEP 2026» di Sviluppumbria: domande di ammissione, procura, schede progetto (33 domande, 27 campi).
 
+**Il catalogo e la ricerca guardano l'azienda (7 novembre 2026, dopo la revisione di tutto il portale).** Quando c'è un lavoro attivo con regione o ATECO: (1) la ricerca nelle Agevolazioni («Cerca nel catalogo») mostra solo i bandi che possono riguardare l'azienda; (2) la sfoglia dei bandi in memoria (pagina Bandi) segna ogni bando che non la riguarda con «Non per la tua azienda: motivo» e, con la casella «solo adatti alla mia azienda» (attiva di base), lo nasconde, dicendo quanti ne ha nascosti; (3) il catalogo raccolto dalle fonti ufficiali scarta all'origine le voci senza il nome del bando («Consulta qui l'Avviso», «Il testo dell'avviso»), le notizie di servizio («Avviate le procedure di erogazione…», «Boom di domande…») e le pagine che non sono bandi per imprese; le voci già raccolte che non passano il filtro si scartano a ogni raccolta notturna (mai una voce già studiata o richiesta da un cliente); (4) il settore si legge anche dall'ente che pubblica: ISMEA e il Ministero dell'Agricoltura sono agricoltura, il Dipartimento per lo Sport è sport, il Ministero della Cultura è cultura.
+
 ## 5. La lettura delle regole di un bando
 
 Dopo aver scaricato i documenti QUANTO ricava tre cose diverse.

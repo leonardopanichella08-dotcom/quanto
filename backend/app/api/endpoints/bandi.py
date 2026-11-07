@@ -119,18 +119,30 @@ class ResearchConfirm(BaseModel):
     bando_id: Optional[str] = Field(default=None, description="Se il bando è già nel catalogo interno")
 
 
+def _company_profile(request: Request):
+    """Il profilo dell'azienda del lavoro attivo (per dire quali bandi la riguardano); nessuno se non c'è un lavoro o non ha dati."""
+    from app.api.deps import scope_of
+    from app.core import company_profile as cp
+    try:
+        p = cp.profile_values(scope_of(request))
+    except Exception:  # noqa: BLE001 - senza profilo la ricerca resta quella di sempre
+        return None
+    return p if (p.get("region") or p.get("ateco_code")) else None
+
+
 @router.get("/search", summary="Cerca per nome (esatto o approssimato) tra i bandi già in memoria")
-def search_internal(q: str = Query(..., min_length=2, max_length=120)) -> dict:
-    return {"query": q, "matches": bandi.search_catalog(q)}
+def search_internal(request: Request, q: str = Query(..., min_length=2, max_length=120),
+                    for_company: bool = Query(default=False, description="Solo i bandi che possono riguardare l'azienda del lavoro (regione, settore, soggetti)")) -> dict:
+    return {"query": q, "matches": bandi.search_catalog(q, profile=_company_profile(request) if for_company else None)}
 
 
 @router.get("/catalog", summary="Sfoglia tutti i bandi in memoria: i curati e le voci del catalogo nazionale, con ricerca, filtro per ente e paginazione")
-def browse(q: str = Query(default="", max_length=120), issuer: Optional[str] = Query(default=None, max_length=200),
+def browse(request: Request, q: str = Query(default="", max_length=120), issuer: Optional[str] = Query(default=None, max_length=200),
            only_new: bool = Query(default=False, description="Solo le voci non ancora analizzate (né curate né con regole/fonti)"),
            page: int = Query(default=1, ge=1), page_size: int = Query(default=30, ge=1, le=100),
            described: Optional[bool] = Query(default=None, description="Solo le voci con (true) o senza (false) la scheda ufficiale già letta"),
            with_meta: bool = Query(default=False, description="Aggiunge le caratteristiche lette dalla scheda (forma di agevolazione, costi ammessi, regioni…)")) -> dict:
-    return bandi.browse_catalog(q, issuer, only_new, page, page_size, described, with_meta)
+    return bandi.browse_catalog(q, issuer, only_new, page, page_size, described, with_meta, profile=_company_profile(request))
 
 
 @router.get("/catalog/stats", summary="Numeri del catalogo nazionale: voci, schede lette, aperte, studiate")

@@ -69,3 +69,54 @@ def test_friuli_venezia_giulia_is_not_read_as_the_veneto_province_of_venezia():
 def test_research_development_and_innovation_projects_are_for_research_and_production_activities():
     assert "sector" in ids(relevance.text_fails("Progetti di ricerca, sviluppo e innovazione per la transizione ecologica", "MASE", "", RETAIL))
     assert relevance.text_fails("Progetti di ricerca, sviluppo e innovazione per la transizione ecologica", "MASE", "", {**RETAIL, "ateco_code": "62.01.00"}) == []
+
+
+def _seed_catalog(items):
+    with connect() as conn:
+        for bid, name, issuer, meta in items:
+            conn.execute("INSERT INTO bandi (bando_id, name, issuer, source_url, catalog_status, extraction_status, deadline, summary, catalog_meta, meta_at) VALUES (?,?,?,?,?,?,?,?,?,?)",
+                         (bid, name, issuer, "https://example.test/" + bid, "CATALOGED", "NOT_STARTED", "2099-12-31", "s", json.dumps(meta), "2026-11-07T00:00:00+00:00"))
+
+
+def test_searching_and_browsing_for_a_company_flags_or_hides_bandi_that_do_not_concern_it():
+    from app.core import bandi
+    _seed_catalog([("CAT-VOUCHER-ABR", "Voucher digitalizzazione imprese Abruzzo", "Regione Abruzzo", {}),
+                   ("CAT-VOUCHER-PIE", "Voucher digitalizzazione imprese Piemonte", "Regione Piemonte", {}),
+                   ("CAT-VOUCHER-AUTOBUS", "Voucher per il rinnovo degli autobus", "Ministero", {})])
+    names = [m["name"] for m in bandi.search_catalog("voucher", profile=RETAIL)]
+    assert names == ["Voucher digitalizzazione imprese Abruzzo"]                       # niente altra regione, niente autobus
+    assert len(bandi.search_catalog("voucher")) == 3                                    # senza profilo la ricerca resta quella di sempre
+    page = bandi.browse_catalog("voucher", profile=RETAIL, page_size=10)["items"]
+    why = {i["bando_id"]: i["not_for_you"] for i in page}
+    assert why["CAT-VOUCHER-ABR"] is None and "Piemonte" in why["CAT-VOUCHER-PIE"] and "ATECO" in why["CAT-VOUCHER-AUTOBUS"]
+    assert all(i["not_for_you"] is None for i in bandi.browse_catalog("voucher", page_size=10)["items"])         # senza profilo nessun giudizio
+
+
+def test_issuer_names_the_sector_when_the_title_does_not():
+    ids_ = lambda name, issuer: ids(relevance.text_fails(name, issuer, "", RETAIL))
+    assert "sector" in ids_("Cambiale Azzurra: aperto il portale", "ISMEA")
+    assert "sector" in ids_("Avviso per progetti oratoriali", "Dipartimento per lo Sport")
+    assert "sector" in ids_("Educare alla lettura: la 9ª edizione", "Ministero della Cultura")
+    assert ids_("Bando Voucher Doppia Transizione 2026", "Punto Impresa Digitale (Camere di commercio)") == []
+
+
+def test_harvested_titles_without_a_name_or_that_are_news_are_not_grants():
+    from app.core import official_sources as osrc
+    for t in ("Consulta qui l'Avviso", "Il testo dell'avviso", "Avviso pubblico e allegato", "37° ciclo - Bando e modalità di presentazione domande",
+              "Avviate le procedure di erogazione del contributo in favore dei gestori di impianti natatori per l'anno 2026", "Puglia Moltiplica. Boom di domande per Finanziamento Taranto JTF",
+              "Bandi e Avvisi dei Soggetti Attuatori", "Bonus colonnine domestiche"):
+        assert not osrc.looks_like_grant(t), t
+    assert osrc.clean_title("Al via il Voucher Internazionalizzazione 2027: 15 milioni di euro per le PMI") == "Voucher Internazionalizzazione 2027: 15 milioni di euro per le PMI"
+    assert osrc.looks_like_grant("Al via il Voucher Internazionalizzazione 2027: 15 milioni di euro per le PMI")
+
+
+def test_old_harvested_entries_with_a_bad_title_are_discarded_but_studied_ones_never():
+    from app.core import official_sources as osrc
+    seed = {"harvested": True, "source_id": "x"}
+    _seed_catalog([("CAT-BAD-1", "Consulta qui l'Avviso", "Ente", seed), ("CAT-GOOD-1", "Voucher digitalizzazione delle imprese 2099", "Ente", seed), ("CAT-OLD-1", "Il testo dell'avviso", "Ente", {})])
+    with connect() as conn:
+        conn.execute("INSERT INTO bandi (bando_id, name, issuer, catalog_status, extraction_status, catalog_meta) VALUES ('CAT-STUDIED-1','Consulta qui l''Avviso','Ente','CATALOGED','COMPLETED',?)", (json.dumps(seed),))
+    assert osrc.purge_bad_titles() == 1
+    with connect() as conn:
+        st = {r["bando_id"]: r["extraction_status"] for r in conn.execute("SELECT bando_id, extraction_status FROM bandi").fetchall()}
+    assert st == {"CAT-BAD-1": "REJECTED", "CAT-GOOD-1": "NOT_STARTED", "CAT-OLD-1": "NOT_STARTED", "CAT-STUDIED-1": "COMPLETED"}

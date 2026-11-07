@@ -213,7 +213,7 @@ def for_company(profile: Dict[str, Any], today: Optional[date] = None) -> Dict[s
             ev = evaluate(m, profile, today)
             items.append({"id": m["id"], "name": m["name"], "tagline": m["tagline"], "status": ev["status"], "ok": ev["ok"], "why_not": ev["why"], "to_check": ev["to_check"], "worker": m["worker"], "contract": m["contract"],
                           "period": m["period"], "company": m["company"], "aid": m["aid"], "cumulation": m["cumulation"], "how": m["how"], "source": m["source"], "verified": m["verified"], "note": m.get("note"),
-                          "value": value_per_hire(m, profile), "group": m["group"], "search": m.get("search"), "regional": bool(m.get("regional"))})
+                          "value": value_per_hire(m, profile), "existing_contract": bool(m.get("only_existing_contract")), "group": m["group"], "search": m.get("search"), "regional": bool(m.get("regional"))})
         fams.append({**fam, "items": items})
     counts: Dict[str, int] = {}
     for f in fams:

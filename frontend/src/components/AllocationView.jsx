@@ -239,7 +239,7 @@ const REALITY_FIELDS = [['probability_pct', 'Probabilità di successo (%)', 'es.
   ['reimbursement_lag_months', 'Mesi per il rimborso', 'dal bando'], ['advance_pct', 'Anticipo (%)', 'dal bando']]
 
 /** Dall'allocazione alla realtà: quanto si può contare sul contributo, quanto costa ottenerlo, quando entrano i soldi e cosa si somma ad altri aiuti. Le ipotesi le scrive chi conosce il caso: nulla è inventato. */
-function RealityPanel({ plan, lines }) {
+function RealityPanel({ plan, lines, measures }) {
   const [assume, setAssume] = useState({})
   const [res, setRes] = useState(null)
   const [busy, setBusy] = useState(false)
@@ -264,6 +264,7 @@ function RealityPanel({ plan, lines }) {
   return (
     <div className="space-y-4">
       {error && <p className="text-xs text-red-700">{error}</p>}
+      {measures?.counted > 0 && <p className="text-xs text-ink-2 leading-relaxed rounded-xl bg-tint p-3">Le agevolazioni sul lavoro scelte (fino a {fmtEur(measures.total_max_eur)}) non entrano in questo calcolo: si applicano in busta paga, senza graduatoria né istruttoria di un bando. Qui vedi solo i bandi del piano.</p>}
       {res && (
         <>
           <div className="space-y-3">
@@ -721,7 +722,7 @@ export default function AllocationView({ onGoProfile, onBudgetFrom, onOpenBudget
       {match && (
         <Step id="al-risultato" title="Quanto coprono i bandi" done={active.length > 0 && !!plan} open={!!openSteps.risultato} onToggle={() => toggleStep('risultato')} alert={planError}
           summary={confirm ? `Calcolare il piano costa ${fmtTok(confirm.due)} token: conferma per continuare` : plan ? `${fmtEur(plan.covered_by_public_funds_eur)}${planHigh && planHigh.covered_by_public_funds_eur > plan.covered_by_public_funds_eur + 0.5 ? ` – ${fmtEur(planHigh.covered_by_public_funds_eur)}` : ''} coperti su ${fmtEur(plan.total_gross_expense_eur)} · ${fmtNum(plan.overall_coverage_percentage, 1)}% · ${inProject ? `progetto «${project.title}»` : 'spese dell’anno'}` : (active.length === 0 ? (inProject ? 'Nessun bando adatto cita questo tipo di progetto: includi tu i bandi da usare' : 'Scegli i bandi da includere') : 'Calcolo…')}
-          info={<><p><strong className="text-ink">Spese dell’anno</strong>: le spese che l’azienda sosterrà comunque nel {year} (personale, affitti, licenze…), coperte dai bandi che non chiedono un progetto: crediti d’imposta, spese commerciali, incentivi alle assunzioni.</p><p><strong className="text-ink">Un progetto</strong>: spese nuove e straordinarie (un investimento, una ricerca), coperte dai bandi che finanziano progetti. Un bando a progetto non paga le spese correnti: per questo non compare tra le spese dell’anno.</p><p>«Includi nel piano» e «Includi nel progetto» fanno la stessa cosa nello scenario che stai guardando: decidono quali bandi entrano nel calcolo. Le due scelte restano separate.</p><p>Le spese vengono dal budget dell’azienda e dal piano degli investimenti, se li hai caricati; altrimenti dalla stima dell’anno.</p><p>È un massimo teorico: non considera la probabilità di vincere né i tempi (vedi «Valore reale e incassi»).</p></>}
+          info={<><p><strong className="text-ink">Spese dell’anno</strong>: le spese che l’azienda sosterrà comunque nel {year} (personale, affitti, licenze…), coperte dai bandi che non chiedono un progetto: crediti d’imposta, spese commerciali, incentivi alle assunzioni.</p><p><strong className="text-ink">Un progetto</strong>: spese nuove e straordinarie (un investimento, una ricerca), coperte dai bandi che finanziano progetti. Un bando a progetto non paga le spese correnti: per questo non compare tra le spese dell’anno.</p><p>«Includi nel piano» e «Includi nel progetto» decidono quali bandi adatti entrano nel calcolo; le due scelte restano separate. I bandi «da verificare» non entrano mai da soli, e le agevolazioni sul lavoro non passano da qui: si sommano nel riquadro «Il totale e da dove viene».</p><p>Le spese vengono dal budget dell’azienda e dal piano degli investimenti, se li hai caricati; altrimenti dalla stima dell’anno.</p><p>È un massimo teorico: non considera la probabilità di vincere né i tempi (vedi «Valore reale e incassi»).</p></>}
           >
           {confirm && <CostConfirm c={confirm} busy={loading} onConfirm={() => { confirmRef.current = true; run() }} />}
           <TutorialVideo id="T08" />
@@ -807,7 +808,7 @@ export default function AllocationView({ onGoProfile, onBudgetFrom, onOpenBudget
           summary="Quanto conti davvero di ottenere, e quando entrano i soldi"
           info="Un contributo non è un incasso: si vince o no, ottenerlo costa lavoro, e il rimborso arriva dopo che hai pagato. Scrivi per ogni bando probabilità di successo, costo di istruttoria e percentuale del consulente (anche zero): QUANTO non li inventa, senza mostra solo il nominale.">
           <TutorialVideo id="T10" />
-          <RealityPanel plan={plan} lines={planLines} />
+          <RealityPanel plan={plan} lines={planLines} measures={sel} />
         </Step>
       )}
     </>

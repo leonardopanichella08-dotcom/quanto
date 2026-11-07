@@ -26,7 +26,7 @@ function CatalogSearch({ item, region, onBudgetFrom }) {
   const run = async () => {
     setBusy(true)
     try {
-      const all = await Promise.all(item.search.slice(0, 3).map((t) => api.bandiSearch(`${t}${region ? ` ${region}` : ''}`).then((r) => r.matches || []).catch(() => [])))
+      const all = await Promise.all(item.search.slice(0, 3).map((t) => api.bandiSearch(`${t}${region ? ` ${region}` : ''}`, true).then((r) => r.matches || []).catch(() => [])))
       const seen = new Set()
       setRes(all.flat().filter((m) => (seen.has(m.bando_id) ? false : seen.add(m.bando_id))).slice(0, 6))
     } finally { setBusy(false) }
@@ -83,9 +83,18 @@ function Item({ it, region, onAnswer, onBudgetFrom, chosen, onChoose, onUnchoose
           <span className="flex flex-wrap items-center gap-2"><span className="text-sm font-semibold text-ink">{it.name}</span><span className={`px-2 py-0.5 rounded-full text-[11px] font-medium ${tone}`}>{label}</span></span>
           <span className="block text-xs text-ink-2 mt-1 leading-snug">{it.tagline}</span>
           {it.value && <span className="block text-xs font-medium text-emerald-700 mt-1">{it.value.text} per ogni assunzione, al massimo</span>}
+          {chosen && <span className="inline-block mt-1.5 px-2 py-0.5 rounded-full text-[11px] font-medium bg-ink text-white">Scelta per l’Allocazione</span>}
         </span>
         <ChevronDown className={`w-4 h-4 text-mute shrink-0 mt-1 transition ${open ? 'rotate-180' : ''}`} />
       </button>
+      {it.existing_contract && <p className="px-4 pb-3 -mt-1 text-[11px] text-ink-2">Si usa su un contratto a termine già in corso, non su una nuova assunzione: per questo non entra nel totale dell’Allocazione.</p>}
+      {it.family === 'ESONERI_INPS' && it.value && !it.existing_contract && !['NON_APPLICABILE', 'SCADUTA', 'DOPO_LA_COSTITUZIONE'].includes(it.status) && (
+        <div className="px-4 pb-3 -mt-1 flex flex-wrap items-center gap-2">
+          <button className="btn !py-1 !text-xs" onClick={() => onChoose(it.id)}>{chosen ? 'Vedi nell’Allocazione' : 'Usa nell’Allocazione'}</button>
+          {chosen && <button className="btn !py-1 !text-xs" onClick={() => onUnchoose(it.id)}>Togli</button>}
+          {it.status === 'DA_VERIFICARE' && <span className="text-[11px] text-amber-700">resta fuori dal totale finché non rispondi alle domande nei dettagli</span>}
+        </div>
+      )}
       {open && (
         <div className="px-4 pb-4 space-y-3 text-xs text-ink-2 border-t border-line pt-3">
           {it.why_not.map((w) => <p key={w} className="text-red-700 flex gap-1.5"><AlertTriangle className="w-3.5 h-3.5 mt-0.5 shrink-0" />{w}</p>)}
@@ -102,7 +111,7 @@ function Item({ it, region, onAnswer, onBudgetFrom, chosen, onChoose, onUnchoose
           {it.note && <p className="text-amber-700">{it.note}</p>}
           <p className="text-[11px] text-mute">Fonte: {it.source.label} · {VERIFIED[it.verified]}</p>
           {it.search && <CatalogSearch item={it} region={it.regional ? region : null} onBudgetFrom={onBudgetFrom} />}
-          {it.family === 'ESONERI_INPS' && it.value && (
+          {it.family === 'ESONERI_INPS' && it.value && !it.existing_contract && (
             <div className="rounded-xl bg-white p-3 space-y-2">
               <p>Per gli sgravi non c’è un budget da compilare: il vantaggio si applica in busta paga. Se la scegli, entra nell’Allocazione: lì vedi quante assunzioni la usano, quanto vale al massimo, quali condizioni e dichiarazioni servono e come si somma al totale con i bandi.</p>
               {['NON_APPLICABILE', 'SCADUTA', 'DOPO_LA_COSTITUZIONE'].includes(it.status)
@@ -164,7 +173,7 @@ export default function Agevolazioni({ clientId, onBudgetFrom }) {
               className={`px-3.5 py-2 rounded-full text-xs font-medium transition ${fam === f.id ? 'bg-ink text-white' : 'bg-tint text-ink-2 hover:text-ink'}`}>{f.label}{n > 0 && <span className="ml-1.5 opacity-80">· {n}</span>}</button>
           )
         })}
-        <button className="px-3.5 py-2 rounded-full text-xs font-medium bg-tint text-ink-2 hover:text-ink" onClick={() => nav.go('allocation')}>Bandi e finanziamenti →</button>
+        <button className="px-3.5 py-2 rounded-full text-xs font-medium bg-tint text-ink-2 hover:text-ink" onClick={() => nav.go('bandi')}>Bandi e finanziamenti →</button>
       </div>
 
       {current && (

@@ -267,7 +267,17 @@ def _fold(text: str) -> str:
     return re.sub(r"[^a-z0-9]+", " ", t).strip()
 
 
-def search_catalog(query: str, limit: int = 8) -> List[Dict[str, Any]]:
+def _not_for(name: str, issuer: str, raw_meta: Optional[str], profile: Optional[Dict[str, Any]]) -> Optional[str]:
+    """Perché un bando NON riguarda l'azienda (altra regione, altro settore, soggetti che non sono imprese); ``None`` se può riguardarla o se non c'è un profilo."""
+    if not profile:
+        return None
+    from app.core import relevance
+    meta = json.loads(raw_meta) if raw_meta else {}
+    fails = relevance.text_fails(name or "", issuer or "", "", profile) + relevance.meta_fails(meta, profile)
+    return fails[0]["detail"] if fails else None
+
+
+def search_catalog(query: str, limit: int = 8, profile: Optional[Dict[str, Any]] = None) -> List[Dict[str, Any]]:
     """Bandi già in memoria che assomigliano al nome cercato (esatto o approssimato). Non tocca la rete."""
     import difflib
     ensure_seeded()
@@ -279,7 +289,7 @@ def search_catalog(query: str, limit: int = 8) -> List[Dict[str, Any]]:
         rows = conn.execute("SELECT b.bando_id, b.name, b.issuer, b.source_url, b.deadline, b.catalog_status, b.extraction_status, b.summary, "
                             "(SELECT COUNT(*) FROM rules r WHERE r.bando_id=b.bando_id AND r.status='PUBLISHED') AS rules, "
                             "(SELECT COUNT(*) FROM bando_sources s WHERE s.bando_id=b.bando_id) AS sources, "
-                            "(SELECT COUNT(*) FROM requirements q2 WHERE q2.bando_id=b.bando_id) AS reqs FROM bandi b").fetchall()
+                            "(SELECT COUNT(*) FROM requirements q2 WHERE q2.bando_id=b.bando_id) AS reqs, b.catalog_meta FROM bandi b WHERE b.extraction_status <> 'REJECTED'").fetchall()
     out = []
     for r in rows:
         if r["extraction_status"] == "REJECTED":
@@ -294,6 +304,8 @@ def search_catalog(query: str, limit: int = 8) -> List[Dict[str, Any]]:
         score = round(0.65 * hit + 0.35 * ratio, 3)
         if q in name:
             score = max(score, 0.95)
+        if score >= 0.4 and profile and r["catalog_status"] != "CURATED" and _not_for(r["name"], r["issuer"], r["catalog_meta"], profile):
+            continue                                                  # cercando per la propria azienda non compaiono bandi di altre regioni, altri settori o per enti pubblici
         if score >= 0.4:
             out.append({"bando_id": r["bando_id"], "name": r["name"], "issuer": r["issuer"], "extraction_status": r["extraction_status"], "curated": r["catalog_status"] == "CURATED",
                         "rules": r["rules"], "sources": r["sources"], "requirements": r["reqs"], "cache_hit": r["rules"] > 0, "score": score,
@@ -312,7 +324,7 @@ def catalog_issuers() -> List[str]:
 
 
 def browse_catalog(query: str = "", issuer: Optional[str] = None, only_new: bool = False, page: int = 1, page_size: int = 30,
-                   described: Optional[bool] = None, with_meta: bool = False) -> Dict[str, Any]:
+                   described: Optional[bool] = None, with_meta: bool = False, profile: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
     """Elenco paginato di TUTTI i bandi in memoria (i curati e le voci del catalogo nazionale), con ricerca libera ed
     eventuale filtro per ente. ``only_new`` mostra solo le voci non ancora analizzate (né curate né con regole/requisiti/
     fonti già estratti): quelle da cui partire per allargare la libreria. Il filtro sta nella query SQL, non in Python:
@@ -349,6 +361,7 @@ def browse_catalog(query: str = "", issuer: Optional[str] = None, only_new: bool
         "summary": r["summary"], "read_at": r["meta_at"], **({"meta": json.loads(r["catalog_meta"]) if r["catalog_meta"] else None} if with_meta else {}),
         "rules": r["rules"], "sources": r["sources"], "requirements": r["reqs"],
         "catalog_only": r["catalog_status"] != "CURATED" and not (r["rules"] or r["sources"]),
+        "not_for_you": _not_for(r["name"], r["issuer"], r["catalog_meta"], profile),         # il motivo per cui non riguarda l'azienda del lavoro, se c'è
     } for r in rows]
     return {"total": total, "page": page, "page_size": page_size, "pages": max(1, -(-total // page_size)), "items": items}
 

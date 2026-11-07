@@ -13,6 +13,7 @@ export default function CatalogBrowser({ onPick, picking }) {
   const [q, setQ] = useState('')
   const [issuer, setIssuer] = useState('')
   const [onlyNew, setOnlyNew] = useState(true)
+  const [mineOnly, setMineOnly] = useState(true)               // nasconde i bandi che non riguardano l'azienda del lavoro (altra regione, altro settore, solo enti pubblici)
   const [page, setPage] = useState(1)
   const [data, setData] = useState(null)
   const [issuers, setIssuers] = useState([])
@@ -42,7 +43,9 @@ export default function CatalogBrowser({ onPick, picking }) {
     )
   }
 
-  const items = data?.items || []
+  const allItems = data?.items || []
+  const hidden = allItems.filter((it) => it.not_for_you).length
+  const items = mineOnly ? allItems.filter((it) => !it.not_for_you) : allItems
   const pages = data?.pages || 1
   const total = data?.total || 0
 
@@ -74,13 +77,18 @@ export default function CatalogBrowser({ onPick, picking }) {
           <input type="checkbox" className="accent-brand" checked={onlyNew} onChange={(e) => { setOnlyNew(e.target.checked); setPage(1) }} />
           solo non ancora analizzati
         </label>
+        <label className="flex items-center gap-1.5 text-xs text-ink-2 whitespace-nowrap px-1" title="Nasconde i bandi di altre regioni, di altri settori o riservati a enti pubblici">
+          <input type="checkbox" className="accent-brand" checked={mineOnly} onChange={(e) => setMineOnly(e.target.checked)} />
+          solo adatti alla mia azienda
+        </label>
       </div>
 
       {error && <div className="p-3 rounded-xl border border-red-500/30 text-red-700 text-xs">{error}</div>}
 
       <div className="space-y-1.5 min-h-[100px]">
         {loading && <div className="flex items-center justify-center py-8 text-ink-2"><Loader2 className="w-5 h-5 animate-spin" /></div>}
-        {!loading && items.length === 0 && <p className="text-xs text-mute text-center py-8">Nessun bando trovato con questi filtri.</p>}
+        {!loading && items.length === 0 && <p className="text-xs text-mute text-center py-8">Nessun bando trovato con questi filtri.{hidden > 0 && ` Ne ho nascosti ${hidden} che non riguardano la tua azienda: togli «solo adatti alla mia azienda» per vederli.`}</p>}
+        {!loading && hidden > 0 && items.length > 0 && <p className="text-[11px] text-mute">Nascosti {hidden} bandi di questa pagina che non riguardano la tua azienda (altra regione, altro settore o riservati a enti pubblici).</p>}
         {!loading && items.map((it) => (
           <div key={it.bando_id} className="flex flex-wrap items-center gap-x-3 gap-y-1 p-2.5 rounded-xl border border-line bg-field text-xs">
             <span className="font-medium text-ink min-w-0 truncate max-w-[38vw] md:max-w-md" title={it.name}>{it.name}</span>
@@ -90,6 +98,7 @@ export default function CatalogBrowser({ onPick, picking }) {
               : (it.rules || it.sources) ? <span className="px-1.5 py-0.5 rounded border border-sky-500/30 text-sky-700 text-[10px] shrink-0">già cercato: {it.rules} regole</span>
                 : <span className="px-1.5 py-0.5 rounded border border-line-strong text-mute text-[10px] shrink-0">da analizzare</span>}
             {it.summary && <p className="w-full text-ink-2 leading-relaxed">{it.summary}</p>}
+            {it.not_for_you && <p className="w-full text-red-700 leading-snug"><span className="font-medium">Non per la tua azienda:</span> {it.not_for_you}</p>}
             <button onClick={() => setDocsOf(docsOf === it.bando_id ? null : it.bando_id)} aria-expanded={docsOf === it.bando_id} className="text-sky-700 hover:underline shrink-0">{docsOf === it.bando_id ? 'Chiudi i documenti' : 'Documenti per la domanda'}</button>
             {docsOf === it.bando_id && <div className="w-full pt-1"><ApplicationDocs bandoId={it.bando_id} /></div>}
             {!it.curated && !(it.rules || it.sources) && (

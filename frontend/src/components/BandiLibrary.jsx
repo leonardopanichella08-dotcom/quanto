@@ -73,6 +73,10 @@ function Sources({ bando }) {
   )
 }
 
+const itDate = (d) => (d && /^\d{4}-\d{2}-\d{2}$/.test(d) ? d.split('-').reverse().join('/') : null)
+// «dal 27/07/2026 al 31/12/2026», «dal …», «fino al …»: una data che non c'è non si scrive («null»)
+const periodText = (p) => { const a = itDate(p?.from), b = itDate(p?.to); return a && b ? ` · dal ${a} al ${b}` : a ? ` · dal ${a}` : b ? ` · fino al ${b}` : '' }
+
 const fmtFigure = (f) => {
   const v = f.kind === 'EUR' ? `${Number(f.value).toLocaleString('it-IT')} €` : f.kind === 'PERCENT' ? `${String(f.value).replace('.', ',')} %` : `${f.value} ${f.unit}`
   return `${f.bound === 'MAX' ? 'max ' : f.bound === 'MIN' ? 'min ' : ''}${v}`
@@ -137,12 +141,15 @@ function Detail({ bando, onUse, using, onStudied }) {
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="min-w-0">
           <h3 className="font-display font-bold tracking-tight text-lg">{bando.name}</h3>
-          <p className="text-xs text-ink-2">{bando.issuer}{bando.period ? ` · dal ${bando.period.from} al ${bando.period.to}` : ''}</p>
+          <p className="text-xs text-ink-2">{bando.issuer}{periodText(bando.period)}</p>
           <span className={`inline-block mt-2 px-2 py-0.5 text-[11px] font-medium rounded border ${BANDO_STATUS_STYLE(bando.status || '')}`}>{bando.status || bando.extraction_status}</span>
         </div>
-        <button onClick={() => onUse(bando.bando_id)} disabled={using || !bando.grant_rules} className="btn-primary flex items-center gap-2">
-          {using && <Loader2 className="w-3.5 h-3.5 animate-spin" />}Fai il budget per questo bando
-        </button>
+        <div className="space-y-1 max-w-xs">
+          <button onClick={() => onUse(bando.bando_id)} disabled={using || !bando.grant_rules} className="btn-primary flex items-center gap-2">
+            {using && <Loader2 className="w-3.5 h-3.5 animate-spin" />}Fai il budget per questo bando
+          </button>
+          {!bando.grant_rules && <p className="text-[11px] text-amber-700 leading-snug">{bando.benefit?.type === 'GARANZIA_PUBBLICA' ? 'Non c’è un budget da fare: è una garanzia sul finanziamento, non rimborsa spese.' : 'Mancano le regole numeriche: studia il bando a fondo per poter fare il budget.'}</p>}
+        </div>
       </div>
 
       {bando.benefit && (

@@ -155,7 +155,9 @@ _NEGATIVE = re.compile(r"\b(gara|gare|appalt\w*|fornitur\w*|affidament\w*|concor
                        r"aggiornamento|ai comuni|agli enti locali|enti locali|amministrazioni|pro loco|scuole|famiglie|cittadini|pensione|pensionati|previdenz\w*|tributi|"
                        r"tariffar\w*|canone|assistenza|disabilit\w*|sanit\w*|ufficio|uffici|direzione generale|organigramma|convenzione|protocollo d.intesa|decret[oi]|d\.d\.|"
                        r"reclutamento|candidature|profilo|webinar|truffe|evento|eventi|convegno|seminario|selezionat[oie]|autorizzazion\w*|variante|connessione|procedimento|eolico|guida|"
-                       r"domande nel primo giorno|avviso di ricerca|fondi di mutualit\w*|riassicurazione|autorizzazioni ad agire|patrocinio|area verde|terren\w+|demanio|concessione dell\w*|avviso di selezione|posto di|dirigenzial\w*|personale)\b", re.I)
+                       r"domande nel primo giorno|avviso di ricerca|fondi di mutualit\w*|riassicurazione|autorizzazioni ad agire|patrocinio|area verde|terren\w+|demanio|concessione dell\w*|avviso di selezione|posto di|dirigenzial\w*|personale|"
+                       r"oratori\w*|domestic\w*|lettura|erogazione|procedure di|boom|domande (?:presentate|pervenute)|modalit\w+ di presentazione|colonnine|allegat[oi]|"
+                       r"consulta|il testo dell\w*|soggetti attuatori)\b", re.I)
 # parole che da sole formano solo il nome di una sezione del sito («Fondi e finanziamenti europei», «Esplora la sezione Bandi e avvisi»), non di un bando
 _NAV_WORDS = set("""bandi bando avvisi avviso incentivi incentivo agevolazioni agevolazione contributi contributo finanziamenti finanziamento fondi fondo europei europa ue opportunita imprese impresa
     sezione esplora altre altri amministrazioni da e di per le i la il lo alla al ai delle dei degli del in evidenza tutti tutte vai vedi leggi scopri archivio aperti chiusi scaduti attivi attivo
@@ -184,6 +186,7 @@ def clean_title(text: str) -> str:
     t = re.sub(r"^(?:aperto|apertura|conclusione|chiuso|chiusura|scaduto|in arrivo|prossima apertura)\s+\d{1,2}\s+[A-Za-z]{3}\s+\d{4}\s*", "", t, flags=re.I)
     t = re.sub(r"^\d{1,2}/\d{1,2}/\d{4}\s+(?:[\w' ]+/[\w' ]+\s+Informa\s+)?", "", t)
     t = re.sub(r"^(?:per saperne di più su|leggi tutto su|scopri di più su|leggi|scarica|vai a|apri)(?: tutto| il bando| la scheda)?\s*[:\-–]?\s*", "", t, flags=re.I)
+    t = re.sub(r"^(?:al via|pubblicat[oaie]|disponibile|online|aperto|riaperto)\s+(?:il |l'|lo |la |le |i |gli |un |una )?", "", t, flags=re.I)         # «Al via il Voucher export…»: il nome è ciò che segue
     t = re.sub(r"^(?:[Pp]resentazione )?[Dd]omande[^A-Z]{0,90}?(?=(?:Contribut|Bando|Avviso|Voucher|Incentiv|Finanziament|Sostegn|Bonus|Credito|Misura))", "", t)
     t = re.sub(r"\s*(?:scopri (?:di più|qui[\w ]*)|leggi tutto|maggiori informazioni)\s*$", "", t, flags=re.I)
     return t.strip(" -–—|:·•")[:200]
@@ -313,8 +316,21 @@ def register_items(src: Dict[str, Any], items: List[Dict[str, str]]) -> int:
     return len(rows)
 
 
+def purge_bad_titles() -> int:
+    """Le voci raccolte in passato il cui nome oggi non passa il filtro (titoli senza il nome del bando, notizie di servizio) si scartano: restano in memoria ma non si mostrano.
+    Mai una voce già studiata o richiesta da un cliente."""
+    with connect() as conn:
+        rows = conn.execute("SELECT bando_id, name FROM bandi WHERE bando_id LIKE 'CAT-%' AND extraction_status = 'NOT_STARTED' AND requested_by_clients = 0 "
+                            "AND catalog_meta LIKE '%\"harvested\": true%'").fetchall()
+        bad = [r["bando_id"] for r in rows if not looks_like_grant(r["name"])]
+        for i in bad:
+            conn.execute("UPDATE bandi SET extraction_status='REJECTED' WHERE bando_id=?", (i,))
+    return len(bad)
+
+
 def run(source_ids: Optional[List[str]] = None, budget_s: float = 40.0, workers: int = 8, actor: str = "cron", write: bool = True) -> Dict[str, Any]:
     """Raccoglie dalle fonti indicate (o da tutte quelle non già coperte dalle mappe del sito, le meno recenti per prime) entro il tempo dato."""
+    purged = purge_bad_titles() if write else 0
     states = {r["source_id"]: r for r in _states()}
     todo = [BY_ID[i] for i in source_ids if i in BY_ID] if source_ids else sorted(
         (s for s in SOURCES if s["id"] not in HARVESTED_BY_OTHER and not s["manual"]), key=lambda s: states.get(s["id"], {}).get("checked_at") or "")
@@ -324,7 +340,7 @@ def run(source_ids: Optional[List[str]] = None, budget_s: float = 40.0, workers:
     futures = {pool.submit(harvest_source, s, 4, deadline): s for s in todo}
     done, pending = wait(futures, timeout=budget_s)
     pool.shutdown(wait=False, cancel_futures=True)
-    report: Dict[str, Any] = {"checked": 0, "reachable": 0, "found": 0, "new": 0, "skipped": len(pending), "sources": []}
+    report: Dict[str, Any] = {"purged": purged, "checked": 0, "reachable": 0, "found": 0, "new": 0, "skipped": len(pending), "sources": []}
     for fut in done:
         src = futures[fut]
         try:
