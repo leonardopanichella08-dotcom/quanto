@@ -239,3 +239,43 @@ def best_for_hires(profile: Dict[str, Any], hires: int, today: Optional[date] = 
         out.append({"id": m["id"], "name": m["name"], "status": ev["status"], "who": m["worker"], "contract": m["contract"], "value": v, "total_max_eur": v["max_eur"] * hires,
                     "to_check": ev["to_check"], "source": m["source"], "cumulation": m["cumulation"]})
     return sorted(out, key=lambda x: -x["value"]["max_eur"])
+
+
+def selection(profile: Dict[str, Any], items: List[Dict[str, Any]], today: Optional[date] = None) -> Dict[str, Any]:
+    """Le agevolazioni scelte per l'Allocazione, ognuna con ciò che serve a capire se e come vale: condizioni rispettate, dati mancanti, chi assumere,
+    dichiarazioni, cumulo, leggi e fonte. Entrano nel TOTALE solo quelle applicabili (nessun dato decisivo mancante) e, per gli esoneri 2026 che non si
+    sommano, una sola per assunzione: la più ricca. Il valore è un massimo (tetto mensile × mesi): l'esonero non supera i contributi davvero dovuti."""
+    today = _today(today)
+    rows: List[Dict[str, Any]] = []
+    for it in items:
+        m = BY_ID.get(str(it.get("id")))
+        if not m:
+            continue
+        hires = max(1, min(50, int(it.get("hires") or 1)))
+        ev = evaluate(m, profile, today)
+        v = value_per_hire(m, profile)
+        rows.append({"id": m["id"], "name": m["name"], "family": m["family"], "group": m.get("group"), "tagline": m["tagline"], "hires": hires, "status": ev["status"], "ok": ev["ok"],
+                     "why_not": ev["why"], "to_check": ev["to_check"], "value": v, "max_eur": (v["max_eur"] * hires) if v and "max_eur" in v else None,
+                     "min_eur": (v.get("min_eur", v["max_eur"]) * hires) if v and "max_eur" in v else None, "worker": m["worker"], "contract": m["contract"], "period": m["period"],
+                     "company": m["company"], "aid": m["aid"], "cumulation": m["cumulation"], "how": m["how"], "source": m["source"], "verified": m["verified"],
+                     "counted": False, "reason": None})
+    for r in rows:
+        if r["status"] != "APPLICABILE":
+            r["reason"] = (r["why_not"][0] if r["why_not"] else ("Manca un dato: " + "; ".join(c["label"] for c in r["to_check"]) + " Non si somma finché non è chiarito.") if r["to_check"] else "Non è applicabile ora.")
+        elif r["max_eur"] is None:
+            r["reason"] = "Importo non quantificabile: i parametri si leggono nel bando regionale o nella circolare in vigore."
+        else:
+            r["counted"] = True
+    groups: Dict[str, List[Dict[str, Any]]] = {}
+    for r in rows:
+        if r["counted"] and r["group"]:
+            groups.setdefault(r["group"], []).append(r)
+    for g in groups.values():
+        g.sort(key=lambda r: -r["max_eur"])
+        for r in g[1:]:
+            r["counted"] = False
+            r["reason"] = f"Non cumulabile con «{g[0]['name']}»: per ogni assunzione conta una sola agevolazione sul costo del lavoro, la più ricca."
+    counted = [r for r in rows if r["counted"]]
+    return {"items": rows, "total_max_eur": round(sum(r["max_eur"] for r in counted), 2), "total_min_eur": round(sum(r["min_eur"] for r in counted), 2),
+            "counted": len(counted), "verified_on": VERIFIED_ON,
+            "warning": "Il valore è un massimo, non un incasso: l'esonero non supera i contributi davvero dovuti. Le circolari INPS cambiano ogni anno: conferma sul sito INPS prima di presentare la domanda."}

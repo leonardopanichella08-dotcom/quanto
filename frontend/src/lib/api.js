@@ -194,6 +194,7 @@ export const api = {
   profileShareholders: () => call('/profile/shareholders').then((r) => r.json()),
   profileIdeas: (year, split) => call(`/profile/project-ideas?${new URLSearchParams({ ...(year ? { year } : {}), ...(split ? { split } : {}) })}`).then((r) => r.json()),
   measures: () => call('/profile/measures').then((r) => r.json()),
+  measuresSelection: (items) => post('/profile/measures/selection', { items }),
   profileAids: () => call('/profile/aids').then((r) => r.json()),
   saveAidsGroup: (answers, companies) => call('/profile/aids/group', { method: 'PUT', headers: json, body: JSON.stringify({ answers, companies }) }).then((r) => r.json()),
   saveAidsEntries: (company, source, entries, checked_at) => call('/profile/aids/entries', { method: 'PUT', headers: json, body: JSON.stringify({ company, source, entries, checked_at }) }).then((r) => r.json()),

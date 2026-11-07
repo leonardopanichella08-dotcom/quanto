@@ -12,6 +12,8 @@ import { WordsContext, docWords } from '../lib/words'
 import Guide from './Guide'
 import PipelineButton from './PipelineButton'
 import ApplicationDocs from './ApplicationDocs'
+import { MeasuresPanel, TotalPanel } from './Composition'
+import { loadChoice, saveChoice, withChoice, withoutChoice } from '../lib/measureChoice'
 import { Hint } from './Help'
 import ForecastStep from './ForecastStep'
 import PotentialStep from './PotentialStep'
@@ -408,7 +410,7 @@ export default function AllocationView({ onGoProfile, onBudgetFrom, onOpenBudget
   const [section, setSection] = useState(null)                    // azienda · bandi · insieme · progetti (null = la prima sensata)
   const [picked, setPicked] = useState([])                         // bandi del «Piano dell'anno»
   const [projectPicked, setProjectPicked] = useState([])             // bandi del «Progetto»: le due scelte restano separate
-  const [openSteps, setOpenSteps] = useState({ risultato: true, progetti: true })
+  const [openSteps, setOpenSteps] = useState({ risultato: true, progetti: true, totale: true, misure: true })
   const [studied, setStudied] = useState(null)
   const [studyingMore, setStudyingMore] = useState(false)
   const [studyNote, setStudyNote] = useState(null)
@@ -429,6 +431,10 @@ export default function AllocationView({ onGoProfile, onBudgetFrom, onOpenBudget
   const splitKey = Object.entries(deptSplit).filter(([, v]) => v > 0).map(([k, v]) => `${k}:${v}`).join(',') || undefined                   // cresce dopo lo studio di un bando: le idee e i bandi che le finanziano si rifanno
   const [includeCurrent, setIncludeCurrent] = useState(false)       // nel progetto scelto: includere anche le spese correnti (dove i bandi scelti le ammettono)
   const [project, setProject] = useState(null)                    // il progetto scelto: nello scenario «Progetto» il piano si calcola sulle sue spese nuove
+  const [chosen, setChosen] = useState([])                       // agevolazioni sul lavoro scelte per questo lavoro: [{ id, hires }]
+  const [chosenLoaded, setChosenLoaded] = useState(false)
+  const [sel, setSel] = useState(null)                           // risposta del server: condizioni, importo massimo e quali entrano nel totale
+  const [shadow, setShadow] = useState(null)                     // il piano dell'altro scenario (anno / progetto): serve al totale generale
   const [planLines, setPlanLines] = useState([])                      // le linee di finanziamento con cui è stato calcolato il piano (servono per i budget)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(null)
@@ -451,6 +457,9 @@ export default function AllocationView({ onGoProfile, onBudgetFrom, onOpenBudget
     return () => clearTimeout(t)
   }, [restored, year, growth, picked, target, dmOverride, deptSplit])
 
+  const reloadChoice = useCallback(() => loadChoice().then((x) => { setChosen(x); setChosenLoaded(true) }), [])
+  useEffect(() => { reloadChoice() }, [reloadChoice])
+  useEffect(() => { if (chosenLoaded) saveChoice(chosen) }, [chosen, chosenLoaded])
   const growthBody = useCallback(() => Object.fromEntries(Object.entries(growth).filter(([, v]) => v !== undefined && v !== '' && !Number.isNaN(Number(v))).map(([k, v]) => [k, Number(v) / 100])), [growth])
   const setOverride = (key, v) => setGrowth((g) => { const n = { ...g }; if (v === undefined) delete n[key]; else n[key] = v; return n })
 
@@ -524,6 +533,22 @@ export default function AllocationView({ onGoProfile, onBudgetFrom, onOpenBudget
   const overrideOk = dmOverride !== '' && Number.isFinite(Number(dmOverride)) && Number(dmOverride) >= 0         // un valore scritto non valido (vuoto, negativo, non numerico) non blocca il piano: vale la stima
   const deMinimis = overrideOk ? String(Number(dmOverride)) : String(dmEstimate ? (dmEstimate.basis === 'RNA' ? dmEstimate.residual_eur : (dmEstimate.safe_residual_eur ?? dmEstimate.residual_eur)) : 270000)  // il valore che usa il piano: se non è verificato sul registro, la stima ridotta del margine di sicurezza; salvo correzione dell'utente
 
+  // Il corpo della richiesta di un piano, per le spese dell'anno o per il progetto scelto: lo stesso per lo scenario in vista e per l'altro (che serve al totale generale).
+  const planBody = (kind, rows, high) => {
+    const applied = Object.fromEntries(match.forecast.categories.map((c) => [c.category, c.growth_applied]))                // le stesse percentuali della tabella: il piano parte dalla stessa stima
+    // Due contributi a fondo perduto non si sommano sulla stessa spesa (doppio finanziamento, criterio 47): per prudenza ogni voce ne riceve uno solo, il migliore.
+    const grants = rows.filter((r) => r.estimate?.kind === 'FONDO_PERDUTO').map((r) => r.fund.fund_id)
+    const line = (r) => {
+      const f = high && r.estimate?.rate_high_pct > r.estimate?.rate_pct
+        ? { ...r.fund, coverage_pct: r.estimate.rate_high_pct / 100, max_total_eur: r.estimate.cap_high_eur ?? r.fund.max_total_eur } : r.fund
+      return grants.includes(f.fund_id) ? { ...f, excludes: [...new Set([...(f.excludes || []), ...grants.filter((id) => id !== f.fund_id)])] } : f
+    }
+    const projectLines = kind === 'PROJECT' ? project.lines.filter((l) => (l.nature === 'NUOVA' || (includeCurrent && l.nature === 'ORDINARIA')) && l.amount_eur > 0).map((l) => ({ item_id: l.item_id, category: l.category, amount_eur: l.amount_eur, expense_type: l.expense_type || undefined, label: l.label })) : null
+    const base = projectLines ? { historical_expenses: projectLines } : { use_profile_forecast: true, growth_pct: applied }
+    return { fiscal_year: match.forecast.fiscal_year, ...base, optimization_target: target, available_funding_lines: rows.map(line), ...(rows.some((r) => r.fund.de_minimis) ? { de_minimis_residual_eur: Number(deMinimis) } : {}) }
+  }
+  const rowsOf = (kind) => (match?.matching.results || []).filter((r) => (kind === 'PROJECT' ? projectPicked : picked).includes(r.bando_id) && r.fund)
+
   // Il piano si ricalcola da solo a ogni scelta (bandi inclusi, obiettivo, de minimis): il calcolo è sul server.
   const run = useCallback(async () => {
     if (!match || pickedRows.length === 0) { setPlan(null); setPlanHigh(null); setPlanError(null); return }
@@ -531,27 +556,26 @@ export default function AllocationView({ onGoProfile, onBudgetFrom, onOpenBudget
     setLoading(true); setPlanError(null)
     const sent = (b) => ({ ...b, ...(confirmRef.current ? { confirm_tokens: true } : {}) })
     try {
-      const applied = Object.fromEntries(match.forecast.categories.map((c) => [c.category, c.growth_applied]))                // le stesse percentuali della tabella: il piano parte dalla stessa stima
-      // Due contributi a fondo perduto non si sommano sulla stessa spesa (doppio finanziamento, criterio 47): per prudenza ogni voce ne riceve uno solo, il migliore.
-      const grants = pickedRows.filter((r) => r.estimate?.kind === 'FONDO_PERDUTO').map((r) => r.fund.fund_id)
-      const line = (r, high) => {
-        const f = high && r.estimate?.rate_high_pct > r.estimate?.rate_pct
-          ? { ...r.fund, coverage_pct: r.estimate.rate_high_pct / 100, max_total_eur: r.estimate.cap_high_eur ?? r.fund.max_total_eur } : r.fund
-        return grants.includes(f.fund_id) ? { ...f, excludes: [...new Set([...(f.excludes || []), ...grants.filter((id) => id !== f.fund_id)])] } : f
-      }
-      const projectLines = inProject ? project.lines.filter((l) => (l.nature === 'NUOVA' || (includeCurrent && l.nature === 'ORDINARIA')) && l.amount_eur > 0).map((l) => ({ item_id: l.item_id, category: l.category, amount_eur: l.amount_eur, expense_type: l.expense_type || undefined, label: l.label })) : null
-      const base = projectLines ? { historical_expenses: projectLines } : { use_profile_forecast: true, growth_pct: applied }
-      const body = (high) => ({ fiscal_year: match.forecast.fiscal_year, ...base, optimization_target: target,
-        available_funding_lines: pickedRows.map((r) => line(r, high)), ...(needsDeMinimis ? { de_minimis_residual_eur: Number(deMinimis) } : {}) })
-      const res = await api.optimizeAllocation(sent(body(false)))
+      const kind = inProject ? 'PROJECT' : 'ANNUAL'
+      const res = await api.optimizeAllocation(sent(planBody(kind, pickedRows, false)))
       const hasRange = pickedRows.some((r) => r.estimate?.rate_high_pct > r.estimate?.rate_pct)
-      const resHigh = hasRange ? await api.optimizeAllocation(sent(body(true))) : null
-      if (mine === seq.current) { setConfirm(null); setPlan(res); setPlanHigh(resHigh); setPlanLines(body(false).available_funding_lines) }
+      const resHigh = hasRange ? await api.optimizeAllocation(sent(planBody(kind, pickedRows, true))) : null
+      if (mine === seq.current) { setConfirm(null); setPlan(res); setPlanHigh(resHigh); setPlanLines(planBody(kind, pickedRows, false).available_funding_lines) }
     } catch (e) {
       if (mine === seq.current) {
         if (e.status === 409 && e.detail?.code === 'TOKENS_CONFIRM') { setConfirm(e.detail); setPlan(null); setPlanHigh(null) } else { setConfirm(null); setPlanError(e.message); setPlan(null); setPlanHigh(null) }
       }
     } finally { confirmRef.current = false; if (mine === seq.current) setLoading(false) }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [match, picked, projectPicked, inProject, target, deMinimis, project, includeCurrent])
+  // L'altro scenario si calcola in silenzio: senza conferme né errori in vista, perché serve solo a comporre il totale generale (anno + progetto + agevolazioni).
+  useEffect(() => {
+    const kind = inProject ? 'ANNUAL' : 'PROJECT'
+    const rows = rowsOf(kind)
+    if (!match || rows.length === 0 || (kind === 'PROJECT' && !project)) { setShadow(null); return undefined }
+    let live = true
+    api.optimizeAllocation(planBody(kind, rows, false)).then((res) => { if (live) setShadow({ kind, plan: res, rows }) }).catch(() => { if (live) setShadow(null) })
+    return () => { live = false }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [match, picked, projectPicked, inProject, target, deMinimis, project, includeCurrent])
   useEffect(() => { run() }, [run])
@@ -601,6 +625,17 @@ export default function AllocationView({ onGoProfile, onBudgetFrom, onOpenBudget
     setDeptSplit(Object.fromEntries(Object.entries(next).filter(([, v]) => v > 0)))
   }
   const growthIdea = (ideas?.ideas || []).find((i) => i.id === 'crescita') || null
+  const defaultHires = Math.max(1, needs?.people?.total || 1)                        // se non si sceglie, tante assunzioni quante ne servono alla crescita prevista
+  useEffect(() => {
+    if (!chosenLoaded) return undefined
+    if (chosen.length === 0) { setSel(null); return undefined }
+    let live = true
+    api.measuresSelection(chosen.map((x) => ({ id: x.id, hires: x.hires ?? defaultHires }))).then((r) => { if (live) setSel(r) }).catch(() => { if (live) setSel(null) })
+    return () => { live = false }
+  }, [chosen, chosenLoaded, defaultHires, match])        // eslint-disable-line react-hooks/exhaustive-deps
+  const setHires = (id, n) => setChosen((c) => c.map((x) => (x.id === id ? { ...x, hires: Math.max(1, Math.min(50, n)) } : x)))
+  const addMeasure = (id) => setChosen((c) => withChoice(c, id))
+  const removeMeasure = (id) => setChosen((c) => withoutChoice(c, id))
   const needsSummary = needs ? (needs.needs.length ? `${needs.needs.map((n) => n.label).join(' e ')} · circa ${fmtEur(needs.total_eur)} l’anno` : (needs.missing.length ? 'Mancano dati per dirlo' : 'Nessun bisogno in più con la crescita prevista')) : (ideasLoading ? 'Calcolo…' : 'Da bilancio e previsione')
   const st = match?.matching.catalog?.stats || null
   useEffect(() => {
@@ -619,10 +654,10 @@ export default function AllocationView({ onGoProfile, onBudgetFrom, onOpenBudget
   const isCandidate = (r) => (inProject ? (project?.bandi || []).some((b) => b.bando_id === r.bando_id) : !r.mode?.needs_project)
   const openStep = (id, on = true) => setOpenSteps((o) => ({ ...o, [id]: on }))
   const toggleStep = (id) => setOpenSteps((o) => ({ ...o, [id]: !o[id] }))
-  const sectionOf = (id) => ({ dati: 'azienda', stima: 'azienda', bisogni: 'azienda', bandi: 'bandi', progetti: 'progetti' }[id] || (inProject ? 'progetti' : 'insieme'))
+  const sectionOf = (id) => ({ dati: 'azienda', stima: 'azienda', bisogni: 'azienda', bandi: 'bandi', progetti: 'progetti', totale: 'insieme', misure: 'insieme' }[id] || (inProject ? 'progetti' : 'insieme'))
   const goStep = (id) => { setSection(sectionOf(id)); openStep(id); setTimeout(() => flashTo(`al-${id}`), 250) }
   useEffect(() => {                                       // un pulsante di un'altra pagina (Agevolazioni) porta a un passo preciso
-    const on = () => { const t = takeAllocationTarget(); if (t) setTimeout(() => goStep(t), 500) }
+    const on = () => { reloadChoice(); const t = takeAllocationTarget(); if (t) setTimeout(() => goStep(t), 500) }
     window.addEventListener('quanto-allocation-goto', on)
     on()
     return () => window.removeEventListener('quanto-allocation-goto', on)
@@ -652,12 +687,30 @@ export default function AllocationView({ onGoProfile, onBudgetFrom, onOpenBudget
     <BandoCard key={r.bando_id} r={r} picked={(scenario === 'PROJECT' ? projectPicked : picked).includes(r.bando_id)} includeLabel={scenario === 'PROJECT' ? 'Includi nel progetto' : 'Includi nel piano'} scenario={scenario}
       linked={ideasByBando[r.bando_id] || []} onPickProject={chooseProject} onToggle={() => (scenario === 'PROJECT' ? setProjectPicked((p) => (p.includes(r.bando_id) ? p.filter((x) => x !== r.bando_id) : [...p, r.bando_id])) : toggleAnnual(r.bando_id))} onBudget={onBudgetFrom} />
   )
+  const annualSide = inProject ? (shadow?.kind === 'ANNUAL' ? { plan: shadow.plan, rows: shadow.rows } : null) : (plan && pickedRows.length ? { plan, rows: pickedRows } : null)
+  const projectSide = project ? (inProject ? (plan && pickedRows.length ? { plan, rows: pickedRows, title: project.title } : null) : (shadow?.kind === 'PROJECT' ? { plan: shadow.plan, rows: shadow.rows, title: project.title } : null)) : null
+  const grandTotal = (annualSide?.plan?.covered_by_public_funds_eur || 0) + (includeCurrent ? 0 : (projectSide?.plan?.covered_by_public_funds_eur || 0)) + (sel?.total_max_eur || 0)
+  const totalStep = (
+    <Step id="al-totale" title="Il totale e da dove viene" done={grandTotal > 0} open={openSteps.totale !== false} onToggle={() => setOpenSteps((o) => ({ ...o, totale: o.totale === false }))}
+      summary={grandTotal > 0 ? `${fmtEur(grandTotal)} tra bandi dell’anno${projectSide?.plan?.covered_by_public_funds_eur > 0 && !includeCurrent ? ', progetto' : ''}${sel?.counted ? ' e agevolazioni sul lavoro' : ''}` : 'Bandi dell’anno, progetto e agevolazioni, tutti insieme'}
+      info="Somma i contributi massimi delle tre fonti: bandi sulle spese dell’anno (dal piano), bandi a progetto (dal progetto scelto) e agevolazioni sul lavoro scelte. Un bando da verificare o un’agevolazione con un dato mancante non si somma mai. È un massimo teorico: non considera la probabilità di vincere.">
+      <TotalPanel annual={annualSide} project={projectSide} sel={sel} year={year} projectSummable={!includeCurrent} />
+    </Step>
+  )
+  const misureStep = (
+    <Step id="al-misure" title="Agevolazioni sul lavoro scelte" done={!!sel?.counted} open={openSteps.misure !== false} onToggle={() => setOpenSteps((o) => ({ ...o, misure: o.misure === false }))}
+      summary={sel?.items?.length ? `${sel.items.length} ${sel.items.length === 1 ? 'scelta' : 'scelte'} · ${sel.counted} nel totale · fino a ${fmtEur(sel.total_max_eur)}` : 'Nessuna scelta: dalla pagina Agevolazioni'}
+      info="Gli esoneri e gli incentivi alle assunzioni non sono bandi: non hanno un budget e si applicano in busta paga. Qui vedi per ognuno quante assunzioni li usano, quanto valgono al massimo, le condizioni e le dichiarazioni da rendere, il cumulo con altri aiuti e la norma.">
+      <MeasuresPanel sel={sel} onHires={setHires} onRemove={removeMeasure} onAdd={addMeasure} onGoAgevolazioni={() => goTab('agevolazioni')} defaultHires={defaultHires}
+        suggestions={(needs?.without_project || []).filter((m) => !chosen.some((x) => x.id === m.id)).slice(0, 3)} />
+    </Step>
+  )
   const nAdatti = annualFit('ADATTO').length
   const nProgetto = projectFit('ADATTO').length
   const sections = [
     { id: 'azienda', title: 'L’azienda', done: !!hasData && !!match, off: !hasData, line: ov ? `Profilo al ${ov.completeness_pct}% · spese ${year}: ${match ? fmtEur(match.forecast.total_forecast_eur) : '…'}` : '…' },
     { id: 'bandi', title: 'Bandi adatti', done: nAdatti > 0, off: !match, line: match ? `${nAdatti} per le spese dell’anno · ${match.matching.summary.DA_VERIFICARE} da verificare${st ? ` · ${st.open_total + st.studied} letti` : ''}` : 'uno per uno' },
-    { id: 'insieme', title: 'Tutti insieme', done: !!plan && !inProject, off: !match, line: plan && !inProject ? `${fmtEur(plan.covered_by_public_funds_eur)} coperti · ${picked.length} ${picked.length === 1 ? 'bando' : 'bandi'}` : 'somma, piano e budget' },
+    { id: 'insieme', title: 'Tutti insieme', done: grandTotal > 0 && !inProject, off: !match, line: grandTotal > 0 ? `${fmtEur(grandTotal)} in totale · ${picked.length} ${picked.length === 1 ? 'bando' : 'bandi'}${sel?.counted ? ` + ${sel.counted} agevolaz.` : ''}` : 'somma, piano e budget' },
     { id: 'progetti', title: 'Progetti', done: !!project, off: !match, line: project ? `«${project.title}»${plan && inProject ? ` · ${fmtEur(plan.covered_by_public_funds_eur)} coperti` : ''}` : (nProgetto ? `${nProgetto} bandi a progetto adatti` : 'bisogni, progetti e budget') },
   ]
   const goSection = (id) => { setSection(id); window.scrollTo?.({ top: 0, behavior: 'smooth' }) }
@@ -827,6 +880,8 @@ export default function AllocationView({ onGoProfile, onBudgetFrom, onOpenBudget
     <div className="space-y-4">
       {intro('Tutti insieme: la somma dei bandi adatti', 'Qui i bandi adatti alle spese dell’anno si sommano senza contare due volte la stessa spesa: il programma sceglie la combinazione migliore rispettando tetti, fondi non cumulabili e de minimis. Sotto trovi il piano voce per voce, i budget da creare e il valore reale.')}
       {nAdatti === 0 && <div className="rounded-2xl bg-tint p-4 text-sm text-ink-2">Non c’è nessun bando adatto alle spese dell’anno da sommare. <button className="underline text-ink" onClick={() => goSection('bandi')}>Guarda i bandi</button> oppure <button className="underline text-ink" onClick={() => goSection('progetti')}>i progetti</button>.</div>}
+      {totalStep}
+      {misureStep}
       {resultSteps}
     </div>
   )
@@ -867,6 +922,7 @@ export default function AllocationView({ onGoProfile, onBudgetFrom, onOpenBudget
       {inProject ? (
         <>
           <div className="rounded-2xl border border-brand/50 bg-brand/5 p-4 text-sm text-ink-2">Progetto in uso: <span className="font-medium text-ink">«{project.title}»</span>. Le sue spese nuove, con i bandi a progetto adatti che lo finanziano. <button className="underline text-ink" onClick={() => goStep('progetti')}>Cambia progetto</button></div>
+          {totalStep}
           {resultSteps}
         </>
       ) : <p className="text-xs text-mute px-1">Scegli un progetto per vedere il piano e i budget dei bandi che lo finanziano.</p>}
@@ -960,6 +1016,7 @@ export default function AllocationView({ onGoProfile, onBudgetFrom, onOpenBudget
                     {needs.without_project.slice(0, 3).map((m) => (
                       <li key={m.id} className="rounded-2xl bg-tint p-3 space-y-0.5">
                         <div className="flex flex-wrap items-baseline justify-between gap-2"><span className="text-sm font-medium text-ink">{m.name}</span><span className="text-sm tabular-nums text-emerald-700">fino a {fmtEur(m.total_max_eur)}</span></div>
+                        <div className="flex flex-wrap items-center gap-2"><button className="btn !py-0.5 !text-[11px]" onClick={() => (chosen.some((x) => x.id === m.id) ? goStep('misure') : addMeasure(m.id))}>{chosen.some((x) => x.id === m.id) ? 'Scelta: vedila nel totale' : 'Usa nel totale'}</button></div>
                         <p className="text-xs text-ink-2">{m.value.text} a persona. Chi assumere: {m.who[0].replace(/\.$/, '').toLowerCase()}.{m.status === 'DA_VERIFICARE' && m.to_check[0] ? ` Da verificare: ${m.to_check[0].label}` : ''}</p>
                       </li>
                     ))}

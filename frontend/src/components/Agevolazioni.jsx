@@ -4,6 +4,7 @@ import { api } from '../lib/api'
 import { Info } from './ui'
 import Guide from './Guide'
 import { allocationGo, profileGo, useNav } from '../lib/nav'
+import { loadChoice, saveChoice, withChoice, withoutChoice } from '../lib/measureChoice'
 
 const STATUS = {
   APPLICABILE: ['Per te sì', 'bg-emerald-500/15 text-emerald-700'],
@@ -71,7 +72,7 @@ function CatalogSearch({ item, region, onBudgetFrom }) {
   )
 }
 
-function Item({ it, region, onAnswer, onBudgetFrom }) {
+function Item({ it, region, onAnswer, onBudgetFrom, chosen, onChoose, onUnchoose }) {
   const nav = useNav()
   const [open, setOpen] = useState(false)
   const [label, tone] = STATUS[it.status] || STATUS.DA_VERIFICARE
@@ -103,8 +104,16 @@ function Item({ it, region, onAnswer, onBudgetFrom }) {
           {it.search && <CatalogSearch item={it} region={it.regional ? region : null} onBudgetFrom={onBudgetFrom} />}
           {it.family === 'ESONERI_INPS' && it.value && (
             <div className="rounded-xl bg-white p-3 space-y-2">
-              <p>Per gli sgravi non c’è un budget da compilare: il vantaggio si applica in busta paga. Si collega ai <span className="font-medium text-ink">bisogni di crescita</span>: quante assunzioni servono, in quale reparto e quanto valgono al massimo.</p>
-              <button className="btn" onClick={() => { allocationGo('bisogni'); nav.go('allocation') }}>Usa nelle assunzioni dell’Allocazione</button>
+              <p>Per gli sgravi non c’è un budget da compilare: il vantaggio si applica in busta paga. Se la scegli, entra nell’Allocazione: lì vedi quante assunzioni la usano, quanto vale al massimo, quali condizioni e dichiarazioni servono e come si somma al totale con i bandi.</p>
+              {['NON_APPLICABILE', 'SCADUTA', 'DOPO_LA_COSTITUZIONE'].includes(it.status)
+                ? <p className="text-amber-700">Non si può usare ora: {it.why_not[0] || 'non è applicabile a questa impresa.'}</p>
+                : (
+                  <div className="flex flex-wrap items-center gap-2">
+                    <button className="btn-primary" onClick={() => onChoose(it.id)}>{chosen ? 'Scelta: vedila nell’Allocazione' : 'Usa nelle assunzioni dell’Allocazione'}</button>
+                    {chosen && <button className="btn" onClick={() => onUnchoose(it.id)}>Togli dall’Allocazione</button>}
+                    {it.status === 'DA_VERIFICARE' && <span className="text-amber-700">Resta «da verificare»: non si somma al totale finché non rispondi alle domande qui sopra.</span>}
+                  </div>
+                )}
             </div>
           )}
         </div>
@@ -121,6 +130,10 @@ export default function Agevolazioni({ clientId, onBudgetFrom }) {
   const [fam, setFam] = useState('ESONERI_INPS')
   const load = () => api.measures().then((d) => { setData(d); setError(null) }).catch((e) => setError(e.message))
   useEffect(() => { load() }, [clientId])
+  const [choice, setChoice] = useState([])                       // le agevolazioni scelte per l'Allocazione di questo lavoro
+  useEffect(() => { loadChoice().then(setChoice) }, [clientId])
+  const choose = async (id) => { const next = withChoice(choice, id); setChoice(next); await saveChoice(next); allocationGo('misure'); nav.go('allocation') }
+  const unchoose = async (id) => { const next = withoutChoice(choice, id); setChoice(next); await saveChoice(next) }
   useEffect(() => { window.addEventListener('quanto-profile-changed', load); return () => window.removeEventListener('quanto-profile-changed', load) }, [])
   const current = useMemo(() => data?.families.find((f) => f.id === fam), [data, fam])
   const answer = (key) => { profileGo({ to: 'quick', field: key }); nav.go('profilo') }
@@ -157,7 +170,7 @@ export default function Agevolazioni({ clientId, onBudgetFrom }) {
       {current && (
         <div className="space-y-3">
           <p className="text-sm text-ink-2 leading-relaxed">{current.text}</p>
-          <ul className="space-y-2.5">{current.items.map((it) => <Item key={it.id} it={{ ...it, family: fam }} region={c.region} onAnswer={answer} onBudgetFrom={onBudgetFrom} />)}</ul>
+          <ul className="space-y-2.5">{current.items.map((it) => <Item key={it.id} it={{ ...it, family: fam }} region={c.region} onAnswer={answer} onBudgetFrom={onBudgetFrom} chosen={choice.some((x) => x.id === it.id)} onChoose={choose} onUnchoose={unchoose} />)}</ul>
         </div>
       )}
       <p className="text-[11px] text-mute leading-relaxed">Ultimo controllo delle regole: {data.verified_on.split('-').reverse().join('/')}. {data.warning}</p>

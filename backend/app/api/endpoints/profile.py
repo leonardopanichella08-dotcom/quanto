@@ -1,5 +1,5 @@
 """Profilo aziendale: dati dell'impresa e bilanci per esercizio, stima dell'anno successivo, bandi adatti, bozza di budget."""
-from typing import Any, Dict, Optional
+from typing import Any, Dict, List, Optional
 
 from fastapi import APIRouter, HTTPException, Request, status
 from pydantic import BaseModel, Field
@@ -166,6 +166,20 @@ def needs(request: Request, year: Optional[int] = None, split: Optional[str] = N
 @router.get("/measures", summary="Le agevolazioni che non sono bandi (esoneri INPS, tirocini, apprendistato, incentivi regionali, nuove imprese) e come valgono per questa impresa")
 def measures_list(request: Request) -> dict:
     return measures.for_company(cp.profile_values(scope_of(request)))
+
+
+class MeasureChoice(BaseModel):
+    id: str = Field(..., max_length=64)
+    hires: int = Field(default=1, ge=1, le=50, description="Quante assunzioni useranno questa agevolazione")
+
+
+class MeasuresSelectionBody(BaseModel):
+    items: List[MeasureChoice] = Field(default_factory=list, max_length=20)
+
+
+@router.post("/measures/selection", summary="Le agevolazioni scelte per l'allocazione: condizioni, dichiarazioni, leggi, importo massimo e quali entrano nel totale")
+def measures_selection(body: MeasuresSelectionBody, request: Request) -> dict:
+    return measures.selection(cp.profile_values(scope_of(request)), [c.model_dump() for c in body.items])
 
 
 @router.get("/project-types", summary="Le tipologie di progetto che un bando può finanziare")

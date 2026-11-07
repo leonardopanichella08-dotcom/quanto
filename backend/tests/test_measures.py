@@ -107,3 +107,47 @@ def test_a_sole_trader_never_reads_the_word_balance_sheet():
     assert cp.say("capitali-test", "Nel bilancio 2024") == "Nel bilancio 2024"                           # le società di capitali leggono «bilancio»
     ov = cp.overview(owner)
     assert ov["document"]["kind"] == "DICHIARAZIONE_REDDITI" and all("bilanci" not in m["label"].lower() for m in ov["missing"])
+
+
+def test_selection_counts_only_applicable_measures_and_one_exoneration_per_hire():
+    sel = measures.selection(PROFILE, [{"id": "BONUS_GIOVANI_2026", "hires": 2}, {"id": "BONUS_DONNE_2026", "hires": 1}, {"id": "BONUS_ZES_2026", "hires": 1}], D)
+    by = {r["id"]: r for r in sel["items"]}
+    assert by["BONUS_GIOVANI_2026"]["max_eur"] == 31200 and by["BONUS_GIOVANI_2026"]["hires"] == 2           # 15.600 € a persona (ZES: 650 € × 24 mesi) per 2 assunzioni
+    assert by["BONUS_DONNE_2026"]["counted"] is False or by["BONUS_GIOVANI_2026"]["counted"] is False        # gli esoneri 2026 non si sommano: ne conta uno solo
+    counted = [r for r in sel["items"] if r["counted"]]
+    assert len(counted) == 1 and sel["total_max_eur"] == counted[0]["max_eur"] and counted[0]["id"] == max(sel["items"], key=lambda r: r["max_eur"] or 0)["id"]
+    loser = next(r for r in sel["items"] if not r["counted"])
+    assert "Non cumulabile" in loser["reason"]
+    assert by["BONUS_GIOVANI_2026"]["worker"] and by["BONUS_GIOVANI_2026"]["company"] and by["BONUS_GIOVANI_2026"]["cumulation"] and by["BONUS_GIOVANI_2026"]["source"]["label"]   # dichiarazioni, leggi e fonte vanno con la scelta
+
+
+def test_selection_never_sums_a_measure_with_a_missing_decisive_datum_or_that_does_not_apply():
+    unknown = measures.selection({**PROFILE, "durc_regular": None}, [{"id": "BONUS_GIOVANI_2026", "hires": 1}], D)
+    assert unknown["total_max_eur"] == 0 and unknown["items"][0]["counted"] is False and "Manca un dato" in unknown["items"][0]["reason"]
+    no = measures.selection({**PROFILE, "region": "Lombardia"}, [{"id": "BONUS_ZES_2026", "hires": 1}], D)
+    assert no["total_max_eur"] == 0 and "ZES" in no["items"][0]["reason"]
+    assert measures.selection(PROFILE, [{"id": "NON_ESISTE", "hires": 1}], D)["items"] == []
+    reg = measures.selection(PROFILE, [{"id": "TIROCINIO_GARANZIA_GIOVANI", "hires": 1}], D)                    # famiglia regionale: nessun importo inventato
+    assert reg["items"][0]["counted"] is False and reg["total_max_eur"] == 0
+
+
+def test_selection_endpoint_answers_for_the_current_company():
+    from fastapi.testclient import TestClient
+    from main import app
+    r = TestClient(app).post("/api/v2/profile/measures/selection", json={"items": [{"id": "BONUS_GIOVANI_2026", "hires": 2}, {"id": "NON_ESISTE", "hires": 1}]})
+    assert r.status_code == 200
+    body = r.json()
+    assert [i["id"] for i in body["items"]] == ["BONUS_GIOVANI_2026"] and body["items"][0]["hires"] == 2           # senza dati sull'impresa non si somma nulla: si chiede il dato
+    assert body["total_max_eur"] == 0 and body["items"][0]["to_check"]
+    assert TestClient(app).post("/api/v2/profile/measures/selection", json={"items": [{"id": "X", "hires": 0}]}).status_code == 422
+
+
+def test_the_chosen_measures_are_saved_per_work_so_the_allocation_can_use_them():
+    from fastapi.testclient import TestClient
+    from main import app
+    c = TestClient(app)
+    job = c.post("/api/v2/clients", json={"name": "Lavoro di prova"}).json()["id"]
+    h = {"X-Client-Id": str(job)}
+    items = [{"id": "BONUS_GIOVANI_2026", "hires": None}, {"id": "BONUS_ZES_2026", "hires": 2}]
+    assert c.put("/api/v2/clients/current/state/allocation_measures", json={"value": {"items": items}}, headers=h).status_code == 200
+    assert c.get("/api/v2/clients/current/state/allocation_measures", headers=h).json()["value"]["items"] == items
