@@ -13,7 +13,7 @@ from app.core import events
 from app.core.db import connect
 
 MAX_STATE_BYTES = 2_000_000
-STATE_KEYS = {"allocation", "budget", "confronto", "budget-set", "aids-register", "project-ideas", "allocation_measures"}
+STATE_KEYS = {"allocation", "budget", "confronto", "budget-set", "aids-register", "project-ideas", "allocation_measures", "measure_positions", "agent_seen"}
 
 
 class ClientError(ValueError):

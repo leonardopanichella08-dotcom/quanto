@@ -97,6 +97,11 @@ def recommend(body: RecommendBody, request: Request) -> dict:
     return _guard(tl.recommend, actor_of(request), body.ateco_code, body.bando_id, body.draft, None, body.engine)
 
 
+@router.get("/win-rate", summary="Quanti budget di un bando sono stati ammessi (dato di partenza per la probabilità di successo, se ci sono almeno 3 esiti)")
+def win_rate(request: Request, bando_id: str, ateco_code: Optional[str] = None) -> dict:
+    return {"win_rate": _guard(tl.win_rate, actor_of(request), bando_id, ateco_code)}
+
+
 @router.get("/niches", summary="Mappa: quali nicchie partecipano a quali bandi, con quale ripartizione e quanti ammessi")
 def niches(request: Request, engine: str = "COLLETTIVO") -> list:
     return _guard(tl.niche_map, actor_of(request), engine)

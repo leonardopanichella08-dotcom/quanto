@@ -7,6 +7,7 @@ import { fmtEur, fmtNum } from '../lib/format'
 import { fmtTok } from './Tokens'
 import { flashTo, takePublishRequest } from '../lib/nav'
 import Guide from './Guide'
+import AgentBar from './AgentBar'
 
 const COLORS = ['#38bdf8', '#34d399', '#a78bfa', '#f472b6', '#fbbf24', '#fb7185', '#94a3b8', '#d4d4d8']
 const BY_CATEGORY = { PERSONNEL: 'personnel_pct', CAPITAL_ASSETS: 'assets_pct', CONSULTING: 'consulting_pct', OVERHEAD: 'overhead_pct', TRAINING: 'training_pct' }
@@ -17,6 +18,26 @@ function ShareBar({ shares, meta, height = 'h-5' }) {
   return (
     <div className={`flex ${height} rounded overflow-hidden bg-tint-2`} role="img" aria-label={meta.map((m) => `${m.label} ${pct(shares[m.key])}`).join(', ')}>
       {meta.map((m, i) => shares[m.key] > 0 && <div key={m.key} title={`${m.label}: ${pct(shares[m.key])}`} style={{ width: `${shares[m.key] * 100}%`, background: COLORS[i % COLORS.length] }} />)}
+    </div>
+  )
+}
+
+/** Il budget (consigliato o tuo) contro le regole di quota del bando: categorie ammesse, tetto sulle consulenze, forfait. Se sfora, la versione già dentro i tetti. */
+function RulesCheck({ check, meta, who, onUse }) {
+  if (!check) return null
+  if (!check.available) return <p className="text-[11px] text-mute leading-relaxed">{check.message}</p>
+  const bad = check.checks.filter((c) => !c.ok)
+  if (check.outcome === 'CONFORME') return <p className="text-xs text-emerald-700 flex gap-1.5"><CheckCircle2 className="w-3.5 h-3.5 mt-0.5 shrink-0" />{who} rispetta le regole di quota del bando.</p>
+  return (
+    <div className="p-3 rounded-xl border border-amber-500/30 bg-amber-500/5 text-xs text-ink-2 space-y-1.5">
+      <p className="font-medium text-amber-700 inline-flex items-center gap-1.5"><AlertTriangle className="w-3.5 h-3.5" />{who} non rispetta tutte le regole del bando</p>
+      {bad.map((c) => <p key={c.rule}><span className="font-medium text-ink">{c.rule}:</span> {c.detail}.</p>)}
+      {check.fitted && (
+        <div className="space-y-1.5 pt-1">
+          <p>Versione che le rispetta: {meta.filter((m) => Math.abs((check.fitted[m.key] || 0) * 100 - 0) > 0.05).map((m) => `${m.label.toLowerCase()} ${pct(check.fitted[m.key])}`).join(' · ')}.</p>
+          {onUse && <button className="btn !py-1" onClick={() => onUse(check.fitted)}>Parti da questa versione</button>}
+        </div>
+      )}
     </div>
   )
 }
@@ -36,7 +57,7 @@ function sharesOfValidation(validation) {
 
 const bonus = 0.5
 
-export default function Confronto({ validation, client }) {
+export default function Confronto({ validation, client, bando }) {
   const [meta, setMeta] = useState(null)
   const [bandi, setBandi] = useState([])
   const [affini, setAffini] = useState(null)             // bandi affini al lavoro: {options, note}
@@ -62,19 +83,25 @@ export default function Confronto({ validation, client }) {
   const [fold, setFold] = useState({})                // le sezioni di consultazione restano chiuse finché non servono
   const toggleFold = (k) => setFold((f) => ({ ...f, [k]: !f[k] }))
   const fromBudget = useMemo(() => sharesOfValidation(validation), [validation])
+  const published = useRef(false)                     // arrivo dal Budget: bando e quote del budget controllato non devono essere sovrascritti dalle scelte salvate prima
 
   // «Pubblica questo budget» dal Budget: le quote del budget controllato si compilano da sole e si arriva al riquadro in alto
   useEffect(() => {
     if (!restored) return undefined
     const go = () => {
       if (!takePublishRequest()) return
+      published.current = true
+      if (bando?.bando_id) {                           // il bando del budget che si sta confrontando, anche se non è tra gli affini
+        setBandoId(bando.bando_id)
+        setExtra((e) => (e.some((x) => x.bando_id === bando.bando_id) ? e : [...e, { bando_id: bando.bando_id, name: bando.name, tag: 'dal Budget' }]))
+      }
       if (fromBudget) setForm((f) => ({ ...f, shares: fromBudget.shares, total: String(fromBudget.total), shared: true }))
       flashTo('pubblica')
     }
     go()
     window.addEventListener('quanto-publish-goto', go)
     return () => window.removeEventListener('quanto-publish-goto', go)
-  }, [restored, fromBudget])
+  }, [restored, fromBudget, bando])
 
   const refresh = useCallback(async () => {
     const [m, n, l] = await Promise.all([api.templatesMine(), api.templateNiches(engine), api.templateLearning(engine)])
@@ -92,14 +119,16 @@ export default function Confronto({ validation, client }) {
         setAteco(v?.ateco || (get('ateco_code') ? String(get('ateco_code')) : client?.ateco_code || ''))
         setRegion(v?.region || (get('region') ? String(get('region')) : ''))
         setSize(v?.size || ov?.size?.code || '')
-        if (v?.bandoId) setBandoId(v.bandoId)
         if (v?.engine) setEngine(v.engine)
-        if (v?.extra) setExtra(v.extra)
-        if (v?.form) setForm(v.form)
+        if (!published.current) {                     // le scelte salvate valgono solo se non si è appena arrivati dal Budget con un budget da confrontare
+          if (v?.bandoId) setBandoId(v.bandoId)
+          if (v?.extra) setExtra(v.extra)
+          if (v?.form) setForm(v.form)
+        }
         setRestored(true)
       } catch (e) { setError(e.message); setRestored(true) }
     })()
-  }, [client])
+  }, [client?.id])        // eslint-disable-line react-hooks/exhaustive-deps
   // i bandi affini al lavoro (stessa logica dell'Allocazione): solo quelli che l'azienda può davvero fare, per evitare errori di scelta
   useEffect(() => {
     if (!restored) return
@@ -171,8 +200,26 @@ export default function Confronto({ validation, client }) {
   const shareMeta = meta.shares
   const bandoName = (id) => bandoOptions.find((b) => b.bando_id === id)?.name || bandi.find((b) => b.bando_id === id)?.name || id
 
+  const okShares = sum > 0 && Math.abs(sum - 1) <= 0.0205
+  const waiting = mine.filter((t) => t.outcome === 'PRESENTATO').length
+  const needs = [
+    (!ateco || !bandoId) && 'Indica il codice ATECO e il bando nel riquadro «Pubblica il tuo budget».',
+    ateco && bandoId && !okShares && 'Compila le quote del tuo budget (devono fare 100%) per vedere quanto ti discosti dal consiglio e per pubblicarlo.',
+    waiting > 0 && `${waiting === 1 ? '1 budget presentato aspetta' : `${waiting} budget presentati aspettano`} l’esito: quando il bando risponde, indicalo in «I template del tuo studio» e il consiglio migliora.`,
+  ].filter(Boolean)
+  const verdict = rec?.status === 'OK' && rec.rules_check?.available ? (rec.rules_check.outcome === 'CONFORME' ? ' Il consiglio rispetta le regole di quota del bando.' : (rec.rules_check.fitted ? ' Il consiglio non rispetta tutte le regole del bando: ho preparato la versione che le rispetta.' : ' Il consiglio non rispetta tutte le regole del bando.')) : ''
+  const agent = (
+    <AgentBar current="pattern"
+      did={rec?.status === 'OK' ? `Ho cercato budget simili al tuo: ${rec.real_templates} reali${rec.example_templates ? ` e ${rec.example_templates} esempi` : ''} (${rec.basis_label}).` : (rec?.status === 'NO_DATA' ? 'Ho cercato budget simili al tuo ma ce ne sono ancora pochi.' : null)}
+      found={rec?.status === 'OK' ? `Fiducia ${rec.confidence.toLowerCase()}.${rec.comparison ? ` Il tuo budget dista il ${fmtNum(rec.comparison.distance * 100, 1)}% dal consiglio.` : ''}${verdict}` : (rec?.status === 'NO_DATA' ? 'Servono almeno 3 budget simili per dare un consiglio: ogni budget che pubblichi lo avvicina.' : null)}
+      need={needs.length ? <span className="space-y-1 block">{needs.map((n) => <span key={n} className="block">{n}</span>)}</span> : null}
+      busy={saving}
+      next={{ label: ateco && bandoId && okShares ? (form.shared !== false ? 'Pubblica per tutti' : 'Salva nello studio') : 'Vai al riquadro per pubblicare', onClick: () => (ateco && bandoId && okShares ? save() : flashTo('pubblica')) }} />
+  )
+
   return (
     <div className="space-y-6">
+      {agent}
       <Guide page="pattern" />
       {error && <div className="p-3 rounded-xl border border-red-500/30 text-red-700 text-xs">{error}</div>}
 
@@ -240,6 +287,7 @@ export default function Confronto({ validation, client }) {
           <button className="text-xs underline text-ink-2 text-left" onClick={() => ask(draftPct)}>Confronta con il consiglio</button>
         )}
         {rec?.comparison && <p className="text-xs text-ink-2 leading-relaxed p-3 rounded-xl bg-field border border-line">{rec.comparison.message}</p>}
+        {rec?.comparison?.rules_check?.available && <RulesCheck check={rec.comparison.rules_check} meta={shareMeta} who="Il tuo budget" onUse={(f) => setForm((x) => ({ ...x, shares: Object.fromEntries(Object.entries(f).map(([k, v]) => [k, Math.round(v * 1000) / 10])) }))} />}
         <label className="space-y-1 block sm:max-w-xs"><span className="label">Esito</span><select className="field" value={form.outcome} onChange={(e) => setForm({ ...form, outcome: e.target.value })}>{meta.outcomes.map((o) => <option key={o.key} value={o.key}>{o.label}</option>)}</select></label>
         <div>
           <button type="button" className="text-xs underline text-ink-2" onClick={() => toggleFold('altri')} aria-expanded={!!fold.altri}>{fold.altri ? 'Nascondi gli altri dati' : 'Aggiungi altri dati (facoltativi: importo, punteggio, regione, nota)'}</button>
@@ -307,13 +355,14 @@ export default function Confronto({ validation, client }) {
             </div>
             <ShareBar shares={rec.recommended} meta={shareMeta} height="h-7" />
             <Legend meta={shareMeta} />
+            <RulesCheck check={rec.rules_check} meta={shareMeta} who="Il consiglio" onUse={(f) => setForm((x) => ({ ...x, shares: Object.fromEntries(Object.entries(f).map(([k, v]) => [k, Math.round(v * 1000) / 10])) }))} />
             <table className="w-full text-xs"><thead><tr className="text-left text-mute"><th className="py-1 font-medium">Voce</th><th className="font-medium text-right">Consigliata</th><th className="font-medium text-right">Di solito tra</th></tr></thead>
               <tbody>{shareMeta.map((m) => <tr key={m.key} className="border-t border-line"><td className="py-1.5 text-ink-2">{m.label}</td><td className="text-right font-semibold tabular-nums">{pct(rec.recommended[m.key])}</td><td className="text-right text-mute tabular-nums">{pct(rec.range[m.key].low)} – {pct(rec.range[m.key].high)}</td></tr>)}</tbody></table>
             <ul className="text-xs text-ink-2 space-y-1">{rec.explanation.map((t, i) => <li key={i} className="flex gap-1.5"><CheckCircle2 className="w-3.5 h-3.5 mt-0.5 text-emerald-600 shrink-0" />{t}</li>)}</ul>
             {rec.styles?.length > 0 && (
               <div className="space-y-2"><span className="label">Stili di budget trovati</span>
-                {rec.styles.map((s) => (
-                  <div key={s.name} className="p-3 rounded-xl border border-line bg-field space-y-1.5"><div className="flex justify-between text-xs"><span className="font-medium text-ink">{s.name}</span><span className="text-mute">{s.templates} template · {s.wins} ammessi</span></div><ShareBar shares={s.shares} meta={shareMeta} height="h-3" /></div>
+                {rec.styles.map((s, i) => (
+                  <div key={`${s.name}-${i}`} className="p-3 rounded-xl border border-line bg-field space-y-1.5"><div className="flex justify-between text-xs"><span className="font-medium text-ink">{s.name}</span><span className="text-mute">{s.templates} template · {s.wins} ammessi</span></div><ShareBar shares={s.shares} meta={shareMeta} height="h-3" /></div>
                 ))}
               </div>
             )}

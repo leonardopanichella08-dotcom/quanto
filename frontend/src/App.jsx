@@ -22,17 +22,18 @@ import { PasswordModal } from './components/Login'
 import { TokensModal } from './components/Tokens'
 import { AssistantProvider, useAssistant } from './assistant/AssistantContext'
 
+// L'ordine è quello in cui si lavora: agevolazioni → allocazione (tutti i bandi e il piano) → budget di ogni bando → confronto con chi ha già vinto.
 const TABS = [
-  ['agevolazioni', 'Agevolazioni', HandCoins], ['bandi', 'Bandi', Library], ['canvas', 'Budget', Calculator], ['allocation', 'Allocazione', Split],
-  ['pattern', 'Confronto', GitCompare], ['auditor', 'Verifica', ShieldCheck], ['guida', 'Guida', BookOpen], ['profilo', 'Profilo', User],
+  ['agevolazioni', 'Agevolazioni', HandCoins], ['allocation', 'Allocazione', Split], ['canvas', 'Budget', Calculator], ['pattern', 'Confronto', GitCompare],
+  ['bandi', 'Bandi', Library], ['auditor', 'Verifica', ShieldCheck], ['guida', 'Guida', BookOpen], ['profilo', 'Profilo', User],
 ]
 // Una riga per pagina: a cosa serve, in parole semplici.
 const HEADS = {
-  agevolazioni: ['Agevolazioni', 'Tutto ciò che può aiutare l’impresa a crescere, non solo i bandi: sgravi, tirocini, apprendistato, incentivi regionali.'],
-  bandi: ['Bandi', 'Cerca un bando, leggi le sue regole e scegli quello per il tuo budget.'],
-  canvas: ['Budget', 'Inserisci le spese e controlla ogni regola del bando.'],
-  allocation: ['Allocazione', 'Scopri quale fondo paga ogni spesa e quanto resta a carico tuo.'],
-  pattern: ['Confronto', 'Quali aziende, di quale nicchia, partecipano a quali bandi e con quale budget: i tuoi template allenano il consiglio.'],
+  agevolazioni: ['Agevolazioni', 'Passo 1. Chi assume l’impresa e quale sgravio vale per ogni persona: la scelta migliore la propone l’agente.'],
+  bandi: ['Bandi', 'L’archivio: cerca un bando, leggi le sue regole e scegli quello per il tuo budget.'],
+  canvas: ['Budget', 'Passo 3. Il budget di ogni bando, controllato regola per regola.'],
+  allocation: ['Allocazione', 'Passo 2. Quali bandi sono davvero per l’impresa, quale fondo paga ogni spesa e quanto ci si può contare.'],
+  pattern: ['Confronto', 'Passo 4. Il tuo budget a confronto con chi ha già partecipato: ogni budget pubblicato migliora il consiglio per tutti.'],
   auditor: ['Verifica', 'Controlla che un budget certificato non sia stato modificato.'],
   profilo: ['Profilo', 'Il profilo dello studio e i suoi lavori: ogni azienda cliente ha i suoi dati, i suoi documenti e i suoi risultati.'],
 }
@@ -332,8 +333,8 @@ function AppInner({ bridge }) {
       {!assistant.open && <Sidebar user={user} isOwner={isOwner} tab={tab === 'lab' ? 'canvas' : tab} clients={clients} clientId={clientId} onClient={(id) => { chooseClient(id); setMenuOpen(false) }}
         onNewClient={() => { nav.go('profilo'); setMenuOpen(false); setTimeout(() => document.getElementById('lavori')?.scrollIntoView({ behavior: 'smooth' }), 250) }}
         onGo={(id) => { nav.go(id); setMenuOpen(false) }} onLogout={logout} open={menuOpen} onClose={() => setMenuOpen(false)}
-        groups={[{ title: 'Analisi', items: TABS.filter(([id]) => ['agevolazioni', 'allocation', 'pattern'].includes(id)) }, { title: 'Bandi e budget', items: TABS.filter(([id]) => ['bandi', 'canvas'].includes(id)) },
-          { title: 'Controllo', items: TABS.filter(([id]) => id === 'auditor') }]}
+        groups={[{ title: 'Il percorso', items: TABS.filter(([id]) => ['agevolazioni', 'allocation', 'canvas', 'pattern'].includes(id)) },
+          { title: 'Archivio e controllo', items: TABS.filter(([id]) => ['bandi', 'auditor'].includes(id)) }]}
         footer={TABS.filter(([id]) => ['guida', 'profilo'].includes(id))} onAssistant={assistant.openMenu} />}
       <div className="flex-1 min-w-0">
       <MobileBar onOpen={() => setMenuOpen(true)} />
@@ -366,7 +367,7 @@ function AppInner({ bridge }) {
           </div>
         )}
         <Keep id="allocation" tab={tab} visited={visited}>{clientId ? <AllocationView key={clientId} onGoProfile={(t) => { nav.go('profilo'); if (t) profileGo(t) }} onBudgetFrom={budgetFrom} onOpenBudgets={openBudgetSet} /> : gate ? <NeedClient onGo={() => nav.go('profilo')} /> : null}</Keep>
-        <Keep id="pattern" tab={tab} visited={visited}>{clientId ? <Confronto key={clientId} validation={validation} client={activeClient} /> : gate ? <NeedClient onGo={() => nav.go('profilo')} /> : null}</Keep>
+        <Keep id="pattern" tab={tab} visited={visited}>{clientId ? <Confronto key={clientId} validation={validation} client={activeClient} bando={bando} /> : gate ? <NeedClient onGo={() => nav.go('profilo')} /> : null}</Keep>
         {tab === 'auditor' && (
           <AuditorPortal request={request} defaultProject={params.get('project') || validation?.project_id || request.project_id}
             defaultRoot={params.get('root') || validation?.merkle_root} />

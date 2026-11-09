@@ -558,6 +558,21 @@ ALTER TABLE application_docs ENABLE ROW LEVEL SECURITY;
 ALTER TABLE application_runs ENABLE ROW LEVEL SECURITY;
 """
 
+_RELEVANCE_SIGNALS = """
+-- Segnali anonimi degli studi sul giudizio di pertinenza («non è per questa azienda» / «invece è per lei»): servono a migliorare il dizionario dei settori, che un manager approva a mano.
+CREATE TABLE relevance_signals (
+    bando_id TEXT NOT NULL,
+    owner_hash TEXT NOT NULL,
+    signal TEXT NOT NULL CHECK (signal IN ('NOT_FOR_ME', 'FOR_ME')),
+    engine_fit TEXT,
+    ateco_division TEXT,
+    region TEXT,
+    created_at TEXT NOT NULL,
+    PRIMARY KEY (bando_id, owner_hash, signal)
+);
+ALTER TABLE relevance_signals ENABLE ROW LEVEL SECURITY;
+"""
+
 MIGRATIONS: List[Tuple[int, str, str]] = [
     (1, "init", _INIT),
     (2, "fonte_b", _FONTE_B),
@@ -580,4 +595,5 @@ MIGRATIONS: List[Tuple[int, str, str]] = [
     (19, "template_examples", _TEMPLATE_EXAMPLES),
     (20, "tokens_decimal", _TOKENS_DECIMAL),
     (21, "sources_forms", _SOURCES_FORMS),
+    (22, "relevance_signals", _RELEVANCE_SIGNALS),
 ]

@@ -81,8 +81,8 @@ export function MeasuresPanel({ sel, onHires, onRemove, onGoAgevolazioni, sugges
   const items = sel?.items || []
   return (
     <div className="space-y-3">
-      <Note>Sono le agevolazioni scelte dalla pagina Agevolazioni (o da qui sotto). Non sono bandi e non hanno un budget: si applicano in busta paga. Valgono per ogni nuova assunzione e si sommano al totale solo se non manca nessun dato decisivo; gli esoneri 2026 non si sommano tra loro (per ogni assunzione conta il più ricco).</Note>
-      {items.length === 0 && <p className="text-sm text-ink-2">Nessuna agevolazione scelta. Scegline una dalla pagina Agevolazioni con «Usa nelle assunzioni dell’Allocazione»{suggestions.length ? ' oppure da qui sotto' : ''}.</p>}
+      <Note>Sono le agevolazioni scelte dalla pagina Agevolazioni (o da qui sotto). Non sono bandi e non hanno un budget: si applicano in busta paga. Valgono per ogni nuova assunzione e si sommano al totale solo se non manca nessun dato decisivo; per ogni persona conta un solo esonero, il più ricco (persone diverse possono usarne di diversi).</Note>
+      {items.length === 0 && <p className="text-sm text-ink-2">Nessuna agevolazione scelta. Indica nella pagina Agevolazioni chi assume l’impresa{suggestions.length ? ' oppure scegline una da qui sotto' : ''}.</p>}
       <ul className="space-y-3">
         {items.map((m) => (
           <li key={m.id} className="rounded-2xl bg-tint p-4 space-y-2.5">
@@ -94,10 +94,12 @@ export function MeasuresPanel({ sel, onHires, onRemove, onGoAgevolazioni, sugges
               <span className={`px-2 py-0.5 rounded-full text-[11px] font-medium ${m.counted ? 'bg-emerald-500/15 text-emerald-700' : 'bg-amber-500/15 text-amber-700'}`}>{m.counted ? 'Nel totale' : 'Non nel totale'}</span>
             </div>
             <div className="flex flex-wrap items-end gap-x-6 gap-y-2">
-              <div><span className="label">Assunzioni</span>
-                <div className="flex items-center gap-2"><button className="btn !px-2 !py-0.5" aria-label="Meno assunzioni" disabled={m.hires <= 1} onClick={() => onHires(m.id, m.hires - 1)}>−</button><span className="w-5 text-center text-sm tabular-nums">{m.hires}</span><button className="btn !px-2 !py-0.5" aria-label="Più assunzioni" onClick={() => onHires(m.id, m.hires + 1)}>+</button></div></div>
+              {m.assigned
+                ? <div><span className="label">Persone</span><div className="text-sm font-medium text-ink">{m.hires} {m.hires === 1 ? 'persona' : 'persone'}<span className="block text-[11px] font-normal text-mute">scelte nella pagina Agevolazioni</span></div></div>
+                : <div><span className="label">Assunzioni</span>
+                  <div className="flex items-center gap-2"><button className="btn !px-2 !py-0.5" aria-label="Meno assunzioni" disabled={m.hires <= 1} onClick={() => onHires(m.id, m.hires - 1)}>−</button><span className="w-5 text-center text-sm tabular-nums">{m.hires}</span><button className="btn !px-2 !py-0.5" aria-label="Più assunzioni" onClick={() => onHires(m.id, m.hires + 1)}>+</button></div></div>}
               <div><span className="label">Valore massimo</span><div className="text-lg font-display font-semibold text-emerald-700 tabular-nums">{m.max_eur == null ? '—' : fmtEur(m.max_eur)}</div></div>
-              {m.value?.text && <div className="text-xs text-ink-2 max-w-xs"><span className="label">Come si calcola</span><br />{m.value.text} per ogni assunzione × {m.hires}</div>}
+              {m.value?.text && <div className="text-xs text-ink-2 max-w-xs"><span className="label">Come si calcola</span><br />{m.exact ? `tetto mensile × i mesi di ogni persona (${m.value.cap_month_eur} € al mese)` : `${m.value.text} per ogni assunzione × ${m.hires}`}</div>}
               <button className="btn !py-1 ml-auto" onClick={() => onRemove(m.id)}>Togli</button>
             </div>
             {!m.counted && m.reason && <p className="text-xs text-amber-700 leading-snug">{m.reason}</p>}
@@ -134,7 +136,7 @@ export function TotalPanel({ annual, project, sel, year, projectSummable = true 
   fundRows('ANNUAL', annual)
   fundRows('PROJECT', project)
   const counted = (sel?.items || []).filter((m) => m.counted)
-  counted.forEach((m) => rows.push({ key: `M-${m.id}`, kind: 'MISURA', name: m.name, issuer: m.source.label, amount: m.max_eur, pctSpese: null, rate: m.value?.text ? `${m.tagline} (${m.value.text} per assunzione)` : m.tagline, base: `costo del lavoro di ${m.hires} ${m.hires === 1 ? 'assunzione' : 'assunzioni'}`, why: <MeasureDetails m={m} />, summable: true }))
+  counted.forEach((m) => rows.push({ key: `M-${m.id}`, kind: 'MISURA', name: m.name, issuer: m.source.label, amount: m.max_eur, pctSpese: null, rate: m.exact ? `${m.tagline} (${m.value.cap_month_eur} € al mese per i mesi di ogni persona)` : (m.value?.text ? `${m.tagline} (${m.value.text} per assunzione)` : m.tagline), base: `costo del lavoro di ${m.hires} ${m.hires === 1 ? 'assunzione' : 'assunzioni'}`, why: <MeasureDetails m={m} />, summable: true }))
   const total = rows.filter((r) => r.summable).reduce((s, r) => s + r.amount, 0)
   const byKind = Object.fromEntries(['ANNUAL', 'PROJECT', 'MISURA'].map((k) => [k, rows.filter((r) => r.kind === k && r.summable).reduce((s, r) => s + r.amount, 0)]))
   const idle = (annual?.plan?.fund_usage || []).filter((u) => !(u.used_eur > 0)).map((u) => (annual.rows || []).find((x) => x.fund?.fund_id === u.fund_id)?.name).filter(Boolean)

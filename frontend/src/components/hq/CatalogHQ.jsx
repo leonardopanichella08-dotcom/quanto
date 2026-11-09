@@ -12,6 +12,28 @@ function Stat({ label, value, note }) {
   return <div className="card p-4"><span className="label">{label}</span><div className="text-2xl font-bold font-mono mt-1">{value}</div>{note && <p className="text-xs text-mute mt-1">{note}</p>}</div>
 }
 
+/** I bandi su cui gli studi non sono d'accordo con il giudizio di pertinenza (segnali anonimi). Servono a decidere se aggiungere una parola al dizionario dei settori: nulla cambia da solo. */
+function Signals() {
+  const [rows, setRows] = useState(null)
+  useEffect(() => { api.relevanceSignals().then((r) => setRows(r.signals)).catch(() => setRows([])) }, [])
+  if (!rows || rows.length === 0) return null
+  return (
+    <div className="card p-4 space-y-2">
+      <p className="text-sm font-semibold text-ink">Giudizi di pertinenza segnalati dagli studi</p>
+      <p className="text-xs text-ink-2">Segnali anonimi («non è per questa azienda» o «invece sì»). Se un bando ne raccoglie da più studi, valuta se aggiungere una parola al dizionario dei settori (file relevance.py): nessun giudizio cambia da solo.</p>
+      <ul className="divide-y divide-line text-xs">
+        {rows.map((r) => (
+          <li key={`${r.bando_id}-${r.signal}`} className="py-1.5 flex flex-wrap gap-2">
+            <span className="text-ink min-w-0 flex-1 break-words">{r.name || r.bando_id}</span>
+            <span className={r.signal === 'NOT_FOR_ME' ? 'text-amber-700' : 'text-sky-700'}>{r.signal === 'NOT_FOR_ME' ? 'non è per l’azienda' : 'invece è per l’azienda'}</span>
+            <span className="text-mute">giudizio di QUANTO: {(r.engine_fit || '—').toLowerCase().replace('_', ' ')} · {r.studios} {r.studios === 1 ? 'studio' : 'studi'}</span>
+          </li>
+        ))}
+      </ul>
+    </div>
+  )
+}
+
 /** Quartier Generale: tutte le voci del catalogo nazionale con la descrizione e le caratteristiche lette dalla scheda ufficiale. */
 export default function CatalogHQ() {
   const [stats, setStats] = useState(null)
@@ -55,6 +77,8 @@ export default function CatalogHQ() {
         <Stat label="Con scadenza futura" value={stats ? stats.open_dated.toLocaleString('it-IT') : '…'} note={stats ? `${stats.undated} senza data` : ''} />
         <Stat label="Già studiati" value={stats ? stats.studied : '…'} note="regole e requisiti letti" />
       </div>
+
+      <Signals />
 
       <div className="flex flex-wrap items-center gap-3">
         <button className="btn-primary" disabled={busy} onClick={describe}>{busy ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <RefreshCw className="w-3.5 h-3.5" />}Leggi le schede da leggere</button>

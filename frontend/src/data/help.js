@@ -116,7 +116,7 @@ export const GUIDE = {
   },
   budget: {
     title: 'Budget',
-    what: 'Qui inserisci le spese del progetto e QUANTO le controlla una per una con i 60 controlli del bando scelto.',
+    what: 'Passo 3, dopo l’Allocazione e prima del Confronto. Qui c’è il budget di ogni bando (anche quelli preparati dall’Allocazione) e QUANTO controlla le spese una per una con i 60 controlli del bando scelto. Quando è controllato, il pulsante in alto lo porta al Confronto.',
     steps: ['Scegli il bando (in alto).', 'Riempi il budget: parti dalla bozza del tuo profilo, importa un Excel o aggiungi voci a mano.', 'Premi “Controlla il budget”.', 'Clicca una voce: capisci perché è stata accettata, ridotta o respinta. Se la modifichi, il controllo si rifà da solo.', 'Se va bene: registra l’impronta o esporta in Excel/PDF.'],
     example: 'Inserisci “Consulenza audit 30.000 €” con le altre spese a 70.000 € e il limite consulenze al 20% del totale: QUANTO ammette 17.500 €, perché 17.500 è il 20% di 87.500 (70.000 + 17.500). L’Ispettore ti mostra il passo esatto.',
     terms: ['voce', 'categoria', 'ammesso', 'punteggio', 'nonvalutato'],
@@ -138,13 +138,13 @@ export const GUIDE = {
   agevolazioni: {
     title: 'Agevolazioni',
     what: 'Tutte le agevolazioni che servono a far crescere un’impresa, non solo i bandi: esoneri e sgravi INPS per chi assume, tirocini, apprendistato, incentivi regionali all’occupazione, misure per le nuove imprese. Per ognuna dice se vale per questa impresa e cosa manca per saperlo.',
-    steps: ['Rispondi alla scheda in un minuto nel Profilo: tipo di impresa, sede, dipendenti, soci, DURC.', 'Scegli una famiglia: ogni misura dice «per te sì», «da verificare» o «non per te» e perché.', 'Apri una misura per vedere chi assumere, che contratto serve, come si ottiene e da quale fonte viene.', 'Per le misure regionali cerca nel catalogo e studia a fondo il bando della tua Regione.'],
-    example: 'Una srl di Bari con 8 dipendenti e DURC regolare: il Bonus Giovani vale fino a 650 € al mese per 12-24 mesi per ogni under 35 svantaggiato assunto a tempo indeterminato; il Bonus Donne fino a 800 €. Non si sommano: si sceglie quello più ricco per ogni assunzione.',
+    steps: ['Controlla in alto cosa ha già fatto l’agente e cosa gli serve da te.', 'In «Chi assume l’impresa» aggiungi ogni persona che si assumerà: sesso, età, da quanto è senza lavoro e l’anno di assunzione (gli esoneri 2026 valgono solo entro il 31/12/2026). Per ognuna scelgo lo sgravio che vale di più.', 'Una persona senza tutti i dati non entra nel totale: ti dico quale dato manca.', 'Apri «Tutte le agevolazioni» per le regole, le condizioni e le misure regionali: i bandi aperti della tua regione sono già collegati.', 'Premi «Vai all’Allocazione»: le persone indicate sono già nel totale.'],
+    example: 'Una srl di Bari con 8 dipendenti e DURC regolare: il Bonus Giovani vale fino a 650 € al mese per 12-24 mesi per ogni under 35 svantaggiato assunto a tempo indeterminato; il Bonus Donne fino a 800 €. Per la stessa persona non si sommano: si sceglie il più ricco. Per due persone diverse si sommano: un under 35 con il Bonus Giovani (15.600 € in 24 mesi) e una donna di 40 anni con il Bonus Donne (19.200 €) fanno 34.800 € al massimo.',
     terms: ['deminimis', 'cumulo'],
   },
   pattern: {
     title: 'Confronto',
-    what: 'Qui salvi come i tuoi clienti hanno ripartito il budget per vincere un bando, nicchia per nicchia. Ogni template allena un consiglio: «per un’azienda di questa nicchia che sceglie questo bando, il budget di solito è fatto così».',
+    what: 'Passo 4, dopo il budget di ogni bando. Qui confronti il budget con chi ha già partecipato e salvi come i tuoi clienti hanno ripartito il budget per vincere un bando, nicchia per nicchia. Ogni template allena un consiglio: «per un’azienda di questa nicchia che sceglie questo bando, il budget di solito è fatto così».',
     steps: ['Scegli il codice ATECO del cliente (la nicchia) e il bando.', 'Leggi il budget consigliato: quote, intervalli, quanti template lo sostengono e quanta fiducia ha.', 'Salva il budget del tuo cliente come template, con l’esito (bozza, presentato, ammesso, non ammesso).', 'Quando arriva l’esito, aggiornalo: i budget ammessi pesano di più e il consiglio si ricalcola da solo.'],
     example: 'Un’azienda agricola sceglie un bando e mette 13% in consulenze, 16,1% in ricerca e sviluppo, 45% in beni strumentali. Se il bando la ammette, quel budget pesa 3 volte una bozza nel consiglio per le prossime aziende agricole.',
     terms: ['pp'],

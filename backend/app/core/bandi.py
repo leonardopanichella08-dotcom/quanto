@@ -379,3 +379,40 @@ def catalog_stats() -> Dict[str, Any]:
             "FROM bandi WHERE bando_id LIKE 'CAT-%' AND extraction_status <> 'REJECTED'", ('%"read_v": 2%', today)).fetchone()
     return {"total": r["total"], "described": int(r["described"]), "to_describe": r["total"] - int(r["described"]), "undated": int(r["undated"]),
             "open_dated": int(r["open_dated"]), "studied": int(r["studied"]), "last_read_at": r["last_read"]}
+
+
+_PUNCT = "'’&-/.,:;()"
+
+
+def open_by_terms(terms: List[str], profile: Optional[Dict[str, Any]] = None, limit: int = 5) -> List[Dict[str, Any]]:
+    """I bandi APERTI del catalogo il cui nome contiene una delle parole indicate, solo se possono riguardare l'azienda (regione, settore, soggetti).
+
+    Serve alle agevolazioni regionali (tirocini, voucher, incentivi all'occupazione): il collegamento al catalogo è già fatto, senza che qualcuno debba cercarlo.
+    Veloce: una sola interrogazione sul nome, nessun confronto approssimato. Non tocca la rete."""
+    ensure_seeded()
+    stems = [_fold(t) for t in terms if len(_fold(t)) >= 4]
+    stems = [t[:-1] if len(t) >= 7 and " " not in t else t for t in stems]          # «tirocini» trova anche «tirocinio»
+    if not stems:
+        return []
+    today = date.today().isoformat()
+    # nel nome la punteggiatura diventa uno spazio, come nelle parole cercate: «all'occupazione» e «Smart&Start» si trovano
+    norm = "' ' || translate(lower(b.name), ?, ?) || ' '"
+    cond = " OR ".join(f"{norm} LIKE ?" for _ in stems)
+    with connect() as conn:
+        rows = conn.execute(
+            "SELECT b.bando_id, b.name, b.issuer, b.deadline, b.source_url, b.catalog_status, b.extraction_status, b.catalog_meta, "
+            "(SELECT COUNT(*) FROM rules r WHERE r.bando_id=b.bando_id AND r.status='PUBLISHED') AS rules FROM bandi b "
+            f"WHERE b.extraction_status <> 'REJECTED' AND ({cond}) AND (b.deadline IS NULL OR b.deadline = 'non indicata' OR b.deadline >= ?) "
+            "AND (b.catalog_status = 'CURATED' OR b.source_url IS NOT NULL) ORDER BY b.deadline, b.name LIMIT 60",
+            tuple(x for t in stems for x in (_PUNCT, " " * len(_PUNCT), f"%{t}%")) + (today,)).fetchall()
+    out: List[Dict[str, Any]] = []
+    for r in rows:
+        if r["catalog_status"] != "CURATED" and _not_for(r["name"], r["issuer"], r["catalog_meta"], profile):
+            continue
+        meta = json.loads(r["catalog_meta"]) if r["catalog_meta"] else {}
+        if meta.get("state") == "CHIUSO":
+            continue
+        out.append({"bando_id": r["bando_id"], "name": r["name"], "issuer": r["issuer"], "deadline": r["deadline"], "studied": bool(r["rules"]), "source_url": r["source_url"]})
+        if len(out) >= limit:
+            break
+    return out

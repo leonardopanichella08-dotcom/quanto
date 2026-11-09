@@ -130,6 +130,29 @@ def _company_profile(request: Request):
     return p if (p.get("region") or p.get("ateco_code")) else None
 
 
+class SignalBody(BaseModel):
+    signal: str = Field(..., description="NOT_FOR_ME (non è per questa azienda) o FOR_ME (invece è per lei)")
+    engine_fit: Optional[str] = Field(default=None, max_length=16, description="Il giudizio di QUANTO al momento del segnale")
+
+
+@router.post("/{bando_id}/signal", dependencies=[Depends(require_auth)], summary="Segnala che il giudizio di pertinenza sbaglia (anonimo): serve a migliorare il dizionario dei settori")
+def relevance_signal(bando_id: str, body: SignalBody, request: Request) -> dict:
+    from app.core import relevance
+    profile = _company_profile(request) or {}
+    try:
+        return relevance.record_signal(actor_of(request), bando_id, body.signal, body.engine_fit, profile)
+    except KeyError:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Bando non trovato") from None
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(exc)) from exc
+
+
+@router.get("/relevance/signals", dependencies=[Depends(require_hq)], summary="Solo Quartier Generale: i bandi su cui gli studi non sono d'accordo con il giudizio di pertinenza")
+def relevance_signals() -> dict:
+    from app.core import relevance
+    return {"signals": relevance.signal_summary()}
+
+
 @router.get("/search", summary="Cerca per nome (esatto o approssimato) tra i bandi già in memoria")
 def search_internal(request: Request, q: str = Query(..., min_length=2, max_length=120),
                     for_company: bool = Query(default=False, description="Solo i bandi che possono riguardare l'azienda del lavoro (regione, settore, soggetti)")) -> dict:

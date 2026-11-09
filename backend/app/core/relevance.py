@@ -139,3 +139,32 @@ def text_fails(name: str, issuer: str, applicants: str, profile: Dict[str, Any])
     if who:
         out.append({"id": "applicant", "label": "Chi può presentare domanda", "detail": f"Il bando è riservato a «{who}»: non a un'impresa come la tua."})
     return out
+
+
+# --- segnali degli studi: il giudizio sbaglia? Si registra, un manager decide se aggiungere una parola al dizionario
+def record_signal(owner: str, bando_id: str, signal: str, engine_fit: Optional[str], profile: Dict[str, Any]) -> Dict[str, Any]:
+    """«Non è per questa azienda» o «invece è per lei», in forma anonima (l'utente è un codice, l'azienda solo ATECO a due cifre e regione). Una volta per utente e bando."""
+    import hashlib
+    from app.core import events
+    from app.core.db import connect
+    if signal not in ("NOT_FOR_ME", "FOR_ME"):
+        raise ValueError("Segnale non valido")
+    who = hashlib.sha256(f"quanto-signal|{owner.split('#')[0]}".encode()).hexdigest()[:12]
+    division = _digits(profile.get("ateco_code"))[:2] or None
+    with connect() as conn:
+        if conn.execute("SELECT 1 FROM bandi WHERE bando_id=?", (bando_id,)).fetchone() is None:
+            raise KeyError(bando_id)
+        conn.execute("INSERT INTO relevance_signals (bando_id, owner_hash, signal, engine_fit, ateco_division, region, created_at) VALUES (?,?,?,?,?,?,?) "
+                     "ON CONFLICT (bando_id, owner_hash, signal) DO UPDATE SET engine_fit=excluded.engine_fit, ateco_division=excluded.ateco_division, region=excluded.region, created_at=excluded.created_at",
+                     (bando_id, who, signal, engine_fit, division, profile.get("region"), events.now_iso()))
+    events.record("relevance.signal", f"Segnale di pertinenza {signal} su {bando_id}", actor="studio", bando_id=bando_id)
+    return {"ok": True}
+
+
+def signal_summary(min_studios: int = 1) -> List[Dict[str, Any]]:
+    """Per il Quartier Generale: i bandi su cui gli studi non sono d'accordo con il giudizio, con quanti studi e per quali settori."""
+    from app.core.db import connect
+    with connect() as conn:
+        rows = conn.execute("SELECT s.bando_id, b.name, s.signal, COUNT(*) AS studios, MAX(s.engine_fit) AS engine_fit FROM relevance_signals s LEFT JOIN bandi b ON b.bando_id=s.bando_id "
+                            "GROUP BY s.bando_id, b.name, s.signal HAVING COUNT(*) >= ? ORDER BY COUNT(*) DESC, s.bando_id LIMIT 100", (min_studios,)).fetchall()
+    return [{"bando_id": r["bando_id"], "name": r["name"], "signal": r["signal"], "studios": int(r["studios"]), "engine_fit": r["engine_fit"]} for r in rows]

@@ -8,6 +8,7 @@ import Documents from './Documents'
 import TemplateFromProfile from './TemplateFromProfile'
 import WorkPackages from './WorkPackages'
 import Guide from './Guide'
+import AgentBar from './AgentBar'
 import HowItWorks from './HowItWorks'
 import TutorialVideo from './TutorialVideo'
 import { Hint } from './Help'
@@ -246,9 +247,30 @@ export default function BudgetCanvas({
   }
 
   const statusCount = validation ? validation.items.reduce((a, i) => ({ ...a, [i.status]: (a[i.status] || 0) + 1 }), {}) : {}
+  const nOk = statusCount.APPROVED || 0
+  const nCut = statusCount.CAP_EXCEEDED_ADJUSTED || 0
+  const nNo = statusCount.REJECTED || 0
+  const nWait = statusCount.MISSING_DOCUMENTS || 0
+  const plural = (n, one, many) => `${n} ${n === 1 ? one : many}`
+  const needs = [
+    !bando && 'Scegli il bando su cui lavorare: senza le sue regole non posso controllare nulla.',
+    bando && !validation && items.length > 0 && 'Il budget non è ancora stato controllato con i 60 criteri.',
+    incompleteItems.length > 0 && `${plural(incompleteItems.length, 'voce è incompleta', 'voci sono incomplete')}: manca un dato per controllarle.`,
+    nWait > 0 && `${plural(nWait, 'voce aspetta', 'voci aspettano')} un documento (per esempio il CUP o la busta paga).`,
+    nNo > 0 && `${plural(nNo, 'voce è respinta', 'voci sono respinte')}: guarda il motivo e correggi.`,
+  ].filter(Boolean)
+  const agent = (
+    <AgentBar current="canvas"
+      did={bando ? (budgetSet ? `Ho preparato ${plural(budgetSet.budgets.length, 'budget', 'budget')} dal piano dell’Allocazione, uno per bando. Stai lavorando su «${bando.name}».` : (items.length ? `Il budget di «${bando.name}» ha ${plural(items.length, 'voce', 'voci')}.` : null)) : null}
+      found={validation ? `${nOk} su ${validation.items.length} voci ammesse${nCut ? `, ${nCut} ridotte per rientrare nei tetti` : ''}${nNo ? `, ${nNo} respinte` : ''}.${budgetSet ? (budgetSet.ok ? ' Verificati insieme: nessun conflitto tra i bandi.' : ' Tra i bandi ci sono incompatibilità: guarda il riquadro qui sotto.') : ''}` : null}
+      need={needs.length ? <span className="space-y-1 block">{needs.map((n) => <span key={n} className="block">{n}</span>)}</span> : null}
+      busy={busy}
+      next={!bando ? { label: 'Vai ai bandi', onClick: onGoBandi } : validation ? { label: 'Confronta con chi ha già vinto', onClick: () => { publishGo(); nav.go('pattern') } } : items.length ? { label: 'Controlla il budget', onClick: onValidate } : null} />
+  )
 
   return (
     <div className="space-y-6">
+      {agent}
       <Guide page="budget" />
       <HowItWorks kind="budget" />
       <TutorialVideo id={budgetSet ? 'T13' : 'T12'} />

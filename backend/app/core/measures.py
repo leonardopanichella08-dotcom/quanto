@@ -18,6 +18,7 @@ from datetime import date
 from typing import Any, Dict, List, Optional
 
 VERIFIED_ON = "2026-10-24"
+STALE_DAYS = 45             # oltre questi giorni dall'ultimo controllo le circolari potrebbero essere cambiate: lo si dice
 ZES_UNICA = {"Abruzzo", "Molise", "Campania", "Basilicata", "Sicilia", "Puglia", "Calabria", "Sardegna", "Marche", "Umbria"}
 
 FAMILIES = [
@@ -46,7 +47,7 @@ MEASURES: List[Dict[str, Any]] = [
      "worker": ["Meno di 35 anni alla data dell'assunzione (fino a 34 anni e 364 giorni).", "Senza impiego regolarmente retribuito da almeno 6, 12 o 24 mesi secondo la categoria di svantaggio (24 mesi: «molto svantaggiato»)."],
      "contract": "Tempo indeterminato, anche in somministrazione. Esclusi tempo determinato, apprendistato, intermittente, occasionale, domestico.",
      "period": "Assunzioni dal 1° gennaio al 31 dicembre 2026.", "valid_to": "2026-12-31",
-     "cap_month_eur": 500, "cap_month_zes_eur": 650, "months": {"MOLTO_SVANTAGGIATO": 24, "SVANTAGGIATO": 12}, "worker_rule": {"age_max": 34},
+     "cap_month_eur": 500, "cap_month_zes_eur": 650, "months": {"MOLTO_SVANTAGGIATO": 24, "SVANTAGGIATO": 12}, "worker_rule": {"age_max": 34, "min_unemployed_months": 6},
      "company": COMMON_COMPANY, "aid": COMMON_AID, "cumulation": EXCLUSIVE,
      "how": "Domanda online sul Portale delle Agevolazioni INPS (ex DiResCo) prima dell'assunzione; poi la comunicazione obbligatoria entro 10 giorni dall'avviso dell'INPS.",
      "source": {"label": "Circolare INPS n. 55 del 14 maggio 2026 (d.l. 62/2026, art. 2)", "url": None}, "verified": "SECONDARIA"},
@@ -54,7 +55,7 @@ MEASURES: List[Dict[str, Any]] = [
      "tagline": "Esonero del 100% dei contributi del datore per assumere una donna svantaggiata a tempo indeterminato, a ogni età.",
      "worker": ["Donna, senza limiti di età.", "Senza impiego regolarmente retribuito da almeno 6, 12 o 24 mesi secondo la categoria di svantaggio."],
      "contract": "Tempo indeterminato.", "period": "Assunzioni dal 1° gennaio al 31 dicembre 2026.", "valid_to": "2026-12-31",
-     "cap_month_eur": 650, "cap_month_zes_eur": 800, "months": {"MOLTO_SVANTAGGIATO": 24, "SVANTAGGIATO": 12}, "worker_rule": {"gender": "F"},
+     "cap_month_eur": 650, "cap_month_zes_eur": 800, "months": {"MOLTO_SVANTAGGIATO": 24, "SVANTAGGIATO": 12}, "worker_rule": {"gender": "F", "min_unemployed_months": 6},
      "company": COMMON_COMPANY, "aid": COMMON_AID, "cumulation": EXCLUSIVE,
      "how": "Domanda online sul Portale delle Agevolazioni INPS prima dell'assunzione (messaggi INPS sulle domande dall'11 giugno 2026).",
      "source": {"label": "Circolare INPS n. 57 del 14 maggio 2026", "url": None}, "verified": "SECONDARIA"},
@@ -62,7 +63,7 @@ MEASURES: List[Dict[str, Any]] = [
      "tagline": "Esonero del 100% dei contributi per assumere un disoccupato di lunga durata (35 anni o più) in una sede della ZES unica.",
      "worker": ["35 anni o più, non dirigente.", "Disoccupato da almeno 24 mesi."],
      "contract": "Tempo indeterminato.", "period": "Assunzioni nel 2026.", "valid_to": "2026-12-31", "needs_zes": True, "max_employees": 10,
-     "cap_month_eur": 650, "cap_month_zes_eur": 650, "months": {"ANY": 24}, "worker_rule": {"age_min": 35},
+     "cap_month_eur": 650, "cap_month_zes_eur": 650, "months": {"ANY": 24}, "worker_rule": {"age_min": 35, "min_unemployed_months": 24},
      "company": COMMON_COMPANY + ["Sede o unità produttiva nella ZES unica (Abruzzo, Molise, Campania, Basilicata, Sicilia, Puglia, Calabria, Sardegna, Marche, Umbria).", "Fino a 10 dipendenti nel mese dell'assunzione, al netto dei lavoratori agevolati."],
      "aid": COMMON_AID, "cumulation": EXCLUSIVE, "how": "Domanda online sul Portale delle Agevolazioni INPS.",
      "source": {"label": "Circolare INPS n. 56 del 14 maggio 2026", "url": None}, "verified": "SECONDARIA"},
@@ -89,7 +90,7 @@ MEASURES: List[Dict[str, Any]] = [
     {"id": "VOUCHER_OCCUPAZIONALI", "family": "OCCUPAZIONE_REGIONALE", "name": "Voucher occupazionali", "group": None,
      "tagline": "Buoni che l'azienda riscatta per abbattere il costo di assunzione o coprire la formazione del nuovo dipendente.",
      "worker": ["Secondo il bando."], "contract": "Secondo il bando.", "period": "A bando.", "valid_to": None, "company": ["Secondo il bando."], "aid": "Dipende dal bando.", "cumulation": "Dipende dal bando.",
-     "how": "Cerca nel catalogo «voucher» e la tua Regione.", "search": ["voucher"], "regional": True, "source": {"label": "Descrizione dello studio, da confrontare con il bando della Regione", "url": None}, "verified": "DA_VERIFICARE"},
+     "how": "Cerca nel catalogo «voucher» e la tua Regione.", "search": ["voucher occupazion", "voucher per l'occupazione", "voucher assunzion", "voucher lavoro"], "regional": True, "source": {"label": "Descrizione dello studio, da confrontare con il bando della Regione", "url": None}, "verified": "DA_VERIFICARE"},
     {"id": "TIROCINIO_GARANZIA_GIOVANI", "family": "TIROCINI", "name": "Tirocinio extracurricolare con indennità rimborsata (Garanzia Giovani / FSE+)", "group": None,
      "tagline": "La Regione copre in tutto o in gran parte l'indennità mensile del tirocinante NEET.",
      "worker": ["Giovane NEET (non studia e non lavora), di norma fino a 29 anni; alcune Regioni arrivano a 35."], "contract": "Tirocinio formativo (non è un contratto di lavoro): serve una convenzione con un ente promotore.",
@@ -99,7 +100,7 @@ MEASURES: List[Dict[str, Any]] = [
     {"id": "BONUS_TRASFORMAZIONE_TIROCINIO", "family": "TIROCINI", "name": "Bonus per trasformare il tirocinio in assunzione", "group": None,
      "tagline": "Contributo all'azienda se al termine del tirocinio assume il tirocinante (soprattutto a tempo indeterminato o in apprendistato).",
      "worker": ["Il tirocinante dell'azienda."], "contract": "Tempo indeterminato o apprendistato.", "period": "A bando regionale.", "valid_to": None, "company": ["Secondo il bando della Regione."], "aid": "Dipende dal bando.", "cumulation": "Dipende dal bando.",
-     "how": "Cerca nel catalogo «trasformazione tirocinio» e la tua Regione.", "search": ["trasformazione", "tirocinio"], "regional": True,
+     "how": "Cerca nel catalogo «trasformazione tirocinio» e la tua Regione.", "search": ["trasformazione dei tiroc", "trasformazione del tiroc", "tirocinio in contratto", "tirocini in contratti"], "regional": True,
      "source": {"label": "Descrizione dello studio, da confrontare con il bando della Regione", "url": None}, "verified": "DA_VERIFICARE"},
     {"id": "APPRENDISTATO", "family": "APPRENDISTATO", "name": "Apprendistato: sgravio contributivo e formazione esterna gratuita", "group": None,
      "tagline": "Contratto a tempo indeterminato per formare un giovane: contributi INPS ridotti per tutto il periodo formativo e formazione finanziata dalla Regione.",
@@ -120,7 +121,7 @@ MEASURES: List[Dict[str, Any]] = [
     {"id": "NUOVE_IMPRESE_BANDI", "family": "NUOVE_IMPRESE", "name": "Bandi per nuove imprese e autoimpiego", "group": None,
      "tagline": "Misure per chi vuole avviare un'attività: giovani, donne, disoccupati (esempi: Resto al Sud 2.0, Autoimpiego Centro-Nord, Smart&Start, ON Tasso Zero, microcredito).",
      "worker": ["Secondo il bando: spesso età, genere o stato di disoccupazione dei soci."], "contract": "Impresa da costituire o costituita da poco.", "period": "A bando.", "valid_to": None, "company": ["Impresa da costituire o neocostituita."], "aid": "Dipende dal bando.", "cumulation": "Dipende dal bando.",
-     "how": "Il catalogo mostra i bandi per le imprese da costituire: scegli «Nuova impresa o da costituire» nel profilo.", "search": ["nuove imprese", "autoimpiego", "resto al sud", "smart"], "regional": False, "new_company": True,
+     "how": "Il catalogo mostra i bandi per le imprese da costituire: scegli «Nuova impresa o da costituire» nel profilo.", "search": ["nuove imprese", "autoimpiego", "resto al sud", "smart&start", "on tasso zero", "microcredito"], "regional": False, "new_company": True,
      "source": {"label": "Catalogo nazionale dei bandi (schede ufficiali)", "url": None}, "verified": "DA_VERIFICARE"},
 ]
 BY_ID = {m["id"]: m for m in MEASURES}
@@ -219,7 +220,8 @@ def for_company(profile: Dict[str, Any], today: Optional[date] = None) -> Dict[s
     for f in fams:
         for it in f["items"]:
             counts[it["status"]] = counts.get(it["status"], 0) + 1
-    return {"verified_on": VERIFIED_ON, "company": company_view(profile), "families": fams, "counts": counts,
+    age = (today - date.fromisoformat(VERIFIED_ON)).days
+    return {"verified_on": VERIFIED_ON, "verified_age_days": age, "stale": age > STALE_DAYS, "company": company_view(profile), "families": fams, "counts": counts,
             "warning": "Le circolari INPS cambiano ogni anno: i dati qui sono riportati da fonti secondarie e vanno confermati sul sito INPS prima di presentare la domanda."}
 
 
@@ -254,9 +256,12 @@ def selection(profile: Dict[str, Any], items: List[Dict[str, Any]], today: Optio
         hires = max(1, min(50, int(it.get("hires") or 1)))
         ev = evaluate(m, profile, today)
         v = value_per_hire(m, profile)
+        months_list = [int(x) for x in (it.get("months") or []) if isinstance(x, (int, float)) and 0 < int(x) <= 60][:hires]
+        exact = bool(it.get("assigned")) and len(months_list) == hires and v is not None and v.get("cap_month_eur") is not None       # mesi noti persona per persona: il valore non è più un intervallo
         rows.append({"id": m["id"], "name": m["name"], "family": m["family"], "group": m.get("group"), "tagline": m["tagline"], "hires": hires, "status": ev["status"], "ok": ev["ok"],
-                     "why_not": ev["why"], "to_check": ev["to_check"], "value": v, "max_eur": (v["max_eur"] * hires) if v and "max_eur" in v else None,
-                     "min_eur": (v.get("min_eur", v["max_eur"]) * hires) if v and "max_eur" in v else None, "worker": m["worker"], "contract": m["contract"], "period": m["period"],
+                     "why_not": ev["why"], "to_check": ev["to_check"], "value": v, "max_eur": (v["cap_month_eur"] * sum(months_list) if exact else (v["max_eur"] * hires)) if v and "max_eur" in v else None,
+                     "min_eur": (v["cap_month_eur"] * sum(months_list) if exact else (v.get("min_eur", v["max_eur"]) * hires)) if v and "max_eur" in v else None,
+                     "assigned": bool(it.get("assigned")), "exact": exact, "worker": m["worker"], "contract": m["contract"], "period": m["period"],
                      "company": m["company"], "aid": m["aid"], "cumulation": m["cumulation"], "how": m["how"], "source": m["source"], "verified": m["verified"],
                      "counted": False, "reason": None})
     for r in rows:
@@ -268,7 +273,7 @@ def selection(profile: Dict[str, Any], items: List[Dict[str, Any]], today: Optio
             r["counted"] = True
     groups: Dict[str, List[Dict[str, Any]]] = {}
     for r in rows:
-        if r["counted"] and r["group"]:
+        if r["counted"] and r["group"] and not r["assigned"]:                # le righe assegnate a persone precise riguardano persone diverse: non si escludono tra loro
             groups.setdefault(r["group"], []).append(r)
     for g in groups.values():
         g.sort(key=lambda r: -r["max_eur"])
@@ -277,5 +282,131 @@ def selection(profile: Dict[str, Any], items: List[Dict[str, Any]], today: Optio
             r["reason"] = f"Non cumulabile con «{g[0]['name']}»: per ogni assunzione conta una sola agevolazione sul costo del lavoro, la più ricca."
     counted = [r for r in rows if r["counted"]]
     return {"items": rows, "total_max_eur": round(sum(r["max_eur"] for r in counted), 2), "total_min_eur": round(sum(r["min_eur"] for r in counted), 2),
-            "counted": len(counted), "verified_on": VERIFIED_ON,
+            "counted": len(counted), "verified_on": VERIFIED_ON, "persons": sum(r["hires"] for r in counted),
             "warning": "Il valore è un massimo, non un incasso: l'esonero non supera i contributi davvero dovuti. Le circolari INPS cambiano ogni anno: conferma sul sito INPS prima di presentare la domanda."}
+
+
+# ------------------------------------------------------------------------------------------------ chi si assume: una misura per persona
+UNEMPLOYED = {"LT6": 3, "6_12": 6, "12_24": 12, "GE24": 24}                  # fascia di disoccupazione → mesi senza impiego che sicuramente ha (il minimo della fascia)
+MAX_POSITIONS = 50
+
+
+def clean_position(raw: Dict[str, Any], today: Optional[date] = None) -> Dict[str, Any]:
+    """Una persona da assumere: sesso, età (sotto o dai 35 anni in su), da quanto è senza impiego e in che anno la si assume. Ogni dato può mancare: non si indovina."""
+    today = _today(today)
+    gender = str(raw.get("gender") or "").upper()[:1]
+    age = str(raw.get("age") or "").upper()
+    band = str(raw.get("unemployed") or "").upper()
+    try:
+        year = int(raw.get("year")) if raw.get("year") not in (None, "") else None
+    except (TypeError, ValueError):
+        year = None
+    if year is not None and not today.year <= year <= today.year + 3:
+        year = None
+    return {"gender": gender if gender in ("F", "M") else None, "age": age if age in ("UNDER35", "OVER35") else None, "unemployed": band if band in UNEMPLOYED else None, "year": year}
+
+
+def months_for(measure: Dict[str, Any], band: Optional[str]) -> Optional[int]:
+    """Per quanti mesi vale l'esonero per questa persona. None = dipende da un dato che manca."""
+    table = measure.get("months") or {}
+    if "ANY" in table:
+        return table["ANY"]
+    if band is None:
+        return None
+    u = UNEMPLOYED[band]
+    return table.get("MOLTO_SVANTAGGIATO") if u >= 24 else table.get("SVANTAGGIATO")
+
+
+def worker_fit(measure: Dict[str, Any], pos: Dict[str, Any]) -> Dict[str, Any]:
+    """La persona rispetta le condizioni sul lavoratore? ``ok`` vero/falso, oppure None se manca un dato (e quale)."""
+    rule = measure.get("worker_rule") or {}
+    missing: List[str] = []
+    if "age_max" in rule:
+        if pos["age"] is None:
+            missing.append("l'età")
+        elif pos["age"] == "OVER35":
+            return {"ok": False, "why": "Serve avere meno di 35 anni.", "missing": []}
+    if "age_min" in rule:
+        if pos["age"] is None:
+            missing.append("l'età")
+        elif pos["age"] == "UNDER35":
+            return {"ok": False, "why": "Serve avere almeno 35 anni.", "missing": []}
+    if rule.get("gender") == "F":
+        if pos["gender"] is None:
+            missing.append("il sesso")
+        elif pos["gender"] != "F":
+            return {"ok": False, "why": "È riservata alle donne.", "missing": []}
+    need = rule.get("min_unemployed_months")
+    if need:
+        if pos["unemployed"] is None:
+            missing.append("da quanto è senza impiego")
+        elif UNEMPLOYED[pos["unemployed"]] < need:
+            return {"ok": False, "why": f"Serve essere senza impiego da almeno {need} mesi.", "missing": []}
+    return {"ok": None if missing else True, "why": None, "missing": missing}
+
+
+def assign(profile: Dict[str, Any], positions: List[Dict[str, Any]], today: Optional[date] = None) -> Dict[str, Any]:
+    """Per ogni persona da assumere sceglie UNA sola agevolazione: la più ricca tra quelle che valgono per l'impresa e per quella persona.
+
+    Gli esoneri 2026 non si cumulano per la stessa persona, ma persone diverse possono usarne di diversi: per questo si ragiona persona per persona e non misura per misura.
+    Una persona senza tutti i dati non entra nel totale: si dice quale dato manca. Il valore è il tetto mensile × i mesi della sua fascia (un massimo, non un incasso)."""
+    today = _today(today)
+    out_pos: List[Dict[str, Any]] = []
+    for k, raw in enumerate(positions[:MAX_POSITIONS], 1):
+        pos = clean_position(raw, today)
+        cands: List[Dict[str, Any]] = []
+        rejected: List[Dict[str, str]] = []
+        late = 0                                                   # misure perse solo perché l'assunzione è dopo la loro scadenza
+        for m in MEASURES:
+            if m["verified"] != "SECONDARIA" or m.get("only_existing_contract"):
+                continue
+            ev = evaluate(m, profile, today)
+            if ev["status"] in ("NON_APPLICABILE", "SCADUTA", "DOPO_LA_COSTITUZIONE"):
+                rejected.append({"id": m["id"], "name": m["name"], "why": (ev["why"] or ["Non è applicabile ora."])[0]})
+                continue
+            fit = worker_fit(m, pos)
+            if fit["ok"] is False:
+                rejected.append({"id": m["id"], "name": m["name"], "why": fit["why"]})
+                continue
+            if m.get("valid_to"):                                  # gli esoneri 2026 valgono per chi è assunto entro il 31/12/2026: un'assunzione dell'anno dopo non li ha (salvo una nuova norma, che non si inventa)
+                end = date.fromisoformat(m["valid_to"])
+                if pos["year"] is None:
+                    fit = {**fit, "ok": None, "missing": fit["missing"] + ["l'anno di assunzione"]}
+                elif pos["year"] > end.year:
+                    late += 1
+                    rejected.append({"id": m["id"], "name": m["name"], "why": f"Vale per le assunzioni fatte entro il {end.strftime('%d/%m/%Y')}: questa persona entra nel {pos['year']}."})
+                    continue
+            v = value_per_hire(m, profile)
+            if not v or v.get("cap_month_eur") is None:
+                continue
+            months = months_for(m, pos["unemployed"])
+            exact = months is not None
+            value = v["cap_month_eur"] * months if exact else v["max_eur"]
+            to_check = list(fit["missing"]) + [c["label"] for c in ev["to_check"]]
+            cands.append({"id": m["id"], "name": m["name"], "months": months, "cap_month_eur": v["cap_month_eur"], "value_eur": value, "exact": exact,
+                          "value_text": (f"{v['cap_month_eur']} € al mese per {months} mesi = {value:,.0f} €".replace(",", ".") if exact else v["text"]),
+                          "sure": fit["ok"] is True and ev["status"] == "APPLICABILE", "to_check": to_check, "cumulation": m["cumulation"]})
+        cands.sort(key=lambda c: (-c["value_eur"], c["id"]))
+        certain = [c for c in cands if c["sure"] and c["exact"]]
+        best = certain[0] if certain else (cands[0] if cands else None)      # conta la migliore CERTA; una più ricca ma con un dato mancante si mostra a parte
+        better = next((c for c in cands if c["value_eur"] > (best["value_eur"] if best else 0) and not (c["sure"] and c["exact"])), None) if best and best["sure"] and best["exact"] else None
+        if best:
+            message = None
+        elif late:
+            message = "Gli esoneri 2026 valgono solo per le assunzioni fatte entro il 31/12/2026. Per le assunzioni dopo quella data serve una nuova norma, che oggi QUANTO non ha: non si conta nulla."
+        else:
+            message = "Nessuna agevolazione senza bando vale per questa persona e questa impresa."
+        out_pos.append({"index": k, "position": pos, "best": best, "late": bool(late and not best), "better_if": ({"id": better["id"], "name": better["name"], "value_eur": better["value_eur"], "missing": better["to_check"]} if better else None),
+                        "others": [{"id": c["id"], "name": c["name"], "value_eur": c["value_eur"]} for c in cands if not best or c["id"] != best["id"]][:2], "rejected": rejected, "message": message})
+    grouped: Dict[str, Dict[str, Any]] = {}
+    for p in out_pos:
+        b = p["best"]
+        if b and b["sure"] and b["exact"]:                      # entra nel piano solo ciò che è certo: impresa a posto e persona con tutti i dati
+            g = grouped.setdefault(b["id"], {"id": b["id"], "name": b["name"], "hires": 0, "months": [], "assigned": True})
+            g["hires"] += 1
+            g["months"].append(b["months"])
+    total = sum(p["best"]["value_eur"] for p in out_pos if p["best"] and p["best"]["sure"] and p["best"]["exact"])
+    open_total = sum(p["best"]["value_eur"] for p in out_pos if p["best"] and not (p["best"]["sure"] and p["best"]["exact"]))
+    return {"positions": out_pos, "items": list(grouped.values()), "total_eur": round(total, 2), "uncertain_max_eur": round(open_total, 2), "counted": sum(g["hires"] for g in grouped.values()),
+            "verified_on": VERIFIED_ON,
+            "note": "Ogni persona usa una sola agevolazione, la più ricca: persone diverse possono usarne di diverse. Il valore è un massimo: l'esonero non supera i contributi davvero dovuti."}

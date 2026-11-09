@@ -16,6 +16,7 @@ import { MeasuresPanel, TotalPanel } from './Composition'
 import { loadChoice, saveChoice, withChoice, withoutChoice } from '../lib/measureChoice'
 import { Hint } from './Help'
 import ForecastStep from './ForecastStep'
+import AgentBar from './AgentBar'
 import PotentialStep from './PotentialStep'
 import ProjectIdeas from './ProjectIdeas'
 import { BandiChart, ForecastChart, PlanChart, PotentialChart, ProfileChart } from './StepCharts'
@@ -239,8 +240,9 @@ const REALITY_FIELDS = [['probability_pct', 'Probabilità di successo (%)', 'es.
   ['reimbursement_lag_months', 'Mesi per il rimborso', 'dal bando'], ['advance_pct', 'Anticipo (%)', 'dal bando']]
 
 /** Dall'allocazione alla realtà: quanto si può contare sul contributo, quanto costa ottenerlo, quando entrano i soldi e cosa si somma ad altri aiuti. Le ipotesi le scrive chi conosce il caso: nulla è inventato. */
-function RealityPanel({ plan, lines, measures }) {
+function RealityPanel({ plan, lines, measures, ateco }) {
   const [assume, setAssume] = useState({})
+  const [rates, setRates] = useState({})                          // dal Confronto: quanti budget di quel bando sono stati ammessi (solo se almeno 3 esiti)
   const [res, setRes] = useState(null)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState(null)
@@ -253,6 +255,13 @@ function RealityPanel({ plan, lines, measures }) {
     } catch (e) { setError(e.message); setRes(null) } finally { setBusy(false) }
   }, [plan, lines])
   useEffect(() => { setAssume({}); setRes(null); run({}) }, [plan, run])
+  useEffect(() => {
+    let live = true
+    const ids = [...new Set((lines || []).map((l) => l.bando_id).filter(Boolean))]
+    Promise.all(ids.map((id) => api.templateWinRate(id, ateco).then((r) => [id, r.win_rate]).catch(() => [id, null]))).then((x) => { if (live) setRates(Object.fromEntries(x.filter(([, v]) => v))) })
+    return () => { live = false }
+  }, [lines, ateco])
+  const bandoOf = (fid) => (lines || []).find((l) => l.fund_id === fid)?.bando_id
   useEffect(() => {      // i valori che arrivano dal bando riempiono i campi, senza sovrascrivere ciò che l'utente ha scritto
     if (!res) return
     setAssume((cur) => { const n = { ...cur }; res.funds.forEach((f) => { n[f.fund_id] = { ...Object.fromEntries(Object.entries(f.assumptions).filter(([k, v]) => v != null && f.origin[k] === 'dal bando')), ...(cur[f.fund_id] || {}) } }); return n })
@@ -275,7 +284,9 @@ function RealityPanel({ plan, lines, measures }) {
                   {REALITY_FIELDS.map(([k, label, ph]) => (
                     <label key={k} className="space-y-1"><span className="label">{label}</span>
                       <input className="field !py-1" inputMode="decimal" placeholder={ph} value={assume[f.fund_id]?.[k] ?? ''} onChange={(e) => set(f.fund_id, k, e.target.value)} />
-                      {f.origin[k] === 'dal bando' && String(assume[f.fund_id]?.[k]) === String(f.assumptions[k]) && <span className="text-[10px] text-mute">letto dal bando</span>}</label>
+                      {f.origin[k] === 'dal bando' && String(assume[f.fund_id]?.[k]) === String(f.assumptions[k]) && <span className="text-[10px] text-mute">letto dal bando</span>}
+                      {k === 'probability_pct' && rates[bandoOf(f.fund_id)] && (assume[f.fund_id]?.[k] ?? '') === '' && (
+                        <button type="button" className="block text-[10px] text-ink-2 underline text-left" onClick={() => set(f.fund_id, k, String(rates[bandoOf(f.fund_id)].rate_pct))}>Dal Confronto: {rates[bandoOf(f.fund_id)].text} Usa {rates[bandoOf(f.fund_id)].rate_pct}%</button>)}</label>
                   ))}
                 </div>
                 <p className={f.worth_it === false ? 'text-amber-700' : 'text-ink-2'}>{f.message}</p>
@@ -322,6 +333,7 @@ function RealityPanel({ plan, lines, measures }) {
 
 function BandoCard({ r, picked, onToggle, onBudget, includeLabel = 'Includi', scenario = 'ANNUAL', linked = [], onPickProject }) {
   const [open, setOpen] = useState(false)
+  const [signaled, setSignaled] = useState(null)
   const [fit, tone] = FIT[r.fit]
   const e = r.estimate
   const projectOnly = !!r.mode?.needs_project
@@ -393,6 +405,11 @@ function BandoCard({ r, picked, onToggle, onBudget, includeLabel = 'Includi', sc
           {r.notes.filter((n) => !n.startsWith('Il bando non dichiara')).map((n) => <p key={n} className="text-mute">• {n}</p>)}
           {r.missing_profile.length > 0 && <p className="text-amber-700">Per decidere servono ancora: {r.missing_profile.map((m) => MISSING_LABEL[m] || m).join(', ')}.</p>}
           <div className="flex items-center gap-3 pt-1"><button className="btn !py-1" onClick={() => onBudget(r.bando_id)}>Prepara la bozza di budget per questo bando</button><span className="text-[11px] text-mute">{r.rules_count} regole · {r.requirements_count} requisiti</span></div>
+          <div className="text-[11px] text-mute">
+            {signaled
+              ? <span>{signaled === 'NOT_FOR_ME' ? 'Segnalato: lo uso per migliorare il giudizio, in forma anonima.' : 'Segnalato: lo valuterà il Quartier Generale. Nel piano non entra finché il giudizio non cambia.'}</span>
+              : <button type="button" className="underline hover:text-ink" onClick={() => { const sig = r.fit === 'NON_ADATTO' ? 'FOR_ME' : 'NOT_FOR_ME'; api.relevanceSignal(r.bando_id, sig, r.fit).then(() => { setSignaled(sig); if (sig === 'NOT_FOR_ME' && picked) onToggle() }).catch(() => {}) }}>{r.fit === 'NON_ADATTO' ? 'Il giudizio sbaglia: invece è per questa azienda' : 'Il giudizio sbaglia: non è per questa azienda'}</button>}
+          </div>
         </div>
       )}
     </div>
@@ -435,6 +452,8 @@ export default function AllocationView({ onGoProfile, onBudgetFrom, onOpenBudget
   const [chosen, setChosen] = useState([])                       // agevolazioni sul lavoro scelte per questo lavoro: [{ id, hires }]
   const [chosenLoaded, setChosenLoaded] = useState(false)
   const [sel, setSel] = useState(null)                           // risposta del server: condizioni, importo massimo e quali entrano nel totale
+  const [news, setNews] = useState(null)                     // cosa è cambiato dall'ultima volta: bandi diventati adatti o non più adatti
+  const seenDone = useRef(false)
   const [shadow, setShadow] = useState(null)                     // il piano dell'altro scenario (anno / progetto): serve al totale generale
   const [planLines, setPlanLines] = useState([])                      // le linee di finanziamento con cui è stato calcolato il piano (servono per i budget)
   const [loading, setLoading] = useState(false)
@@ -631,7 +650,7 @@ export default function AllocationView({ onGoProfile, onBudgetFrom, onOpenBudget
     if (!chosenLoaded) return undefined
     if (chosen.length === 0) { setSel(null); return undefined }
     let live = true
-    api.measuresSelection(chosen.map((x) => ({ id: x.id, hires: x.hires ?? defaultHires }))).then((r) => { if (live) setSel(r) }).catch(() => { if (live) setSel(null) })
+    api.measuresSelection(chosen.map((x) => ({ id: x.id, hires: x.hires ?? defaultHires, ...(x.assigned ? { assigned: true, months: x.months } : {}) }))).then((r) => { if (live) setSel(r) }).catch(() => { if (live) setSel(null) })
     return () => { live = false }
   }, [chosen, chosenLoaded, defaultHires, match])        // eslint-disable-line react-hooks/exhaustive-deps
   const setHires = (id, n) => setChosen((c) => c.map((x) => (x.id === id ? { ...x, hires: Math.max(1, Math.min(50, n)) } : x)))
@@ -639,6 +658,29 @@ export default function AllocationView({ onGoProfile, onBudgetFrom, onOpenBudget
   const removeMeasure = (id) => setChosen((c) => withoutChoice(c, id))
   const needsSummary = needs ? (needs.needs.length ? `${needs.needs.map((n) => n.label).join(' e ')} · circa ${fmtEur(needs.total_eur)} l’anno` : (needs.missing.length ? 'Mancano dati per dirlo' : 'Nessun bisogno in più con la crescita prevista')) : (ideasLoading ? 'Calcolo…' : 'Da bilancio e previsione')
   const st = match?.matching.catalog?.stats || null
+  // Novità dall'ultima volta che l'agente ha guardato: si confrontano i bandi adatti di adesso con quelli salvati (una volta per apertura, per lavoro).
+  useEffect(() => {
+    if (!match || seenDone.current) return
+    seenDone.current = true
+    const today = new Date().toISOString().slice(0, 10)
+    const fit = Object.fromEntries(match.matching.results.filter((r) => r.fit === 'ADATTO').map((r) => [r.bando_id, r.name]))
+    api.clientState('agent_seen').catch(() => ({ value: null })).then((cur) => {
+      const old = cur?.value || {}
+      const v = old.allocation
+      let n = v?.news || null
+      if (v?.fit) {
+        const added = Object.keys(fit).filter((id) => !(id in v.fit)).map((id) => fit[id])
+        const removed = Object.keys(v.fit).filter((id) => !(id in fit)).map((id) => v.fit[id])
+        if (added.length || removed.length) n = { added, removed, at: today }
+      }
+      setNews(n)
+      api.saveClientState('agent_seen', { ...old, allocation: { fit, news: n, at: today } }).catch(() => {})
+    })
+  }, [match])        // eslint-disable-line react-hooks/exhaustive-deps
+  const dismissNews = () => {
+    setNews(null)
+    api.clientState('agent_seen').catch(() => ({ value: null })).then((cur) => api.saveClientState('agent_seen', { ...(cur?.value || {}), allocation: { ...(cur?.value?.allocation || {}), news: null } })).catch(() => {})
+  }
   useEffect(() => {
     if (!project || !ideas) return
     const fresh = ideas.ideas.find((i) => i.id === project.id)
@@ -703,7 +745,7 @@ export default function AllocationView({ onGoProfile, onBudgetFrom, onOpenBudget
       summary={sel?.items?.length ? `${sel.items.length} ${sel.items.length === 1 ? 'scelta' : 'scelte'} · ${sel.counted} nel totale · fino a ${fmtEur(sel.total_max_eur)}` : 'Nessuna scelta: dalla pagina Agevolazioni'}
       info="Gli esoneri e gli incentivi alle assunzioni non sono bandi: non hanno un budget e si applicano in busta paga. Qui vedi per ognuno quante assunzioni li usano, quanto valgono al massimo, le condizioni e le dichiarazioni da rendere, il cumulo con altri aiuti e la norma.">
       <MeasuresPanel sel={sel} onHires={setHires} onRemove={removeMeasure} onAdd={addMeasure} onGoAgevolazioni={() => goTab('agevolazioni')} defaultHires={defaultHires}
-        suggestions={(needs?.without_project || []).filter((m) => !chosen.some((x) => x.id === m.id)).slice(0, 3)} />
+        suggestions={chosen.some((x) => x.assigned) ? [] : (needs?.without_project || []).filter((m) => !chosen.some((x) => x.id === m.id)).slice(0, 3)} />
     </Step>
   )
   const nAdatti = annualFit('ADATTO').length
@@ -808,7 +850,7 @@ export default function AllocationView({ onGoProfile, onBudgetFrom, onOpenBudget
           summary="Quanto conti davvero di ottenere, e quando entrano i soldi"
           info="Un contributo non è un incasso: si vince o no, ottenerlo costa lavoro, e il rimborso arriva dopo che hai pagato. Scrivi per ogni bando probabilità di successo, costo di istruttoria e percentuale del consulente (anche zero): QUANTO non li inventa, senza mostra solo il nominale.">
           <TutorialVideo id="T10" />
-          <RealityPanel plan={plan} lines={planLines} measures={sel} />
+          <RealityPanel plan={plan} lines={planLines} measures={sel} ateco={ov?.fields?.find((x) => x.key === 'ateco_code')?.value} />
         </Step>
       )}
     </>
@@ -930,9 +972,32 @@ export default function AllocationView({ onGoProfile, onBudgetFrom, onOpenBudget
     </div>
   )
 
+  const nStudied = st ? st.studied : 0
+  const nVerify = match?.matching.summary.DA_VERIFICARE || 0
+  const itDay = (iso) => (iso ? iso.split('-').reverse().join('/') : '')
+  const newsLine = news && (news.added.length || news.removed.length) ? (
+    <span className="block">
+      {news.added.length > 0 && <span className="block text-emerald-700">Novità dal {itDay(news.at)}: {news.added.length === 1 ? '1 bando diventato adatto' : `${news.added.length} bandi diventati adatti`} ({news.added.slice(0, 2).join('; ')}{news.added.length > 2 ? `; e altri ${news.added.length - 2}` : ''}).</span>}
+      {news.removed.length > 0 && <span className="block text-amber-700">{news.removed.length === 1 ? '1 bando non è più adatto' : `${news.removed.length} bandi non sono più adatti`} ({news.removed.slice(0, 2).join('; ')}{news.removed.length > 2 ? `; e altri ${news.removed.length - 2}` : ''}).</span>}
+      <button type="button" className="text-[11px] underline text-mute hover:text-ink" onClick={dismissNews}>Ho visto</button>
+    </span>
+  ) : null
+  const needLines = [
+    ov?.missing?.length > 0 && `Al profilo manca: ${ov.missing.slice(0, 3).map((m) => (m.year ? `${m.label} (${m.year})` : m.label)).join(', ')}${ov.missing.length > 3 ? '…' : ''}.`,
+    nVerify > 0 && `${nVerify === 1 ? '1 bando è da verificare' : `${nVerify} bandi sono da verificare`}: manca un dato per decidere, e finché manca non si somma.`,
+  ].filter(Boolean)
+  const agent = (
+    <AgentBar current="allocation"
+      did={match ? `Ho letto ${st ? st.open_total + st.studied : results.length} bandi, ne ho studiati a fondo ${nStudied} e ho giudicato quali sono per l’impresa.` : (matching ? 'Sto leggendo i bandi e le spese dell’impresa…' : null)}
+      found={match ? <span className="block space-y-1"><span className="block">{nAdatti} {nAdatti === 1 ? 'bando adatto' : 'bandi adatti'} alle spese dell’anno{nProgetto ? `, ${nProgetto} a progetto` : ''}.{grandTotal > 0 ? ` Nel totale: ${fmtEur(grandTotal)} al massimo.` : ''}</span>{newsLine}</span> : null}
+      need={needLines.length ? <span className="space-y-1 block">{needLines.map((l) => <span key={l} className="block">{l}</span>)}</span> : null}
+      next={{ label: 'Prepara i budget dei bandi', onClick: () => { if (plan && pickedRows.length) { setSection('insieme'); openStep('budget'); setTimeout(() => flashTo('al-budget'), 250) } else goTab('canvas') } }} />
+  )
+
   return (
     <WordsContext.Provider value={docWords(ov)}>
     <div className="space-y-4">
+      {agent}
       <Guide page="allocation" />
       <HowItWorks kind="allocation" />
       <SectionNav items={sections} current={sec} onGo={goSection} />

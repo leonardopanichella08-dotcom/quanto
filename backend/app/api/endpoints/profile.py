@@ -6,6 +6,7 @@ from pydantic import BaseModel, Field
 
 from app.api.deps import actor_of, scope_of
 from app.core import company_profile as cp
+from app.core import bandi as bandi_core
 from app.core import aids_register, budget_basis, company_facts, de_minimis, events, expense_types, growth_needs, matching, measures, project_ideas, project_types
 
 router = APIRouter()
@@ -165,12 +166,26 @@ def needs(request: Request, year: Optional[int] = None, split: Optional[str] = N
 
 @router.get("/measures", summary="Le agevolazioni che non sono bandi (esoneri INPS, tirocini, apprendistato, incentivi regionali, nuove imprese) e come valgono per questa impresa")
 def measures_list(request: Request) -> dict:
-    return measures.for_company(cp.profile_values(scope_of(request)))
+    profile = cp.profile_values(scope_of(request))
+    out = measures.for_company(profile)
+    region = profile.get("region")
+    for fam in out["families"]:
+        for it in fam["items"]:
+            if not it.get("search"):
+                continue
+            if it.get("regional") and not region:                 # senza la regione della sede non si sa quali bandi regionali la riguardano: si chiede, non si mostrano quelli di tutte le regioni
+                it["linked"], it["linked_region"], it["linked_note"] = [], None, "Indica la regione della sede: ti mostro i bandi aperti della tua Regione."
+                continue
+            it["linked"] = bandi_core.open_by_terms(it["search"], profile, 5)      # le misure regionali sono collegate ai bandi aperti del catalogo, solo quelli che possono riguardare l'azienda
+            it["linked_region"] = region if it.get("regional") else None
+    return out
 
 
 class MeasureChoice(BaseModel):
     id: str = Field(..., max_length=64)
     hires: int = Field(default=1, ge=1, le=50, description="Quante assunzioni useranno questa agevolazione")
+    assigned: bool = Field(default=False, description="Assegnata a persone precise (dalla pagina Agevolazioni): non si esclude con le altre dello stesso gruppo")
+    months: Optional[List[int]] = Field(default=None, max_length=50, description="Mesi di agevolazione di ogni persona, se noti")
 
 
 class MeasuresSelectionBody(BaseModel):
@@ -180,6 +195,22 @@ class MeasuresSelectionBody(BaseModel):
 @router.post("/measures/selection", summary="Le agevolazioni scelte per l'allocazione: condizioni, dichiarazioni, leggi, importo massimo e quali entrano nel totale")
 def measures_selection(body: MeasuresSelectionBody, request: Request) -> dict:
     return measures.selection(cp.profile_values(scope_of(request)), [c.model_dump() for c in body.items])
+
+
+class PositionBody(BaseModel):
+    gender: Optional[str] = Field(default=None, max_length=1)
+    age: Optional[str] = Field(default=None, max_length=8)
+    unemployed: Optional[str] = Field(default=None, max_length=8)
+    year: Optional[str] = Field(default=None, max_length=4, description="Anno di assunzione: gli esoneri 2026 valgono solo per chi è assunto entro il 31/12/2026")
+
+
+class AssignBody(BaseModel):
+    positions: List[PositionBody] = Field(default_factory=list, max_length=50)
+
+
+@router.post("/measures/assign", summary="Chi si assume: per ogni persona la sola agevolazione più ricca che vale per l'impresa e per lei, con i mesi veri")
+def measures_assign(body: AssignBody, request: Request) -> dict:
+    return measures.assign(cp.profile_values(scope_of(request)), [p.model_dump() for p in body.positions])
 
 
 @router.get("/project-types", summary="Le tipologie di progetto che un bando può finanziare")

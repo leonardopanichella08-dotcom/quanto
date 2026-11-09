@@ -212,7 +212,7 @@ def build() -> Path:
        "<b>Boutique di finanza agevolata</b> che costruiscono budget e piani di allocazione e hanno bisogno di ripetibilità e di una fonte per ogni cifra.",
        "<b>Direttori finanziari e consulenti d'impresa</b> che pianificano più fondi insieme per l'azienda che seguono e vogliono sapere chi paga cosa lungo l'anno."])
     SP(4)
-    kpis([("60", "regole applicate a ogni voce di budget"), ("8", "bandi con un modello di calcolo curato a mano"), ("90", "fonti ufficiali dei bandi, controllate ogni notte"), ("651", "test automatici sul motore")])
+    kpis([("60", "regole applicate a ogni voce di budget"), ("8", "bandi con un modello di calcolo curato a mano"), ("90", "fonti ufficiali dei bandi, controllate ogni notte"), ("667", "test automatici sul motore")])
     story.append(PageBreak())
 
     # ------------------------------------------------------------------ 2. come lavora
@@ -244,13 +244,13 @@ def build() -> Path:
 
     # ------------------------------------------------------------------ 3-4. gli strumenti
     H1("Gli strumenti")
-    P("QUANTO è un insieme di strumenti che lavorano sugli stessi dati del cliente. Il lavoro quotidiano è libero.")
+    P("QUANTO è un insieme di strumenti che lavorano sugli stessi dati del cliente. Il lavoro su un cliente segue quattro passi, ognuno con il suo agente e la sua striscia in cima alla pagina (cosa ha fatto, cosa ha trovato, cosa gli serve): Agevolazioni, Allocazione, Budget, Confronto.")
     cards([("Lavori e profilo", "Un lavoro per ogni azienda cliente, con profilo, bilanci per anno, documenti e modello di previsione. Ogni dato ricorda da dove viene.", "dati ordinati per cliente, mai mescolati, con la provenienza di ogni valore"),
            ("Catalogo e studio dei bandi", "Ogni notte raccoglie i bandi da 90 fonti ufficiali (ministeri, agenzie, tutte le Regioni, Unione europea) e ne legge la scheda. Con un clic QUANTO studia un bando: scarica i documenti ufficiali, ne ricava regole e requisiti e, dai moduli pubblicati, i documenti da presentare, le domande e i dati da inserire.", "un bando letto per intero, con la fonte di ogni regola e di ogni richiesta"),
-           ("Allocazione e potenziale massimo", "Stima l'anno successivo, trova i bandi adatti, li combina e mostra quanto potrebbe coprire l'azienda se li ottenesse tutti, con il bilancio ricostruito e un grafico per ogni bando.", "il massimo teorico e il piano voce per voce, con ogni numero spiegato"),
+           ("Allocazione e potenziale massimo", "Stima l'anno successivo, trova i bandi adatti, li combina e mostra quanto potrebbe coprire l'azienda se li ottenesse tutti, con il bilancio ricostruito e un grafico per ogni bando; dice cosa è cambiato dall'ultima volta.", "il massimo teorico e il piano voce per voce, con ogni numero spiegato"),
            ("Budget e 60 criteri", "Crea la bozza di budget dall'azienda (ogni persona con livello, contratto e RAL; spese per voce con la fonte) e controlla ogni voce con 60 regole su personale, beni strumentali, consulenze, spese generali e coerenza; dall'allocazione ricava il budget di ogni bando, verificati insieme.", "un budget controllato, con il motivo di ogni riduzione"),
            ("Pacchetti di lavoro", "Divide il budget ammesso tra i pacchetti di lavoro del bando, rispettando le quote minime e massime e i tetti per categoria.", "la ripartizione per WP già calcolata, o il motivo per cui non esiste"),
-           ("Confronto", "Ogni budget salvato diventa un template, con nicchia, bando ed esito. Il consiglio per un nuovo cliente nasce dai budget simili, pesando di più quelli che hanno vinto, e migliora a ogni dato nuovo.", "una ripartizione di partenza basata sui casi reali dello studio"),
+           ("Confronto", "Ogni budget salvato diventa un template, con nicchia, bando ed esito. Il consiglio per un nuovo cliente nasce dai budget simili, pesando di più quelli che hanno vinto, e migliora a ogni dato nuovo; lo verifica con le regole del bando.", "una ripartizione di partenza basata sui casi reali dello studio"),
            ("Verifica e registro firmato", "Ogni budget controllato può lasciare un'impronta in un registro che non si può riscrivere. Un revisore la verifica con una chiave pubblica, senza accedere a nulla.", "una prova che il budget non è stato modificato"),
            ("Assistente guidato", "Una chat che esegue al posto dell'utente i passaggi in cui servono dati: cambia pagina, salva, calcola e, quando serve un valore, lo chiede spiegando cos'è e dove si trova.", "meno clic e nessuna dimenticanza, senza inventare nulla"),
            ("Manuale e guida", "Un manuale dei processi in parole semplici (con PDF), una guida in ogni pagina e la spiegazione dei 60 criteri con esempi.", "ogni funzione spiegata, con esempi veri"),

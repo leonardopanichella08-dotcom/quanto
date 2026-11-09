@@ -250,6 +250,7 @@ def recommend(owner: str, ateco_code: Optional[str], bando_id: Optional[str], dr
     out.update({"status": "OK", "basis": chosen, "basis_label": label, "templates_used": len(sel), "real_templates": n_real, "example_templates": n_examples, "wins": wins, "confidence": confidence,
                 "recommended": rec, "range": rng, "average_total_eur": _avg_total([t for t in sel if not _is_example(t)] or sel), "score_range": _score_range(sel), "styles": styles,
                 "explanation": explanation, "outcomes": {o: sum(1 for t in sel if t["outcome"] == o and not _is_example(t)) for o in OUTCOMES}})
+    out["rules_check"] = rules_check(bando_id, rec)
     if draft:
         d = clean_shares(draft)
         dev = {k: round((d[k] - rec[k]) * 100, 1) for k in SHARES}
@@ -259,7 +260,93 @@ def recommend(owner: str, ateco_code: Optional[str], bando_id: Optional[str], dr
                              "similarity": round(cos, 3),
                              "message": (f"Il tuo budget dista il {_n(_distance(d, rec) * 100)}% dal consiglio. Lo scostamento maggiore è su {SHARE_LABEL[main].lower()}: "
                                          f"{'+' if dev[main] > 0 else ''}{_n(dev[main])} punti rispetto alla media pesata. Nota professionale: è un'indicazione statistica sulla struttura della spesa, non una previsione di esito.")}
+        out["comparison"]["rules_check"] = rules_check(bando_id, d)
     return out
+
+
+# ------------------------------------------------------------------------------------------------ il consiglio contro le regole del bando
+def _rules_of(bando_id: Optional[str]) -> Optional[Dict[str, Any]]:
+    if not bando_id:
+        return None
+    from app.core.ingestion import Ingestion
+    try:
+        rule_set, _missing = Ingestion.build_rule_set(bando_id)
+    except Exception:                                                      # un bando senza regole non ferma il consiglio
+        return None
+    return rule_set.model_dump(mode="json") if rule_set is not None else None
+
+
+def _fit(rules: Dict[str, Any], shares: Dict[str, float]) -> Dict[str, float]:
+    """La stessa ripartizione portata dentro le regole di quota: voci in categorie non ammesse tolte, consulenze al tetto, l'eccedenza sulle altre voci ammesse in proporzione."""
+    cat = template_examples.CATEGORY_OF
+    eligible = rules.get("eligible_categories") or []
+    flat = rules.get("overhead_flat_rate_pct")
+    out = {k: float(v) for k, v in shares.items()}
+    for k in out:
+        if eligible and cat[k] not in eligible and not (cat[k] == "OVERHEAD" and flat):
+            out[k] = 0.0
+    caps = [("CONSULTING", rules.get("max_consulting_percentage")), ("OVERHEAD", rules.get("max_overhead_percentage"))]
+    for c, cap in caps:
+        if cap is None:
+            continue
+        keys = [k for k in out if cat[k] == c]
+        have = sum(out[k] for k in keys)
+        total = sum(out.values())
+        if total <= 0 or have <= float(cap) * total + 1e-9:
+            continue
+        free = [k for k in out if cat[k] not in ("CONSULTING", "OVERHEAD") and out[k] > 0]
+        base = sum(out[k] for k in free)
+        if not free or base <= 0:
+            continue
+        target = float(cap) * total                                      # la categoria scende al tetto; l'eccedenza va sulle altre voci ammesse (il totale resta 100%)
+        excess = have - target
+        for k in keys:
+            out[k] = out[k] * (target / have) if have else 0.0
+        for k in free:
+            out[k] += excess * out[k] / base
+    total = sum(out.values()) or 1.0
+    return {k: round(v / total, 6) for k, v in out.items()}
+
+
+def rules_check(bando_id: Optional[str], shares: Dict[str, float]) -> Dict[str, Any]:
+    """Una ripartizione contro le regole di quota del bando (categorie ammesse, tetto consulenze, forfait spese generali).
+    Se non rispetta i tetti propone la stessa ripartizione portata dentro (solo se così diventa conforme)."""
+    rules = _rules_of(bando_id)
+    if rules is None:
+        return {"available": False, "message": "Le regole di questo bando non sono ancora state lette: non posso verificare i tetti. Studia il bando per averli."}
+    ver = template_examples.verify_shares(rules, shares)
+    out: Dict[str, Any] = {"available": True, "outcome": ver["outcome"], "checks": ver["checks"], "fitted": None}
+    if ver["outcome"] != "CONFORME":
+        fitted = _fit(rules, shares)
+        again = template_examples.verify_shares(rules, fitted)
+        if again["outcome"] == "CONFORME":
+            out["fitted"] = fitted
+    return out
+
+
+def win_rate(owner: str, bando_id: str, ateco_code: Optional[str] = None) -> Optional[Dict[str, Any]]:
+    """Quanti budget REALI di questo bando sono stati ammessi, tra quelli con un esito deciso (ammesso o non ammesso). Solo se i decisi sono almeno ``MIN_TEMPLATES``.
+    Prima la stessa nicchia, poi tutto il bando. È un dato di partenza per la probabilità di successo: lo si accetta o lo si corregge, non si applica da solo."""
+    pool = [t for t in _pool(owner, "COLLETTIVO") if not _is_example(t) and t["bando_id"] == bando_id]
+    pool = [t for t in _visible(owner, pool) if not _is_example(t)]
+    division = None
+    if ateco_code:
+        try:
+            division = division_of(ateco_code)
+        except TemplateError:
+            division = None
+
+    def stats(rows: List[Dict[str, Any]]) -> Dict[str, int]:
+        won = sum(1 for t in rows if t["outcome"] == "AMMESSO")
+        lost = sum(1 for t in rows if t["outcome"] == "NON_AMMESSO")
+        return {"wins": won, "decided": won + lost}
+
+    for basis, rows in (("stessa nicchia e stesso bando", [t for t in pool if division and t["ateco_division"] == division]), ("stesso bando", pool)):
+        st = stats(rows)
+        if st["decided"] >= MIN_TEMPLATES:
+            return {**st, "rate_pct": round(100 * st["wins"] / st["decided"]), "basis": basis,
+                    "text": f"{st['wins']} ammessi su {st['decided']} budget con esito noto ({basis})."}
+    return None
 
 
 def _avg_total(sel: List[Dict[str, Any]]) -> Optional[float]:
@@ -289,7 +376,9 @@ def _styles(sel: List[Dict[str, Any]], w: np.ndarray, x: np.ndarray) -> List[Dic
         idx = [i for i, lb in enumerate(labels) if lb == j]
         cent = (x[idx] * w[idx][:, None]).sum(axis=0) / w[idx].sum()
         dom = SHARES[int(np.argmax(cent))]
-        out.append({"name": f"Stile «{SHARE_LABEL[dom].lower()}»", "templates": len(idx), "wins": sum(1 for i in idx if sel[i]["outcome"] == "AMMESSO"),
+        name = f"Stile «{SHARE_LABEL[dom].lower()}»"
+        same = sum(1 for o in out if o["name"].split(" · ")[0] == name)                  # due gruppi con la stessa voce dominante: si distinguono (2.º, 3.º)
+        out.append({"name": name + (f" · {same + 1}º gruppo" if same else ""), "templates": len(idx), "wins": sum(1 for i in idx if sel[i]["outcome"] == "AMMESSO"),
                     "shares": {k: round(float(cent[i]), 4) for i, k in enumerate(SHARES)}})
     return sorted(out, key=lambda s: (-s["wins"], -s["templates"], s["name"]))
 
