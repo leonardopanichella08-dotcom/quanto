@@ -522,3 +522,5 @@ Le attività: **calcolare il potenziale massimo** (controlla i dati, chiede quel
 
 **Il caricamento si vede.** Aprendo l'Allocazione il riquadro «L'azienda» si riempie di nero da sinistra a destra mentre si caricano profilo, previsione e giudizio dei bandi; gli altri riquadri restano in attesa. Quando è pieno, si passa da soli a «Bandi adatti».
 
+
+**Quanti bandi affini ci sono, e in che ordine.** Lo studio a fondo resta a richiesta: costa token ed è parte del modello di QUANTO. Ma l'Allocazione dice sempre quanti bandi di tutto il catalogo sono da studiare per l'azienda: in cima («Da studiare nel catalogo: 4 molto affini e 11 affini»), nel passo «Bandi adatti» e nella sezione «Affini da studiare · tutto il catalogo», con quattro numeri (molto affini, affini, poco affini, scheda da leggere) e i bandi divisi in questi gruppi, ognuno numerato secondo la sua posizione su tutto il catalogo. Tutti i molto affini e gli affini sono sempre nell'elenco, senza tagli; «Studia tutti i molto affini e affini» li studia tutti, non più solo i primi 60.

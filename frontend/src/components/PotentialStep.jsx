@@ -140,7 +140,7 @@ export default function PotentialStep({ results, picked, onPick, dm, plan, planH
       {onStudyMore && (
         <div className="flex flex-wrap items-center gap-3">
           <button className="btn" disabled={studyingMore} onClick={() => onStudyMore(false)}>{studyingMore && <Loader2 className="w-3.5 h-3.5 animate-spin" />}{studyingMore ? 'Studio in corso…' : 'Studia i 5 più affini'}</button>
-          {!studyingMore && studyQueue > 5 && <button className="btn-primary" onClick={() => onStudyMore(true)}>Studia tutti i bandi affini ({studyQueue})</button>}
+          {!studyingMore && studyQueue > 5 && <button className="btn-primary" onClick={() => onStudyMore(true)}>Studia tutti i molto affini e affini ({studyQueue})</button>}
           {studyingMore && onStudyStop && <button className="btn" onClick={onStudyStop}>Ferma dopo questo bando</button>}
           <Info label="Cosa fa">Tutti i bandi del catalogo sono già letti in breve (scheda ufficiale) e ordinati per affinità. Qui studi i più affini: cerca, scarica e legge le fonti ufficiali di ciascuno, uno dopo l’altro (circa un minuto ciascuno: lascia aperta la pagina), poi rifà la stima. Solo un bando studiato a fondo ha importi veri e può avere un budget; fino ad allora la scheda mostra un tetto provvisorio ricavato dalle sue cifre.</Info>
         </div>

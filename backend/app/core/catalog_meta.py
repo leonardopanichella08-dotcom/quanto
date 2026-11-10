@@ -487,6 +487,11 @@ def rank_for_profile(profile: Dict[str, Any], by_cat: Dict[str, float], limit: i
                        "affinity": "ALTA" if score >= 0.6 else "MEDIA" if score >= 0.25 else "BASSA", "reasons": reasons, "to_check": flags,
                        **{k: v for k, v in funding_modes.from_forms(meta.get("form"), r["name"]).items() if k in ("budget", "noun")}})
     scored.sort(key=lambda x: (-x["score"], x["deadline"] if x["deadline"] and x["deadline"] != "non indicata" else "9999", x["name"]))      # a pari affinità, prima chi scade prima
-    return {"items": scored[:limit], "total_candidates": len(scored), "excluded": excluded, "without_description": without,
+    # Tutti i molto affini e gli affini, sempre e in ordine (nessun taglio): i conteggi e la lista devono coincidere. I poco affini si mostrano fino a ``limit``.
+    affine = [x for x in scored if x["affinity"] in ("ALTA", "MEDIA")]
+    rest = [x for x in scored if x["affinity"] not in ("ALTA", "MEDIA")]
+    for i, x in enumerate(scored, 1):
+        x["rank"] = i
+    return {"items": affine + rest[:max(0, limit - len(affine))] if len(affine) < limit else affine, "total_candidates": len(scored), "excluded": excluded, "without_description": without,
             "high": sum(1 for x in scored if x["affinity"] == "ALTA"), "medium": sum(1 for x in scored if x["affinity"] == "MEDIA"), "low": sum(1 for x in scored if x["affinity"] == "BASSA"),
-            "read": len(rows), "unread_candidates": sum(1 for x in scored if x.get("unread")), "study_queue": [x["bando_id"] for x in scored if x["affinity"] in ("ALTA", "MEDIA")][:60]}
+            "read": len(rows), "unread_candidates": sum(1 for x in scored if x.get("unread")), "study_queue": [x["bando_id"] for x in affine]}

@@ -74,6 +74,8 @@ const FIT = {
 const CHECK_ICON = { OK: [CheckCircle2, 'text-emerald-700'], FAIL: [XCircle, 'text-red-700'], UNKNOWN: [CircleHelp, 'text-amber-700'] }
 const MISSING_LABEL = { region: 'la regione della sede', ateco_code: 'il codice ATECO', is_innovative_startup: 'se sei una start-up innovativa', founded_year: 'l’anno di costituzione', founders_age: 'l’età del socio più giovane', women_majority: 'se l’impresa è a prevalenza femminile' }
 
+// I bandi da studiare, divisi per affinità e ognuno nel suo ordine (il numero è la posizione su tutto il catalogo).
+const CAT_GROUPS = [['ALTA', 'Molto affini', (x) => x.affinity === 'ALTA'], ['MEDIA', 'Affini', (x) => x.affinity === 'MEDIA'], ['BASSA', 'Poco affini', (x) => x.affinity === 'BASSA' && !x.unread], ['UNREAD', 'Scheda da leggere', (x) => !!x.unread]]
 const AFFINITY = { ALTA: ['Molto affine', 'bg-emerald-500/15 text-emerald-700 border-emerald-500/30'], MEDIA: ['Affine', 'bg-sky-500/15 text-sky-700 border-sky-500/30'], BASSA: ['Poco affine', 'bg-ink/10 text-ink-2 border-line-strong'] }
 
 /** Voce del catalogo non ancora studiata: descrizione ufficiale e motivi dell'affinità; se serve, la si studia con il processo standard. */
@@ -84,7 +86,7 @@ function CatalogCard({ it, onStudied }) {
     <div className="rounded-2xl border border-line bg-field p-4 space-y-2.5">
       <div className="flex flex-wrap items-start gap-2">
         <div className="min-w-0 flex-1">
-          <p className="text-sm font-semibold text-ink break-words">{it.name}</p>
+          <p className="text-sm font-semibold text-ink break-words">{it.rank ? <span className="text-mute tabular-nums mr-1">{it.rank}.</span> : null}{it.name}</p>
           <p className="text-[11px] text-mute">{it.issuer || 'Ente non indicato'}{it.deadline && it.deadline !== 'non indicata' ? ` · scade il ${it.deadline.split('-').reverse().join('/')}` : ''}{it.state === 'IN_ARRIVO' && it.opens ? ` · apre il ${it.opens.split('-').reverse().join('/')}` : ''}</p>
         </div>
         <span className={`px-2 py-0.5 text-[11px] font-medium rounded border ${tone}`}>{label}</span>
@@ -502,7 +504,7 @@ export default function AllocationView({ onGoProfile, onBudgetFrom, onOpenBudget
   const [studied, setStudied] = useState(null)
   const [studyingMore, setStudyingMore] = useState(false)
   const [studyNote, setStudyNote] = useState(null)
-  const [catalogShown, setCatalogShown] = useState(30)               // i bandi da studiare si mostrano a gruppi di 30
+  const [catShown, setCatShown] = useState({})                       // per gruppo di affinità: quanti bandi da studiare si vedono
   const auto = useRef(false)
   const pending = useRef(null)                           // bandi inclusi nel piano al momento dell'ultimo salvataggio
   const allMode = useRef(true)                           // vero finché il piano include TUTTI i bandi adatti: quelli nuovi entrano da soli
@@ -896,7 +898,7 @@ export default function AllocationView({ onGoProfile, onBudgetFrom, onOpenBudget
   const nProgetto = projectFit('ADATTO').length
   const sections = [
     { id: 'azienda', title: 'L’azienda', done: !!hasData && !!match, off: !hasData, line: !ov ? 'Carico il profilo…' : (hasData && !match ? `Profilo al ${ov.completeness_pct}% · calcolo la previsione e giudico i bandi…` : `Profilo al ${ov.completeness_pct}% · spese ${year}: ${match ? fmtEur(match.forecast.total_forecast_eur) : '…'}`) },
-    { id: 'bandi', title: 'Bandi adatti', done: nAdatti > 0, off: !match, line: match ? `${nAdatti} per le spese dell’anno · ${match.matching.summary.DA_VERIFICARE} da verificare${st ? ` · schede lette ${fmtNum(st.read_total ?? st.read, 0)} su ${fmtNum(st.open_total, 0)}` : ''}` : 'uno per uno' },
+    { id: 'bandi', title: 'Bandi adatti', done: nAdatti > 0, off: !match, line: match ? `${nAdatti} per le spese dell’anno · ${match.matching.summary.DA_VERIFICARE} da verificare${st ? ` · ${(st.high || 0) + (st.medium || 0)} affini da studiare` : ''}` : 'uno per uno' },
     { id: 'insieme', title: 'Tutti insieme', done: grandTotal > 0 && !inProject, off: !match, line: grandTotal > 0 ? `${fmtEur(grandTotal)} in totale · ${picked.length} ${picked.length === 1 ? 'bando' : 'bandi'}${sel?.counted ? ` + ${sel.counted} agevolaz.` : ''}` : 'somma, piano e budget' },
     { id: 'progetti', title: 'Progetti', done: !!project, off: !match, line: project ? `«${project.title}»${plan && inProject ? ` · ${fmtEur(plan.covered_by_public_funds_eur)} coperti` : ''}` : (nProgetto ? `${nProgetto} bandi a progetto adatti` : 'bisogni, progetti e budget') },
   ]
@@ -1000,6 +1002,7 @@ export default function AllocationView({ onGoProfile, onBudgetFrom, onOpenBudget
     </>
   )
 
+  const cat = match?.matching.catalog || { items: [] }
   const bandiSection = match && (
     <div className="space-y-4">
       {intro('Bandi adatti, uno per uno', 'Ogni bando studiato, preso da solo: quanto darebbe all’azienda se fosse l’unico. Un bando compare tra gli adatti solo se il territorio, il settore (ATECO) e il tipo di soggetto lo permettono; se no finisce in «Non adatti», con il motivo scritto. Quelli che finanziano un progetto stanno nella sezione Progetti.')}
@@ -1012,7 +1015,7 @@ export default function AllocationView({ onGoProfile, onBudgetFrom, onOpenBudget
         <TutorialVideo id="T05" />
         {st && (
           <div className="rounded-2xl bg-tint p-4 space-y-1.5">
-            <p className="text-sm text-ink-2 leading-relaxed"><span className="font-medium text-ink">Cerco tra tutti i bandi aperti del catalogo ({fmtNum(st.open_total, 0)}), non solo tra quelli studiati.</span> Ho letto in breve la scheda di {fmtNum(st.read_total ?? st.read, 0)}: {st.high} molto affini, {st.medium} affini. {st.studied} sono già studiati a fondo e fanno il piano con importi veri. Gli altri sono in «Da studiare» con un tetto provvisorio ricavato dalla scheda: «Studia tutti i bandi affini» li porta uno dopo l’altro nel piano.</p>
+            <p className="text-sm text-ink-2 leading-relaxed"><span className="font-medium text-ink">Cerco tra tutti i bandi aperti del catalogo ({fmtNum(st.open_total, 0)}), non solo tra quelli studiati.</span> Ho letto in breve la scheda di {fmtNum(st.read_total ?? st.read, 0)}: <span className="font-medium text-ink">{st.high} molto affini e {st.medium} affini</span> ancora da studiare, in ordine nella sezione «Affini da studiare». {st.studied} sono già studiati a fondo e fanno il piano con importi veri. Gli affini hanno un tetto provvisorio ricavato dalla scheda; «Studia» (uno, i 5 più affini o tutti) li porta nel piano con l’importo vero.</p>
             {readNote?.busy && <p className="text-xs text-ink-2 flex items-center gap-2"><Loader2 className="w-3.5 h-3.5 animate-spin shrink-0" />Leggo adesso le schede che mancano: {fmtNum(readNote.read, 0)} lette, ne restano circa {fmtNum(readNote.left, 0)}. Il giudizio si aggiorna da solo alla fine.</p>}
             {readNote && !readNote.busy && <p className="text-xs text-ink-2">{readNote.read > 0 ? `Ho letto altre ${fmtNum(readNote.read, 0)} schede e rifatto il giudizio.` : ''}{readNote.left > 0 ? ` ${fmtNum(readNote.left, 0)} schede ufficiali non si sono aperte all’ultimo tentativo: le riprovo più tardi. Intanto quelle che nel nome non hanno nulla che le escluda restano in «Da studiare» con «Scheda da leggere»: nessuna è scartata senza motivo.` : ' Tutte le schede aperte sono lette.'}</p>}
             {!readNote && st.unread > 0 && <p className="text-xs text-ink-2">{fmtNum(st.unread, 0)} schede non sono ancora lette: le leggo adesso.</p>}
@@ -1051,15 +1054,30 @@ export default function AllocationView({ onGoProfile, onBudgetFrom, onOpenBudget
         <Note>Un bando è escluso se è di un’altra regione o provincia, se è rivolto a un altro settore rispetto al tuo codice ATECO, se è riservato a enti pubblici o famiglie, o se un requisito è smentito dai tuoi dati. Il motivo è scritto in ogni scheda.</Note>
         {match.matching.summary.NON_ADATTO === 0 ? <p className="text-xs text-mute">Nessun bando escluso.</p> : <HScroll>{byFit('NON_ADATTO').map((r) => card(r, 'ANNUAL'))}</HScroll>}
       </Fold>
-      <Fold id="al-fold-catalogo" title="Da studiare (catalogo nazionale)" badge={String(match.matching.catalog.total_candidates)} tone={match.matching.catalog.total_candidates ? 'ok' : 'neutral'} open={!!openFolds.CATALOG} onToggle={() => setOpenFolds((o) => ({ ...o, CATALOG: !o.CATALOG }))}
-        summary="Letti in breve, in ordine di affinità: studiali per avere l’importo vero">
-        <Note>Bandi del catalogo che QUANTO non ha ancora studiato, già filtrati per territorio, settore e soggetti. Premi «Studia»: a lettura finita compare l’importo e il bando entra nei calcoli. Fino ad allora vedi solo un tetto provvisorio ricavato dalle cifre della scheda.</Note>
-        {match.matching.catalog.items.length === 0 && <p className="text-xs text-mute">Nessuna scheda letta ancora.</p>}
-        <HScroll>{match.matching.catalog.items.slice(0, catalogShown).map((it) => <CatalogCard key={it.bando_id} it={it} onStudied={afterStudy} />)}</HScroll>
-        {match.matching.catalog.items.length > catalogShown && <button className="btn" onClick={() => setCatalogShown(catalogShown + 30)}>Mostra altri {Math.min(30, match.matching.catalog.items.length - catalogShown)} bandi da studiare</button>}
+      <Fold id="al-fold-catalogo" title="Affini da studiare · tutto il catalogo" badge={String((cat.high || 0) + (cat.medium || 0))} tone={(cat.high || 0) + (cat.medium || 0) ? 'ok' : 'neutral'} open={!!openFolds.CATALOG} onToggle={() => setOpenFolds((o) => ({ ...o, CATALOG: !o.CATALOG }))}
+        summary={`${cat.high || 0} molto affini · ${cat.medium || 0} affini · ${cat.low || 0} poco affini, su ${fmtNum(st?.open_total || 0, 0)} bandi aperti del catalogo`}>
+        <Note>Tutti i bandi aperti del catalogo che possono riguardare l’azienda (territorio, settore e soggetti compatibili) e che QUANTO non ha ancora studiato, in ordine di affinità: prima quelli le cui spese ammesse coprono di più le spese dell’azienda. Lo studio legge i documenti ufficiali: solo dopo compare l’importo vero e il bando entra nei calcoli. Fino ad allora vedi un tetto provvisorio ricavato dalla scheda.</Note>
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+          {[['Molto affini', cat.high || 0, 'text-emerald-700'], ['Affini', cat.medium || 0, 'text-sky-700'], ['Poco affini', Math.max(0, (cat.low || 0) - (cat.unread_candidates || 0)), 'text-ink-2'], ['Scheda da leggere', cat.unread_candidates || 0, 'text-mute']].map(([l, n, tone]) => (
+            <div key={l} className="rounded-2xl bg-tint px-3 py-2"><span className="label">{l}</span><div className={`text-lg font-semibold tabular-nums ${tone}`}>{n}</div></div>
+          ))}
+        </div>
+        {cat.items.length === 0 && <p className="text-xs text-mute">Nessun bando del catalogo da studiare per questa azienda.</p>}
+        {CAT_GROUPS.map(([key, title, test]) => {
+          const list = cat.items.filter(test)
+          if (!list.length) return null
+          const shown = catShown[key] || 12
+          return (
+            <div key={key} className="space-y-2">
+              <p className="text-sm font-semibold text-ink">{title} <span className="text-mute font-normal">· {list.length}{key === 'BASSA' && (cat.low || 0) - (cat.unread_candidates || 0) > list.length ? ` mostrati su ${(cat.low || 0) - (cat.unread_candidates || 0)}` : ''}</span></p>
+              <HScroll>{list.slice(0, shown).map((it) => <CatalogCard key={it.bando_id} it={it} onStudied={afterStudy} />)}</HScroll>
+              {list.length > shown && <button className="btn" onClick={() => setCatShown((m) => ({ ...m, [key]: shown + 24 }))}>Mostra altri {Math.min(24, list.length - shown)}</button>}
+            </div>
+          )
+        })}
         <div className="flex flex-wrap items-center gap-3">
           <button className="btn" disabled={studyingMore} onClick={() => studyMore(false)}>{studyingMore ? 'Studio in corso…' : 'Studia i 5 più affini'}</button>
-          {!studyingMore && (match.matching.catalog.study_queue || []).length > 5 && <button className="btn-primary" onClick={() => studyMore(true)}>Studia tutti i bandi affini ({match.matching.catalog.study_queue.length})</button>}
+          {!studyingMore && (cat.study_queue || []).length > 5 && <button className="btn-primary" onClick={() => studyMore(true)}>Studia tutti i molto affini e affini ({cat.study_queue.length})</button>}
           {studyingMore && <button className="btn" onClick={() => { studyAbort.current = true }}>Ferma dopo questo bando</button>}
         </div>
         {studyNote && <p className="text-[11px] text-ink-2 leading-relaxed">{studyNote}</p>}
@@ -1137,7 +1155,7 @@ export default function AllocationView({ onGoProfile, onBudgetFrom, onOpenBudget
   const agent = (
     <AgentBar current="allocation"
       did={match ? `Ho cercato tra tutti i ${st ? fmtNum(st.open_total, 0) : results.length} bandi aperti (schede lette: ${st ? fmtNum(st.read_total ?? st.read, 0) : '…'}), ne ho studiati ${nStudied} e ho giudicato quali sono per l’impresa.${readNote?.busy ? ' Sto leggendo le schede che mancano.' : ''}` : (matching ? 'Sto leggendo i bandi e le spese dell’impresa…' : null)}
-      found={match ? <span className="block space-y-1"><span className="block">{nAdatti} {nAdatti === 1 ? 'bando adatto' : 'bandi adatti'} alle spese dell’anno{nProgetto ? `, ${nProgetto} a progetto` : ''}.{grandTotal > 0 ? ` Nel totale: ${fmtEur(grandTotal)} al massimo.` : ''}</span>{newsLine}</span> : null}
+      found={match ? <span className="block space-y-1"><span className="block">{nAdatti} {nAdatti === 1 ? 'bando adatto' : 'bandi adatti'} alle spese dell’anno{nProgetto ? `, ${nProgetto} a progetto` : ''}.{grandTotal > 0 ? ` Nel totale: ${fmtEur(grandTotal)} al massimo.` : ''}</span>{st && <span className="block">Da studiare nel catalogo: {st.high} molto affini e {st.medium} affini, in ordine di affinità.</span>}{newsLine}</span> : null}
       need={needLines.length ? <span className="space-y-1 block">{needLines.map((l) => <span key={l} className="block">{l}</span>)}</span> : null}
       next={plan && pickedRows.length ? { label: 'Prepara e apri i budget dei bandi', onClick: () => { setSection('insieme'); openStep('budget'); setBudgetAuto((t) => t + 1); setTimeout(() => flashTo('al-budget'), 250) } }
         : match ? { label: 'Vai ai bandi adatti', onClick: () => { setSection('bandi'); setTab(nAdatti ? 'ADATTO' : 'DA_VERIFICARE'); window.scrollTo?.({ top: 0, behavior: 'smooth' }) } } : null} />
