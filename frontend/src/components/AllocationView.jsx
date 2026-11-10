@@ -479,7 +479,7 @@ function BandoCard({ r, picked, onToggle, onBudget, includeLabel = 'Includi', sc
           </div>
           <div className="text-[11px] text-mute">
             {signaled
-              ? <span>{signaled === 'NOT_FOR_ME' ? 'Segnalato: lo uso per migliorare il giudizio, in forma anonima.' : 'Segnalato: lo valuterà il Quartier Generale. Nel piano non entra finché il giudizio non cambia.'}</span>
+              ? <span>{signaled === 'NOT_FOR_ME' ? 'Segnalato: lo uso per migliorare il giudizio, in forma anonima.' : 'Segnalato: lo valuterà il Quartier Generale. Nel piano non entra finché il giudizio non cambia.'} <button type="button" className="underline hover:text-ink ml-1" onClick={() => { const was = signaled; api.relevanceSignalUndo(r.bando_id).then(() => { setSignaled(null); if (was === 'NOT_FOR_ME' && r.fund && r.fit === 'ADATTO' && !picked) onToggle() }).catch(() => {}) }}>Annulla</button></span>
               : <button type="button" className="underline hover:text-ink" onClick={() => { const sig = r.fit === 'NON_ADATTO' ? 'FOR_ME' : 'NOT_FOR_ME'; api.relevanceSignal(r.bando_id, sig, r.fit).then(() => { setSignaled(sig); if (sig === 'NOT_FOR_ME' && picked) onToggle() }).catch(() => {}) }}>{r.fit === 'NON_ADATTO' ? 'Il giudizio sbaglia: invece è per questa azienda' : 'Il giudizio sbaglia: non è per questa azienda'}</button>}
           </div>
         </div>

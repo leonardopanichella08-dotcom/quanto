@@ -147,6 +147,12 @@ def relevance_signal(bando_id: str, body: SignalBody, request: Request) -> dict:
         raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(exc)) from exc
 
 
+@router.delete("/{bando_id}/signal", dependencies=[Depends(require_auth)], summary="Annulla la propria segnalazione di pertinenza su questo bando")
+def relevance_signal_withdraw(bando_id: str, request: Request) -> dict:
+    from app.core import relevance
+    return relevance.withdraw_signal(actor_of(request), bando_id)
+
+
 @router.get("/relevance/signals", dependencies=[Depends(require_hq)], summary="Solo Quartier Generale: i bandi su cui gli studi non sono d'accordo con il giudizio di pertinenza")
 def relevance_signals() -> dict:
     from app.core import relevance

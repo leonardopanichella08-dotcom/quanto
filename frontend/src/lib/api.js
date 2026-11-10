@@ -201,6 +201,7 @@ export const api = {
   templateWinRate: (bandoId, ateco) => call(`/templates/win-rate?bando_id=${encodeURIComponent(bandoId)}${ateco ? `&ateco_code=${encodeURIComponent(ateco)}` : ''}`).then((r) => r.json()),
   relevanceSignals: () => call('/bandi/relevance/signals').then((r) => r.json()),
   relevanceSignal: (bandoId, signal, engineFit) => post(`/bandi/${encodeURIComponent(bandoId)}/signal`, { signal, engine_fit: engineFit || null }),
+  relevanceSignalUndo: (bandoId) => call(`/bandi/${encodeURIComponent(bandoId)}/signal`, { method: 'DELETE' }).then((r) => r.json()),
   profileAids: () => call('/profile/aids').then((r) => r.json()),
   saveAidsGroup: (answers, companies) => call('/profile/aids/group', { method: 'PUT', headers: json, body: JSON.stringify({ answers, companies }) }).then((r) => r.json()),
   saveAidsEntries: (company, source, entries, checked_at) => call('/profile/aids/entries', { method: 'PUT', headers: json, body: JSON.stringify({ company, source, entries, checked_at }) }).then((r) => r.json()),

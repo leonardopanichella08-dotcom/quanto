@@ -362,6 +362,30 @@ def _can_complete(code: str) -> bool:
         return False
 
 
+_CAT_DOC = {"CONSULTING": "consulenze", "OVERHEAD": "spese generali (affitti, utenze, servizi)", "TRAINING": "formazione"}
+
+
+def _missing_for(plan: Dict[str, Any], allowed: List[str], mode: Optional[Dict[str, Any]], year: int, read_docs: List[str]) -> List[Dict[str, Any]]:
+    """Cosa manca alla bozza, ma solo se serve a QUESTO bando: una categoria che il bando non ammette non si chiede, e una categoria senza spese non è
+    un dato mancante (l'azienda può non averne): si propone come facoltativa. Ogni voce dice i documenti già letti e quale caricare."""
+    out: List[Dict[str, Any]] = []
+    for cat, word in _CAT_DOC.items():
+        if cat in allowed and any(m.startswith(f"Nessuna spesa di {CATEGORY_LABEL[cat].lower()}") for m in plan["missing"]):
+            out.append({"id": f"cat-{cat}", "required": False, "read": read_docs,
+                        "what": f"Nei documenti letti non ci sono spese di {word}. Se l'azienda ne ha (o il programma le prevede), il bando le ammette.",
+                        "need": f"Il budget {year} dell'azienda (Excel con i conti di spesa) oppure i preventivi o le fatture di {word}.",
+                        "upload": [{"doc_type": "OTHER", "label": "Carica il budget o i preventivi"}]})
+    capex_missing = any("piano degli investimenti" in m for m in plan["missing"])
+    if capex_missing and "CAPITAL_ASSETS" in allowed:
+        need_it = bool(mode and mode.get("needs_project"))
+        out.append({"id": "capex", "required": need_it, "read": read_docs,
+                    "what": (f"Gli investimenti previsti nel {year} (acquisti di beni): per un bando a progetto sono il cuore del budget." if need_it
+                             else f"Gli investimenti previsti nel {year} (acquisti di beni): senza, i beni strumentali sono solo i costi ricorrenti (licenze, cloud)."),
+                    "need": f"Il piano degli investimenti {year} (Excel: bene, importo, mese) oppure i preventivi dei beni.",
+                    "upload": [{"doc_type": "OTHER", "label": "Carica il piano degli investimenti"}]})
+    return out
+
+
 def budget_template(owner: str, bando_id: str, scale_pct: float, fit: bool = True, year: Optional[int] = None, project_start: Optional[str] = None) -> Dict[str, Any]:
     """Una bozza di budget per il bando, costruita sui dati dell'azienda e sulle regole del bando.
 
@@ -432,7 +456,12 @@ def budget_template(owner: str, bando_id: str, scale_pct: float, fit: bool = Tru
 
     people_info: List[Dict[str, Any]] = []
     needs_personnel = None
-    needs_input: List[str] = list(plan["missing"])
+    from app.core.fonte_c import service as fc_service
+    read_docs = [(f"Busta paga (documento {d['id']})" if d.get("doc_type") == "PAYSLIP" else d["filename"])          # il nome di una busta paga può contenere il nome della persona
+                 for d in fc_service.list_documents(owner) if d.get("status") != "FAILED"][:12]
+    mode0 = _mode_of(detail)
+    missing = _missing_for(plan, allowed, mode0, target, read_docs)            # solo ciò che serve a QUESTO bando, con i documenti già letti e quello da caricare
+    needs_input: List[str] = [m["what"] for m in missing]
     if "PERSONNEL" in allowed:
         from app.core import fonte_b
         staff = company_facts.staff(owner)
@@ -440,7 +469,11 @@ def budget_template(owner: str, bando_id: str, scale_pct: float, fit: bool = Tru
         no_table: Dict[Any, int] = {}
         for k, p in enumerate(staff["people"], 1):
             if p["ral_eur"] is None and p.get("payslip_ral_eur") is None:
-                needs_input.append(f"La RAL di {p.get('role') or 'una persona'} ({p.get('ref') or p['token'][:8]}) non è nei documenti: la persona non è nel budget.")
+                who = f"{p.get('role') or 'una persona'} ({p.get('ref') or p['token'][:8]})"
+                needs_input.append(f"La RAL di {who} non è nei documenti: la persona non è nel budget.")
+                missing.append({"id": f"ral-{p['token'][:8]}", "what": f"La retribuzione (RAL) di {who}: senza, la persona non entra nel budget.", "required": True,
+                                "read": [s.get("filename") for s in p["sources"] if s.get("filename")][:3] or read_docs[:3],
+                                "need": "La busta paga di questa persona (o il registro del personale con la RAL).", "upload": [{"doc_type": "PAYSLIP", "label": "Carica la busta paga"}]})
                 continue
             hours = p.get("hours_week") or 40.0
             fte = round(min(1.0, max(0.01, factor)), 4)                      # quota del PROPRIO tempo: la RAL di chi è part-time è già quella del part-time
@@ -456,6 +489,9 @@ def budget_template(owner: str, bando_id: str, scale_pct: float, fit: bool = Tru
                     no_table[(p["ccnl_code"], str(p["level"]))] = no_table.get((p["ccnl_code"], str(p["level"])), 0) + 1
             else:
                 needs_input.append(f"Il contratto collettivo di {p.get('role') or 'una persona'} ({p.get('ref') or p['token'][:8]}) non è tra quelli di Fonte B: il controllo del costo orario resta in attesa.")
+                missing.append({"id": f"ccnl-{p['token'][:8]}", "what": f"Il contratto collettivo (CCNL) di {p.get('role') or 'una persona'} ({p.get('ref') or p['token'][:8]}): la persona è nel budget, ma il controllo del costo orario resta in attesa.",
+                                "required": False, "read": [s.get("filename") for s in p["sources"] if s.get("filename")][:3], "need": "Una busta paga di questa persona: riporta CCNL e livello.",
+                                "upload": [{"doc_type": "PAYSLIP", "label": "Carica la busta paga"}]})
             ct = _contract_type(p.get("contract"))
             if ct:
                 item["contract_type"] = ct
@@ -474,6 +510,10 @@ def budget_template(owner: str, bando_id: str, scale_pct: float, fit: bool = Tru
         if not staff["people"] and plan["personnel_base_eur"] > 0:
             needs_personnel = {"amount_eur": round(plan["personnel_base_eur"] * factor, 2),
                                "message": "Nei documenti non ci sono persone: carica il registro del personale (Excel) o le buste paga. Il controllo vuole persona per persona livello, CCNL, RAL e quota di tempo."}
+            missing.insert(0, {"id": "personale", "required": True, "read": read_docs,
+                               "what": f"Le persone in organico. Nei documenti c'è il costo del personale ({_it_eur(plan['personnel_base_eur'] * factor)}) ma non chi sono: il bando lo controlla persona per persona.",
+                               "need": "Il registro del personale (Excel: nome o ruolo, livello, CCNL, RAL, ore settimanali) oppure le buste paga, una per persona.",
+                               "upload": [{"doc_type": "OTHER", "label": "Carica il registro del personale"}, {"doc_type": "PAYSLIP", "label": "Carica le buste paga"}]})
 
     if project_start:
         try:
@@ -514,5 +554,5 @@ def budget_template(owner: str, bando_id: str, scale_pct: float, fit: bool = Tru
     return {"bando_id": bando_id, "base_year": plan["base_year"], "year": target, "scale_pct": scale_pct, "fit": fit, "cost_items": items, "needs_personnel": needs_personnel, "needs_category": [], "needs_review": [],
             "adjustments": adjustments, "excluded_categories": [{"category": c, "label": CATEGORY_LABEL[c]} for c in dropped_cat],
             "excluded_types": [{"code": r["code"], "label": r["label"], "amount_eur": round(r["amount_eur"] * factor, 2)} for r in dropped_types],
-            "basis": basis_rows, "personnel": people_info, "needs_input": needs_input, "notes": notes, "reality": reality,
+            "basis": basis_rows, "personnel": people_info, "needs_input": needs_input, "missing": missing, "documents_read": read_docs, "notes": notes, "reality": reality,
             "total_eur": round(sum(i.get("amount_eur") or 0 for i in items), 2), "personnel_base_eur": round(plan["personnel_base_eur"] * factor, 2)}

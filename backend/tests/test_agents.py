@@ -297,3 +297,27 @@ def test_the_catalog_search_covers_the_schede_not_yet_read_and_a_page_that_fails
     assert seed["read_errors"] == 1 and seed["read_error_at"]                                # segnata: al prossimo giro si legge dopo le altre
     r = client.post("/api/v2/bandi/catalog/read-more")
     assert r.status_code == 200 and set(r.json()) >= {"read", "errors", "remaining"}
+
+
+def test_a_relevance_signal_can_be_withdrawn():
+    with connect() as conn:
+        conn.execute("INSERT INTO bandi (bando_id, name, issuer, source_url, catalog_status, extraction_status, deadline, summary, catalog_meta, meta_at) VALUES (?,?,?,?,?,?,?,?,?,?)",
+                     ("CAT-ANNULLA", "Avviso da annullare", "Ente", "https://example.test/a", "CATALOGED", "NOT_STARTED", "2099-12-31", "s", "{}", "2026-11-07T00:00:00+00:00"))
+    relevance.record_signal("pentito@example.test", "CAT-ANNULLA", "NOT_FOR_ME", "ADATTO", RETAIL)
+    assert any(x["bando_id"] == "CAT-ANNULLA" for x in relevance.signal_summary())
+    assert relevance.withdraw_signal("pentito@example.test", "CAT-ANNULLA")["removed"] == 1
+    assert not any(x["bando_id"] == "CAT-ANNULLA" for x in relevance.signal_summary())
+    assert client.post("/api/v2/bandi/CAT-ANNULLA/signal", json={"signal": "NOT_FOR_ME"}).status_code == 200
+    assert client.delete("/api/v2/bandi/CAT-ANNULLA/signal").json()["removed"] == 1
+
+
+def test_the_draft_asks_only_what_the_bando_needs_and_says_which_document_to_upload():
+    from app.core import matching
+    plan = {"missing": ["Nessuna spesa di consulenze nei documenti.", "Nessuna spesa di formazione nei documenti.",
+                        "Gli investimenti previsti per il 2026 (acquisti di beni): nei documenti non c'è un piano degli investimenti. Senza, i beni strumentali del budget sono solo i costi ricorrenti (licenze, cloud)."]}
+    only_consulting = matching._missing_for(plan, ["CONSULTING", "OVERHEAD"], {"needs_project": False}, 2026, ["Dichiarazione 2025.pdf"])
+    assert [m["id"] for m in only_consulting] == ["cat-CONSULTING"]                       # formazione e beni: il bando non li ammette, non si chiedono
+    assert only_consulting[0]["required"] is False and only_consulting[0]["read"] == ["Dichiarazione 2025.pdf"] and only_consulting[0]["upload"][0]["doc_type"] == "OTHER"
+    project = matching._missing_for(plan, ["CAPITAL_ASSETS"], {"needs_project": True}, 2026, [])
+    assert project[0]["id"] == "capex" and project[0]["required"] is True                  # per un bando a progetto gli acquisti sono necessari
+    assert matching._missing_for(plan, ["CAPITAL_ASSETS"], {"needs_project": False}, 2026, [])[0]["required"] is False

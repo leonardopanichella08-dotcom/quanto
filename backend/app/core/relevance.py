@@ -287,6 +287,19 @@ def record_signal(owner: str, bando_id: str, signal: str, engine_fit: Optional[s
     return {"ok": True}
 
 
+def withdraw_signal(owner: str, bando_id: str) -> Dict[str, Any]:
+    """Annulla la segnalazione di questo utente su questo bando (qualunque fosse): il conteggio anonimo torna come prima."""
+    import hashlib
+    from app.core import events
+    from app.core.db import connect
+    who = hashlib.sha256(f"quanto-signal|{owner.split('#')[0]}".encode()).hexdigest()[:12]
+    with connect() as conn:
+        n = conn.execute("DELETE FROM relevance_signals WHERE bando_id=? AND owner_hash=?", (bando_id, who)).rowcount
+    if n:
+        events.record("relevance.signal", f"Segnalazione di pertinenza annullata su {bando_id}", actor="studio", bando_id=bando_id)
+    return {"ok": True, "removed": int(n or 0)}
+
+
 def signal_summary(min_studios: int = 1) -> List[Dict[str, Any]]:
     """Per il Quartier Generale: i bandi su cui gli studi non sono d'accordo con il giudizio, con quanti studi e per quali settori."""
     from app.core.db import connect
