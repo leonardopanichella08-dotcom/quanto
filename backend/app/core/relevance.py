@@ -125,13 +125,62 @@ def meta_fails(meta: Dict[str, Any], profile: Dict[str, Any]) -> List[Dict[str, 
     return out
 
 
-def text_fails(name: str, issuer: str, applicants: str, profile: Dict[str, Any]) -> List[Dict[str, str]]:
-    """Esclusioni dai soli testi del bando: territorio (anche da provincia), settore nominato, soggetti ammessi."""
+# --- enti locali: un bando di un Comune, di un GAL, di un'Unione dei comuni o di una Camera di commercio vale solo per le imprese di quel territorio.
+# Se il nome non si colloca (il Comune non è un capoluogo noto) e la scheda ufficiale non dice la regione, il bando NON si propone: prima serviva una prova
+# contraria per escluderlo, ora serve una prova positiva per mostrarlo (un Comune della Basilicata non deve comparire a un'impresa abruzzese).
+_LOCAL_ENTITY = re.compile(r"(?<![a-z])(comune|unione dei comuni|unione montana|comunita montana|municipio|gruppo di azione locale|gal|camera di commercio|cciaa)(?![a-z])\s*(?:di |del |della |dei |delle )?([a-z' ]{0,60})")
+_PLACE_STOP = {"bando", "bandi", "avviso", "avvisi", "contributi", "contributo", "per", "a", "al", "sostegno", "misure", "misura", "incentivi", "incentivo", "erogazione", "concessione", "e", "ed",
+               "il", "la", "le", "lo", "in", "agevolazioni", "fondo", "progetto", "anno", "occupazione", "territorio", "imprese", "attivita", "commerciali", "economiche", "nuove",
+               "voucher", "sovvenzioni", "finanziamenti", "economico", "sviluppo", "rilancio", "interventi", "intervento", "programma"}
+
+
+def local_entity(name: str, issuer: str) -> Optional[str]:
+    """«Comune di Corleto Perticara», «GAL Sulcis»…: l'ente locale nominato dal bando (in parole semplici), oppure None."""
+    m = _LOCAL_ENTITY.search(_fold(f"{name} {issuer}"))
+    if not m:
+        return None
+    words = []
+    for w in m.group(2).split():
+        if w in _PLACE_STOP or w.isdigit():
+            break
+        words.append(w)
+    kind = {"cciaa": "Camera di commercio", "gal": "GAL"}.get(m.group(1), m.group(1).capitalize())
+    return (kind + (" di " if kind in ("Comune", "Municipio", "Camera di commercio") else " ") + " ".join(words).title()).strip() if words else kind
+
+
+def locality_fails(name: str, issuer: str, meta: Optional[Dict[str, Any]], profile: Dict[str, Any]) -> List[Dict[str, str]]:
+    """Un bando di un ente locale si propone solo se il suo territorio è la regione dell'impresa: dal nome (capoluoghi e province) o dalla scheda ufficiale."""
+    if regions_in(f"{name} {issuer}"):
+        return []                                                     # il territorio si legge dal nome: decide il controllo «Territorio»
+    entity = local_entity(name, issuer)
+    if not entity:
+        return []
+    listed = [str(x).lower() for x in ((meta or {}).get("regions") or [])]
+    region = profile.get("region")
+    if listed:
+        return []                                                     # la scheda ufficiale dice la regione: decide meta_fails (esclude se non è la tua)
+    where = f" ({region})" if region else ""
+    return [{"id": "territory", "label": "Territorio",
+             "detail": f"È un bando di un ente locale ({entity}) e non risulta nella tua regione{where}: vale solo per le imprese di quel territorio, per questo non lo propongo."}]
+
+
+def in_region(name: str, issuer: str, meta: Optional[Dict[str, Any]], region: Optional[str]) -> bool:
+    """Prova POSITIVA che il bando riguarda la regione dell'impresa: la regione (o una sua provincia o capoluogo) nel nome o nell'ente, oppure nella scheda ufficiale."""
+    if not region:
+        return False
+    if region in regions_in(f"{name} {issuer}"):
+        return True
+    return region.lower() in [str(x).lower() for x in ((meta or {}).get("regions") or [])]
+
+
+def text_fails(name: str, issuer: str, applicants: str, profile: Dict[str, Any], meta: Optional[Dict[str, Any]] = None) -> List[Dict[str, str]]:
+    """Esclusioni dai testi del bando: territorio (anche da provincia o da un ente locale), settore nominato, soggetti ammessi."""
     out: List[Dict[str, str]] = []
     region, ateco = profile.get("region"), profile.get("ateco_code")
     named = regions_in(f"{name} {issuer}")
     if named and region and region not in named:
         out.append({"id": "territory", "label": "Territorio", "detail": f"Bando di {' / '.join(sorted(named))}; la tua sede è in {region}."})
+    out += locality_fails(name, issuer, meta, profile)
     bad = sector_fails(f"{name} {issuer} {applicants}", ateco)
     if bad:
         out.append({"id": "sector", "label": "Settore", "detail": f"Il bando è rivolto a: {', '.join(bad)}. Il tuo codice ATECO {ateco} non rientra."})

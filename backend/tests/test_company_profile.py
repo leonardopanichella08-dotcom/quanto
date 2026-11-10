@@ -189,7 +189,7 @@ def test_caps_tell_how_much_of_a_line_is_eligible():
     adj = matching._adjustments(rules, {"PERSONNEL": 600.0, "CONSULTING": 400.0}, ["PERSONNEL", "CONSULTING"])
     assert adj[0]["eligible_eur"] == 150.0 and adj[0]["over_cap_eur"] == 250.0              # 150 / (600 + 150) = 20%
     est = matching._estimate(rules, {"PERSONNEL": 600.0, "CONSULTING": 400.0, "TRAINING": 100.0}, 0.5)
-    assert est["covered_eur"] == (600 + 150) * 0.5 and next(r for r in est["by_category"] if r["category"] == "TRAINING")["note"] == "categoria non ammessa dal bando"
+    assert est["covered_eur"] == (600 + 150) * 0.5 and next(r for r in est["by_category"] if r["category"] == "TRAINING")["note"] == "categoria non ammessa"
 
 
 def seed_bando(bando_id, name, text):

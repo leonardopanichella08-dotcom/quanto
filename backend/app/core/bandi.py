@@ -136,6 +136,14 @@ def _catalog_status(b) -> str:
     return "IN LAVORAZIONE" if b["extraction_status"] != "COMPLETED" else "ESTRATTO"
 
 
+def _budget_flag(b, meta: Dict[str, Any]) -> Optional[bool]:
+    """Per gli elenchi (veloce): dal tipo di aiuto e dal nome, si fa un budget? False per crediti d'imposta automatici, garanzie, incentivi alle assunzioni. Il dettaglio decide con tutti i testi."""
+    from app.core import funding_modes
+    benefit = meta.get("benefit") or {}
+    acc = funding_modes.classify(benefit.get("type"), [b["name"], benefit.get("summary") or ""])
+    return funding_modes.MODES[acc["primary"]]["budget"] if acc["primary"] else None
+
+
 def list_bandi() -> List[Dict[str, Any]]:
     """Elenco pubblico: solo i bandi curati o con una ricerca che ha prodotto qualcosa (regole, requisiti, fonti, run).
 
@@ -172,6 +180,7 @@ def list_bandi() -> List[Dict[str, Any]]:
                 "requirements_count": reqs["c"] or 0, "requirements_to_review": int(reqs["r"] or 0),
                 "sources_count": len(meta.get("sources", [])), "gaps_count": len(meta.get("not_specified", [])),
                 "coverage": _summary(coverage(published)), "runs_count": runs["c"], "last_run_ts": runs["t"], "last_activity_ts": last_activity,
+                "budget": _budget_flag(b, meta),
             })
     # i bandi usati o cercati più di recente vengono per primi: tre ordinamenti stabili, dal meno al più prioritario,
     # così chi non ha ancora attività resta in coda ordinato come prima (curati, poi per id) invece di mischiarsi a caso
@@ -239,7 +248,7 @@ def get_bando_detail(bando_id: str) -> Optional[Dict[str, Any]]:
     published_keys = [r["key"] for r in rules if r["status"] == "PUBLISHED"]
     cov = coverage(published_keys)
     rule_set, _ = Ingestion.build_rule_set(bando_id)
-    return {
+    out = {
         "expense_scope": _expense_scope([r["text"] for r in req_rows]),
         "project_types": _project_types(b, meta, [r["text"] for r in req_rows]),
         "funding_modes": _funding_modes(b, meta, [r["text"] for r in req_rows]),
@@ -254,6 +263,9 @@ def get_bando_detail(bando_id: str) -> Optional[Dict[str, Any]]:
         "grant_rules": rule_set.model_dump(mode="json") if rule_set else None,
         "usage": {"runs": [dict(r) for r in runs], "documents": [dict(d) for d in docs], "uploaded_sources": source_rows},
     }
+    from app.core import funding_modes
+    out["access"] = funding_modes.budget_of(out)          # si fa un budget? è un bando o un'agevolazione? (una garanzia o un credito d'imposta automatico non hanno budget)
+    return out
 
 
 def references() -> List[Dict[str, Any]]:
@@ -273,7 +285,7 @@ def _not_for(name: str, issuer: str, raw_meta: Optional[str], profile: Optional[
         return None
     from app.core import relevance
     meta = json.loads(raw_meta) if raw_meta else {}
-    fails = relevance.text_fails(name or "", issuer or "", "", profile) + relevance.meta_fails(meta, profile)
+    fails = relevance.text_fails(name or "", issuer or "", "", profile, meta) + relevance.meta_fails(meta, profile)
     return fails[0]["detail"] if fails else None
 
 
@@ -384,11 +396,12 @@ def catalog_stats() -> Dict[str, Any]:
 _PUNCT = "'’&-/.,:;()"
 
 
-def open_by_terms(terms: List[str], profile: Optional[Dict[str, Any]] = None, limit: int = 5) -> List[Dict[str, Any]]:
+def open_by_terms(terms: List[str], profile: Optional[Dict[str, Any]] = None, limit: int = 5, regional: bool = False) -> List[Dict[str, Any]]:
     """I bandi APERTI del catalogo il cui nome contiene una delle parole indicate, solo se possono riguardare l'azienda (regione, settore, soggetti).
 
     Serve alle agevolazioni regionali (tirocini, voucher, incentivi all'occupazione): il collegamento al catalogo è già fatto, senza che qualcuno debba cercarlo.
     Veloce: una sola interrogazione sul nome, nessun confronto approssimato. Non tocca la rete."""
+    from app.core import funding_modes, relevance
     ensure_seeded()
     stems = [_fold(t) for t in terms if len(_fold(t)) >= 4]
     stems = [t[:-1] if len(t) >= 7 and " " not in t else t for t in stems]          # «tirocini» trova anche «tirocinio»
@@ -412,7 +425,11 @@ def open_by_terms(terms: List[str], profile: Optional[Dict[str, Any]] = None, li
         meta = json.loads(r["catalog_meta"]) if r["catalog_meta"] else {}
         if meta.get("state") == "CHIUSO":
             continue
-        out.append({"bando_id": r["bando_id"], "name": r["name"], "issuer": r["issuer"], "deadline": r["deadline"], "studied": bool(r["rules"]), "source_url": r["source_url"]})
+        if regional and not relevance.in_region(r["name"], r["issuer"] or "", meta, (profile or {}).get("region")):
+            continue                                       # per una misura regionale serve la prova che il bando è della regione dell'impresa (nel nome, nell'ente o nella scheda ufficiale)
+        access = funding_modes.from_forms(meta.get("form"), r["name"])
+        out.append({"bando_id": r["bando_id"], "name": r["name"], "issuer": r["issuer"], "deadline": r["deadline"], "studied": bool(r["rules"]), "source_url": r["source_url"],
+                    "budget": access["budget"], "noun": access["noun"], "form": access["form"]})
         if len(out) >= limit:
             break
     return out

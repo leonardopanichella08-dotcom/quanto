@@ -181,3 +181,58 @@ def test_the_agent_states_are_accepted_per_work():
     for key, value in (("measure_positions", {"positions": [{"age": "UNDER35"}]}), ("agent_seen", {"allocation": {"fit": ["A"], "at": "2026-11-09"}})):
         assert client.put(f"/api/v2/clients/current/state/{key}", json={"value": value}, headers=h).status_code == 200
         assert client.get(f"/api/v2/clients/current/state/{key}", headers=h).json()["value"] == value
+
+
+# ------------------------------------------------------------------------------------------------ verifica del 10 novembre (seconda): budget solo dove serve, territorio provato, studio che dice cosa fare
+def test_an_automatic_tax_credit_or_a_guarantee_never_has_a_budget_and_is_called_agevolazione():
+    from app.core import funding_modes as fm
+    assert fm.from_forms(["Credito d'imposta"]) == {"budget": False, "noun": "agevolazione", "form": "Credito d'imposta"}
+    assert fm.from_forms(["Garanzia"])["budget"] is False and fm.from_forms(["Contributo/Fondo perduto"])["budget"] is True
+    assert fm.from_forms([], "Agevolazioni fiscali finalizzate all'assunzione di dipendenti detenuti")["noun"] == "agevolazione"
+    assert fm.from_forms([], "Avviso per le imprese")["budget"] is None                      # non si sa: si saprà con lo studio
+    assert fm.describe("CREDITO_AUTOMATICO")["budget"] is False and fm.describe("PROGETTO_INVESTIMENTO")["budget"] is True and fm.describe("SPESE_CORRENTI")["budget"] is True
+
+
+def test_the_draft_budget_is_refused_for_an_agevolazione_without_budget():
+    from app.core import bandi as b, company_profile as cp, matching
+    b.ensure_seeded()
+    d = b.get_bando_detail("IPERAMMORTAMENTO-2026")
+    assert d["access"]["budget"] is False and d["access"]["noun"] == "agevolazione"
+    with pytest.raises(cp.ProfileError) as e:
+        matching.budget_template("chiunque", "IPERAMMORTAMENTO-2026", 100)
+    assert "non chiede un budget" in str(e.value)
+    r = client.get("/api/v2/bandi/IPERAMMORTAMENTO-2026").json()
+    assert r["access"]["budget"] is False and r["study"]["budget"] is False and r["study"]["budget_ready"] is False
+
+
+def test_a_bando_of_a_municipality_outside_the_company_region_is_never_proposed():
+    """Un'impresa abruzzese non deve vedere il bando del Comune di Corleto Perticara (Basilicata), anche se il Comune non è un capoluogo noto."""
+    abruzzo = {"region": "Abruzzo", "ateco_code": "47.71"}
+    name = "Comune Di Corleto Pertica Bando Occupazione E Territorio Lassunzione Da Parte Di Imprese"
+    assert relevance.local_entity(name, "") == "Comune di Corleto Pertica"
+    assert [f["id"] for f in relevance.text_fails(name, "incentivi.gov.it", "", abruzzo)] == ["territory"]
+    assert relevance.text_fails("Comune di Pescara: contributi alle imprese", "", "", abruzzo) == []                 # capoluogo noto, nella sua regione
+    assert relevance.text_fails("Comune di Lanciano contributi commercio", "", "", abruzzo, {"regions": ["Abruzzo"]}) == []   # la scheda ufficiale lo colloca
+    assert relevance.text_fails("Comune di Matera contributi", "", "", abruzzo)[0]["id"] == "territory"
+    assert relevance.text_fails("Contributi CCIAA Irpinia Sannio", "", "", abruzzo)[0]["id"] == "territory"
+    assert relevance.in_region("Voucher Regione Abruzzo", "", None, "Abruzzo") and not relevance.in_region("Agevolazioni fiscali nazionali", "", None, "Abruzzo")
+    with connect() as conn:
+        conn.execute("INSERT INTO bandi (bando_id, name, issuer, source_url, catalog_status, extraction_status, deadline, summary, catalog_meta, meta_at) VALUES (?,?,?,?,?,?,?,?,?,?)",
+                     ("CAT-CORLETO", name, "incentivi.gov.it", "https://example.test/c", "CATALOGED", "NOT_STARTED", "2099-12-31", "s", "{}", "2026-11-07T00:00:00+00:00"))
+        conn.execute("INSERT INTO bandi (bando_id, name, issuer, source_url, catalog_status, extraction_status, deadline, summary, catalog_meta, meta_at) VALUES (?,?,?,?,?,?,?,?,?,?)",
+                     ("CAT-DETENUTI", "Agevolazioni fiscali finalizzate all'assunzione di dipendenti detenuti o internati", "incentivi.gov.it", "https://example.test/d", "CATALOGED", "NOT_STARTED", "2099-12-31", "s", "{}", "2026-11-07T00:00:00+00:00"))
+    terms = measures.BY_ID["INCENTIVI_OCCUPAZIONE_FSE"]["search"]
+    assert bandi.open_by_terms(terms, abruzzo, 10, regional=True) == []                      # né il Comune lucano né la misura nazionale: per una misura regionale serve la prova della regione
+    detenuti = [x for x in bandi.open_by_terms(terms, abruzzo, 10) if x["bando_id"] == "CAT-DETENUTI"]
+    assert detenuti and detenuti[0]["noun"] == "agevolazione" and detenuti[0]["budget"] is False
+
+
+def test_the_study_state_says_what_can_be_done_and_proposes_a_retry_only_when_it_helps():
+    from app.core import pipeline
+    with connect() as conn:
+        conn.execute("INSERT INTO bandi (bando_id, name, issuer, source_url, catalog_status, extraction_status, deadline, summary, catalog_meta, meta_at) VALUES (?,?,?,?,?,?,?,?,?,?)",
+                     ("CAT-MAI", "Avviso mai studiato", "Ente", "https://example.test/m", "CATALOGED", "NOT_STARTED", "2099-12-31", "s", "{}", "2026-11-07T00:00:00+00:00"))
+    never = pipeline.study_state("CAT-MAI")
+    assert never["studied"] is False and never["budget_ready"] is False and never["retry"] is False and "Non ancora studiato" in never["verdict"]
+    cur = pipeline.study_state("IPERAMMORTAMENTO-2026")                                     # curato: studiato, niente da rifare, niente budget
+    assert cur["studied"] and cur["retry"] is False and "non chiede un budget" in cur["verdict"]

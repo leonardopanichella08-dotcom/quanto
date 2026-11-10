@@ -1,10 +1,10 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { AlertTriangle, CheckCircle2, Clock, ExternalLink, Loader2, Scale } from 'lucide-react'
 import { api } from '../lib/api'
-import { BANDO_STATUS_STYLE, KIND_STYLE, fmtTs } from '../lib/format'
+import { BANDO_STATUS_STYLE, KIND_STYLE, fmtTs, su } from '../lib/format'
 import { ruleLabel } from '../data/ruleLabels'
 import { ChromeCard, Fold, Info } from './ui'
-import PipelineButton from './PipelineButton'
+import PipelineButton, { StudyResult } from './PipelineButton'
 import Guide from './Guide'
 import ResearchPanel from './ResearchPanel'
 import TutorialVideo from './TutorialVideo'
@@ -135,6 +135,8 @@ function Detail({ bando, onUse, using, onStudied }) {
   const rules = bando.rules.filter((r) => r.status === 'PUBLISHED')        // le regole in disaccordo le vede solo il Quartier Generale
   const requirements = bando.requirements.filter((r) => r.kind !== 'DA_REVISIONARE')
   const scope = bando.expense_scope || { excluded: [], eligible: [] }
+  const study = bando.study || {}
+  const noBudget = bando.access?.budget === false
   const tabs = [['rules', `Regole (${rules.length})`], ['reqs', `Requisiti (${requirements.length})`], ['spese', `Progetti e voci di spesa (${(bando.project_types || []).length + scope.excluded.length + scope.eligible.length})`], ['cov', 'Controlli attivati'], ['dom', 'Per fare la domanda'], ['src', 'Fonti']]
   return (
     <ChromeCard label={`quanto.app/bandi/${bando.bando_id}`} bodyClassName="p-5 space-y-4">
@@ -145,10 +147,13 @@ function Detail({ bando, onUse, using, onStudied }) {
           <span className={`inline-block mt-2 px-2 py-0.5 text-[11px] font-medium rounded border ${BANDO_STATUS_STYLE(bando.status || '')}`}>{bando.status || bando.extraction_status}</span>
         </div>
         <div className="space-y-1 max-w-xs">
-          <button onClick={() => onUse(bando.bando_id)} disabled={using || !bando.grant_rules} className="btn-primary flex items-center gap-2">
-            {using && <Loader2 className="w-3.5 h-3.5 animate-spin" />}Fai il budget per questo bando
-          </button>
-          {!bando.grant_rules && <p className="text-[11px] text-amber-700 leading-snug">{bando.benefit?.type === 'GARANZIA_PUBBLICA' ? 'Non c’è un budget da fare: è una garanzia sul finanziamento, non rimborsa spese.' : 'Mancano le regole numeriche: studia il bando a fondo per poter fare il budget.'}</p>}
+          {noBudget
+            ? <p className="text-xs text-sky-800 rounded-xl bg-sky-500/5 border border-sky-500/20 p-2.5 leading-snug">È un’agevolazione: non si fa un budget di spese{bando.access?.base ? `. Si calcola ${su(bando.access.base)}` : ''}.</p>
+            : study.budget_ready && (
+              <button onClick={() => onUse(bando.bando_id)} disabled={using} className="btn-primary flex items-center gap-2">
+                {using && <Loader2 className="w-3.5 h-3.5 animate-spin" />}Fai il budget per questo bando
+              </button>
+            )}
         </div>
       </div>
 
@@ -157,7 +162,8 @@ function Detail({ bando, onUse, using, onStudied }) {
           <span className="label block mb-1">Che tipo di aiuto è: {bando.benefit.type}</span>{bando.benefit.summary}
         </div>
       )}
-      {!bando.curated && <PipelineButton bandoId={bando.bando_id} onDone={onStudied} label={bando.requirements.length ? 'Rifai lo studio del bando' : 'Studia il bando a fondo'} hint="Cerca e rilegge le fonti ufficiali, poi aggiorna regole e requisiti. Non cambia i tuoi budget." />}
+      {!bando.curated && study.studied && <StudyResult study={study} />}
+      {!bando.curated && (!study.studied || study.retry) && <PipelineButton key={`${bando.bando_id}-${study.last_read || 'mai'}`} bandoId={bando.bando_id} onDone={onStudied} label={study.studied ? 'Riprova la lettura' : 'Studia il bando'} hint="Cerca e rilegge le fonti ufficiali, poi aggiorna regole e requisiti. Non cambia i tuoi budget." />}
       {bando.status?.startsWith('CHIUSO') && <p className="text-xs text-amber-700 flex gap-2"><AlertTriangle className="w-4 h-4 shrink-0" />Bando chiuso: utile per progetti in corso o per fare confronti.</p>}
 
       <div className="flex items-center gap-3">
@@ -198,7 +204,7 @@ function Detail({ bando, onUse, using, onStudied }) {
             {(bando.funding_modes?.modes || []).slice(0, 3).map((m, i) => (
               <div key={m.code} className="p-3 bg-field border border-line rounded-xl space-y-1">
                 <div className="flex flex-wrap items-center gap-2"><span className="font-medium text-ink">{m.label}</span>{i === 0 && <span className="px-1.5 py-0.5 rounded border text-[10px] border-brand/50 text-brand-ink">principale</span>}<span className="text-mute">{m.needs_project ? 'chiede un progetto' : 'non chiede un progetto'}</span></div>
-                <p className="text-ink-2">Si calcola su {m.base}.</p>
+                <p className="text-ink-2">Si calcola {su(m.base)}.</p>
                 <p className="text-mute">Esempio: {m.example}</p>
                 {m.evidence.map((e, j) => <p key={j} className="text-mute leading-relaxed">«{e}»</p>)}
               </div>

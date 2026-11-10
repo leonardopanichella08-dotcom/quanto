@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react'
 import { api } from '../lib/api'
-import { fmtEur, fmtNum, CATEGORY_LABEL, STATUS_LABEL, STATUS_STYLE } from '../lib/format'
+import { fmtEur, fmtNum, su, CATEGORY_LABEL, STATUS_LABEL, STATUS_STYLE } from '../lib/format'
 import { nextStep } from '../lib/profileSteps'
 import { AlertTriangle, CheckCircle2, ChevronDown, ChevronRight, CircleHelp, ExternalLink, FolderOpen, Loader2, Sparkles, XCircle } from 'lucide-react'
 import { CostConfirm, fmtTok } from './Tokens'
@@ -10,7 +10,7 @@ import TutorialVideo from './TutorialVideo'
 import { flashTo, takeAllocationTarget, useNav } from '../lib/nav'
 import { WordsContext, docWords } from '../lib/words'
 import Guide from './Guide'
-import PipelineButton from './PipelineButton'
+import PipelineButton, { StudyResult } from './PipelineButton'
 import ApplicationDocs from './ApplicationDocs'
 import { MeasuresPanel, TotalPanel } from './Composition'
 import { loadChoice, saveChoice, withChoice, withoutChoice } from '../lib/measureChoice'
@@ -88,6 +88,7 @@ function CatalogCard({ it, onStudied }) {
           <p className="text-[11px] text-mute">{it.issuer || 'Ente non indicato'}{it.deadline && it.deadline !== 'non indicata' ? ` · scade il ${it.deadline.split('-').reverse().join('/')}` : ''}{it.state === 'IN_ARRIVO' && it.opens ? ` · apre il ${it.opens.split('-').reverse().join('/')}` : ''}</p>
         </div>
         <span className={`px-2 py-0.5 text-[11px] font-medium rounded border ${tone}`}>{label}</span>
+        {it.budget === false && <span className="px-2 py-0.5 text-[11px] font-medium rounded border border-sky-500/30 bg-sky-500/10 text-sky-700">Agevolazione · niente budget</span>}
       </div>
       {it.summary && <p className="text-xs text-ink-2 leading-relaxed">{it.summary}</p>}
       <div className="flex flex-wrap gap-1.5 text-[11px]">
@@ -97,13 +98,13 @@ function CatalogCard({ it, onStudied }) {
       {it.provisional && (
         <div className="rounded-xl bg-white border border-amber-500/30 px-3 py-2 text-xs text-ink-2 leading-relaxed">
           <p><span className="font-semibold text-ink">Fino a {fmtEur(it.provisional.ceiling_eur)}</span> per la tua azienda <span className="text-amber-700">· tetto provvisorio</span></p>
-          <p className="text-[11px] text-mute">Dalla scheda: {it.provisional.how}, applicato alle tue spese ammesse ({fmtEur(it.provisional.covered_base_eur)}). Non è una stima: non conosce graduatoria, de minimis né requisiti. Studialo a fondo per avere l’importo vero.</p>
+          <p className="text-[11px] text-mute">Dalla scheda: {it.provisional.how}, applicato alle tue spese ammesse ({fmtEur(it.provisional.covered_base_eur)}). Non è una stima: non conosce graduatoria, de minimis né requisiti. Studialo per avere l’importo vero.</p>
         </div>
       )}
       {it.reasons.length > 0 && <ul className="text-xs text-ink-2 space-y-0.5">{it.reasons.map((r) => <li key={r} className="flex gap-1.5"><CheckCircle2 className="w-3.5 h-3.5 mt-0.5 text-emerald-600 shrink-0" />{r}</li>)}</ul>}
       {it.to_check.length > 0 && <p className="text-[11px] text-amber-700">Da verificare: {it.to_check.join(', ')}.</p>}
       <div className="flex flex-wrap items-start gap-3 pt-1">
-        <PipelineButton bandoId={it.bando_id} label="Studia a fondo questo bando" onDone={(r) => onStudied(it, r)} />
+        <PipelineButton bandoId={it.bando_id} label="Studia questo bando" onDone={(r) => onStudied(it, r)} />
         {it.source_url && <a href={it.source_url} target="_blank" rel="noreferrer" className="text-xs text-sky-700 hover:underline inline-flex items-center gap-1 pt-2"><ExternalLink className="w-3 h-3" />Scheda ufficiale</a>}
         <button className="text-xs text-sky-700 hover:underline pt-2" aria-expanded={docs} onClick={() => setDocs(!docs)}>{docs ? 'Chiudi i documenti' : 'Documenti per la domanda'}</button>
       </div>
@@ -119,14 +120,14 @@ function ProjectCandidates({ items, onStudied }) {
     <div className="rounded-2xl bg-tint p-4 space-y-3">
       <div>
         <p className="text-sm font-semibold text-ink">Altri bandi che potrebbero finanziarlo</p>
-        <p className="text-xs text-ink-2 mt-0.5 leading-relaxed">Dal catalogo: la scheda ufficiale ammette le spese di questo progetto. Non sono ancora studiati a fondo, quindi non hanno un importo: studiali per portarli nel piano.</p>
+        <p className="text-xs text-ink-2 mt-0.5 leading-relaxed">Dal catalogo: la scheda ufficiale ammette le spese di questo progetto. Non sono ancora studiati, quindi non hanno un importo: studiali per portarli nel piano.</p>
       </div>
       <ul className="space-y-2">
         {items.map((it) => (
           <li key={it.bando_id} className="rounded-xl bg-white p-3 space-y-2">
             <div className="flex flex-wrap items-start gap-2"><p className="text-sm font-medium text-ink flex-1 min-w-0 break-words">{it.name}</p><span className={`px-2 py-0.5 text-[11px] font-medium rounded-full border ${AFFINITY[it.affinity][1]}`}>{AFFINITY[it.affinity][0]}</span></div>
             {it.benefit_range && <p className="text-[11px] text-emerald-700">Agevolazione: {it.benefit_range}</p>}
-            <PipelineButton bandoId={it.bando_id} label="Studia a fondo" onDone={(r) => onStudied(it, r)} />
+            <PipelineButton bandoId={it.bando_id} label="Studia" onDone={(r) => onStudied(it, r)} />
           </li>
         ))}
       </ul>
@@ -183,23 +184,36 @@ function SectionNav({ items, current, onGo }) {
 const CROSS = { PASS: [CheckCircle2, 'text-emerald-700'], FAIL: [XCircle, 'text-red-700'], WARN: [AlertTriangle, 'text-amber-700'] }
 
 /** Dall'allocazione ai budget: un budget per ogni bando che copre una parte delle spese, controllato con i 60 criteri del suo bando e verificato insieme agli altri. */
-function BudgetsFromPlan({ plan, lines, onOpen }) {
+const lastAutoBudget = { n: 0 }                 // la richiesta «prepara i budget» della barra dell'agente si esegue una volta sola, anche se la sezione si richiude e si riapre
+function BudgetsFromPlan({ plan, lines, onOpen, auto = 0 }) {
   const [res, setRes] = useState(null)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState(null)
   useEffect(() => { setRes(null); setError(null) }, [plan])
-  const build = async () => {
+  const build = async (openAfter = false) => {
     setBusy(true); setError(null)
-    try { setRes(await api.allocationBudgets({ allocation: plan, fiscal_year: plan.fiscal_year, funding_lines: lines })) } catch (e) { setError(e.message); setRes(null) } finally { setBusy(false) }
+    try {
+      const r = await api.allocationBudgets({ allocation: plan, fiscal_year: plan.fiscal_year, funding_lines: lines })
+      setRes(r)
+      if (openAfter && r.ok && r.budgets.length) onOpen(r, r.budgets[0].fund_id)          // tutto a posto: si apre subito il Budget; se c'è un conflitto si resta qui a leggerlo
+    } catch (e) { setError(e.message); setRes(null) } finally { setBusy(false) }
   }
+  useEffect(() => { if (auto && auto !== lastAutoBudget.n) { lastAutoBudget.n = auto; build(true) } }, [auto])        // eslint-disable-line react-hooks/exhaustive-deps
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center gap-3">
-        <button className="btn-primary" disabled={busy} onClick={build}>{busy ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <FolderOpen className="w-3.5 h-3.5" />}{res ? 'Ricrea i budget' : 'Crea i budget dei bandi'}</button>
+        <button className="btn-primary" disabled={busy} onClick={() => build(false)}>{busy ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <FolderOpen className="w-3.5 h-3.5" />}{res ? 'Ricrea i budget' : 'Crea i budget dei bandi'}</button>
         {res && res.budgets.length > 0 && <button className="btn" onClick={() => onOpen(res, res.budgets[0].fund_id)}>Apri i budget nella pagina Budget</button>}
       </div>
       {error && <p className="text-xs text-red-700">{error}</p>}
-      {res && (
+      {res && res.no_budget?.length > 0 && (
+        <div className="rounded-xl bg-sky-500/5 border border-sky-500/20 p-3 text-xs text-ink-2 space-y-1">
+          <p className="font-medium text-ink">Nel piano, ma senza budget: sono agevolazioni</p>
+          {res.no_budget.map((n) => <p key={n.fund_id}>• {n.name}{n.base ? `: si calcola ${su(n.base)}` : ''}.</p>)}
+        </div>
+      )}
+      {res && res.budgets.length === 0 && <p className="text-xs text-ink-2">Nessun budget da preparare: i fondi del piano sono tutti agevolazioni senza budget.</p>}
+      {res && res.budgets.length > 0 && (
         <>
           <div className="space-y-2">
             <p className="text-sm font-medium text-ink">{res.ok ? 'I budget stanno bene insieme.' : 'Attenzione: ci sono incompatibilità tra i budget.'}</p>
@@ -334,15 +348,23 @@ function RealityPanel({ plan, lines, measures, ateco }) {
 function BandoCard({ r, picked, onToggle, onBudget, includeLabel = 'Includi', scenario = 'ANNUAL', linked = [], onPickProject }) {
   const [open, setOpen] = useState(false)
   const [signaled, setSignaled] = useState(null)
+  const [budgetNo, setBudgetNo] = useState(null)                 // il budget non si può fare: il motivo resta sulla scheda
+  const [budgetBusy, setBudgetBusy] = useState(false)
+  const noBudget = r.mode?.budget === false
+  const canBudget = !noBudget && r.rules_count > 0
+  const toBudget = async () => {
+    setBudgetBusy(true)
+    try { const res = await onBudget(r.bando_id); if (res && !res.ok) setBudgetNo(res.study) } finally { setBudgetBusy(false) }
+  }
   const [fit, tone] = FIT[r.fit]
   const e = r.estimate
   const projectOnly = !!r.mode?.needs_project
   const blocked = projectOnly && scenario === 'ANNUAL'                            // un bando a progetto non finanzia le spese annuali: nel piano dell'anno non entra
   return (
-    <div className={`rounded-2xl p-4 space-y-3 ${picked ? 'bg-brand/5 ring-1 ring-brand/40' : 'bg-tint'} ${blocked ? 'opacity-95' : ''}`}>
+    <div id={`bando-${r.bando_id}`} className={`rounded-2xl p-4 space-y-3 scroll-mt-24 ${picked ? 'bg-brand/5 ring-1 ring-brand/40' : 'bg-tint'} ${blocked ? 'opacity-95' : ''}`}>
       <div className="space-y-1.5">
         <div className="flex flex-wrap gap-1.5">
-          {r.mode && <span title={`Si calcola su ${r.mode.base}`} className="px-2 py-0.5 text-[11px] font-medium rounded-full bg-white text-ink-2">{projectOnly ? 'Per un progetto' : r.mode.label}</span>}
+          {r.mode && <span title={`Si calcola ${su(r.mode.base)}`} className={`px-2 py-0.5 text-[11px] font-medium rounded-full ${noBudget ? 'bg-sky-500/15 text-sky-700' : 'bg-white text-ink-2'}`}>{projectOnly ? 'Bando per un progetto' : noBudget ? `Agevolazione · ${r.mode.label.toLowerCase()}` : r.mode.label}</span>}
           {r.de_minimis?.applies && <span title={r.de_minimis.evidence[0]?.text} className="px-2 py-0.5 text-[11px] font-medium rounded-full bg-violet-500/10 text-violet-700">De minimis</span>}
           <span className={`px-2 py-0.5 text-[11px] font-medium rounded-full ${tone}`}>{fit}</span>
         </div>
@@ -366,10 +388,10 @@ function BandoCard({ r, picked, onToggle, onBudget, includeLabel = 'Includi', sc
         </div>
       ) : r.guarantee ? (
         <div><span className="label">Importo garantibile</span><div className="text-lg font-display font-semibold text-sky-700 tabular-nums">{fmtEur(r.guarantee.guaranteed_low_eur)} – {fmtEur(r.guarantee.guaranteed_high_eur)}</div></div>
-      ) : <p className="text-xs text-amber-700">Nessuna percentuale nei documenti letti: puoi farlo studiare di nuovo.</p>}
+      ) : <p className="text-xs text-amber-700">I documenti ufficiali letti non scrivono una percentuale di agevolazione: il valore in euro non si calcola e non entra nel totale.</p>}
       {e && !projectOnly && e.adjustments.length > 0 && <p className="text-[11px] text-amber-700 inline-flex items-center gap-1.5"><AlertTriangle className="w-3.5 h-3.5" />Alcune voci vanno ridotte per rientrare nei tetti (dettagli)</p>}
       {r.fit === 'NON_ADATTO' && <p className="text-xs text-red-700 leading-snug"><span className="font-medium">Perché non è adatto:</span> {(r.checks.find((c) => c.result === 'FAIL') || {}).detail || 'non rientra nei requisiti.'}</p>}
-      {r.fit === 'DA_VERIFICARE' && <p className="text-xs text-amber-700 leading-snug"><span className="font-medium">Cosa manca per deciderlo:</span> {(r.checks.find((c) => c.result === 'UNKNOWN' && c.decisive) || {}).detail || 'il bando non dichiara una percentuale che si possa calcolare.'} Non entra nei calcoli finché non è chiarito.</p>}
+      {r.fit === 'DA_VERIFICARE' && <p className="text-xs text-amber-700 leading-snug"><span className="font-medium">Cosa manca per deciderlo:</span> {(r.checks.find((c) => c.result === 'UNKNOWN' && c.decisive) || {}).detail || 'i documenti ufficiali non scrivono una percentuale che si possa calcolare.'} Non entra nei calcoli finché non è chiarito.</p>}
 
       <div className="flex flex-wrap items-center gap-2">
         {r.fund && r.fit === 'ADATTO' && !blocked && <label className="inline-flex items-center gap-2 text-xs font-medium cursor-pointer"><input type="checkbox" checked={picked} onChange={onToggle} />{includeLabel}</label>}
@@ -395,7 +417,7 @@ function BandoCard({ r, picked, onToggle, onBudget, includeLabel = 'Includi', sc
             {r.checks.map((c) => { const [Icon, color] = CHECK_ICON[c.result]; return <li key={c.id} className="flex gap-2"><Icon className={`w-3.5 h-3.5 mt-0.5 shrink-0 ${color}`} /><span className="text-ink-2"><span className="font-medium text-ink">{c.label}:</span> {c.detail}</span></li> })}
           </ul>
           {e && (
-            <div className="overflow-x-auto"><table className="w-full min-w-[320px]"><thead><tr className="text-left text-mute"><th className="font-medium py-1">Spesa</th><th className="font-medium text-right">Prevista</th><th className="font-medium text-right">Ammissibile</th><th className="font-medium text-right">Contributo</th></tr></thead>
+            <div className="overflow-x-auto"><table className="w-full min-w-[320px]"><thead><tr className="text-left text-mute"><th className="font-medium py-1">Spesa</th><th className="font-medium text-right">Prevista</th><th className="font-medium text-right">Ammissibile</th><th className="font-medium text-right">{noBudget ? 'Valore' : 'Contributo'}</th></tr></thead>
               <tbody>{e.by_category.map((c) => (
                 <tr key={c.category} className="border-t border-line"><td className="py-1 text-ink-2">{c.label}{c.note ? <span className="block text-[10px] text-mute">{c.note}</span> : null}</td>
                   <td className="text-right tabular-nums">{fmtEur(c.forecast_eur)}</td><td className="text-right tabular-nums">{fmtEur(c.eligible_eur)}</td><td className="text-right tabular-nums text-emerald-700">{fmtEur(c.covered_eur)}</td></tr>))}</tbody></table></div>
@@ -404,7 +426,13 @@ function BandoCard({ r, picked, onToggle, onBudget, includeLabel = 'Includi', sc
           {!r.de_minimis?.applies && r.de_minimis?.mentioned && <p className="text-mute">Il testo cita il de minimis ma dice che questo aiuto non rientra: «{r.de_minimis.evidence[0]?.text}»</p>}
           {r.notes.filter((n) => !n.startsWith('Il bando non dichiara')).map((n) => <p key={n} className="text-mute">• {n}</p>)}
           {r.missing_profile.length > 0 && <p className="text-amber-700">Per decidere servono ancora: {r.missing_profile.map((m) => MISSING_LABEL[m] || m).join(', ')}.</p>}
-          <div className="flex items-center gap-3 pt-1"><button className="btn !py-1" onClick={() => onBudget(r.bando_id)}>Prepara la bozza di budget per questo bando</button><span className="text-[11px] text-mute">{r.rules_count} regole · {r.requirements_count} requisiti</span></div>
+          {noBudget && <p className="text-ink-2 rounded-xl bg-sky-500/5 border border-sky-500/20 p-2.5">È un’agevolazione: non si fa un budget di spese{r.mode?.base ? `. Si calcola ${su(r.mode.base)}` : ''}. Nel piano conta già.</p>}
+          {budgetNo && <StudyResult study={budgetNo} />}
+          <div className="flex flex-wrap items-center gap-3 pt-1">
+            {canBudget && !budgetNo && <button className="btn !py-1" disabled={budgetBusy} onClick={toBudget}>{budgetBusy && <Loader2 className="w-3 h-3 animate-spin" />}Prepara il budget di questo bando</button>}
+            {!noBudget && r.rules_count === 0 && <span className="text-[11px] text-amber-700">Il budget non si può controllare: i documenti ufficiali non scrivono regole numeriche.</span>}
+            <span className="text-[11px] text-mute">{r.rules_count} regole · {r.requirements_count} requisiti</span>
+          </div>
           <div className="text-[11px] text-mute">
             {signaled
               ? <span>{signaled === 'NOT_FOR_ME' ? 'Segnalato: lo uso per migliorare il giudizio, in forma anonima.' : 'Segnalato: lo valuterà il Quartier Generale. Nel piano non entra finché il giudizio non cambia.'}</span>
@@ -452,6 +480,9 @@ export default function AllocationView({ onGoProfile, onBudgetFrom, onOpenBudget
   const [chosen, setChosen] = useState([])                       // agevolazioni sul lavoro scelte per questo lavoro: [{ id, hires }]
   const [chosenLoaded, setChosenLoaded] = useState(false)
   const [sel, setSel] = useState(null)                           // risposta del server: condizioni, importo massimo e quali entrano nel totale
+  const [budgetAuto, setBudgetAuto] = useState(0)          // la barra dell'agente chiede di creare e aprire i budget in un clic
+  const runMatchRef = useRef(null)
+  const focusBandoRef = useRef(() => {})
   const [news, setNews] = useState(null)                     // cosa è cambiato dall'ultima volta: bandi diventati adatti o non più adatti
   const seenDone = useRef(false)
   const [shadow, setShadow] = useState(null)                     // il piano dell'altro scenario (anno / progetto): serve al totale generale
@@ -511,17 +542,25 @@ export default function AllocationView({ onGoProfile, onBudgetFrom, onOpenBudget
     if (ov && ov.last_year != null && restored && !auto.current) { auto.current = true; estimate() }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [ov, restored])
+  // Porta in vista la scheda di un bando: apre il gruppo giusto (adatti, a progetto, da verificare, non adatti) e la evidenzia. Nessuno deve scorrere o cercare.
+  const focusBando = (found) => {
+    const key = found.fit === 'ADATTO' && found.mode?.needs_project ? 'PROGETTO' : found.fit
+    setSection('bandi'); setOpenFolds((o) => ({ ...o, [key]: true }))
+    setTimeout(() => flashTo(`bando-${found.bando_id}`), 350)
+  }
   // Dopo lo studio di un bando del catalogo: si ricalcola, si porta l'utente alla scheda dove il bando è finito e si mostra com'è andata la lettura.
   const afterStudy = async (it, r) => {
     try {
       const res = await runMatch()
       setIdeasTick((t) => t + 1)
       const found = res.matching.results.find((x) => x.bando_id === it.bando_id)
-      setStudied({ id: it.bando_id, name: found?.name || it.name, report: r?.report, fit: found?.fit, estimate: found?.estimate })
-      if (found) setTab(found.fit)
+      setStudied({ id: it.bando_id, name: found?.name || it.name, report: r?.report, study: r?.study, fit: found?.fit, estimate: found?.estimate, mode: found?.mode })
+      if (found) focusBando(found)
     } catch (e) { setError(e.message) }
   }
 
+  runMatchRef.current = runMatch
+  focusBandoRef.current = focusBando
   // Studio a fondo in fila: i 5 più affini, oppure tutti i molto affini e affini (fino a 60). Uno alla volta, con avanzamento; si può fermare. Alla fine si rifà la stima.
   const studyAbort = useRef(false)
   const studyMore = async (all = false) => {
@@ -535,7 +574,7 @@ export default function AllocationView({ onGoProfile, onBudgetFrom, onOpenBudget
       for (let i = 0; i < todo.length; i += 1) {
         if (studyAbort.current) { done.push(`interrotto prima di ${todo[i].name}`); break }
         setStudyNote(`Studio ${i + 1} di ${todo.length}: ${todo[i].name}`)
-        try { const r = await api.researchRun({ bando_id: todo[i].bando_id }); done.push(`${todo[i].name} (${r.report?.status === 'COMPLETA' ? 'lettura completa' : r.report?.status === 'PARZIALE' ? 'lettura parziale' : 'lettura insufficiente'})`) } catch (e) { done.push(`${todo[i].name} (non riuscito: ${e.message})`) }
+        try { const r = await api.researchRun({ bando_id: todo[i].bando_id }); done.push(`${todo[i].name} (${r.study?.budget === false ? 'agevolazione, niente budget' : r.study?.has_rate ? 'percentuale trovata: entra nel calcolo' : r.study?.official_docs ? 'i documenti non scrivono una percentuale' : 'documenti ufficiali non raggiungibili'})`) } catch (e) { done.push(`${todo[i].name} (non riuscito: ${e.message})`) }
         if ((i + 1) % 8 === 0) await runMatch()                  // ogni tanto la stima si aggiorna, così gli importi veri compaiono man mano
       }
       await runMatch()
@@ -700,7 +739,16 @@ export default function AllocationView({ onGoProfile, onBudgetFrom, onOpenBudget
   const sectionOf = (id) => ({ dati: 'azienda', stima: 'azienda', bisogni: 'azienda', bandi: 'bandi', progetti: 'progetti', totale: 'insieme', misure: 'insieme' }[id] || (inProject ? 'progetti' : 'insieme'))
   const goStep = (id) => { setSection(sectionOf(id)); openStep(id); setTimeout(() => flashTo(`al-${id}`), 250) }
   useEffect(() => {                                       // un pulsante di un'altra pagina (Agevolazioni) porta a un passo preciso
-    const on = () => { reloadChoice(); const t = takeAllocationTarget(); if (t) setTimeout(() => goStep(t), 500) }
+    const on = () => {
+      reloadChoice()
+      const t = takeAllocationTarget()
+      if (!t) return
+      if (typeof t === 'object' && t.bando) {                 // arrivo con un bando appena studiato: si rifà la stima e si apre la sua scheda
+        runMatchRef.current?.().then((res) => { const found = res?.matching.results.find((x) => x.bando_id === t.bando); if (found) focusBandoRef.current(found); else setSection('bandi') }).catch(() => setSection('bandi'))
+        return
+      }
+      setTimeout(() => goStep(typeof t === 'object' ? t.step : t), 500)
+    }
     window.addEventListener('quanto-allocation-goto', on)
     on()
     return () => window.removeEventListener('quanto-allocation-goto', on)
@@ -841,7 +889,7 @@ export default function AllocationView({ onGoProfile, onBudgetFrom, onOpenBudget
           summary={`Un budget per ognuno dei ${nPlanFunds} ${nPlanFunds === 1 ? 'bando usato' : 'bandi usati'}, già controllato con i suoi 60 criteri`}
           info="Ogni bando riceve solo le spese che finanzia. Il personale è diviso tra i progetti senza sovrapporsi, le spese pagate da due bandi dichiarano l’altro contributo, e i bandi non cumulabili non si toccano. Ogni budget si apre e si modifica nella pagina Budget.">
           <TutorialVideo id="T13" />
-          <BudgetsFromPlan plan={plan} lines={planLines} onOpen={onOpenBudgets} />
+          <BudgetsFromPlan plan={plan} lines={planLines} onOpen={onOpenBudgets} auto={budgetAuto} />
         </Step>
       )}
 
@@ -868,7 +916,7 @@ export default function AllocationView({ onGoProfile, onBudgetFrom, onOpenBudget
         <TutorialVideo id="T05" />
         {st && (
           <div className="rounded-2xl bg-tint p-4 space-y-1.5">
-            <p className="text-sm text-ink-2 leading-relaxed"><span className="font-medium text-ink">Li uso tutti.</span> Ho letto in breve la scheda di {st.read} dei {st.open_total} bandi aperti del catalogo: {st.high} molto affini, {st.medium} affini. {st.studied} sono già studiati a fondo e fanno il piano con importi veri. Gli altri sono in «Da studiare» con un tetto provvisorio ricavato dalla scheda: «Studia a fondo tutti i bandi affini» li porta uno dopo l’altro nel piano.{st.unread > 0 ? ` Altre ${st.unread} schede si leggono man mano.` : ''}</p>
+            <p className="text-sm text-ink-2 leading-relaxed"><span className="font-medium text-ink">Li uso tutti.</span> Ho letto in breve la scheda di {st.read} dei {st.open_total} bandi aperti del catalogo: {st.high} molto affini, {st.medium} affini. {st.studied} sono già studiati a fondo e fanno il piano con importi veri. Gli altri sono in «Da studiare» con un tetto provvisorio ricavato dalla scheda: «Studia tutti i bandi affini» li porta uno dopo l’altro nel piano.{st.unread > 0 ? ` Altre ${st.unread} schede si leggono man mano.` : ''}</p>
             <Info label="Come lavora">Due letture. La prima è veloce e riguarda tutti i bandi: la scheda ufficiale dice chi può partecipare, che spese ammette e di quale regione è, e serve a scegliere quelli che somigliano all’azienda. La seconda è lo studio a fondo, solo per i bandi che servono: cerca e legge regole e requisiti, ed è ciò che permette di calcolare gli importi e di fare il budget.</Info>
           </div>
         )}
@@ -876,7 +924,8 @@ export default function AllocationView({ onGoProfile, onBudgetFrom, onOpenBudget
           <div className="p-3 rounded-xl border border-emerald-500/30 bg-emerald-500/5 text-xs text-ink-2 space-y-1">
             <p className="font-medium text-emerald-700 inline-flex items-center gap-1.5"><CheckCircle2 className="w-4 h-4" />Studiato: {studied.name}</p>
             <p>{studied.fit ? `Ora è in «${FIT[studied.fit][0]}»${studied.estimate ? `, contributo stimato ${fmtEur(studied.estimate.covered_eur)}` : ''}.` : 'Non risulta ancora valutabile.'}</p>
-            <div className="flex flex-wrap items-center gap-3 pt-0.5">{studied.fit === 'ADATTO' && <button className="btn !py-1" onClick={() => onBudgetFrom(studied.id)}>Crea il budget di questo bando</button>}<button className="underline" onClick={() => setStudied(null)}>chiudi</button></div>
+            {studied.study && <StudyResult study={studied.study} report={studied.report} />}
+            <div className="flex flex-wrap items-center gap-3 pt-0.5">{studied.fit === 'ADATTO' && studied.study?.budget_ready && studied.mode?.budget !== false && <button className="btn !py-1" onClick={() => onBudgetFrom(studied.id)}>Prepara il budget di questo bando</button>}<button className="underline" onClick={() => setStudied(null)}>chiudi</button></div>
           </div>
         )}
         {match.matching.missing_profile.length > 0 && <p className="text-xs text-amber-700">Per valutare meglio indica nel profilo: {match.matching.missing_profile.map((m) => MISSING_LABEL[m] || m).join(', ')}.</p>}
@@ -905,13 +954,13 @@ export default function AllocationView({ onGoProfile, onBudgetFrom, onOpenBudget
       </Fold>
       <Fold id="al-fold-catalogo" title="Da studiare (catalogo nazionale)" badge={String(match.matching.catalog.total_candidates)} tone={match.matching.catalog.total_candidates ? 'ok' : 'neutral'} open={!!openFolds.CATALOG} onToggle={() => setOpenFolds((o) => ({ ...o, CATALOG: !o.CATALOG }))}
         summary="Letti in breve, in ordine di affinità: studiali per avere l’importo vero">
-        <Note>Bandi del catalogo che QUANTO non ha ancora studiato a fondo, già filtrati per territorio, settore e soggetti. Premi «Studia a fondo»: a lettura finita compare l’importo e il bando entra nei calcoli. Fino ad allora vedi solo un tetto provvisorio ricavato dalle cifre della scheda.</Note>
+        <Note>Bandi del catalogo che QUANTO non ha ancora studiato, già filtrati per territorio, settore e soggetti. Premi «Studia»: a lettura finita compare l’importo e il bando entra nei calcoli. Fino ad allora vedi solo un tetto provvisorio ricavato dalle cifre della scheda.</Note>
         {match.matching.catalog.items.length === 0 && <p className="text-xs text-mute">Nessuna scheda letta ancora.</p>}
         <HScroll>{match.matching.catalog.items.slice(0, catalogShown).map((it) => <CatalogCard key={it.bando_id} it={it} onStudied={afterStudy} />)}</HScroll>
         {match.matching.catalog.items.length > catalogShown && <button className="btn" onClick={() => setCatalogShown(catalogShown + 30)}>Mostra altri {Math.min(30, match.matching.catalog.items.length - catalogShown)} bandi da studiare</button>}
         <div className="flex flex-wrap items-center gap-3">
-          <button className="btn" disabled={studyingMore} onClick={() => studyMore(false)}>{studyingMore ? 'Studio in corso…' : 'Studia a fondo i 5 più affini'}</button>
-          {!studyingMore && (match.matching.catalog.study_queue || []).length > 5 && <button className="btn-primary" onClick={() => studyMore(true)}>Studia a fondo tutti i bandi affini ({match.matching.catalog.study_queue.length})</button>}
+          <button className="btn" disabled={studyingMore} onClick={() => studyMore(false)}>{studyingMore ? 'Studio in corso…' : 'Studia i 5 più affini'}</button>
+          {!studyingMore && (match.matching.catalog.study_queue || []).length > 5 && <button className="btn-primary" onClick={() => studyMore(true)}>Studia tutti i bandi affini ({match.matching.catalog.study_queue.length})</button>}
           {studyingMore && <button className="btn" onClick={() => { studyAbort.current = true }}>Ferma dopo questo bando</button>}
         </div>
         {studyNote && <p className="text-[11px] text-ink-2 leading-relaxed">{studyNote}</p>}
@@ -988,10 +1037,11 @@ export default function AllocationView({ onGoProfile, onBudgetFrom, onOpenBudget
   ].filter(Boolean)
   const agent = (
     <AgentBar current="allocation"
-      did={match ? `Ho letto ${st ? st.open_total + st.studied : results.length} bandi, ne ho studiati a fondo ${nStudied} e ho giudicato quali sono per l’impresa.` : (matching ? 'Sto leggendo i bandi e le spese dell’impresa…' : null)}
+      did={match ? `Ho letto ${st ? st.open_total + st.studied : results.length} bandi, ne ho studiati ${nStudied} e ho giudicato quali sono per l’impresa.` : (matching ? 'Sto leggendo i bandi e le spese dell’impresa…' : null)}
       found={match ? <span className="block space-y-1"><span className="block">{nAdatti} {nAdatti === 1 ? 'bando adatto' : 'bandi adatti'} alle spese dell’anno{nProgetto ? `, ${nProgetto} a progetto` : ''}.{grandTotal > 0 ? ` Nel totale: ${fmtEur(grandTotal)} al massimo.` : ''}</span>{newsLine}</span> : null}
       need={needLines.length ? <span className="space-y-1 block">{needLines.map((l) => <span key={l} className="block">{l}</span>)}</span> : null}
-      next={{ label: 'Prepara i budget dei bandi', onClick: () => { if (plan && pickedRows.length) { setSection('insieme'); openStep('budget'); setTimeout(() => flashTo('al-budget'), 250) } else goTab('canvas') } }} />
+      next={plan && pickedRows.length ? { label: 'Prepara e apri i budget dei bandi', onClick: () => { setSection('insieme'); openStep('budget'); setBudgetAuto((t) => t + 1); setTimeout(() => flashTo('al-budget'), 250) } }
+        : match ? { label: 'Vai ai bandi adatti', onClick: () => { setSection('bandi'); setTab(nAdatti ? 'ADATTO' : 'DA_VERIFICARE'); window.scrollTo?.({ top: 0, behavior: 'smooth' }) } } : null} />
   )
 
   return (

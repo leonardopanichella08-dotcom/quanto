@@ -15,7 +15,7 @@ from concurrent.futures import ThreadPoolExecutor, wait
 from datetime import date
 from typing import Any, Dict, List, Optional
 
-from app.core import events, lifecycle, relevance, research
+from app.core import events, funding_modes, lifecycle, relevance, research
 from app.core.db import connect
 
 # etichetta nella pagina -> chiave
@@ -372,7 +372,7 @@ def rank_for_profile(profile: Dict[str, Any], by_cat: Dict[str, float], limit: i
         if meta.get("state") == "CHIUSO":
             excluded += 1
             continue
-        if relevance.text_fails(r["name"], r["issuer"] or "", "", profile):          # altra regione (anche da provincia), altro settore o soggetti che non sono imprese
+        if relevance.text_fails(r["name"], r["issuer"] or "", "", profile, meta):          # altra regione (anche da provincia), altro settore o soggetti che non sono imprese
             excluded += 1
             continue
         reasons: List[str] = []
@@ -452,7 +452,8 @@ def rank_for_profile(profile: Dict[str, Any], by_cat: Dict[str, float], limit: i
                        "summary": r["summary"], "form": meta.get("form"), "benefit_range": meta.get("benefit_range"), "costs": meta.get("costs"), "cost_categories": cats or [], "purpose": meta.get("purpose"), "regions": regions,
                        "sizes": meta.get("sizes"), "state": meta.get("state"), "opens": meta.get("opens"), "score": round(min(score, 1.0), 3),
                        "provisional": provisional_estimate(meta, by_cat), "benefit_text": meta.get("benefit_range"), "spend_text": meta.get("spend_range"),
-                       "affinity": "ALTA" if score >= 0.6 else "MEDIA" if score >= 0.25 else "BASSA", "reasons": reasons, "to_check": flags})
+                       "affinity": "ALTA" if score >= 0.6 else "MEDIA" if score >= 0.25 else "BASSA", "reasons": reasons, "to_check": flags,
+                       **{k: v for k, v in funding_modes.from_forms(meta.get("form"), r["name"]).items() if k in ("budget", "noun")}})
     scored.sort(key=lambda x: (-x["score"], x["deadline"] if x["deadline"] and x["deadline"] != "non indicata" else "9999", x["name"]))      # a pari affinità, prima chi scade prima
     return {"items": scored[:limit], "total_candidates": len(scored), "excluded": excluded, "without_description": without,
             "high": sum(1 for x in scored if x["affinity"] == "ALTA"), "medium": sum(1 for x in scored if x["affinity"] == "MEDIA"), "low": sum(1 for x in scored if x["affinity"] == "BASSA"),

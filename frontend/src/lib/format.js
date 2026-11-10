@@ -36,3 +36,13 @@ export const CRITERIA_BLOCKS = [
   { from: 1, to: 15, label: 'Personale' }, { from: 16, to: 30, label: 'Beni strumentali' },
   { from: 31, to: 45, label: 'Consulenze e spese generali' }, { from: 46, to: 60, label: 'Date, cumulo, tracciabilità' },
 ]
+
+// «su» con l'articolo giusto: «su gli acquisti» → «sugli acquisti», «su il finanziamento» → «sul finanziamento»
+const ART = { il: 'sul', lo: 'sullo', la: 'sulla', i: 'sui', gli: 'sugli', le: 'sulle' }
+export const su = (text) => {
+  const s = String(text || '').trim()
+  const m = /^(il|lo|la|i|gli|le)\s+(.*)$/i.exec(s)
+  if (m) return `${ART[m[1].toLowerCase()]} ${m[2]}`
+  if (/^l['’]/i.test(s)) return `sull’${s.slice(2)}`
+  return `su ${s}`
+}

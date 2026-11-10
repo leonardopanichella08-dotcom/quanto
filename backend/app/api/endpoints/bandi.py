@@ -232,7 +232,8 @@ def research_run(body: ResearchRun, request: Request) -> dict:
         _settle_study(user, body.bando_id, paid, "ERRORE")           # lo studio è fallito: i token tornano
         raise
     _settle_study(user, body.bando_id, paid, (report or {}).get("status"))
-    return {"bando_id": body.bando_id, "report": report, "detail": bandi.get_bando_detail(body.bando_id)}
+    d = bandi.get_bando_detail(body.bando_id)
+    return {"bando_id": body.bando_id, "report": report, "detail": d, "study": pipeline.study_state(body.bando_id, d)}
 
 
 @router.post("/research/analyze", dependencies=[Depends(require_auth)], summary="Legge tutti i documenti in memoria: regole, requisiti, dati chiave, riferimenti di legge")
@@ -317,6 +318,7 @@ def detail(bando_id: str) -> dict:
     d = bandi.get_bando_detail(bando_id)
     if d is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Bando non trovato")
+    d["study"] = pipeline.study_state(bando_id, d)              # cosa si può fare ora (budget, valore, ha senso ristudiare), detto in una frase
     return d
 
 

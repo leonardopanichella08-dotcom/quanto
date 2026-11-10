@@ -176,7 +176,7 @@ def measures_list(request: Request) -> dict:
             if it.get("regional") and not region:                 # senza la regione della sede non si sa quali bandi regionali la riguardano: si chiede, non si mostrano quelli di tutte le regioni
                 it["linked"], it["linked_region"], it["linked_note"] = [], None, "Indica la regione della sede: ti mostro i bandi aperti della tua Regione."
                 continue
-            it["linked"] = bandi_core.open_by_terms(it["search"], profile, 5)      # le misure regionali sono collegate ai bandi aperti del catalogo, solo quelli che possono riguardare l'azienda
+            it["linked"] = bandi_core.open_by_terms(it["search"], profile, 5, regional=bool(it.get("regional")))      # solo bandi aperti, che riguardano l'azienda e (se la misura è regionale) provati nella sua regione
             it["linked_region"] = region if it.get("regional") else None
     return out
 

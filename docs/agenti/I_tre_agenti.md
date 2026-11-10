@@ -575,3 +575,12 @@ Costruito e provato nel portale (backend + schermate), **in quest'ordine di perc
 | Il consiglio del Confronto non rispettava le regole del bando | Ora **ogni consiglio e ogni tuo budget sono verificati** con le regole di quota del bando; se non le rispettano, la versione che le rispetta e il tasto «Parti da questa versione» |
 | Due motori, nessun legame con l'Allocazione | Il legame passa dal Budget (passo 3): «Confronta con chi ha già vinto». La tabella unica dei budget storici **non è fatta** |
 | Peso di qualità dei template (60 criteri sì/no) | **Non fatto**: cambierebbe i numeri del consiglio e va deciso insieme |
+
+### 11 bis. Seconda verifica dell'utente (10 novembre 2026)
+
+| Problema segnalato | Correzione |
+|---|---|
+| Una misura che non chiede un progetto (credito d'imposta automatico) portava comunque al Budget («Bozza di budget dall'azienda») e veniva chiamata «bando» | Ogni modalità dice se ha un budget e se è un bando o un'**agevolazione**. Le agevolazioni senza budget (crediti d'imposta automatici, garanzie, incentivi alle assunzioni, ristori) non hanno nessun pulsante verso il Budget, in nessuna pagina; nel menu del Budget non si scelgono; i budget dall'Allocazione le saltano e le elencano a parte; la bozza dal profilo le rifiuta. Etichetta «Agevolazione · niente budget» |
+| A un'impresa abruzzese compariva il bando del Comune di Corleto Perticara (Basilicata) | Nuovo strato di verifica: un bando di un ente locale (Comune, GAL, Unione dei comuni, Camera di commercio) si propone solo con una **prova positiva** che sia nella regione dell'impresa (capoluogo o provincia nel nome, oppure la regione nella scheda ufficiale). Sotto una misura regionale compaiono solo voci provate nella regione |
+| «Studia» seguito da «nessuna regola», poi «Completa la ricerca» → pagina Bandi → «analisi parziale» → «Rifai lo studio» → di nuovo parziale | Lo studio si fa dove si clicca e dice in una frase cosa si può fare (budget sì/no, valore sì/no, e perché). Nessun rimando ad altre pagine; «Riprova la lettura» solo se non si è letto nessun documento ufficiale o se la lettura è vecchia. «Studia e fai il budget» apre il Budget solo se il budget si può fare |
+| Troppi clic e scorrimenti | «Prepara e apri i budget dei bandi» in un clic; dopo uno studio la scheda del bando si apre ed è evidenziata; dalle Agevolazioni l'Allocazione apre direttamente il bando studiato |

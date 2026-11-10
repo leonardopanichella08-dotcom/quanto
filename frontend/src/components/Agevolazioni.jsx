@@ -5,6 +5,7 @@ import { fmtEur } from '../lib/format'
 import { Fold, Info } from './ui'
 import Guide from './Guide'
 import AgentBar from './AgentBar'
+import { StudyResult } from './PipelineButton'
 import { allocationGo, profileGo, useNav } from '../lib/nav'
 import { loadChoice, saveChoice } from '../lib/measureChoice'
 
@@ -24,42 +25,54 @@ const THIS_YEAR = new Date().getFullYear()
 const YEARS = [['', 'Anno'], [String(THIS_YEAR), `Nel ${THIS_YEAR}`], [String(THIS_YEAR + 1), `Nel ${THIS_YEAR + 1}`]]
 const BLANK = { gender: '', age: '', unemployed: '', year: '' }
 
-/** I bandi aperti del catalogo per questa misura regionale: li trova l'agente (solo quelli che possono riguardare l'impresa), ognuno porta dritto al budget o all'Allocazione. */
+/** Le opportunità aperte del catalogo per questa misura: le trova l'agente (solo se provate nella regione dell'impresa). Ognuna dice se è un bando (con un budget)
+ * o un'agevolazione (senza budget) e ha un solo pulsante principale; lo studio, se serve, si fa qui, e l'esito si legge sotto la voce. */
 function Linked({ item, onBudgetFrom }) {
   const nav = useNav()
-  const [working, setWorking] = useState(null)        // bando in lavorazione: {id, what}
-  const [studied, setStudied] = useState({})
+  const [working, setWorking] = useState(null)        // voce in lavorazione: {id, what}
+  const [outcome, setOutcome] = useState({})          // esito dello studio, per voce: si mostra dove si è cliccato
   const [error, setError] = useState(null)
   const list = item.linked || []
-  const isStudied = (m) => m.studied || studied[m.bando_id]
-  // un bando letto in breve si studia a fondo prima di tutto il resto: senza regole non c'è né budget né importo
-  const ensure = async (m) => { if (!isStudied(m)) { await api.researchRun({ bando_id: m.bando_id }); setStudied((x) => ({ ...x, [m.bando_id]: true })) } }
-  const go = async (m, what) => {
-    setWorking({ id: m.bando_id, what }); setError(null)
+  const isStudied = (m) => m.studied || outcome[m.bando_id]?.studied
+  const toBudget = async (m) => {
+    setWorking({ id: m.bando_id, what: 'budget' }); setError(null)
     try {
-      await ensure(m)
-      if (what === 'budget') await onBudgetFrom?.(m.bando_id)
-      else { allocationGo('bandi'); nav.go('allocation') }
+      const r = await onBudgetFrom?.(m.bando_id)
+      if (r && !r.ok) setOutcome((x) => ({ ...x, [m.bando_id]: r.study }))              // niente Budget: il motivo resta qui
+    } catch (e) { setError(e.message) } finally { setWorking(null) }
+  }
+  const toAllocation = async (m) => {
+    setWorking({ id: m.bando_id, what: 'allocazione' }); setError(null)
+    try {
+      if (!isStudied(m)) { const r = await api.researchRun({ bando_id: m.bando_id }); setOutcome((x) => ({ ...x, [m.bando_id]: r.study })) }
+      allocationGo({ step: 'bandi', bando: m.bando_id }); nav.go('allocation')
     } catch (e) { setError(e.message) } finally { setWorking(null) }
   }
   if (item.linked_note) return <p className="text-xs text-amber-700">{item.linked_note}</p>
-  if (!list.length) return <p className="text-xs text-mute">Nessun bando aperto nel catalogo per {item.linked_region ? `la regione ${item.linked_region}` : 'questa misura'}: il catalogo si aggiorna ogni notte e lo ricontrollo da solo.</p>
+  if (!list.length) return <p className="text-xs text-mute">Nulla di aperto nel catalogo{item.linked_region ? ` per la regione ${item.linked_region}` : ''}: il catalogo si aggiorna ogni notte e lo ricontrollo da solo.</p>
   return (
     <div className="space-y-2">
-      <p className="label">{list.length === 1 ? '1 bando aperto' : `${list.length} bandi aperti`} nel catalogo{item.linked_region ? ` · ${item.linked_region}` : ''}</p>
+      <p className="label">Aperti ora nel catalogo{item.linked_region ? ` · ${item.linked_region}` : ''}</p>
       {error && <p className="text-xs text-red-700">{error}</p>}
       <ul className="space-y-2">
         {list.map((m) => {
           const busyHere = working?.id === m.bando_id
+          const noBudget = m.budget === false || outcome[m.bando_id]?.budget === false
+          const st = outcome[m.bando_id]
           return (
             <li key={m.bando_id} className="rounded-xl bg-white p-3 space-y-2">
               <div className="flex flex-wrap items-start gap-2"><p className="text-sm font-medium text-ink flex-1 min-w-0 break-words">{m.name}</p>
-                <span className={`px-2 py-0.5 rounded-full text-[11px] font-medium ${isStudied(m) ? 'bg-emerald-500/15 text-emerald-700' : 'bg-tint text-ink-2'}`}>{isStudied(m) ? 'Studiato a fondo' : 'Letto in breve'}</span></div>
-              <p className="text-[11px] text-mute">{m.issuer || 'Ente non indicato'}{itDate(m.deadline) ? ` · scade il ${itDate(m.deadline)}` : ''}</p>
+                <span className={`px-2 py-0.5 rounded-full text-[11px] font-medium ${noBudget ? 'bg-sky-500/15 text-sky-700' : 'bg-tint text-ink-2'}`}>{noBudget ? 'Agevolazione · niente budget' : 'Bando'}</span></div>
+              <p className="text-[11px] text-mute">{m.issuer || 'Ente non indicato'}{m.form ? ` · ${m.form}` : ''}{itDate(m.deadline) ? ` · scade il ${itDate(m.deadline)}` : ''}{isStudied(m) ? ' · studiato' : ''}</p>
+              {st && !st.budget_ready && <StudyResult study={st} />}
+              {st?.retry && (
+                <button className="btn !py-1" disabled={!!working} onClick={async () => { setWorking({ id: m.bando_id, what: 'retry' }); try { const r = await api.researchRun({ bando_id: m.bando_id }); setOutcome((x) => ({ ...x, [m.bando_id]: r.study })) } catch (e) { setError(e.message) } finally { setWorking(null) } }}>
+                  {busyHere && working.what === 'retry' ? <Loader2 className="w-3 h-3 animate-spin" /> : null}Riprova la lettura</button>)}
               <div className="flex flex-wrap items-center gap-2">
-                <button className="btn-primary !py-1" disabled={!!working} onClick={() => go(m, 'budget')}>{busyHere && working.what === 'budget' ? <Loader2 className="w-3 h-3 animate-spin" /> : null}{isStudied(m) ? 'Fai il budget per questo bando' : 'Studia e fai il budget'}</button>
-                <button className="btn !py-1" disabled={!!working} onClick={() => go(m, 'allocazione')}>{busyHere && working.what === 'allocazione' ? <Loader2 className="w-3 h-3 animate-spin" /> : null}{isStudied(m) ? 'Vedi nell’Allocazione' : 'Studia e vedi nell’Allocazione'}</button>
-                {busyHere && <span className="text-[11px] text-mute">Cerco e leggo le fonti ufficiali: può richiedere fino a un minuto.</span>}
+                {!noBudget && !(st && !st.budget_ready) && (
+                  <button className="btn-primary !py-1" disabled={!!working} onClick={() => toBudget(m)}>{busyHere && working.what === 'budget' ? <Loader2 className="w-3 h-3 animate-spin" /> : null}{isStudied(m) ? 'Fai il budget' : 'Studia e fai il budget'}</button>)}
+                <button className={`${noBudget || (st && !st.budget_ready) ? 'btn-primary' : 'btn'} !py-1`} disabled={!!working} onClick={() => toAllocation(m)}>{busyHere && working.what === 'allocazione' ? <Loader2 className="w-3 h-3 animate-spin" /> : null}{isStudied(m) ? 'Vedi nell’Allocazione' : 'Studia e vedi nell’Allocazione'}</button>
+                {busyHere && <span className="text-[11px] text-mute">Leggo le fonti ufficiali: può richiedere fino a un minuto.</span>}
               </div>
             </li>
           )
@@ -78,7 +91,7 @@ function Item({ it, onAnswer, onBudgetFrom, assignedTo }) {
         <span className="min-w-0 flex-1">
           <span className="flex flex-wrap items-center gap-2"><span className="text-sm font-semibold text-ink">{it.name}</span><span className={`px-2 py-0.5 rounded-full text-[11px] font-medium ${tone}`}>{label}</span>
             {assignedTo > 0 && <span className="px-2 py-0.5 rounded-full text-[11px] font-medium bg-ink text-white">Scelta per {assignedTo === 1 ? '1 persona' : `${assignedTo} persone`}</span>}
-            {it.linked?.length > 0 && <span className="px-2 py-0.5 rounded-full text-[11px] font-medium bg-sky-500/15 text-sky-700">{it.linked.length === 1 ? '1 bando aperto' : `${it.linked.length} bandi aperti`}{it.linked_region ? ` · ${it.linked_region}` : ''}</span>}</span>
+            {it.linked?.length > 0 && <span className="px-2 py-0.5 rounded-full text-[11px] font-medium bg-sky-500/15 text-sky-700">{it.linked.length} {it.linked.length === 1 ? 'aperto' : 'aperti'} nel catalogo{it.linked_region ? ` · ${it.linked_region}` : ''}</span>}</span>
           <span className="block text-xs text-ink-2 mt-1 leading-snug">{it.tagline}</span>
           {it.value && <span className="block text-xs font-medium text-emerald-700 mt-1">{it.value.text} per ogni assunzione, al massimo</span>}
         </span>

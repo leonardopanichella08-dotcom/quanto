@@ -43,7 +43,7 @@ export default function SourcesPanel() {
   }
 
   const t = data?.totals
-  const summary = t ? `${t.sources} fonti ufficiali · ${t.catalog.toLocaleString('it-IT')} bandi in memoria · ${t.read.toLocaleString('it-IT')} con scheda letta · ${t.studied} studiati a fondo` : 'Fonti ufficiali, numeri e stato di lettura'
+  const summary = t ? `${t.sources} fonti ufficiali · ${t.catalog.toLocaleString('it-IT')} bandi in memoria · ${t.read.toLocaleString('it-IT')} con scheda letta · ${t.studied} studiati` : 'Fonti ufficiali, numeri e stato di lettura'
   const groups = LEVEL_ORDER.map((lv) => [lv, (data?.sources || []).filter((s) => s.level === lv)]).filter(([, l]) => l.length)
 
   return (
@@ -55,11 +55,11 @@ export default function SourcesPanel() {
           <ol className="grid md:grid-cols-3 gap-3 text-xs text-ink-2 leading-relaxed">
             <li className="rounded-xl bg-field border border-line p-3 space-y-1"><p className="font-semibold text-ink text-sm">1 · Elenco</p><p><strong className="text-ink tabular-nums">{t.catalog.toLocaleString('it-IT')}</strong> bandi di cui conosco nome, ente e indirizzo ufficiale. Arrivano ogni notte dalle mappe di incentivi.gov.it e Invitalia e dalle pagine di ministeri, Regioni e agenzie.</p></li>
             <li className="rounded-xl bg-field border border-line p-3 space-y-1"><p className="font-semibold text-ink text-sm">2 · Scheda letta in breve</p><p><strong className="text-ink tabular-nums">{t.read.toLocaleString('it-IT')}</strong> con la scheda letta (chi può partecipare, spese ammesse, regione, date); {t.unread.toLocaleString('it-IT')} da leggere: se ne leggono alcune centinaia a notte.</p></li>
-            <li className="rounded-xl bg-field border border-line p-3 space-y-1"><p className="font-semibold text-ink text-sm">3 · Studio a fondo</p><p><strong className="text-ink tabular-nums">{t.studied}</strong> studiati: regole, requisiti, importi e documenti di domanda. Si studia un bando quando serve a un cliente; dall’Allocazione si studiano in fila tutti i più affini.</p></li>
+            <li className="rounded-xl bg-field border border-line p-3 space-y-1"><p className="font-semibold text-ink text-sm">3 · Studio</p><p><strong className="text-ink tabular-nums">{t.studied}</strong> studiati: regole, requisiti, importi e documenti di domanda. Si studia un bando quando serve a un cliente; dall’Allocazione si studiano in fila tutti i più affini.</p></li>
           </ol>
           <Info label="Perché gli studiati sono pochi">
             <p>Studiare un bando significa scaricare e leggere per intero i suoi documenti ufficiali (bando, allegati, FAQ): dura circa un minuto e dà regole e importi veri. Leggere la scheda è molto più veloce ma dice solo se il bando somiglia all’azienda.</p>
-            <p>Per questo l’Allocazione parte da tutti i bandi letti, mostra un tetto provvisorio ricavato dalle cifre della scheda e li studia a fondo in fila: solo allora entrano nel piano con importi veri.</p>
+            <p>Per questo l’Allocazione parte da tutti i bandi letti, mostra un tetto provvisorio ricavato dalle cifre della scheda e li studia in fila: solo allora entrano nel piano con importi veri.</p>
           </Info>
           <div className="flex flex-wrap items-center gap-3">
             <button className="btn-primary" onClick={refresh} disabled={busy}>{busy ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Radar className="w-3.5 h-3.5" />}{busy ? 'Controllo le fonti…' : 'Cerca nuovi bandi adesso'}</button>

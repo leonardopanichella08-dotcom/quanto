@@ -63,6 +63,16 @@ def build(owner: str, allocation: Dict[str, Any], fiscal_year: int, validate: bo
     lines = allocation["allocation_plan"]
     used = sorted({c["fund_id"] for ln in lines for c in ln["coverage"] if c["covered_amount_eur"] > 0})
     adjustments: List[str] = []
+    # Un credito d'imposta automatico, una garanzia o un incentivo all'occupazione non hanno un budget di spese da presentare: restano nel piano, ma non diventano un budget
+    no_budget: List[Dict[str, Any]] = []
+    for fid in list(used):
+        bid = (fund_rows.get(fid) or {}).get("bando_id")
+        detail = bandi.get_bando_detail(bid) if bid else None
+        access = (detail or {}).get("access") or {}
+        if access.get("budget") is False:
+            used.remove(fid)
+            no_budget.append({"fund_id": fid, "bando_id": bid, "name": (fund_rows.get(fid) or {}).get("name") or (detail or {}).get("name") or fid, "noun": access.get("noun") or "agevolazione",
+                              "base": access.get("base"), "mode": access.get("mode")})
 
     # ---- parte di costo di ogni spesa attribuita a ogni fondo
     attributed: Dict[Tuple[str, str], float] = {}                  # (item_id, fund_id) -> costo
@@ -159,7 +169,7 @@ def build(owner: str, allocation: Dict[str, Any], fiscal_year: int, validate: bo
         b["requested_cost_eur"] = round(requested, 2)
 
     cross = _cross_checks(budgets, lines, fund_rows, allocation, adjustments)
-    return {"fiscal_year": fiscal_year, "budgets": list(budgets.values()), "cross_checks": cross, "ok": all(c["status"] != "FAIL" for c in cross),
+    return {"fiscal_year": fiscal_year, "budgets": list(budgets.values()), "no_budget": no_budget, "cross_checks": cross, "ok": all(c["status"] != "FAIL" for c in cross),
             "summary": {"funds": len(budgets), "total_planned_eur": round(sum(b["contribution_planned_eur"] for b in budgets.values()), 2)}}
 
 

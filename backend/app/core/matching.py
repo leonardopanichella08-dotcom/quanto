@@ -12,7 +12,7 @@ import json
 from datetime import date
 from typing import Any, Dict, List, Optional
 
-from app.core import bandi, funds, relevance, valuation
+from app.core import bandi, funding_modes, funds, relevance, valuation
 from app.core.company_profile import CATEGORIES, CATEGORY_LABEL, REGIONS
 from app.core.db import connect
 from app.core.ingestion import Ingestion
@@ -91,7 +91,7 @@ def _estimate(rules: Dict[str, Any], by_cat: Dict[str, float], rate: float, allo
         if amount <= 0:
             continue
         if c not in allowed:
-            rows.append({"category": c, "label": CATEGORY_LABEL[c], "forecast_eur": round(amount, 2), "eligible_eur": 0.0, "covered_eur": 0.0, "coverage_pct": 0.0, "note": "categoria non ammessa dal bando"})
+            rows.append({"category": c, "label": CATEGORY_LABEL[c], "forecast_eur": round(amount, 2), "eligible_eur": 0.0, "covered_eur": 0.0, "coverage_pct": 0.0, "note": "categoria non ammessa"})
             continue
         eligible = adj[c]["eligible_eur"] if c in adj else amount
         covered = round(eligible * rate, 2)
@@ -167,7 +167,7 @@ def relevance_checks(bando_id: str, detail: Dict[str, Any], profile: Dict[str, A
     with connect() as conn:
         row_meta = conn.execute("SELECT catalog_meta FROM bandi WHERE bando_id=?", (bando_id,)).fetchone()
     cat_meta = json.loads(row_meta["catalog_meta"]) if row_meta and row_meta["catalog_meta"] else {}
-    for f in relevance.text_fails(detail.get("name", ""), detail.get("issuer") or "", applicants_text, profile) + relevance.meta_fails(cat_meta, profile):
+    for f in relevance.text_fails(detail.get("name", ""), detail.get("issuer") or "", applicants_text, profile, cat_meta) + relevance.meta_fails(cat_meta, profile):
         if f["id"] in seen_ids:
             continue
         seen_ids.add(f["id"])
@@ -366,6 +366,10 @@ def budget_template(owner: str, bando_id: str, scale_pct: float, fit: bool = Tru
     detail = bandi.get_bando_detail(bando_id)
     if detail is None:
         raise KeyError(bando_id)
+    access = detail.get("access") or {}
+    if access.get("budget") is False:                      # un credito d'imposta automatico o una garanzia non hanno un budget di spese da presentare
+        raise cp.ProfileError(f"«{detail['name']}» è un'agevolazione che non chiede un budget di spese" + (f": si calcola {funding_modes.su(access['base'])}." if access.get("base") else ".")
+                              + " Non c'è nulla da compilare: la trovi nel piano dell'Allocazione.")
     rules = _rules(detail)
     fin = cp._load_financials(owner)
     years = [y for y in sorted(fin) if any(fin[y][0].get(cp.FIN_KEY[c]) is not None for c in CATEGORIES)]
@@ -473,7 +477,7 @@ def budget_template(owner: str, bando_id: str, scale_pct: float, fit: bool = Tru
     new_eur = round(sum(b["amount_eur"] for b in basis_rows if b["nature"] == "NUOVA"), 2)
     ordinary_eur = round(sum(b["amount_eur"] for b in basis_rows if b["nature"] in ("ORDINARIA", "CORRENTE")), 2)
     if mode and not mode["needs_project"]:
-        message = (f"Questo bando non chiede un progetto nuovo: la modalità è «{mode['label'].lower()}». Si calcola su {mode['base']}. "
+        message = (f"Questo bando non chiede un progetto nuovo ma un programma di spese: la modalità è «{mode['label'].lower()}». Si calcola {funding_modes.su(mode['base'])}. "
                    + ("Le spese che l'azienda sostiene già sono quindi una base valida per questa stima." if mode["ordinary_costs_ok"] else
                       "Per questa modalità le spese di bilancio non sono la base: la bozza mostra gli acquisti e le persone dei piani dell'azienda dove ci sono."))
     else:

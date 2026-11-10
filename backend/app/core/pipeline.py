@@ -13,7 +13,7 @@ import time
 from concurrent.futures import ThreadPoolExecutor
 from typing import Any, Dict, List, Optional
 
-from app.core import analysis, bandi, events, research, valuation
+from app.core import funding_modes, analysis, bandi, events, research, valuation
 from app.core.analysis import distinctive_tokens, is_about  # noqa: F401 - la stessa regola vale al download e all'analisi
 from app.core.ingestion import Ingestion
 
@@ -183,3 +183,52 @@ def run(bando_id: str, urls: Optional[List[str]] = None, max_docs: int = MAX_DOC
                   f"{report['figures']} cifre, {report['rules_published']} regole", bando_id=bando_id, actor=actor, status="OK" if report["status"] != "INSUFFICIENTE" else "WARN",
                   details=report)
     return report
+
+
+# ------------------------------------------------------------------------------------------------ cosa si può fare dopo lo studio, detto in una frase
+RETRY_AFTER_DAYS = 60
+
+
+def study_state(bando_id: str, detail: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+    """Lo stato dello studio di un bando come serve a chi lavora: è stato studiato? si fa un budget? entra nel totale? ha senso rifarlo?
+
+    «Studiare» non può rendere completo un bando che nei documenti pubblici non scrive tetti o percentuali: qui lo si dice una volta, in chiaro, e non si propone
+    di rifare lo studio se non serve (lo si propone solo se non si è letto nessun documento ufficiale o se la lettura è vecchia)."""
+    from datetime import datetime, timezone
+    detail = detail or bandi.get_bando_detail(bando_id) or {}
+    sources = events.list_bando_sources(bando_id)
+    official = [s for s in sources if s.get("tier") == "UFFICIALE" and not analysis.is_reference_dataset(s)]
+    rules = [r for r in detail.get("rules", []) if r.get("status") == "PUBLISHED"]
+    access = detail.get("access") or {"budget": None, "noun": "bando", "base": None}
+    curated = bool(detail.get("curated"))
+    from app.core.db import connect
+    with connect() as conn:                                  # uno studio tentato conta anche se non ha trovato documenti raggiungibili
+        tried = conn.execute("SELECT MAX(ts) t FROM events WHERE op='bando.pipeline' AND bando_id=?", (bando_id,)).fetchone()["t"]
+    studied = curated or bool(sources) or bool(tried)
+    has_rate = valuation.has_intensity(bando_id) if studied else False
+    last = max([s["ts"] for s in sources] + ([tried] if tried else []), default=None)
+    old = False
+    if last:
+        try:
+            old = (datetime.now(timezone.utc) - datetime.fromisoformat(str(last).replace("Z", "+00:00"))).days > RETRY_AFTER_DAYS
+        except ValueError:
+            old = False
+    noun = access.get("noun") or "bando"
+    article = "Questa agevolazione" if noun == "agevolazione" else "Questo bando"
+    lines: List[str] = []
+    if not studied:
+        lines.append("Non ancora studiato: leggo i documenti ufficiali (pagina dell'ente, avviso, decreto) in circa un minuto.")
+    elif not official and not curated:
+        lines.append("Non sono riuscito a leggere documenti ufficiali: i siti non hanno risposto o costruiscono la pagina con JavaScript. Si può riprovare.")
+    else:
+        if access.get("budget") is False:
+            lines.append(f"{article} non chiede un budget di spese" + (f": si calcola {funding_modes.su(access['base'])}." if access.get("base") else "."))
+        elif rules:
+            lines.append(f"Lette {len(rules)} regole numeriche: il budget si controlla con queste regole.")
+        else:
+            lines.append(f"Ho letto {len(official) or 'i'} documenti ufficiali: non scrivono regole numeriche (tetti, percentuali, categorie), quindi il budget non si può controllare con le regole del bando. Non è un difetto dello studio: sono i documenti pubblici a non dirle.")
+        lines.append("La percentuale di agevolazione è scritta nei documenti: il valore in euro si calcola." if has_rate else
+                     "La percentuale di agevolazione non è scritta nei documenti ufficiali: il valore in euro non si calcola e non entra nel totale.")
+    return {"studied": studied, "official_docs": len(official), "rules": len(rules), "has_rate": has_rate, "budget": access.get("budget"), "noun": noun,
+            "budget_ready": studied and bool(rules) and access.get("budget") is not False, "retry": studied and not curated and (not official or old),
+            "last_read": last, "verdict": " ".join(lines)}

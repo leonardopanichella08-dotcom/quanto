@@ -1,6 +1,6 @@
 import React, { useState } from 'react'
 import { AlertTriangle, CheckCircle2, ChevronDown, CircleHelp, ExternalLink } from 'lucide-react'
-import { fmtEur, fmtNum } from '../lib/format'
+import { fmtEur, fmtNum, su } from '../lib/format'
 import { Note } from './ui'
 
 const ORIGIN = {
@@ -25,7 +25,7 @@ export function BandoWhy({ r, plan }) {
       </div>
       <div className="grid sm:grid-cols-2 gap-x-6 gap-y-1">
         {e?.kind_label && <p><span className="font-medium text-ink">Tipo di aiuto:</span> {e.kind_label}</p>}
-        {r.mode && <p><span className="font-medium text-ink">Come si accede:</span> {r.mode.needs_project ? 'a progetto' : r.mode.label} · si calcola su {r.mode.base}</p>}
+        {r.mode && <p><span className="font-medium text-ink">Come si accede:</span> {r.mode.needs_project ? 'a progetto' : r.mode.label} · si calcola {su(r.mode.base)}</p>}
         {e && <p><span className="font-medium text-ink">Percentuale applicata:</span> {fmtNum(e.rate_pct, 0)}%{e.rate_high_pct > e.rate_pct ? ` (fino al ${fmtNum(e.rate_high_pct, 0)}% con le maggiorazioni)` : ''} delle spese ammissibili{e.cap_eur ? `, tetto ${fmtEur(e.cap_eur)}` : ''}</p>}
         {r.de_minimis?.applies && <p><span className="font-medium text-ink">De minimis:</span> conta contro il tetto di 300.000 € in tre anni.</p>}
       </div>
@@ -130,7 +130,7 @@ export function TotalPanel({ annual, project, sel, year, projectSummable = true 
     side.plan.fund_usage.filter((u) => u.used_eur > 0).forEach((u) => {
       const r = (side.rows || []).find((x) => x.fund?.fund_id === u.fund_id)
       if (!r) return
-      rows.push({ key: `${kind}-${u.fund_id}`, kind, name: r.name, issuer: r.issuer, amount: u.used_eur, pctSpese: gross ? (u.used_eur / gross) * 100 : null, rate: r.estimate ? `${fmtNum(r.estimate.rate_pct, 0)}%${r.estimate.rate_high_pct > r.estimate.rate_pct ? `–${fmtNum(r.estimate.rate_high_pct, 0)}%` : ''} delle spese ammissibili` : 'tetto del bando', base: kind === 'PROJECT' ? `spese nuove di «${side.title}»` : `spese del ${year}`, why: <BandoWhy r={r} plan={side.plan} />, summable: kind !== 'PROJECT' || projectSummable })
+      rows.push({ key: `${kind}-${u.fund_id}`, kind, noun: r.mode?.noun, name: r.name, issuer: r.issuer, amount: u.used_eur, pctSpese: gross ? (u.used_eur / gross) * 100 : null, rate: r.estimate ? `${fmtNum(r.estimate.rate_pct, 0)}%${r.estimate.rate_high_pct > r.estimate.rate_pct ? `–${fmtNum(r.estimate.rate_high_pct, 0)}%` : ''} delle spese ammissibili` : 'tetto del bando', base: kind === 'PROJECT' ? `spese nuove di «${side.title}»` : `spese del ${year}`, why: <BandoWhy r={r} plan={side.plan} />, summable: kind !== 'PROJECT' || projectSummable })
     })
   }
   fundRows('ANNUAL', annual)
@@ -157,10 +157,10 @@ export function TotalPanel({ annual, project, sel, year, projectSummable = true 
           <div key={r.key} className={`rounded-2xl bg-tint p-3.5 space-y-2 ${r.summable ? '' : 'opacity-70'}`}>
             <div className="flex flex-wrap items-start gap-2">
               <div className="min-w-0 flex-1"><p className="text-sm font-semibold text-ink break-words">{r.name}</p><p className="text-[11px] text-mute">{r.issuer}</p></div>
-              <span className={`px-2 py-0.5 rounded-full text-[11px] font-medium ${ORIGIN[r.kind][1]}`}>{ORIGIN[r.kind][0]}</span>
+              <span className={`px-2 py-0.5 rounded-full text-[11px] font-medium ${ORIGIN[r.kind][1]}`}>{r.noun === 'agevolazione' ? 'Agevolazione · senza budget' : ORIGIN[r.kind][0]}</span>
             </div>
             <div className="flex flex-wrap items-end gap-x-6 gap-y-1 text-xs text-ink-2">
-              <div><span className="label">Contributo</span><div className="text-base font-semibold text-emerald-700 tabular-nums">{fmtEur(r.amount)}</div></div>
+              <div><span className="label">{r.noun === 'agevolazione' ? 'Valore' : 'Contributo'}</span><div className="text-base font-semibold text-emerald-700 tabular-nums">{fmtEur(r.amount)}</div></div>
               <div><span className="label">Quota del totale</span><div className="text-sm font-semibold tabular-nums text-ink">{r.summable && total ? `${fmtNum((r.amount / total) * 100, 1)}%` : 'non sommato'}</div></div>
               {r.pctSpese != null && <div><span className="label">Sulle spese del piano</span><div className="text-sm font-semibold tabular-nums text-ink">{fmtNum(r.pctSpese, 1)}%</div></div>}
               <div className="min-w-0 max-w-sm"><span className="label">Percentuale applicata</span><div className="text-ink">{r.rate}</div></div>

@@ -113,7 +113,16 @@ function AppInner({ bridge }) {
         setRequest(v.request); setValidation(v.validation || null)
         if (v.bandoId) { try { setBando(await api.bandoDetail(v.bandoId)) } catch { /* il bando potrebbe non esserci più */ } }
       }
-      try { const bs = await api.clientState('budget-set'); if (bs.value?.budgets?.length) setBudgetSet(bs.value) } catch { /* nessun gruppo di budget salvato */ }
+      try {
+        const bs = await api.clientState('budget-set')
+        if (bs.value?.budgets?.length) {
+          // un gruppo salvato prima della correzione può contenere agevolazioni senza budget (credito d'imposta, garanzia): si tolgono
+          const list = await api.bandi().catch(() => [])
+          const none = new Set(list.filter((b) => b.budget === false).map((b) => b.bando_id))
+          const budgets = bs.value.budgets.filter((b) => !none.has(b.bando_id))
+          if (budgets.length) setBudgetSet({ ...bs.value, budgets, active: budgets.some((b) => b.fund_id === bs.value.active) ? bs.value.active : budgets[0].fund_id })
+        }
+      } catch { /* nessun gruppo di budget salvato */ }
     } catch { /* nessun salvataggio: si parte da zero */ } finally { budgetLoaded.current = true }
   }
   const chooseClient = async (id) => {
@@ -279,18 +288,20 @@ function AppInner({ bridge }) {
     try { await loadSetBudget(saved, saved.budgets.find((b) => b.fund_id === fundId)); setBudgetSet(saved) } catch (e) { setError(e.message) } finally { setBusy(false) }
   }
   const closeBudgetSet = () => { setBudgetSet(null); api.saveClientState('budget-set', null).catch(() => {}) }
-  // Il budget di un bando chiede lo studio completo: se il bando è stato solo letto in breve (scheda del catalogo), lo si studia da cima a fondo prima di costruire il budget.
+  // Dal bando al budget in un passo. Se il bando non è ancora studiato lo si studia QUI (senza cambiare pagina); si apre il Budget solo se il budget si può davvero fare
+  // e controllare. Un'agevolazione senza budget (credito d'imposta automatico, garanzia) o un bando i cui documenti non scrivono regole non portano al Budget:
+  // chi ha chiamato riceve il motivo e lo mostra dove l'utente ha cliccato.
   const budgetFrom = async (bandoId) => {
-    try {
-      const d0 = await api.bandoDetail(bandoId)
-      if (!d0.grant_rules) {
-        setNotice(['Prima del budget studio questo bando da cima a fondo: cerco e leggo le fonti ufficiali, regole e requisiti. Può richiedere fino a un minuto.'])
-        nav.go('canvas'); setBusy(true)
-        try { await api.researchRun({ bando_id: bandoId }) } finally { setBusy(false) }
-        setNotice(null); await loadBandi()
-      }
-      await selectBando(bandoId); setTemplateOpen(true); nav.go('canvas'); scrollTop()
-    } catch { nav.go('canvas') }          // l'errore (es. bando ancora senza regole pubblicate) lo mostra la pagina Budget
+    let d = await api.bandoDetail(bandoId)
+    if (d.access?.budget === false) return { ok: false, study: d.study }
+    if (!d.study?.budget_ready && !d.study?.studied) {
+      const r = await api.researchRun({ bando_id: bandoId })
+      await loadBandi()
+      d = { ...r.detail, study: r.study }
+    }
+    if (!d.study?.budget_ready) return { ok: false, study: d.study }
+    await selectBando(bandoId); setTemplateOpen(true); nav.go('canvas'); scrollTop()
+    return { ok: true, study: d.study }
   }
   const changeProject = (project_id) => { setRequest((r) => ({ ...r, project_id })); setAttestation(null) }
 

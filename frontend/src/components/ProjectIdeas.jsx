@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react'
 import { AlertTriangle, ChevronDown, ChevronRight, Lightbulb, Loader2 } from 'lucide-react'
-import { CATEGORY_LABEL, fmtEur } from '../lib/format'
+import { CATEGORY_LABEL, fmtEur, su } from '../lib/format'
 import { HScroll, Note } from './ui'
 
 const NATURE = {
@@ -69,7 +69,7 @@ export default function ProjectIdeas({ data, error, loading, active, onAllocate,
           <p className="text-xs text-ink-2 leading-relaxed">Si accede per requisiti, per acquisti qualificati, per un finanziamento o per spese commerciali: il budget è un’altra cosa, e per molte di queste le spese e i dati dell’azienda sono la base giusta.</p>
           <HScroll label="Misure senza progetto">{data.no_project.map((m) => (
             <div key={m.bando_id} className="rounded-xl border border-line bg-field p-3 text-xs space-y-1"><p className="font-medium text-ink">{m.name}</p><p className="text-[11px] text-mute">{m.mode}</p>
-              <p className="text-ink-2">Si calcola su {m.base}.</p><p className="text-mute">Esempio: {m.example}</p></div>))}</HScroll>
+              <p className="text-ink-2">Si calcola {su(m.base)}.</p><p className="text-mute">Esempio: {m.example}</p></div>))}</HScroll>
         </div>
       )}
       {data?.notes.map((n) => <p key={n} className="text-[11px] text-mute">• {n}</p>)}

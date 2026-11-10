@@ -16,7 +16,8 @@ import { ChromeCard, Fold, Info } from './ui'
 import { publishGo, scrollTop, useNav } from '../lib/nav'
 import { fmtTok } from './Tokens'
 import PatternCompare from './PatternCompare'
-import { BANDO_STATUS_STYLE, CATEGORY_LABEL, CATEGORY_ORDER, STATUS_LABEL, STATUS_STYLE, fmtEur, fmtNum, fmtPct } from '../lib/format'
+import PipelineButton, { StudyResult } from './PipelineButton'
+import { BANDO_STATUS_STYLE, CATEGORY_LABEL, CATEGORY_ORDER, STATUS_LABEL, STATUS_STYLE, fmtEur, fmtNum, fmtPct, su } from '../lib/format'
 
 const ITEM_STATUS_DOT = { APPROVED: '#10b981', CAP_EXCEEDED_ADJUSTED: '#f59e0b', REJECTED: '#ef4444', MISSING_DOCUMENTS: '#38bdf8' }
 
@@ -254,19 +255,59 @@ export default function BudgetCanvas({
   const plural = (n, one, many) => `${n} ${n === 1 ? one : many}`
   const needs = [
     !bando && 'Scegli il bando su cui lavorare: senza le sue regole non posso controllare nulla.',
+    bando?.access?.budget === false && 'Scegli un bando con un budget: questa è un’agevolazione e non ne ha uno.',
     bando && !validation && items.length > 0 && 'Il budget non è ancora stato controllato con i 60 criteri.',
     incompleteItems.length > 0 && `${plural(incompleteItems.length, 'voce è incompleta', 'voci sono incomplete')}: manca un dato per controllarle.`,
     nWait > 0 && `${plural(nWait, 'voce aspetta', 'voci aspettano')} un documento (per esempio il CUP o la busta paga).`,
     nNo > 0 && `${plural(nNo, 'voce è respinta', 'voci sono respinte')}: guarda il motivo e correggi.`,
   ].filter(Boolean)
+  // barra del bando: la stessa nella pagina normale e in quella di un'agevolazione senza budget
+  const bandoBar = (
+      <ChromeCard label={`quanto.app/budget${bando ? `/${bando.bando_id}` : ''}`} bodyClassName="p-4 flex flex-wrap items-center gap-3">
+          <div className="flex items-center gap-2 min-w-0">
+            <span className="label shrink-0">Bando</span>
+            <select value={bando?.bando_id || ''} onChange={(e) => onSelectBando(e.target.value)} disabled={busy} className="field !w-auto max-w-[260px] md:max-w-sm">
+              <option value="" disabled>Scegli un bando…</option>
+              {bandi.map((b) => <option key={b.bando_id} value={b.bando_id} disabled={!b.rules_count || b.budget === false}>{b.name}{b.budget === false ? ' — agevolazione, niente budget' : b.rules_count ? '' : ' — senza regole numeriche'}</option>)}
+            </select>
+          </div>
+          {bando && (
+            <>
+              <span className={`px-2 py-0.5 text-[11px] font-medium rounded border ${BANDO_STATUS_STYLE(bando.status || '')}`}>{(bando.status || '').split(' (')[0]}</span>
+              <span className="text-xs text-ink-2">{bando.rules.length} regole · il bando attiva {bando.coverage_summary.REGOLA_DEL_BANDO} dei 60 controlli</span>
+            </>
+          )}
+          <label className="flex items-center gap-2 md:ml-auto text-xs text-ink-2 w-full md:w-auto min-w-0">Nome del progetto
+            <input value={request.project_id} onChange={(e) => onProjectId(e.target.value)} className="field !w-full md:!w-56 min-w-0 font-mono" />
+          </label>
+        </ChromeCard>
+  )
+  const study = bando?.study || {}
+  const noBudget = bando?.access?.budget === false
+  const published = bando ? bando.rules.filter((r) => r.status === 'PUBLISHED').length : 0
   const agent = (
     <AgentBar current="canvas"
-      did={bando ? (budgetSet ? `Ho preparato ${plural(budgetSet.budgets.length, 'budget', 'budget')} dal piano dell’Allocazione, uno per bando. Stai lavorando su «${bando.name}».` : (items.length ? `Il budget di «${bando.name}» ha ${plural(items.length, 'voce', 'voci')}.` : null)) : null}
+      did={noBudget ? null : bando ? (budgetSet ? `Ho preparato ${plural(budgetSet.budgets.length, 'budget', 'budget')} dal piano dell’Allocazione, uno per bando. Stai lavorando su «${bando.name}».` : (items.length ? `Il budget di «${bando.name}» ha ${plural(items.length, 'voce', 'voci')}.` : null)) : null}
       found={validation ? `${nOk} su ${validation.items.length} voci ammesse${nCut ? `, ${nCut} ridotte per rientrare nei tetti` : ''}${nNo ? `, ${nNo} respinte` : ''}.${budgetSet ? (budgetSet.ok ? ' Verificati insieme: nessun conflitto tra i bandi.' : ' Tra i bandi ci sono incompatibilità: guarda il riquadro qui sotto.') : ''}` : null}
       need={needs.length ? <span className="space-y-1 block">{needs.map((n) => <span key={n} className="block">{n}</span>)}</span> : null}
       busy={busy}
-      next={!bando ? { label: 'Vai ai bandi', onClick: onGoBandi } : validation ? { label: 'Confronta con chi ha già vinto', onClick: () => { publishGo(); nav.go('pattern') } } : items.length ? { label: 'Controlla il budget', onClick: onValidate } : null} />
+      next={noBudget ? { label: 'Vai all’Allocazione', onClick: () => nav.go('allocation') } : !bando ? { label: 'Vai ai bandi', onClick: onGoBandi } : validation ? { label: 'Confronta con chi ha già vinto', onClick: () => { publishGo(); nav.go('pattern') } } : items.length ? { label: 'Controlla il budget', onClick: onValidate } : null} />
   )
+
+  if (noBudget) {
+    return (
+      <div className="space-y-6">
+        {agent}
+        {bandoBar}
+        <div className="card p-6 space-y-3">
+          <p className="text-base font-semibold text-ink">«{bando.name}» è un’agevolazione: non si fa un budget di spese.</p>
+          {bando.access?.base && <p className="text-sm text-ink-2">Si calcola {su(bando.access.base)}.</p>}
+          <p className="text-sm text-ink-2">Non c’è nulla da compilare qui: il suo valore è già nel piano dell’Allocazione. Scegli dal menu qui sopra un bando con un budget.</p>
+          <button className="btn" onClick={() => nav.go('allocation')}>Vai all’Allocazione</button>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div className="space-y-6">
@@ -289,30 +330,12 @@ export default function BudgetCanvas({
         </div>
       )}
 
-      {/* barra del bando */}
-      <ChromeCard label={`quanto.app/budget${bando ? `/${bando.bando_id}` : ''}`} bodyClassName="p-4 flex flex-wrap items-center gap-3">
-        <div className="flex items-center gap-2 min-w-0">
-          <span className="label shrink-0">Bando</span>
-          <select value={bando?.bando_id || ''} onChange={(e) => onSelectBando(e.target.value)} disabled={busy} className="field !w-auto max-w-[260px] md:max-w-sm">
-            <option value="" disabled>Scegli un bando…</option>
-            {bandi.map((b) => <option key={b.bando_id} value={b.bando_id} disabled={!b.rules_count}>{b.name}{b.rules_count ? '' : ' — regole non ancora lette'}</option>)}
-          </select>
-        </div>
-        {bando && (
-          <>
-            <span className={`px-2 py-0.5 text-[11px] font-medium rounded border ${BANDO_STATUS_STYLE(bando.status || '')}`}>{(bando.status || '').split(' (')[0]}</span>
-            <span className="text-xs text-ink-2">{bando.rules.length} regole · il bando attiva {bando.coverage_summary.REGOLA_DEL_BANDO} dei 60 controlli</span>
-          </>
-        )}
-        <label className="flex items-center gap-2 md:ml-auto text-xs text-ink-2 w-full md:w-auto min-w-0">Nome del progetto
-          <input value={request.project_id} onChange={(e) => onProjectId(e.target.value)} className="field !w-full md:!w-56 min-w-0 font-mono" />
-        </label>
-      </ChromeCard>
-      {bando && bando.rules.length === 0 && (
-        <div className="p-3 rounded-xl border border-amber-500/30 bg-amber-500/5 text-xs text-amber-800 flex flex-wrap items-center gap-2">
-          <AlertTriangle className="w-4 h-4 shrink-0" />
-          <span>Per questo bando non ho ancora nessuna regola numerica: la ricerca sul web non è stata completata (serve scegliere le pagine ufficiali e confermare lo scaricamento).</span>
-          <button onClick={onGoBandi} className="btn !py-1 ml-auto shrink-0">Completa la ricerca</button>
+      {bandoBar}
+      {bando && published === 0 && (
+        <div className="space-y-2">
+          {study.studied ? <StudyResult study={study} /> : <p className="text-xs text-ink-2">Questo bando non è ancora stato studiato: lo studio legge i documenti ufficiali e ne ricava le regole che il budget deve rispettare.</p>}
+          {study.studied && !study.retry && <p className="text-[11px] text-ink-2">Puoi scrivere il budget: valgono i controlli generali (personale, documenti, coerenza); quelli che dipendono dalle regole del bando restano spenti perché i documenti non le scrivono.</p>}
+          {(!study.studied || study.retry) && <PipelineButton key={`${bando.bando_id}-${study.last_read || 'mai'}`} bandoId={bando.bando_id} label={study.studied ? 'Riprova la lettura' : 'Studia il bando adesso'} onDone={() => onSelectBando(bando.bando_id)} />}
         </div>
       )}
       {!bando && (
