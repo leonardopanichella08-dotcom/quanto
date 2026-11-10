@@ -140,7 +140,7 @@ def _budget_flag(b, meta: Dict[str, Any]) -> Optional[bool]:
     """Per gli elenchi (veloce): dal tipo di aiuto e dal nome, si fa un budget? False per crediti d'imposta automatici, garanzie, incentivi alle assunzioni. Il dettaglio decide con tutti i testi."""
     from app.core import funding_modes
     benefit = meta.get("benefit") or {}
-    acc = funding_modes.classify(benefit.get("type"), [b["name"], benefit.get("summary") or ""])
+    acc = funding_modes.classify(benefit.get("type"), [b["name"], benefit.get("summary") or ""], forms=_catalog_json(b).get("form"), name=b["name"])
     return funding_modes.MODES[acc["primary"]]["budget"] if acc["primary"] else None
 
 
@@ -204,7 +204,15 @@ def _project_types(b, meta: Dict[str, Any], req_texts: List[str]) -> List[Dict[s
 def _funding_modes(b, meta: Dict[str, Any], req_texts: List[str]) -> Dict[str, Any]:
     """Come si accede: a progetto, credito automatico, garanzia, occupazione, spese commerciali, ristoro. Non tutti i bandi chiedono un progetto."""
     from app.core import funding_modes
-    return funding_modes.classify((meta.get("benefit") or {}).get("type"), _bando_texts(b, meta, req_texts))
+    cat = _catalog_json(b)
+    return funding_modes.classify((meta.get("benefit") or {}).get("type"), _bando_texts(b, meta, req_texts), forms=cat.get("form"), name=b["name"])
+
+
+def _catalog_json(b) -> Dict[str, Any]:
+    try:
+        return json.loads(b["catalog_meta"]) if b["catalog_meta"] else {}
+    except (KeyError, IndexError, TypeError, ValueError):
+        return {}
 
 
 def _expense_scope(texts: List[str]) -> Dict[str, List[Dict[str, Any]]]:

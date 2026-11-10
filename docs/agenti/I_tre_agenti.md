@@ -584,3 +584,12 @@ Costruito e provato nel portale (backend + schermate), **in quest'ordine di perc
 | A un'impresa abruzzese compariva il bando del Comune di Corleto Perticara (Basilicata) | Nuovo strato di verifica: un bando di un ente locale (Comune, GAL, Unione dei comuni, Camera di commercio) si propone solo con una **prova positiva** che sia nella regione dell'impresa (capoluogo o provincia nel nome, oppure la regione nella scheda ufficiale). Sotto una misura regionale compaiono solo voci provate nella regione |
 | «Studia» seguito da «nessuna regola», poi «Completa la ricerca» → pagina Bandi → «analisi parziale» → «Rifai lo studio» → di nuovo parziale | Lo studio si fa dove si clicca e dice in una frase cosa si può fare (budget sì/no, valore sì/no, e perché). Nessun rimando ad altre pagine; «Riprova la lettura» solo se non si è letto nessun documento ufficiale o se la lettura è vecchia. «Studia e fai il budget» apre il Budget solo se il budget si può fare |
 | Troppi clic e scorrimenti | «Prepara e apri i budget dei bandi» in un clic; dopo uno studio la scheda del bando si apre ed è evidenziata; dalle Agevolazioni l'Allocazione apre direttamente il bando studiato |
+
+### 11 ter. Terza verifica dell'utente (10 novembre 2026)
+
+- **ON compariva in «Bandi adatti» e spariva in «Tutti insieme».** Era un bando da verificare mostrato in verde nel grafico. Ora il grafico mostra solo gli adatti (verde: si sommano; viola: a progetto) e sotto il totale c'è «Fuori da questa somma, e perché», con il pulsante che risolve ogni caso. Nuovo controllo sui requisiti dell'impresa: «costituite da non più di 60 mesi» e compagine giovanile o femminile, dalla frase del bando e dal profilo (anno di costituzione, età dei soci, prevalenza femminile).
+- **Cifre uguali tra le due pagine.** Il valore «da solo» si calcola sulle spese del piano (budget, acquisti previsti, previsione).
+- **Bando o agevolazione.** La forma della scheda ufficiale e il nome correggono la modalità letta dalle parole: un finanziamento per investimenti è un bando a progetto, con budget.
+- **Ricerca su tutto il catalogo.** Le schede non ancora lette restano candidate («Scheda da leggere») e l'Allocazione le legge subito a lotti (`POST /bandi/catalog/read-more`); una pagina che non risponde non blocca la fila.
+- **Caricamento visibile.** Il riquadro «L'azienda» si riempie di nero mentre si carica; poi si passa da soli ai bandi adatti.
+

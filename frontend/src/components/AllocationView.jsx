@@ -72,13 +72,13 @@ const FIT = {
   NON_ADATTO: ['Non adatto', 'bg-red-500/10 text-red-700 border-red-500/30'],
 }
 const CHECK_ICON = { OK: [CheckCircle2, 'text-emerald-700'], FAIL: [XCircle, 'text-red-700'], UNKNOWN: [CircleHelp, 'text-amber-700'] }
-const MISSING_LABEL = { region: 'la regione della sede', ateco_code: 'il codice ATECO', is_innovative_startup: 'se sei una start-up innovativa' }
+const MISSING_LABEL = { region: 'la regione della sede', ateco_code: 'il codice ATECO', is_innovative_startup: 'se sei una start-up innovativa', founded_year: 'l’anno di costituzione', founders_age: 'l’età del socio più giovane', women_majority: 'se l’impresa è a prevalenza femminile' }
 
 const AFFINITY = { ALTA: ['Molto affine', 'bg-emerald-500/15 text-emerald-700 border-emerald-500/30'], MEDIA: ['Affine', 'bg-sky-500/15 text-sky-700 border-sky-500/30'], BASSA: ['Poco affine', 'bg-ink/10 text-ink-2 border-line-strong'] }
 
 /** Voce del catalogo non ancora studiata: descrizione ufficiale e motivi dell'affinità; se serve, la si studia con il processo standard. */
 function CatalogCard({ it, onStudied }) {
-  const [label, tone] = AFFINITY[it.affinity]
+  const [label, tone] = it.unread ? ['Scheda da leggere', 'bg-tint text-ink-2 border-line-strong'] : AFFINITY[it.affinity]
   const [docs, setDocs] = useState(false)
   return (
     <div className="rounded-2xl border border-line bg-field p-4 space-y-2.5">
@@ -160,24 +160,64 @@ function Step({ id, title, info, summary, chart, chartNote, alert, children, don
 
 const DEPT_ORDER = [['COMMERCIALE', 'Marketing e vendite'], ['TECNICO', 'Tecnici e ingegneri'], ['PRODUZIONE', 'Produzione e operai'], ['MAGAZZINO', 'Magazzino e logistica'], ['AMMINISTRAZIONE', 'Amministrazione'], ['IT', 'Informatica e digitale']]
 
-/** La barra in alto: le quattro parti dell'allocazione, una alla volta. Ognuna dice in una riga a che punto è. */
-function SectionNav({ items, current, onGo }) {
+/** La barra in alto: le quattro parti dell'allocazione, una alla volta. Ognuna dice in una riga a che punto è.
+ *  Mentre l'azienda si carica (profilo, previsione, giudizio dei bandi) il nero riempie il suo riquadro da sinistra a destra: quando è pieno si passa ai bandi adatti. */
+function SectionNav({ items, current, onGo, loading }) {
   return (
     <nav aria-label="Parti dell’allocazione" className="sticky top-2 z-30">
       <ol className="grid grid-cols-2 lg:grid-cols-4 gap-2 rounded-3xl bg-white/95 backdrop-blur border border-line p-2 shadow-sm">
-        {items.map((x, i) => (
-          <li key={x.id}>
-            <button type="button" onClick={() => onGo(x.id)} aria-current={current === x.id ? 'page' : undefined}
-              className={`w-full h-full text-left rounded-2xl px-3 py-2.5 transition ${current === x.id ? 'bg-ink text-white' : x.off ? 'text-mute hover:bg-tint/60' : 'hover:bg-tint'}`}>
+        {items.map((x, i) => {
+          const filling = loading && loading.id === x.id
+          const dark = current === x.id && !filling
+          const wait = !!loading && !filling && x.off
+          const body = (on) => (
+            <>
               <span className="flex items-center gap-1.5 text-[13px] font-semibold">
-                <span className={`w-4 h-4 rounded-full inline-flex items-center justify-center text-[10px] shrink-0 ${current === x.id ? 'bg-white text-ink' : x.done ? 'bg-emerald-500 text-white' : 'bg-tint-2 text-ink-2'}`}>{x.done && current !== x.id ? '✓' : i + 1}</span>{x.title}
+                <span className={`w-4 h-4 rounded-full inline-flex items-center justify-center text-[10px] shrink-0 ${on ? 'bg-white text-ink' : x.done ? 'bg-emerald-500 text-white' : 'bg-tint-2 text-ink-2'}`}>{x.done && !on ? '✓' : i + 1}</span>{x.title}
               </span>
-              <span className={`block text-[11px] mt-1 leading-snug ${current === x.id ? 'text-white/80' : 'text-ink-2'}`}>{x.line}</span>
-            </button>
-          </li>
-        ))}
+              <span className={`block text-[11px] mt-1 leading-snug ${on ? 'text-white/80' : 'text-ink-2'}`}>{x.line}</span>
+            </>
+          )
+          return (
+            <li key={x.id}>
+              <button type="button" onClick={() => onGo(x.id)} disabled={wait} title={wait ? 'Si apre appena finisco di caricare l’azienda' : undefined}
+                aria-current={current === x.id ? 'page' : undefined} aria-busy={filling || undefined}
+                className={`relative overflow-hidden w-full h-full text-left rounded-2xl px-3 py-2.5 transition ${dark ? 'bg-ink text-white' : x.off ? 'text-mute hover:bg-tint/60' : 'hover:bg-tint'} ${wait ? 'cursor-wait opacity-60' : ''}`}>
+                {body(dark)}
+                {filling && (
+                  <span aria-hidden="true" className="absolute inset-0 rounded-2xl bg-ink text-white px-3 py-2.5 transition-[clip-path] duration-500 ease-out"
+                    style={{ clipPath: `inset(0 ${Math.max(0, 100 - loading.pct)}% 0 0)` }}>{body(true)}</span>
+                )}
+              </button>
+            </li>
+          )
+        })}
       </ol>
     </nav>
+  )
+}
+
+/** «Tutti insieme» non fa sparire niente: ogni bando visto tra gli adatti o con un importo, che qui non si somma, compare con il motivo e con il pulsante che lo risolve. */
+const OUT_TONE = { VERIFY: 'bg-amber-500/15 text-amber-700', PROJECT: 'bg-violet-500/15 text-violet-700', REMOVED: 'bg-ink/10 text-ink-2' }
+function OutsideSum({ items, more, onMore }) {
+  if (!items.length && !more) return null
+  return (
+    <div className="space-y-2">
+      <p className="label">Fuori da questa somma, e perché</p>
+      <ul className="space-y-2">
+        {items.map((x) => (
+          <li key={x.id} className="rounded-2xl border border-line p-3 space-y-1">
+            <div className="flex flex-wrap items-start gap-2">
+              <p className="text-sm font-medium text-ink min-w-0 flex-1 break-words">{x.name}</p>
+              <span className={`px-2 py-0.5 rounded-full text-[11px] font-medium ${OUT_TONE[x.kind]}`}>{x.tag}</span>
+            </div>
+            <p className="text-xs text-ink-2 leading-relaxed">{x.why}</p>
+            {x.action && <button className="btn !py-1 !text-xs" onClick={x.action[1]}>{x.action[0]}</button>}
+          </li>
+        ))}
+      </ul>
+      {more > 0 && <button className="text-xs underline text-ink-2" onClick={onMore}>{more === 1 ? 'Un altro bando è da verificare' : `Altri ${more} bandi sono da verificare`}: nessuno ha un importo calcolato, vedili nei bandi</button>}
+    </div>
   )
 }
 
@@ -383,7 +423,9 @@ function BandoCard({ r, picked, onToggle, onBudget, includeLabel = 'Includi', sc
         <p className="text-sm text-ink-2 leading-snug">{e ? <>Contributo fino al <span className="font-semibold text-ink tabular-nums">{fmtNum(e.rate_pct, 0)}%</span> delle spese del progetto.</> : 'Contributo sulle spese del progetto.'}</p>
       ) : e ? (
         <div className="flex flex-wrap items-end gap-x-6 gap-y-1">
-          <div><span className="label">{e.kind_label || 'Contributo stimato'}</span><div className="text-lg font-display font-semibold text-emerald-700 tabular-nums">{fmtEur(e.covered_eur)}{e.covered_high_eur > e.covered_eur + 0.5 && <span className="text-sm text-emerald-700/80"> – {fmtEur(e.covered_high_eur)}</span>}</div></div>
+          {r.fit === 'ADATTO'
+            ? <div><span className="label">{e.kind_label || 'Contributo stimato'}</span><div className="text-lg font-display font-semibold text-emerald-700 tabular-nums">{fmtEur(e.covered_eur)}{e.covered_high_eur > e.covered_eur + 0.5 && <span className="text-sm text-emerald-700/80"> – {fmtEur(e.covered_high_eur)}</span>}</div></div>
+            : <div><span className="label">Da solo varrebbe · non conta</span><div className="text-lg font-display font-semibold text-mute tabular-nums">{fmtEur(e.covered_eur)}</div></div>}
           <div><span className="label">Sulle tue spese</span><div className="text-sm font-semibold tabular-nums">{fmtNum(e.covered_pct_of_total, 1)}%</div></div>
         </div>
       ) : r.guarantee ? (
@@ -493,6 +535,11 @@ export default function AllocationView({ onGoProfile, onBudgetFrom, onOpenBudget
   const [confirm, setConfirm] = useState(null)                         // il piano costa token: si mostra il costo e si aspetta la conferma
   const confirmRef = useRef(false)
   const seq = useRef(0)
+  const [loadPct, setLoadPct] = useState(4)                          // riempimento nero del riquadro «L'azienda» mentre si carica
+  const [bootDone, setBootDone] = useState(false)
+  const loadStart = useRef(Date.now())
+  const [readNote, setReadNote] = useState(null)                     // lettura delle schede del catalogo che mancano: { busy, read, left }
+  const readingAll = useRef(false)
 
   useEffect(() => { api.profile().then(setOv).catch((e) => setError(e.message)) }, [])
   // scelte salvate per questo lavoro: anno, percentuali scritte a mano, bandi inclusi, obiettivo, de minimis
@@ -583,7 +630,39 @@ export default function AllocationView({ onGoProfile, onBudgetFrom, onOpenBudget
     } catch (e) { setError(e.message) } finally { setStudyingMore(false) }
   }
 
-  const sec = section ?? (ov && ov.last_year != null ? 'bandi' : 'azienda')
+  // Caricamento dell'azienda: il riquadro si riempie man mano (profilo, poi previsione e bandi); finito, si passa da soli ai bandi adatti.
+  const booting = !error && (!ov || (ov.last_year != null && !match))
+  useEffect(() => {
+    if (!booting) { setLoadPct(100); const t = setTimeout(() => setBootDone(true), 550); return () => clearTimeout(t) }
+    const t = setInterval(() => {
+      const s = (Date.now() - loadStart.current) / 1000
+      const [floor, cap, tau] = ov ? [35, 94, 5] : [4, 32, 1.5]
+      setLoadPct((p) => Math.max(p, Math.min(cap, floor + (cap - floor) * (1 - Math.exp(-s / tau)))))
+    }, 200)
+    return () => clearInterval(t)
+  }, [booting, !!ov])        // eslint-disable-line react-hooks/exhaustive-deps
+  // La ricerca vale su TUTTO il catalogo: se ci sono schede non ancora lette, si leggono adesso, a lotti, e alla fine si rifà il giudizio.
+  useEffect(() => {
+    const s0 = match?.matching.catalog?.stats
+    if (!s0 || !(s0.unread > 0) || readingAll.current) return
+    readingAll.current = true
+    ;(async () => {
+      let total = 0
+      setReadNote({ busy: true, read: 0, left: s0.unread })
+      for (let i = 0; i < 40; i += 1) {
+        let r
+        try { r = await api.catalogReadMore() } catch { break }
+        total += r.read || 0
+        setReadNote({ busy: true, read: total, left: Math.max(0, s0.unread - total) })
+        if (!r.read || !r.remaining) break
+      }
+      let after = null
+      try { after = (await runMatchRef.current?.())?.matching.catalog?.stats } catch { /* il giudizio resta quello di prima */ }
+      setReadNote({ busy: false, read: total, left: after ? after.unread : Math.max(0, s0.unread - total) })
+    })()
+  }, [match])        // eslint-disable-line react-hooks/exhaustive-deps
+
+  const sec = section ?? (ov && ov.last_year != null && match && bootDone ? 'bandi' : 'azienda')
   const inProject = sec === 'progetti' && !!project              // nella sezione Progetti il piano è quello del progetto; altrove è quello delle spese dell'anno
   const active = inProject ? projectPicked : picked
   const pickedRows = (match?.matching.results || []).filter((r) => active.includes(r.bando_id) && r.fund)
@@ -781,11 +860,28 @@ export default function AllocationView({ onGoProfile, onBudgetFrom, onOpenBudget
   const annualSide = inProject ? (shadow?.kind === 'ANNUAL' ? { plan: shadow.plan, rows: shadow.rows } : null) : (plan && pickedRows.length ? { plan, rows: pickedRows } : null)
   const projectSide = project ? (inProject ? (plan && pickedRows.length ? { plan, rows: pickedRows, title: project.title } : null) : (shadow?.kind === 'PROJECT' ? { plan: shadow.plan, rows: shadow.rows, title: project.title } : null)) : null
   const grandTotal = (annualSide?.plan?.covered_by_public_funds_eur || 0) + (includeCurrent ? 0 : (projectSide?.plan?.covered_by_public_funds_eur || 0)) + (sel?.total_max_eur || 0)
+  // Ciò che si è visto tra i bandi ma non entra nel totale, con il motivo: da verificare (con importo), a progetto, tolto a mano.
+  const whyUnknown = (r) => r.checks.find((c) => c.result === 'UNKNOWN' && c.decisive)?.detail || (!r.estimate ? 'Il bando non dichiara una percentuale: il contributo non si calcola.' : 'Manca un dato per decidere.')
+  const outsideAll = [
+    ...results.filter((r) => r.fit === 'ADATTO' && r.fund && !r.mode?.needs_project && !picked.includes(r.bando_id))
+      .map((r) => ({ id: `rm-${r.bando_id}`, kind: 'REMOVED', name: r.name, tag: 'Tolto dal piano', why: `L’hai tolto tu dal piano con «Includi nel piano»${r.estimate ? `: da solo varrebbe ${fmtEur(r.estimate.covered_eur)}` : ''}.`, action: ['Rimetti nel piano', () => toggleAnnual(r.bando_id)] })),
+    ...results.filter((r) => r.fit === 'ADATTO' && r.mode?.needs_project && !(projectSide && projectPicked.includes(r.bando_id)))
+      .map((r) => ({ id: `pj-${r.bando_id}`, kind: 'PROJECT', name: r.name, tag: 'A progetto', why: `Finanzia le spese nuove di un progetto, non le spese correnti dell’anno: per questo non si somma qui${r.estimate ? ` (da solo varrebbe ${fmtEur(r.estimate.covered_eur)})` : ''}. Si calcola nella sezione Progetti, sul progetto che scegli.`, action: ['Vai ai progetti', () => goSection('progetti')] })),
+    ...results.filter((r) => r.fit === 'ADATTO' && !r.fund && !r.mode?.needs_project)
+      .map((r) => ({ id: `ng-${r.bando_id}`, kind: 'REMOVED', name: r.name, tag: r.guarantee ? 'Garanzia' : 'Senza importo', why: r.guarantee
+        ? `È adatto, ma è una garanzia: non è denaro che arriva all’azienda, copre una parte di un prestito (importo garantibile ${fmtEur(r.guarantee.guaranteed_low_eur)} – ${fmtEur(r.guarantee.guaranteed_high_eur)}). Per questo non si somma ai contributi.`
+        : 'È adatto, ma i documenti ufficiali non scrivono una percentuale: il valore in euro non si calcola e quindi non si somma.' })),
+    ...results.filter((r) => r.fit === 'DA_VERIFICARE' && r.estimate)
+      .map((r) => ({ id: `dv-${r.bando_id}`, kind: 'VERIFY', name: r.name, tag: 'Da verificare', why: `Da solo varrebbe ${fmtEur(r.estimate.covered_eur)}, ma non si somma finché non è chiarito: ${whyUnknown(r).replace(/\.$/, '')}.`, action: ['Apri la scheda del bando', () => focusBando(r)] })),
+  ]
+  const outsideMore = results.filter((r) => r.fit === 'DA_VERIFICARE' && !r.estimate).length
+  const outside = <OutsideSum items={outsideAll} more={outsideMore} onMore={() => { setSection('bandi'); setTab('DA_VERIFICARE'); setTimeout(() => flashTo('al-fold-verificare'), 300) }} />
   const totalStep = (
     <Step id="al-totale" title="Il totale e da dove viene" done={grandTotal > 0} open={openSteps.totale !== false} onToggle={() => setOpenSteps((o) => ({ ...o, totale: o.totale === false }))}
       summary={grandTotal > 0 ? `${fmtEur(grandTotal)} tra bandi dell’anno${projectSide?.plan?.covered_by_public_funds_eur > 0 && !includeCurrent ? ', progetto' : ''}${sel?.counted ? ' e agevolazioni sul lavoro' : ''}` : 'Bandi dell’anno, progetto e agevolazioni, tutti insieme'}
       info="Somma i contributi massimi delle tre fonti: bandi sulle spese dell’anno (dal piano), bandi a progetto (dal progetto scelto) e agevolazioni sul lavoro scelte. Un bando da verificare o un’agevolazione con un dato mancante non si somma mai. È un massimo teorico: non considera la probabilità di vincere.">
       <TotalPanel annual={annualSide} project={projectSide} sel={sel} year={year} projectSummable={!includeCurrent} />
+      {outside}
     </Step>
   )
   const misureStep = (
@@ -799,8 +895,8 @@ export default function AllocationView({ onGoProfile, onBudgetFrom, onOpenBudget
   const nAdatti = annualFit('ADATTO').length
   const nProgetto = projectFit('ADATTO').length
   const sections = [
-    { id: 'azienda', title: 'L’azienda', done: !!hasData && !!match, off: !hasData, line: ov ? `Profilo al ${ov.completeness_pct}% · spese ${year}: ${match ? fmtEur(match.forecast.total_forecast_eur) : '…'}` : '…' },
-    { id: 'bandi', title: 'Bandi adatti', done: nAdatti > 0, off: !match, line: match ? `${nAdatti} per le spese dell’anno · ${match.matching.summary.DA_VERIFICARE} da verificare${st ? ` · ${st.open_total + st.studied} letti` : ''}` : 'uno per uno' },
+    { id: 'azienda', title: 'L’azienda', done: !!hasData && !!match, off: !hasData, line: !ov ? 'Carico il profilo…' : (hasData && !match ? `Profilo al ${ov.completeness_pct}% · calcolo la previsione e giudico i bandi…` : `Profilo al ${ov.completeness_pct}% · spese ${year}: ${match ? fmtEur(match.forecast.total_forecast_eur) : '…'}`) },
+    { id: 'bandi', title: 'Bandi adatti', done: nAdatti > 0, off: !match, line: match ? `${nAdatti} per le spese dell’anno · ${match.matching.summary.DA_VERIFICARE} da verificare${st ? ` · schede lette ${fmtNum(st.read_total ?? st.read, 0)} su ${fmtNum(st.open_total, 0)}` : ''}` : 'uno per uno' },
     { id: 'insieme', title: 'Tutti insieme', done: grandTotal > 0 && !inProject, off: !match, line: grandTotal > 0 ? `${fmtEur(grandTotal)} in totale · ${picked.length} ${picked.length === 1 ? 'bando' : 'bandi'}${sel?.counted ? ` + ${sel.counted} agevolaz.` : ''}` : 'somma, piano e budget' },
     { id: 'progetti', title: 'Progetti', done: !!project, off: !match, line: project ? `«${project.title}»${plan && inProject ? ` · ${fmtEur(plan.covered_by_public_funds_eur)} coperti` : ''}` : (nProgetto ? `${nProgetto} bandi a progetto adatti` : 'bisogni, progetti e budget') },
   ]
@@ -910,13 +1006,16 @@ export default function AllocationView({ onGoProfile, onBudgetFrom, onOpenBudget
       <Step id="al-bandi" title="Il quadro" done={nAdatti > 0} open={openSteps.bandi !== false} onToggle={() => setOpenSteps((o) => ({ ...o, bandi: o.bandi === false }))}
         summary={`${match.matching.summary.ADATTO} adatti · ${match.matching.summary.DA_VERIFICARE} da verificare · ${match.matching.summary.NON_ADATTO} non adatti`}
         info="Per ogni bando studiato: se puoi partecipare, quanto potrebbe coprire sulle tue spese e come rientrare nei tetti. Per scegliere quali bandi sommare vai su «Tutti insieme»."
-        chartNote="La barra divide i bandi studiati in adatti (verde), da verificare (arancio) e non adatti (rosso). Sotto, i quattro che da soli coprirebbero di più."
+        chartNote="La barra divide i bandi studiati in adatti (verde), da verificare (arancio) e non adatti (rosso). Sotto, gli adatti che da soli coprirebbero di più. Un bando da verificare non ha barra: finché manca un dato non conta in nessuna somma."
         chart={<BandiChart match={match} />}>
         <TutorialVideo id="T07" />
         <TutorialVideo id="T05" />
         {st && (
           <div className="rounded-2xl bg-tint p-4 space-y-1.5">
-            <p className="text-sm text-ink-2 leading-relaxed"><span className="font-medium text-ink">Li uso tutti.</span> Ho letto in breve la scheda di {st.read} dei {st.open_total} bandi aperti del catalogo: {st.high} molto affini, {st.medium} affini. {st.studied} sono già studiati a fondo e fanno il piano con importi veri. Gli altri sono in «Da studiare» con un tetto provvisorio ricavato dalla scheda: «Studia tutti i bandi affini» li porta uno dopo l’altro nel piano.{st.unread > 0 ? ` Altre ${st.unread} schede si leggono man mano.` : ''}</p>
+            <p className="text-sm text-ink-2 leading-relaxed"><span className="font-medium text-ink">Cerco tra tutti i bandi aperti del catalogo ({fmtNum(st.open_total, 0)}), non solo tra quelli studiati.</span> Ho letto in breve la scheda di {fmtNum(st.read_total ?? st.read, 0)}: {st.high} molto affini, {st.medium} affini. {st.studied} sono già studiati a fondo e fanno il piano con importi veri. Gli altri sono in «Da studiare» con un tetto provvisorio ricavato dalla scheda: «Studia tutti i bandi affini» li porta uno dopo l’altro nel piano.</p>
+            {readNote?.busy && <p className="text-xs text-ink-2 flex items-center gap-2"><Loader2 className="w-3.5 h-3.5 animate-spin shrink-0" />Leggo adesso le schede che mancano: {fmtNum(readNote.read, 0)} lette, ne restano circa {fmtNum(readNote.left, 0)}. Il giudizio si aggiorna da solo alla fine.</p>}
+            {readNote && !readNote.busy && <p className="text-xs text-ink-2">{readNote.read > 0 ? `Ho letto altre ${fmtNum(readNote.read, 0)} schede e rifatto il giudizio.` : ''}{readNote.left > 0 ? ` ${fmtNum(readNote.left, 0)} schede ufficiali non si sono aperte all’ultimo tentativo: le riprovo più tardi. Intanto quelle che nel nome non hanno nulla che le escluda restano in «Da studiare» con «Scheda da leggere»: nessuna è scartata senza motivo.` : ' Tutte le schede aperte sono lette.'}</p>}
+            {!readNote && st.unread > 0 && <p className="text-xs text-ink-2">{fmtNum(st.unread, 0)} schede non sono ancora lette: le leggo adesso.</p>}
             <Info label="Come lavora">Due letture. La prima è veloce e riguarda tutti i bandi: la scheda ufficiale dice chi può partecipare, che spese ammette e di quale regione è, e serve a scegliere quelli che somigliano all’azienda. La seconda è lo studio a fondo, solo per i bandi che servono: cerca e legge regole e requisiti, ed è ciò che permette di calcolare gli importi e di fare il budget.</Info>
           </div>
         )}
@@ -1037,7 +1136,7 @@ export default function AllocationView({ onGoProfile, onBudgetFrom, onOpenBudget
   ].filter(Boolean)
   const agent = (
     <AgentBar current="allocation"
-      did={match ? `Ho letto ${st ? st.open_total + st.studied : results.length} bandi, ne ho studiati ${nStudied} e ho giudicato quali sono per l’impresa.` : (matching ? 'Sto leggendo i bandi e le spese dell’impresa…' : null)}
+      did={match ? `Ho cercato tra tutti i ${st ? fmtNum(st.open_total, 0) : results.length} bandi aperti (schede lette: ${st ? fmtNum(st.read_total ?? st.read, 0) : '…'}), ne ho studiati ${nStudied} e ho giudicato quali sono per l’impresa.${readNote?.busy ? ' Sto leggendo le schede che mancano.' : ''}` : (matching ? 'Sto leggendo i bandi e le spese dell’impresa…' : null)}
       found={match ? <span className="block space-y-1"><span className="block">{nAdatti} {nAdatti === 1 ? 'bando adatto' : 'bandi adatti'} alle spese dell’anno{nProgetto ? `, ${nProgetto} a progetto` : ''}.{grandTotal > 0 ? ` Nel totale: ${fmtEur(grandTotal)} al massimo.` : ''}</span>{newsLine}</span> : null}
       need={needLines.length ? <span className="space-y-1 block">{needLines.map((l) => <span key={l} className="block">{l}</span>)}</span> : null}
       next={plan && pickedRows.length ? { label: 'Prepara e apri i budget dei bandi', onClick: () => { setSection('insieme'); openStep('budget'); setBudgetAuto((t) => t + 1); setTimeout(() => flashTo('al-budget'), 250) } }
@@ -1050,7 +1149,7 @@ export default function AllocationView({ onGoProfile, onBudgetFrom, onOpenBudget
       {agent}
       <Guide page="allocation" />
       <HowItWorks kind="allocation" />
-      <SectionNav items={sections} current={sec} onGo={goSection} />
+      <SectionNav items={sections} current={sec} onGo={goSection} loading={bootDone ? null : { id: 'azienda', pct: loadPct }} />
       {error && <div className="p-3 rounded-xl border border-red-500/30 text-red-700 text-xs">{error}</div>}
       {sec === 'azienda' && (
         <div className="space-y-4">

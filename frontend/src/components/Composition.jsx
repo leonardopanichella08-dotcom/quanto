@@ -8,6 +8,7 @@ const ORIGIN = {
   PROJECT: ['Bando a progetto', 'bg-violet-500/15 text-violet-700', '#a78bfa'],
   MISURA: ['Agevolazione sul lavoro', 'bg-emerald-500/15 text-emerald-700', '#34d399'],
 }
+const HEAD = { ANNUAL: 'Sulle spese dell’anno', PROJECT: 'Sul progetto', MISURA: 'Agevolazioni sul lavoro' }          // titoli dei totali: un credito d'imposta sulle spese dell'anno non è un «bando»
 const VERIFIED = { SECONDARIA: 'letta su fonte secondaria: conferma sul sito INPS', PRIMARIA: 'letta su fonte ufficiale', DA_VERIFICARE: 'parametri da leggere nel bando' }
 const CHECK = { OK: [CheckCircle2, 'text-emerald-700'], UNKNOWN: [CircleHelp, 'text-amber-700'], FAIL: [AlertTriangle, 'text-red-700'] }
 
@@ -146,12 +147,12 @@ export function TotalPanel({ annual, project, sel, year, projectSummable = true 
     <div className="space-y-4">
       <div className="flex flex-wrap items-end gap-x-8 gap-y-2">
         <div><span className="label">Totale agevolato (massimo)</span><div className="text-3xl font-display font-semibold text-emerald-700 tabular-nums">{fmtEur(total)}</div></div>
-        {Object.entries(byKind).filter(([, v]) => v > 0).map(([k, v]) => <div key={k}><span className="label">{ORIGIN[k][0]}</span><div className="text-sm font-semibold tabular-nums">{fmtEur(v)} <span className="text-mute font-normal">· {fmtNum((v / total) * 100, 0)}%</span></div></div>)}
+        {Object.entries(byKind).filter(([, v]) => v > 0).map(([k, v]) => <div key={k}><span className="label">{HEAD[k]}</span><div className="text-sm font-semibold tabular-nums">{fmtEur(v)} <span className="text-mute font-normal">· {fmtNum((v / total) * 100, 0)}%</span></div></div>)}
       </div>
       <div className="flex w-full h-3 rounded-md overflow-hidden bg-tint-2" role="img" aria-label="Quota del totale per origine">
-        {Object.entries(byKind).filter(([, v]) => v > 0).map(([k, v]) => <div key={k} title={`${ORIGIN[k][0]}: ${fmtEur(v)}`} style={{ width: `${(v / total) * 100}%`, background: ORIGIN[k][2] }} />)}
+        {Object.entries(byKind).filter(([, v]) => v > 0).map(([k, v]) => <div key={k} title={`${HEAD[k]}: ${fmtEur(v)}`} style={{ width: `${(v / total) * 100}%`, background: ORIGIN[k][2] }} />)}
       </div>
-      <Note>Ogni riga è una fonte di contributo e il colore dice di che tipo è: un bando sulle spese dell’anno, un bando a progetto o un’agevolazione sul lavoro. «Quota» è la parte del totale; «percentuale» è quanto copre sulle spese su cui si calcola. Apri una riga per vedere perché è stata scelta e quali criteri soddisfa.</Note>
+      <Note>Ogni riga è una fonte di contributo e il colore dice di che tipo è: sulle spese dell’anno (un bando o un’agevolazione senza budget), un bando a progetto o un’agevolazione sul lavoro. «Quota» è la parte del totale; «percentuale» è quanto copre sulle spese su cui si calcola. Apri una riga per vedere perché è stata scelta e quali criteri soddisfa.</Note>
       <div className="space-y-2">
         {rows.map((r) => (
           <div key={r.key} className={`rounded-2xl bg-tint p-3.5 space-y-2 ${r.summable ? '' : 'opacity-70'}`}>

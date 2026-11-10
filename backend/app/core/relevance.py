@@ -190,6 +190,83 @@ def text_fails(name: str, issuer: str, applicants: str, profile: Dict[str, Any],
     return out
 
 
+# --- impresa giovane: «costituite da non più di 60 mesi», «compagine a prevalenza giovanile o femminile» (ON Tasso Zero, Smart&Start, autoimpiego…)
+_AGE_LIMIT = re.compile(r"(?:costituit[ea]|iscritt[ea] al registro delle imprese|attiv[ea])\s+da\s+(?:non\s+pi[uù]\s+di|meno\s+di|al\s+massimo|massimo|non\s+oltre)\s+(\d{1,3})\s+(mesi|anni)", re.I)
+_AGE_LIMIT_2 = re.compile(r"entro\s+(?:i\s+)?(\d{1,3})\s+(mesi|anni)\s+dalla\s+(?:data\s+di\s+)?costituzione", re.I)
+_NEW_COMPANY_NAME = re.compile(r"(?<![a-z])(nuove imprese|nuova impresa|neo-?impres\w*|imprese neocostituite|neocostituit\w*|autoimpiego|autoimprenditorialit\w*)(?![a-z])")
+_TEAM = re.compile(r"(compagine|soci|composte|costituite|partecipat\w*|titolar\w*)[^.;]{0,160}?(prevalen\w*|maggioranza|oltre la met[aà]|totalmente|interamente)", re.I)
+_TEAM_BONUS = re.compile(r"premial|punteggi|priorit|maggiorazion|\briserva\b|quota riservata|incremento", re.I)
+_TEAM_RULE = re.compile(r"compagine|compost[ae]|riservat|esclusivamente|soltanto|devono essere|deve essere", re.I)
+_TEAM_ALSO = re.compile(r"\b(comprese|incluse|inclusi|compresi)\b", re.I)
+
+
+def founding_checks(texts: List[str], profile: Dict[str, Any], today=None) -> List[Dict[str, Any]]:
+    """Requisiti sull'impresa stessa, letti nel testo: da quanto è costituita e chi sono i soci. Ogni controllo dice la frase da cui viene.
+
+    FAIL solo se il dato del profilo smentisce il requisito scritto (un'impresa del 2010 e un bando «costituite da non più di 60 mesi»).
+    Se il dato manca, il controllo è da chiarire (e il bando resta «da verificare», mai sommato). Se il testo non lo dice, non si inventa un limite."""
+    from datetime import date as _date
+    today = today or _date.today()
+    out: List[Dict[str, Any]] = []
+    status = profile.get("company_status") or "COSTITUITA"
+    joined = " ".join(t for t in texts if t)
+    m = _AGE_LIMIT.search(joined) or _AGE_LIMIT_2.search(joined)
+    founded = profile.get("founded_year")
+    if m and status != "DA_COSTITUIRE":
+        n, unit = int(m.group(1)), m.group(2).lower()
+        limit_m = n * 12 if unit.startswith("ann") else n
+        said = f"«{_sentence_around(joined, m.start())}»"
+        if not founded:
+            out.append({"id": "company_age", "label": "Età dell'impresa", "decisive": True, "result": "UNKNOWN", "missing": "founded_year",
+                        "detail": f"Il bando è per imprese costituite da non più di {n} {unit}: indica l'anno di costituzione nel profilo. {said}"})
+        else:
+            youngest = (today.year - int(founded) - 1) * 12 + today.month        # costituita il 31 dicembre di quell'anno: l'età più bassa possibile
+            oldest = (today.year - int(founded)) * 12 + today.month              # costituita il 1° gennaio
+            if youngest > limit_m:
+                out.append({"id": "company_age", "label": "Età dell'impresa", "decisive": True, "result": "FAIL",
+                            "detail": f"Il bando è per imprese costituite da non più di {n} {unit}; la tua è del {founded}. {said}"})
+            elif oldest <= limit_m:
+                out.append({"id": "company_age", "label": "Età dell'impresa", "decisive": True, "result": "OK", "detail": f"Costituita nel {founded}: entro i {n} {unit} richiesti."})
+            else:
+                out.append({"id": "company_age", "label": "Età dell'impresa", "decisive": True, "result": "UNKNOWN",
+                            "detail": f"Il bando chiede al massimo {n} {unit} dalla costituzione e la tua impresa è del {founded}: conta la data esatta di costituzione."})
+    elif not m and status != "DA_COSTITUIRE" and _NEW_COMPANY_NAME.search(_fold(" ".join(texts[:2]))):
+        old = f" La tua è del {founded}." if founded else ""
+        out.append({"id": "company_age", "label": "Età dell'impresa", "decisive": True, "result": "UNKNOWN", **({} if founded else {"missing": "founded_year"}),
+                    "detail": f"Il bando è per nuove imprese ma il testo letto non dice entro quanti anni dalla costituzione.{old} Va letto nel bando prima di contarlo."})
+    for sent in re.split(r"(?<=[.;])\s+", joined):
+        if not _TEAM.search(sent) or _TEAM_BONUS.search(sent) or not _TEAM_RULE.search(sent) or _TEAM_ALSO.search(sent):
+            continue                                        # «comprese le imprese femminili» o un punteggio in più non sono un requisito
+        low = sent.lower()
+        young = bool(re.search(r"giovan|under\s*35|35 anni|36 anni", low))
+        women = bool(re.search(r"donne|femminil", low))
+        if not (young or women):
+            continue
+        age, fem = profile.get("founders_age"), profile.get("women_majority")
+        ok_young = None if age is None else age == "U35"
+        ok_women = None if fem is None else bool(fem)
+        need = [x for x, on in ((ok_young, young), (ok_women, women)) if on]
+        said = f"«{sent.strip()[:220]}»"
+        who = " o ".join(w for w, on in (("giovani", young), ("donne", women)) if on)
+        if any(x is True for x in need):
+            out.append({"id": "team", "label": "Soci", "decisive": True, "result": "OK", "detail": f"La compagine richiesta ({who}) corrisponde al profilo."})
+        elif all(x is False for x in need):
+            out.append({"id": "team", "label": "Soci", "decisive": True, "result": "FAIL", "detail": f"Il bando chiede una compagine in prevalenza di {who}: il profilo dice di no. {said}"})
+        else:
+            missing = [k for k, on, v in (("founders_age", young, ok_young), ("women_majority", women, ok_women)) if on and v is None]
+            out.append({"id": "team", "label": "Soci", "decisive": True, "result": "UNKNOWN", "missing": missing[0] if missing else None,
+                        "detail": f"Il bando chiede una compagine in prevalenza di {who}: indicalo nel profilo. {said}"})
+        break
+    return out
+
+
+def _sentence_around(text: str, pos: int) -> str:
+    start = max(text.rfind(".", 0, pos), text.rfind(";", 0, pos)) + 1
+    end_candidates = [i for i in (text.find(".", pos), text.find(";", pos)) if i != -1]
+    end = min(end_candidates) if end_candidates else len(text)
+    return text[start:end].strip()[:220]
+
+
 # --- segnali degli studi: il giudizio sbaglia? Si registra, un manager decide se aggiungere una parola al dizionario
 def record_signal(owner: str, bando_id: str, signal: str, engine_fit: Optional[str], profile: Dict[str, Any]) -> Dict[str, Any]:
     """«Non è per questa azienda» o «invece è per lei», in forma anonima (l'utente è un codice, l'azienda solo ATECO a due cifre e regione). Una volta per utente e bando."""

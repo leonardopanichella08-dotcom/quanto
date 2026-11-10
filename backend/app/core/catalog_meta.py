@@ -12,7 +12,7 @@ import json
 import re
 import time
 from concurrent.futures import ThreadPoolExecutor, wait
-from datetime import date
+from datetime import date, datetime, timedelta, timezone
 from typing import Any, Dict, List, Optional
 
 from app.core import events, funding_modes, lifecycle, relevance, research
@@ -247,15 +247,20 @@ def _fetch(url: str):
 MIN_GRANT_SIGNALS = 3          # una voce raccolta da un sito ufficiale resta nel catalogo solo se la sua pagina parla davvero come un bando
 
 
-def describe_batch(limit: int = 120, workers: int = 16, budget_s: float = 40.0, actor: str = "cron") -> Dict[str, Any]:
+def describe_batch(limit: int = 120, workers: int = 16, budget_s: float = 40.0, actor: str = "cron", retry_after_h: float = 0) -> Dict[str, Any]:
     """Legge la scheda di un lotto di voci del catalogo senza descrizione (prima le aperte o senza data) e salva descrizione e caratteristiche."""
     with connect() as conn:
         rows = conn.execute(f"SELECT bando_id, source_url, deadline, catalog_meta FROM bandi WHERE bando_id LIKE 'CAT-%' AND extraction_status <> 'REJECTED' AND {NEEDS_READING} AND source_url IS NOT NULL "
-                            "AND (deadline IS NULL OR deadline = 'non indicata' OR deadline >= ?) ORDER BY bando_id LIMIT ?",
+                            "AND (deadline IS NULL OR deadline = 'non indicata' OR deadline >= ?) ORDER BY (COALESCE(catalog_meta, '') LIKE '%\"read_error_at\"%'), bando_id LIMIT ?",
                             (TITLE_PATTERN, date.today().isoformat(), limit)).fetchall()
         remaining = conn.execute(f"SELECT COUNT(*) c FROM bandi WHERE bando_id LIKE 'CAT-%' AND extraction_status <> 'REJECTED' AND {NEEDS_READING} AND source_url IS NOT NULL "
                                  "AND (deadline IS NULL OR deadline = 'non indicata' OR deadline >= ?)", (TITLE_PATTERN, date.today().isoformat())).fetchone()["c"]
     report: Dict[str, Any] = {"read": 0, "errors": 0, "closed": 0, "remaining": remaining}
+    if retry_after_h:                                       # una pagina che non ha risposto da poco non si richiede subito: si riprova dopo qualche ora
+        cutoff = (datetime.now(timezone.utc) - timedelta(hours=retry_after_h)).replace(microsecond=0).isoformat().replace("+00:00", "Z")
+        fresh = [r for r in rows if (json.loads(r["catalog_meta"] or "{}").get("read_error_at") or "") < cutoff]
+        report["waiting"] = len(rows) - len(fresh)
+        rows = fresh
     if not rows:
         return report
     t0 = time.monotonic()
@@ -270,12 +275,18 @@ def describe_batch(limit: int = 120, workers: int = 16, budget_s: float = 40.0, 
             r = futures[fut]
             if err or meta is None:
                 report["errors"] += 1
+                seed = json.loads(r["catalog_meta"] or "{}")          # la pagina non risponde: si segna, e al prossimo giro si legge dopo le altre (nessuna voce blocca la fila)
+                seed["read_error_at"] = now
+                seed["read_errors"] = int(seed.get("read_errors") or 0) + 1
+                conn.execute("UPDATE bandi SET catalog_meta=? WHERE bando_id=?", (json.dumps(seed, ensure_ascii=False), r["bando_id"]))
                 continue
             summary = meta.pop("summary", None)
             if meta.get("state") == "CHIUSO":
                 report["closed"] += 1
             seed = json.loads(r["catalog_meta"] or "{}")
             harvested = bool(seed.get("harvested"))
+            seed.pop("read_error_at", None)
+            seed.pop("read_errors", None)
             for k in ("harvested", "source_id", "regions"):                  # ciò che si sa dall'ente che l'ha pubblicato resta
                 if k in seed:
                     meta.setdefault(k, seed[k])
@@ -364,9 +375,27 @@ def rank_for_profile(profile: Dict[str, Any], by_cat: Dict[str, float], limit: i
             "SELECT b.bando_id, b.name, b.issuer, b.source_url, b.deadline, b.summary, b.catalog_meta, b.extraction_status FROM bandi b "
             "WHERE b.bando_id LIKE 'CAT-%' AND b.extraction_status = 'NOT_STARTED' AND b.meta_at IS NOT NULL "
             "AND (b.deadline IS NULL OR b.deadline = 'non indicata' OR b.deadline >= ?)", (today,)).fetchall()
-        without = conn.execute("SELECT COUNT(*) c FROM bandi WHERE bando_id LIKE 'CAT-%' AND extraction_status = 'NOT_STARTED' AND meta_at IS NULL "
-                               "AND (deadline IS NULL OR deadline = 'non indicata' OR deadline >= ?)", (today,)).fetchone()["c"]
+        unread_rows = conn.execute("SELECT b.bando_id, b.name, b.issuer, b.source_url, b.deadline, b.summary, b.catalog_meta FROM bandi b WHERE b.bando_id LIKE 'CAT-%' "
+                                   "AND b.extraction_status = 'NOT_STARTED' AND b.meta_at IS NULL AND (b.deadline IS NULL OR b.deadline = 'non indicata' OR b.deadline >= ?)", (today,)).fetchall()
+    without = len(unread_rows)
     scored, excluded = [], 0
+    # Le voci la cui scheda non è ancora letta NON si scartano: si giudicano dal nome e dall'ente (territorio, settore, soggetti, impresa giovane) e, se nulla le esclude,
+    # restano in fondo alla lista con «scheda da leggere». Così la ricerca è su tutto il catalogo, non solo sulle schede già lette.
+    for r in unread_rows:
+        seed = json.loads(r["catalog_meta"] or "{}")
+        if relevance.text_fails(r["name"], r["issuer"] or "", "", profile, seed) or any(c["result"] == "FAIL" for c in relevance.founding_checks([r["name"]], profile)):
+            excluded += 1
+            continue
+        regions = seed.get("regions") or []
+        if regions and region and not any(region.lower() == str(x).lower() for x in regions):
+            excluded += 1
+            continue
+        scored.append({"bando_id": r["bando_id"], "name": r["name"], "issuer": r["issuer"], "source_url": r["source_url"], "deadline": r["deadline"], "summary": None, "form": None,
+                       "benefit_range": None, "costs": None, "cost_categories": [], "purpose": None, "regions": regions, "sizes": None, "state": None, "opens": None, "score": 0.0,
+                       "provisional": None, "benefit_text": None, "spend_text": None, "affinity": "BASSA", "unread": True,
+                       "reasons": ["Scheda ufficiale non ancora letta: nulla nel nome la esclude. La leggo in automatico (o quando premi «Studia»)."],
+                       "to_check": ["scheda da leggere"] + ([f"pagina non raggiungibile l'ultima volta ({seed['read_errors']} tentativi)"] if seed.get("read_errors") else []),
+                       **{k: v for k, v in funding_modes.from_forms(None, r["name"]).items() if k in ("budget", "noun")}})
     for r in rows:
         meta = json.loads(r["catalog_meta"] or "{}")
         if meta.get("state") == "CHIUSO":
@@ -374,6 +403,9 @@ def rank_for_profile(profile: Dict[str, Any], by_cat: Dict[str, float], limit: i
             continue
         if relevance.text_fails(r["name"], r["issuer"] or "", "", profile, meta):          # altra regione (anche da provincia), altro settore o soggetti che non sono imprese
             excluded += 1
+            continue
+        if any(c["result"] == "FAIL" for c in relevance.founding_checks([r["name"], r["summary"] or "", " ".join(meta.get("tags") or [])], profile)):
+            excluded += 1                                   # «imprese costituite da non più di 60 mesi» e l'impresa è del 2010
             continue
         reasons: List[str] = []
         flags: List[str] = []
@@ -457,4 +489,4 @@ def rank_for_profile(profile: Dict[str, Any], by_cat: Dict[str, float], limit: i
     scored.sort(key=lambda x: (-x["score"], x["deadline"] if x["deadline"] and x["deadline"] != "non indicata" else "9999", x["name"]))      # a pari affinità, prima chi scade prima
     return {"items": scored[:limit], "total_candidates": len(scored), "excluded": excluded, "without_description": without,
             "high": sum(1 for x in scored if x["affinity"] == "ALTA"), "medium": sum(1 for x in scored if x["affinity"] == "MEDIA"), "low": sum(1 for x in scored if x["affinity"] == "BASSA"),
-            "read": len(rows), "study_queue": [x["bando_id"] for x in scored if x["affinity"] in ("ALTA", "MEDIA")][:60]}
+            "read": len(rows), "unread_candidates": sum(1 for x in scored if x.get("unread")), "study_queue": [x["bando_id"] for x in scored if x["affinity"] in ("ALTA", "MEDIA")][:60]}

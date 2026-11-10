@@ -236,3 +236,64 @@ def test_the_study_state_says_what_can_be_done_and_proposes_a_retry_only_when_it
     assert never["studied"] is False and never["budget_ready"] is False and never["retry"] is False and "Non ancora studiato" in never["verdict"]
     cur = pipeline.study_state("IPERAMMORTAMENTO-2026")                                     # curato: studiato, niente da rifare, niente budget
     assert cur["studied"] and cur["retry"] is False and "non chiede un budget" in cur["verdict"]
+
+
+# ------------------------------------------------------------------------------------------------ terza verifica dell'utente (10 novembre 2026)
+def test_an_investment_financing_is_a_bando_with_budget_even_if_its_text_talks_about_liquidity():
+    """«Finanziamento agevolato per la realizzazione di investimenti…» risultava «garanzia» dalle parole del testo: la scheda e il nome dicono che è un bando a progetto."""
+    from app.core import funding_modes as fm
+    name = "Finanziamento agevolato per la realizzazione di investimenti per l'innovazione digitale e/o per la transizione ecologica"
+    texts = [name, "Il finanziamento sostiene la liquidità. Garanzia sui finanziamenti: esenzione. Capitale circolante."]
+    plain = fm.classify(None, texts)
+    assert fm.MODES[plain["primary"]]["budget"] is False                                     # le sole parole sbagliano
+    r = fm.classify(None, texts, forms=["Finanziamento agevolato"], name=name)
+    assert r["primary"] == "PROGETTO_INVESTIMENTO" and r["modes"][0]["budget"] is True and "Scheda ufficiale" in r["modes"][0]["evidence"][0] and r["reconciled"]
+    guarantee = fm.classify("GARANZIA_PUBBLICA", ["Fondo di garanzia per le PMI", "garanzia pubblica sui finanziamenti"], forms=["Garanzia"], name="Fondo di garanzia per le PMI")
+    assert guarantee["primary"] == "GARANZIA_LIQUIDITA"                                       # la scheda conferma: resta senza budget
+    liquidity = fm.classify(None, ["Finanziamento per esigenze di liquidità", "capitale circolante e liquidità"], forms=["Finanziamento agevolato"], name="Finanziamento per esigenze di liquidità")
+    assert liquidity["primary"] == "GARANZIA_LIQUIDITA"
+    credit = fm.classify("CREDITO_D_IMPOSTA", ["Credito d'imposta per investimenti in beni strumentali"], forms=["Finanziamento agevolato"], name="Credito d'imposta per investimenti in beni strumentali")
+    assert credit["primary"] == "CREDITO_AUTOMATICO"                                          # «credito d'imposta» nel nome: resta un'agevolazione
+
+
+def test_a_new_company_bando_is_not_adatto_for_an_old_company_and_asks_the_year_when_unknown():
+    text = "Le agevolazioni sono rivolte alle micro e piccole imprese costituite da non più di 60 mesi, la cui compagine societaria sia composta, per oltre la metà numerica dei soci, da giovani tra i 18 e i 35 anni ovvero da donne."
+    old = relevance.founding_checks(["ON - Oltre Nuove imprese a tasso zero", text], {"founded_year": 2010}, D)
+    age = next(c for c in old if c["id"] == "company_age")
+    assert age["result"] == "FAIL" and "60 mesi" in age["detail"] and "2010" in age["detail"]
+    young = next(c for c in relevance.founding_checks(["ON", text], {"founded_year": 2024}, D) if c["id"] == "company_age")
+    assert young["result"] == "OK"
+    unknown = next(c for c in relevance.founding_checks(["ON", text], {}, D) if c["id"] == "company_age")
+    assert unknown["result"] == "UNKNOWN" and unknown["missing"] == "founded_year"
+    team = next(c for c in relevance.founding_checks(["ON", text], {"founded_year": 2024, "founders_age": "OVER40", "women_majority": False}, D) if c["id"] == "team")
+    assert team["result"] == "FAIL"
+    ok = next(c for c in relevance.founding_checks(["ON", text], {"founded_year": 2024, "founders_age": "OVER40", "women_majority": True}, D) if c["id"] == "team")
+    assert ok["result"] == "OK"
+    assert relevance.founding_checks(["Bando innovazione", "Possono partecipare le PMI, comprese le imprese a prevalenza femminile."], {"women_majority": False}, D) == []
+    assert relevance.founding_checks(["Bando innovazione", "Punteggio aggiuntivo per le imprese composte in prevalenza da giovani."], {"founders_age": "OVER40"}, D) == []
+    named = relevance.founding_checks(["Contributi alle nuove imprese del territorio", ""], {"founded_year": 2010}, D)
+    assert named and named[0]["result"] == "UNKNOWN"                                           # il testo non dice il limite: non lo invento, resta da verificare
+    assert relevance.founding_checks(["ON", text], {"company_status": "DA_COSTITUIRE"}, D) == [] or all(c["id"] != "company_age" for c in relevance.founding_checks(["ON", text], {"company_status": "DA_COSTITUIRE"}, D))
+
+
+def test_the_catalog_search_covers_the_schede_not_yet_read_and_a_page_that_fails_does_not_block_the_queue(monkeypatch):
+    from app.core import catalog_meta
+    profile = {"region": "Abruzzo", "ateco_code": "47.71", "size": {"code": "MICRO", "is_sme": True}}
+    with connect() as conn:
+        for bid, name in (("CAT-NONLETTA", "Contributi per la digitalizzazione delle PMI abruzzesi"), ("CAT-NONLETTA-LUCANA", "Comune di Corleto Pertica contributi alle imprese"),
+                          ("CAT-NONLETTA-OLD", "Nuove imprese: imprese costituite da non più di 12 mesi")):
+            conn.execute("INSERT INTO bandi (bando_id, name, issuer, source_url, catalog_status, extraction_status, deadline, summary, catalog_meta, meta_at) VALUES (?,?,?,?,?,?,?,?,?,?)",
+                         (bid, name, "Ente", f"https://example.test/{bid}", "CATALOGED", "NOT_STARTED", "2099-12-31", None, None, None))
+    ranked = catalog_meta.rank_for_profile({**profile, "founded_year": 2001}, {"OVERHEAD": 1000.0}, limit=5000)
+    ids = {x["bando_id"]: x for x in ranked["items"]}
+    assert "CAT-NONLETTA" in ids and ids["CAT-NONLETTA"]["unread"] is True and "scheda da leggere" in ids["CAT-NONLETTA"]["to_check"]
+    assert "CAT-NONLETTA-LUCANA" not in ids and "CAT-NONLETTA-OLD" not in ids                 # territorio non provato; impresa troppo vecchia per il bando
+    assert ranked["unread_candidates"] >= 1 and ranked["without_description"] >= 3
+    monkeypatch.setattr(catalog_meta, "_fetch", lambda url: (None, "Timeout"))
+    rep = catalog_meta.describe_batch(limit=5000, workers=4, budget_s=10.0)
+    assert rep["errors"] >= 3
+    with connect() as conn:
+        seed = json.loads(conn.execute("SELECT catalog_meta FROM bandi WHERE bando_id='CAT-NONLETTA'").fetchone()["catalog_meta"])
+    assert seed["read_errors"] == 1 and seed["read_error_at"]                                # segnata: al prossimo giro si legge dopo le altre
+    r = client.post("/api/v2/bandi/catalog/read-more")
+    assert r.status_code == 200 and set(r.json()) >= {"read", "errors", "remaining"}

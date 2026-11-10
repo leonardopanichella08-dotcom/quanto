@@ -73,13 +73,16 @@ export function ForecastChart({ forecast }) {
 export function BandiChart({ match }) {
   if (!match) return null
   const s = match.matching.summary
-  const top = match.matching.results.filter((r) => r.estimate && r.fit !== 'NON_ADATTO').sort((a, b) => b.estimate.covered_eur - a.estimate.covered_eur).slice(0, 4)
+  // Solo gli ADATTI hanno una barra: un bando da verificare non conta finché manca un dato, quindi non può sembrare un importo disponibile.
+  const top = match.matching.results.filter((r) => r.estimate && r.fit === 'ADATTO').sort((a, b) => b.estimate.covered_eur - a.estimate.covered_eur).slice(0, 4)
   const max = Math.max(...top.map((r) => r.estimate.covered_eur), 1)
+  const anyProject = top.some((r) => r.mode?.needs_project)
   return (
     <div className="space-y-2">
       <Stack parts={[{ v: s.ADATTO, c: GREEN, l: 'Adatti' }, { v: s.DA_VERIFICARE, c: AMBER, l: 'Da verificare' }, { v: s.NON_ADATTO, c: RED, l: 'Non adatti' }]} />
       <Legend items={[[GREEN, `${s.ADATTO} adatti`], [AMBER, `${s.DA_VERIFICARE} da verificare`], [RED, `${s.NON_ADATTO} non adatti`]]} />
-      {top.length > 0 && <div className="space-y-1 pt-1">{top.map((r) => <Hbar key={r.bando_id} label={r.name} value={r.estimate.covered_eur} max={max} color={GREEN} right={fmtEur(r.estimate.covered_eur)} />)}</div>}
+      {top.length > 0 && <div className="space-y-1 pt-1">{top.map((r) => <Hbar key={r.bando_id} label={r.mode?.needs_project ? `${r.name} · a progetto` : r.name} value={r.estimate.covered_eur} max={max} color={r.mode?.needs_project ? VIOLET : GREEN} right={fmtEur(r.estimate.covered_eur)} />)}</div>}
+      {anyProject && <Legend items={[[GREEN, 'si sommano in «Tutti insieme»'], [VIOLET, 'a progetto: si calcolano in «Progetti»']]} />}
     </div>
   )
 }

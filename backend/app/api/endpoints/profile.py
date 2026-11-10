@@ -108,6 +108,16 @@ def match(body: ForecastBody, request: Request) -> dict:
         for r in plan["types"]:
             t = by_type.setdefault(r["code"], {"category": r["category"], "label": r["label"], "amount_eur": 0.0})
             t["amount_eur"] += r["amount_eur"]
+        # Stessa base del piano («Tutti insieme»): budget dell'azienda, acquisti previsti e previsione, voce per voce. Prima il bando «da solo» si calcolava sulla sola
+        # previsione dal bilancio e nel piano sulle spese complete: l'iperammortamento valeva 72.127 € in «Bandi adatti» e 119.284 € in «Tutti insieme».
+        plan_cat: Dict[str, float] = {}
+        if plan.get("personnel_base_eur", 0) > 0:
+            plan_cat["PERSONNEL"] = float(plan["personnel_base_eur"])
+        for r in plan["types"]:
+            if r["amount_eur"] > 0:
+                plan_cat[r["category"]] = plan_cat.get(r["category"], 0.0) + float(r["amount_eur"])
+        if plan_cat:
+            by_cat = {k: round(v, 2) for k, v in plan_cat.items()}
     except cp.ProfileError:
         by_type = {}
     result = matching.match_all(cp.profile_values(owner), by_cat, body.year, by_type)

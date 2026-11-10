@@ -130,6 +130,7 @@ export const api = {
   },
   bandiCatalogStats: () => call('/bandi/catalog/stats').then((r) => r.json()),
   catalogDescribe: (limit = 120) => call(`/cron/catalog-describe?limit=${limit}`, { method: 'POST' }).then((r) => r.json()),
+  catalogReadMore: () => call('/bandi/catalog/read-more', { method: 'POST' }).then((r) => r.json()),
   bandiCatalogIssuers: () => call('/bandi/catalog/issuers').then((r) => r.json()),
   sources: () => call('/sources').then((r) => r.json()),
   sourcesRefresh: (ids) => post('/sources/refresh', { source_ids: ids || null }),

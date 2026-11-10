@@ -301,8 +301,8 @@ export default function BandiLibrary({ bandi, selectedId, onSelect, onReload }) 
       <TutorialVideo id="T03" />
       {error && <div className="p-3 rounded-xl border border-red-500/30 text-red-700 text-xs">{error}</div>}
 
-      <div className="grid lg:grid-cols-3 gap-6 items-start">
-        <div className="space-y-3">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
+        <div className="space-y-3 min-w-0">
           <p className="text-[11px] text-mute leading-relaxed px-1">
             «N/60» è quanti criteri <em>questo</em> bando attiva, non un punteggio di completezza. <Hint id="bando_controlli_attivi" />
           </p>
@@ -310,12 +310,12 @@ export default function BandiLibrary({ bandi, selectedId, onSelect, onReload }) 
             <button key={b.bando_id} onClick={() => load(b.bando_id)}
               className={`w-full text-left card p-4 space-y-2 transition hover:border-line-strong ${openId === b.bando_id ? '!border-brand' : ''}`}>
               <div className="flex items-start justify-between gap-2">
-                <span className="font-semibold text-sm leading-snug">{b.name}</span>
+                <span className="font-semibold text-sm leading-snug min-w-0 break-words">{b.name}</span>
                 {selectedId === b.bando_id && <CheckCircle2 className="w-4 h-4 text-brand-ink shrink-0" aria-label="In uso" />}
               </div>
               <div className="flex flex-wrap items-center gap-2">
                 <span className={`px-2 py-0.5 text-[11px] font-medium rounded border ${BANDO_STATUS_STYLE(b.status || '')}`}>{(b.status || '').split(' (')[0] || b.extraction_status}</span>
-                <span className="text-xs text-mute">{b.issuer}</span>
+                <span className="text-xs text-mute min-w-0 break-words">{b.issuer}</span>
                 {b.last_activity_ts && <span className="text-[11px] text-mute inline-flex items-center gap-1 ml-auto"><Clock className="w-3 h-3" />visto {fmtTs(b.last_activity_ts)}</span>}
               </div>
               <div className="grid grid-cols-3 gap-2 text-[11px] text-ink-2 font-mono">
@@ -333,7 +333,7 @@ export default function BandiLibrary({ bandi, selectedId, onSelect, onReload }) 
           ))}
         </div>
 
-        <div className="lg:col-span-2 space-y-6">
+        <div className="lg:col-span-2 space-y-6 min-w-0">
           {detail ? <Detail bando={detail} onUse={use} using={using} onStudied={async () => { await onReload(); await load(detail.bando_id) }} /> : (
             <div className="card p-10 text-center text-sm text-mute">Scegli un bando dall’elenco per vederne regole, requisiti e fonti.</div>
           )}

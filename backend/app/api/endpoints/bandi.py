@@ -173,6 +173,13 @@ def catalog_stats() -> dict:
     return bandi.catalog_stats()
 
 
+@router.post("/catalog/read-more", dependencies=[Depends(require_auth)], summary="Legge subito un lotto di schede del catalogo non ancora lette: la ricerca dei bandi adatti vale su tutto il catalogo")
+def catalog_read_more() -> dict:
+    from app.core import catalog_meta
+    out = catalog_meta.describe_batch(limit=160, workers=24, budget_s=22.0, actor="studio", retry_after_h=6)
+    return {k: out.get(k, 0) for k in ("read", "errors", "closed", "rejected", "remaining", "waiting", "seconds")}
+
+
 @router.get("/catalog/issuers", summary="Elenco degli enti presenti nel catalogo, per il filtro della sfoglia")
 def catalog_issuers() -> list:
     return bandi.catalog_issuers()

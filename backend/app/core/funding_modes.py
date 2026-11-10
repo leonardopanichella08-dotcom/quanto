@@ -61,8 +61,54 @@ def _sentences(text: str) -> List[str]:
     return [s.strip() for s in re.split(r"(?<=[.;:])\s+|\n+", text or "") if s.strip()]
 
 
-def classify(benefit_type: Optional[str], texts: List[str]) -> Dict[str, Any]:
-    """Le modalità di accesso di un bando: la principale, e tutte quelle che il tipo di aiuto o il testo sostengono, ognuna con le frasi come prova."""
+def _entry(code: str, evidence: List[str], typed: bool = False, mentions: int = 0) -> Dict[str, Any]:
+    spec = MODES[code]
+    return {"code": code, "label": spec["label"], "needs_project": spec["needs_project"], "ordinary_costs_ok": spec["ordinary_costs_ok"], "base": spec["base"], "example": spec["example"],
+            "budget": spec["budget"], "noun": spec["noun"], "by_benefit_type": typed, "mentions": mentions, "evidence": evidence}
+
+
+# Parole del NOME che dicono «qui si finanzia un investimento o un progetto»: una garanzia o un credito automatico non si chiamano così.
+_PROJECT_NAME = ("investiment", "progett", "ricerca", "sviluppo sperimentale", "realizzazione di", "acquisto di", "macchinari", "impianti", "digitalizzazione",
+                 "transizione digitale", "transizione ecologica", "innovazione digitale", "efficientamento", "ammodernamento", "nuove imprese", "nuova impresa", "avvio d")
+
+
+def reconcile(res: Dict[str, Any], forms: Optional[List[str]] = None, name: Optional[str] = None) -> Dict[str, Any]:
+    """Secondo strato: la modalità letta dalle parole del testo si confronta con la forma di agevolazione della scheda ufficiale e con il nome.
+
+    Esempio: «Finanziamento agevolato per la realizzazione di investimenti per l'innovazione digitale» citava liquidità e garanzie nel testo e
+    risultava «garanzia» (niente budget): ma la scheda dice «finanziamento agevolato» e il nome dice «investimenti», quindi è un bando a progetto, con budget.
+    Un incentivo alle assunzioni resta tale (si calcola sulle persone), e un credito d'imposta o un'esenzione scritti nel nome o nella forma restano agevolazioni."""
+    primary = res.get("primary")
+    if not primary or MODES[primary]["budget"] or primary == "OCCUPAZIONE":
+        return res
+    low = (name or "").lower().replace("’", "'")
+    if any(w in low for w in _FISCAL_NAME):
+        return res
+    form_text = " ".join(forms or []).lower()
+    form_no = any(w in form_text for w in _NO_BUDGET_FORMS)
+    form_yes = any(w in form_text for w in _BUDGET_FORMS)
+    named_project = next((w for w in _PROJECT_NAME if w in low), None)
+    if form_no and not form_yes:
+        return res                                          # la scheda conferma: garanzia, credito, esenzione
+    if not named_project and (any(w in low for w in ("liquidit", "circolante", "garanzi", "ristor", "caro energia", "emergenza")) or form_text.strip() in ("contributo in conto interessi", "conto interessi")):
+        return res                                          # un prestito per la liquidità o un ristoro restano senza budget anche se la forma è «finanziamento»
+    if not (form_yes or named_project):
+        return res
+    code = "PROGETTO_INVESTIMENTO" if named_project else next((m["code"] for m in res["modes"] if MODES[m["code"]]["budget"]), "PROGETTO_INVESTIMENTO")
+    why = []
+    if form_yes:
+        why.append(f"Scheda ufficiale, forma di agevolazione: «{', '.join(forms or [])}».")
+    if named_project:
+        why.append(f"Il nome parla di un investimento o di un progetto: «{name}».")
+    old = next((m for m in res["modes"] if m["code"] == code), None)
+    first = _entry(code, why + (old["evidence"] if old else []), bool(old and old["by_benefit_type"]), old["mentions"] if old else 0)
+    return {"primary": code, "modes": [first] + [m for m in res["modes"] if m["code"] != code],
+            "reconciled": f"Il testo faceva pensare a «{MODES[primary]['label'].lower()}», ma " + " ".join(why).lower().rstrip(".") + ": conta come bando con budget."}
+
+
+def classify(benefit_type: Optional[str], texts: List[str], forms: Optional[List[str]] = None, name: Optional[str] = None) -> Dict[str, Any]:
+    """Le modalità di accesso di un bando: la principale, e tutte quelle che il tipo di aiuto o il testo sostengono, ognuna con le frasi come prova.
+    Con ``forms`` (la forma di agevolazione della scheda ufficiale) e ``name`` il risultato passa da ``reconcile``."""
     found: Dict[str, List[str]] = {}
     for t in texts:
         for raw in _sentences(t):
@@ -82,10 +128,9 @@ def classify(benefit_type: Optional[str], texts: List[str]) -> Dict[str, Any]:
         if score > 0:
             scores[code] = score
     ordered = sorted(scores, key=lambda c: (-scores[c], _PRIORITY.index(c)))
-    modes = [{"code": c, "label": MODES[c]["label"], "needs_project": MODES[c]["needs_project"], "ordinary_costs_ok": MODES[c]["ordinary_costs_ok"], "base": MODES[c]["base"], "example": MODES[c]["example"],
-              "budget": MODES[c]["budget"], "noun": MODES[c]["noun"],
-              "by_benefit_type": c in typed, "mentions": len(found.get(c, [])), "evidence": list(dict.fromkeys(found.get(c, [])))[:2]} for c in ordered]
-    return {"primary": modes[0]["code"] if modes else None, "modes": modes}
+    modes = [_entry(c, list(dict.fromkeys(found.get(c, [])))[:2], c in typed, len(found.get(c, []))) for c in ordered]
+    res = {"primary": modes[0]["code"] if modes else None, "modes": modes}
+    return reconcile(res, forms, name) if (forms or name) else res
 
 
 def describe(code: Optional[str]) -> Optional[Dict[str, Any]]:
