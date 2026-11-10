@@ -1,4 +1,5 @@
 import React, { useState } from 'react'
+import { idleReason } from '../lib/idleReason'
 import { CheckCircle2, CircleHelp, Loader2, Sparkles } from 'lucide-react'
 import { fmtEur, fmtNum, CATEGORY_LABEL } from '../lib/format'
 import { Info } from './ui'
@@ -114,7 +115,7 @@ function RebuiltBudget({ plan, nameOf }) {
 
 /** Tutti i bandi a cui l'azienda può partecipare, applicati insieme: quanto potrebbe coprire se li vincesse tutti. Il calcolo è quello del piano (stesse regole di
  *  cumulo, tetti e de minimis): qui si scelgono i bandi e si legge il confronto con la somma dei bandi presi uno per uno. */
-export default function PotentialStep({ results, picked, onPick, dm, plan, planHigh, loading, planError, onStudyMore, studyingMore, studyQueue = 0, onStudyStop, scenario = 'ANNUAL', isCandidate = () => true, projectOnly = 0, onGoProjects }) {
+export default function PotentialStep({ results, picked, onPick, dm, plan, planHigh, loading, planError, onStudyMore, studyingMore, studyQueue = 0, onStudyStop, scenario = 'ANNUAL', isCandidate = () => true, projectOnly = 0, onGoProjects, newNames = [] }) {
   const sure = results.filter((r) => r.fit === 'ADATTO' && r.fund && isCandidate(r))
   const noAmount = results.filter((r) => r.fit !== 'NON_ADATTO' && !r.fund && !r.guarantee)
   const guarantees = results.filter((r) => r.fit !== 'NON_ADATTO' && r.guarantee)
@@ -168,13 +169,16 @@ export default function PotentialStep({ results, picked, onPick, dm, plan, planH
                     <thead><tr className="text-left text-mute"><th className="py-1 font-medium">Bando</th><th className="font-medium text-right">Da solo</th><th className="font-medium text-right">Nel piano insieme</th></tr></thead>
                     <tbody>
                       {pickedRows.map((r) => (
-                        <tr key={r.bando_id} className="border-t border-line"><td className="py-1.5 text-ink-2 pr-3">{r.name}{r.de_minimis?.applies && <span className="ml-1.5 px-1.5 py-px rounded border border-violet-500/30 bg-violet-500/10 text-[10px] font-medium text-violet-700" title={r.de_minimis.evidence[0]?.text}>de minimis</span>}{r.estimate?.kind_label && <span className="block text-[10px] text-mute">{r.estimate.kind_label}</span>}{r.fit === 'DA_VERIFICARE' && <span className="ml-1.5 text-[10px] text-amber-700">(da verificare)</span>}</td>
+                        <tr key={r.bando_id} className="border-t border-line align-top"><td className="py-1.5 text-ink-2 pr-3">{r.name}{newNames.includes(r.name) && isAll && <span className="ml-1.5 px-1.5 py-px rounded border border-sky-500/30 bg-sky-500/10 text-[10px] font-medium text-sky-700" title="È diventato adatto dall’ultima volta ed è entrato da solo perché è attivo «Tutti i bandi inclusi»">nuovo</span>}{r.de_minimis?.applies && <span className="ml-1.5 px-1.5 py-px rounded border border-violet-500/30 bg-violet-500/10 text-[10px] font-medium text-violet-700" title={r.de_minimis.evidence[0]?.text}>de minimis</span>}{r.estimate?.kind_label && <span className="block text-[10px] text-mute">{r.estimate.kind_label}</span>}{r.fit === 'DA_VERIFICARE' && <span className="ml-1.5 text-[10px] text-amber-700">(da verificare)</span>}
+                          {!((used[r.fund.fund_id] ?? 0) > 0) && (() => { const w = idleReason(r, pickedRows, used); return (
+                            <span className="block mt-1 text-[11px] leading-relaxed text-ink-2"><span className="font-medium text-ink">Perché non serve:</span> {w.why}{w.when && <> <span className="font-medium text-ink">Quando servirebbe:</span> {w.when}</>}{newNames.includes(r.name) && isAll ? ' È entrato da solo perché è attivo «Tutti i bandi inclusi» ed è diventato adatto dall’ultima volta.' : ''} <button className="underline hover:text-ink" onClick={() => onPick(picked.filter((id) => id !== r.bando_id), false)}>Toglilo dal piano</button></span>
+                          ) })()}</td>
                           <td className="text-right tabular-nums">{fmtEur(r.estimate?.covered_eur)}{r.estimate?.covered_high_eur > r.estimate?.covered_eur + 0.5 && <span className="text-mute"> – {fmtEur(r.estimate.covered_high_eur)}</span>}</td><td className={`text-right tabular-nums ${(used[r.fund.fund_id] ?? 0) > 0 ? 'text-emerald-700' : 'text-mute'}`}>{(used[r.fund.fund_id] ?? 0) > 0 ? fmtEur(used[r.fund.fund_id]) : 'non serve'}</td></tr>
                       ))}
                       <tr className="border-t border-line-strong font-semibold"><td className="py-1.5">Totale</td><td className="text-right tabular-nums">{fmtEur(alone)}</td><td className="text-right tabular-nums">{fmtEur(plan.covered_by_public_funds_eur)}</td></tr>
                     </tbody>
                   </table>
-                  {alone - plan.covered_by_public_funds_eur > 0.5 && <p className="text-[11px] text-mute mt-2">Sommati uno per uno farebbero {fmtEur(alone)}: la stessa spesa non si paga due volte, quindi insieme il massimo è {fmtEur(plan.covered_by_public_funds_eur)}.</p>}
+                  {alone - plan.covered_by_public_funds_eur > 0.5 && <p className="text-[11px] text-mute mt-2">Sommati uno per uno farebbero {fmtEur(alone)}: la stessa spesa non si paga due volte, quindi insieme il massimo è {fmtEur(plan.covered_by_public_funds_eur)}.{(() => { const idle = pickedRows.filter((r) => !((used[r.fund.fund_id] ?? 0) > 0)); return idle.length ? ` ${idle.length === 1 ? `«${idle[0].name}» non serve` : `${idle.length} bandi non servono`}: il motivo è scritto nella riga.` : '' })()}</p>}
                 </div>
               )}
               <RebuiltBudget plan={plan} nameOf={(id) => (results.find((r) => r.fund?.fund_id === id)?.name || id)} />

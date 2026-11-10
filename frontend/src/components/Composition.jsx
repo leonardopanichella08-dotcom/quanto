@@ -2,6 +2,7 @@ import React, { useState } from 'react'
 import { AlertTriangle, CheckCircle2, ChevronDown, CircleHelp, ExternalLink } from 'lucide-react'
 import { fmtEur, fmtNum, su } from '../lib/format'
 import { Note } from './ui'
+import { idleReason } from '../lib/idleReason'
 
 const ORIGIN = {
   ANNUAL: ['Bando · spese dell’anno', 'bg-sky-500/15 text-sky-700', '#38bdf8'],
@@ -140,7 +141,8 @@ export function TotalPanel({ annual, project, sel, year, projectSummable = true 
   counted.forEach((m) => rows.push({ key: `M-${m.id}`, kind: 'MISURA', name: m.name, issuer: m.source.label, amount: m.max_eur, pctSpese: null, rate: m.exact ? `${m.tagline} (${m.value.cap_month_eur} € al mese per i mesi di ogni persona)` : (m.value?.text ? `${m.tagline} (${m.value.text} per assunzione)` : m.tagline), base: `costo del lavoro di ${m.hires} ${m.hires === 1 ? 'assunzione' : 'assunzioni'}`, why: <MeasureDetails m={m} />, summable: true }))
   const total = rows.filter((r) => r.summable).reduce((s, r) => s + r.amount, 0)
   const byKind = Object.fromEntries(['ANNUAL', 'PROJECT', 'MISURA'].map((k) => [k, rows.filter((r) => r.kind === k && r.summable).reduce((s, r) => s + r.amount, 0)]))
-  const idle = (annual?.plan?.fund_usage || []).filter((u) => !(u.used_eur > 0)).map((u) => (annual.rows || []).find((x) => x.fund?.fund_id === u.fund_id)?.name).filter(Boolean)
+  const usedA = Object.fromEntries((annual?.plan?.fund_usage || []).map((u) => [u.fund_id, u.used_eur]))
+  const idle = (annual?.plan?.fund_usage || []).filter((u) => !(u.used_eur > 0)).map((u) => (annual.rows || []).find((x) => x.fund?.fund_id === u.fund_id)).filter(Boolean).map((r) => ({ name: r.name, ...idleReason(r, annual.rows || [], usedA) }))
   const skipped = (sel?.items || []).filter((m) => !m.counted)
   if (rows.length === 0) return <p className="text-sm text-ink-2">Il totale compare quando c’è almeno un bando adatto incluso nel piano o un’agevolazione scelta.</p>
   return (
@@ -172,7 +174,12 @@ export function TotalPanel({ annual, project, sel, year, projectSummable = true 
           </div>
         ))}
       </div>
-      {idle.length > 0 && <p className="text-xs text-ink-2 leading-relaxed"><span className="font-medium text-ink">Inclusi ma non necessari:</span> {idle.join('; ')}. Le loro spese sono già coperte da un bando più conveniente, o hanno raggiunto il loro tetto: la stessa spesa non si fa pagare due volte.</p>}
+      {idle.length > 0 && (
+        <div className="space-y-1.5 text-xs text-ink-2 leading-relaxed">
+          <p className="font-medium text-ink">Inclusi nel piano ma non necessari (valgono 0 € nel totale)</p>
+          {idle.map((x) => <p key={x.name}><span className="font-medium text-ink">{x.name}.</span> {x.why}{x.when ? ` ${x.when}` : ''}</p>)}
+        </div>
+      )}
       {skipped.length > 0 && <p className="text-xs text-amber-700 leading-relaxed"><span className="font-medium">Agevolazioni scelte ma non sommate:</span> {skipped.map((m) => `${m.name} (${m.reason})`).join(' · ')}</p>}
     </div>
   )
