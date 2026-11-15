@@ -7,6 +7,8 @@ import { Wordmark } from './ui'
 import { FAQ } from '../data/faq.js'
 import { answer } from '../lib/faqSearch'
 import './Landing.css'
+import PortalPreview from './PortalPreview'
+import './PortalPreview.css'
 
 gsap.registerPlugin(ScrollTrigger)
 
@@ -268,8 +270,8 @@ export default function Landing({ onLogin, onAuditor, onVision }) {
     const ctx = gsap.context(() => {
       gsap.fromTo('.hero .ln > span', { yPercent: 110 }, { yPercent: 0, duration: 1.2, ease: 'power4.out', stagger: 0.09, delay: 0.15 })
       gsap.fromTo('.hero .after', { opacity: 0, y: 14 }, { opacity: 1, y: 0, duration: 1, ease: 'power3.out', stagger: 0.1, delay: 0.6 })
-      gsap.fromTo('.hero-img', { scale: 1.08 }, { scale: 1, duration: 2.4, ease: 'power2.out' })
-      gsap.fromTo('.hero-img', { yPercent: 0 }, { yPercent: 12, ease: 'none', scrollTrigger: { trigger: '.hero', start: 'top top', end: 'bottom top', scrub: true } })
+      gsap.fromTo('.hero .hero-img', { scale: 1.08 }, { scale: 1, duration: 2.4, ease: 'power2.out' })
+      gsap.fromTo('.hero .hero-img', { yPercent: 0 }, { yPercent: 12, ease: 'none', scrollTrigger: { trigger: '.hero', start: 'top top', end: 'bottom top', scrub: true } })
 
       gsap.utils.toArray('.mask-in').forEach((el) => gsap.fromTo(el.querySelectorAll('.ln > span'), { yPercent: 110 }, { yPercent: 0, duration: 1.1, ease: 'power4.out', stagger: 0.08, scrollTrigger: { trigger: el, start: 'top 85%' } }))
       gsap.utils.toArray('.fade-in').forEach((el) => gsap.fromTo(el, { opacity: 0, y: 18 }, { opacity: 1, y: 0, duration: 1, ease: 'power3.out', scrollTrigger: { trigger: el, start: 'top 88%' } }))
@@ -318,6 +320,7 @@ export default function Landing({ onLogin, onAuditor, onVision }) {
         <div className="links">
           <a href="#metodo">Il metodo</a>
           <a href="#agenti">Gli agenti</a>
+          <a href="#portale">Il portale</a>
           <a href="#prezzi">Prezzi</a>
           <a href="#domande">Domande</a>
           <button onClick={onVision}>La visione</button>
@@ -398,6 +401,12 @@ export default function Landing({ onLogin, onAuditor, onVision }) {
           </div>
         </div>
         <div className="fade-in"><AgentRelay /></div>
+      </div></section>
+
+      <section className="sect portal" id="portale"><div className="wrap">
+        <h2 className="mask-in">{lines(['Dentro QUANTO.'])}</h2>
+        <p className="para fade-in">Una pagina per agente, nell’ordine del lavoro. In cima a ogni pagina l’agente dice cosa ha fatto, cosa ha trovato e cosa gli serve; sotto, i numeri con la loro fonte.</p>
+        <PortalPreview />
       </div></section>
 
       <section className="sect" id="principi"><div className="wrap">

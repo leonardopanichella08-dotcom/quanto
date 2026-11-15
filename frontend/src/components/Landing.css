@@ -34,7 +34,7 @@
 .qt-land .btn-cta.big { padding: 14px 24px; font-size: 15px; }
 .qt-land .btn-cta svg { transition: transform .5s var(--ease); }
 .qt-land .btn-cta:hover svg { transform: translateX(4px); }
-.qt-land .btn-ghost { background: none; border: 0; padding: 10px 12px; font: 500 14px 'Inter', sans-serif; color: inherit; opacity: .8; cursor: pointer; }
+.qt-land .btn-ghost { background: none; border: 0; padding: 10px 14px; font: 500 14px 'Inter', sans-serif; color: inherit; opacity: .8; cursor: pointer; }
 .qt-land .btn-ghost:hover { opacity: 1; }
 .qt-land .text-link, .qt-land .hero-link { display: inline-flex; align-items: center; gap: 8px; background: none; border: 0; padding: 0 0 3px; font: 500 15px 'Inter', sans-serif; color: inherit; cursor: pointer;
   background-image: linear-gradient(currentColor, currentColor); background-size: 100% 1px; background-repeat: no-repeat; background-position: left bottom; transition: background-size .5s var(--ease); }
@@ -44,15 +44,17 @@
 /* ------------------------------------------------------------------ navigazione: pillola in vetro liquido, sparisce scendendo */
 .qt-land .qt-nav { position: fixed; top: 14px; left: 0; right: 0; z-index: 50; display: flex; justify-content: center; padding-inline: 16px; color: #fff; transition: transform .7s var(--ease), color .5s var(--ease); pointer-events: none; }
 .qt-land .qt-nav.hide { transform: translateY(calc(-100% - 60px)); }
-.qt-land .nav-pill { pointer-events: auto; width: 100%; max-width: 1180px; display: flex; align-items: center; gap: 28px; height: 56px; padding: 0 8px 0 22px; border-radius: 999px;
-  border: 1px solid transparent; transition: background .6s var(--ease), border-color .6s var(--ease), box-shadow .6s var(--ease), backdrop-filter .6s var(--ease); }
+.qt-land .nav-pill { pointer-events: auto; width: 100%; max-width: 1136px; display: flex; align-items: center; gap: 28px; height: 54px; padding: 0 7px 0 22px; border-radius: 999px;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.16), rgba(255, 255, 255, 0.06)); backdrop-filter: blur(18px) saturate(160%); -webkit-backdrop-filter: blur(18px) saturate(160%);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.28), inset 0 0 0 1px rgba(255, 255, 255, 0.14);
+  border: 0; transition: background .6s var(--ease), box-shadow .6s var(--ease); }
 .qt-land .qt-nav.glass { color: var(--ink); }
-.qt-land .qt-nav.glass .nav-pill { background: linear-gradient(180deg, rgba(255, 255, 255, 0.72), rgba(255, 255, 255, 0.52));
+.qt-land .qt-nav.glass .nav-pill { background: linear-gradient(180deg, rgba(255, 255, 255, 0.78), rgba(255, 255, 255, 0.6));
   backdrop-filter: blur(22px) saturate(180%); -webkit-backdrop-filter: blur(22px) saturate(180%);
-  border-color: rgba(255, 255, 255, 0.7); box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.9), inset 0 -1px 0 rgba(13, 13, 13, 0.04), 0 8px 32px rgba(13, 13, 13, 0.08); }
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.95), inset 0 0 0 1px rgba(13, 13, 13, 0.06), 0 10px 30px -10px rgba(13, 13, 13, 0.18); }
 .qt-land .nav-pill .brand { display: flex; align-items: center; }
 .qt-land .nav-pill .wordmark { background: currentColor !important; }
-.qt-land .nav-pill .links { display: flex; gap: 26px; margin-left: auto; }
+.qt-land .nav-pill .links { display: flex; gap: 24px; margin-left: auto; }
 .qt-land .nav-pill .links a, .qt-land .nav-pill .links button { font: 500 13.5px 'Inter', sans-serif; color: inherit; opacity: .78; background: none; border: 0; padding: 0; cursor: pointer; transition: opacity .3s; }
 .qt-land .nav-pill .links a:hover, .qt-land .nav-pill .links button:hover { opacity: 1; }
 .qt-land .nav-pill .actions { display: flex; align-items: center; gap: 2px; }
@@ -209,7 +211,8 @@
 .qt-land .ask-bar button:not(:disabled):hover { transform: scale(1.06); }
 
 /* chiusura */
-.qt-land .cta-final { position: relative; padding: 170px 0; color: #fff; overflow: hidden; }
+.qt-land .cta-final { position: relative; padding: 170px 0; color: #fff; overflow: hidden; background: #0d0d0d; }
+.qt-land .portal { background: var(--off); }
 .qt-land .cta-final h2 { max-width: 18ch; }
 
 .qt-land .qt-foot { border-top: 1px solid var(--hair); }
