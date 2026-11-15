@@ -48,8 +48,8 @@
   background: linear-gradient(180deg, rgba(255, 255, 255, 0.16), rgba(255, 255, 255, 0.06)); backdrop-filter: blur(18px) saturate(160%); -webkit-backdrop-filter: blur(18px) saturate(160%);
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.28), inset 0 0 0 1px rgba(255, 255, 255, 0.14);
   border: 0; transition: background .6s var(--ease), box-shadow .6s var(--ease); }
-.qt-land .qt-nav.glass { color: var(--ink); }
-.qt-land .qt-nav.glass .nav-pill { background: linear-gradient(180deg, rgba(255, 255, 255, 0.78), rgba(255, 255, 255, 0.6));
+.qt-land .qt-nav.is-glass { color: var(--ink); }
+.qt-land .qt-nav.is-glass .nav-pill { background: linear-gradient(180deg, rgba(255, 255, 255, 0.78), rgba(255, 255, 255, 0.6));
   backdrop-filter: blur(22px) saturate(180%); -webkit-backdrop-filter: blur(22px) saturate(180%);
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.95), inset 0 0 0 1px rgba(13, 13, 13, 0.06), 0 10px 30px -10px rgba(13, 13, 13, 0.18); }
 .qt-land .nav-pill .brand { display: flex; align-items: center; }
@@ -266,4 +266,57 @@
   .qt-land .verb-fill { clip-path: none !important; }
   .qt-land .verb-line { transform: scaleX(1); }
   .qt-land .proc-progress { transform: scaleY(1); }
+}
+
+/* ================================================================== versione minimale (16 novembre 2026): pagina più corta, una sola capsula di vetro */
+/* barra: un'unica capsula di vetro liquido, stretta e centrata, senza anelli interni né forme sovrapposte */
+.qt-land .qt-nav { top: 16px; }
+.qt-land .nav-pill { max-width: 860px; height: 50px; gap: 20px; padding: 0 6px 0 20px; border-radius: 999px;
+  background: rgba(255, 255, 255, 0.14); backdrop-filter: blur(24px) saturate(180%) brightness(1.04); -webkit-backdrop-filter: blur(24px) saturate(180%) brightness(1.04);
+  box-shadow: 0 1px 0 0 rgba(255, 255, 255, 0.35) inset, 0 12px 32px -14px rgba(0, 0, 0, 0.35); border: 0.5px solid rgba(255, 255, 255, 0.28); }
+.qt-land .qt-nav.is-glass .nav-pill { background: rgba(255, 255, 255, 0.62); border-color: rgba(13, 13, 13, 0.08);
+  box-shadow: 0 1px 0 0 rgba(255, 255, 255, 0.9) inset, 0 12px 32px -14px rgba(13, 13, 13, 0.22); }
+.qt-land .nav-pill .links { margin: 0 auto; gap: 26px; }
+.qt-land .nav-pill .links a { font-size: 13px; }
+.qt-land .nav-pill .actions { gap: 4px; }
+.qt-land .nav-login { background: none; border: 0; padding: 8px 12px; font: 500 13px 'Inter', sans-serif; color: inherit; opacity: .8; cursor: pointer; }
+.qt-land .nav-login:hover { opacity: 1; }
+.qt-land .nav-cta { border: 0; border-radius: 999px; padding: 9px 15px; font: 600 13px 'Inter', sans-serif; background: var(--yellow); color: var(--ink); cursor: pointer; transition: transform .5s var(--ease); }
+.qt-land .nav-cta:hover { transform: scale(1.03); }
+
+/* ritmo più corto */
+.qt-land .sect { padding: 120px 0; }
+.qt-land .sect.tight { padding: 40px 0 110px; }
+.qt-land .hero-inner { padding-bottom: 76px; }
+.qt-land .verbs { margin-top: 56px; }
+.qt-land .verb { padding: 14px 0; gap: 48px; }
+.qt-land .verb-word { font-size: clamp(48px, 7.4vw, 108px); }
+.qt-land .verb-line { bottom: -6px; height: 2px; }
+.qt-land .verb p { font-size: 16px; padding-bottom: 8px; }
+.qt-land .proc-pin { padding: 72px 0; }
+.qt-land .agents-intro { grid-template-columns: 1.1fr 0.9fr; gap: 64px; }
+.qt-land .loop-video { margin-left: auto; max-width: 420px; }
+.qt-land .pp { margin-top: 56px; }
+
+/* principi: tre colonne di testo, ognuna con una linea che si disegna */
+.qt-land .principles { display: grid; grid-template-columns: repeat(3, 1fr); gap: 48px; }
+.qt-land .pr-col { position: relative; padding-top: 22px; }
+.qt-land .pr-col .pr-rule { position: absolute; left: 0; right: 0; top: 0; height: 1.5px; background: var(--ink); transform-origin: left center; }
+.qt-land .pr-col h3 { font-size: clamp(24px, 2.4vw, 32px); letter-spacing: -0.035em; }
+.qt-land .pr-col p { font-size: 15.5px; line-height: 1.6; color: var(--gray); margin-top: 12px; max-width: 34ch; }
+
+.qt-land .prices { margin-top: 60px; }
+.qt-land .cta-final { padding: 130px 0; }
+
+@media (max-width: 1080px) {
+  .qt-land .nav-pill .links { display: none; }
+  .qt-land .nav-pill .actions { margin-left: auto; }
+  .qt-land .agents-intro, .qt-land .principles { grid-template-columns: 1fr; gap: 36px; }
+  .qt-land .verb { grid-template-columns: 1fr; gap: 10px; }
+  .qt-land .loop-video { margin-left: 0; }
+}
+@media (max-width: 720px) {
+  .qt-land .sect { padding: 88px 0; }
+  .qt-land .nav-pill { height: 48px; padding-left: 18px; }
+  .qt-land .nav-login { display: none; }
 }

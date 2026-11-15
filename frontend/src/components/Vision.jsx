@@ -37,7 +37,7 @@ export default function Vision({ onGoHome, onStart }) {
 
   return (
     <div className="qt-vision">
-      <nav className={`v-nav${glass ? ' glass' : ''}`}><div className="v-pill">
+      <nav className={`v-nav${glass ? ' is-glass' : ''}`}><div className="v-pill">
         <button className="v-back" onClick={onGoHome}><ArrowLeft size={14} /><Wordmark height={14} className="v-wordmark" /></button>
         <button className="v-cta" onClick={onStart}>Richiedi accesso</button>
       </div></nav>

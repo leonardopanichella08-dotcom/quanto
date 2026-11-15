@@ -59,53 +59,6 @@ function AuthModal({ mode, onClose, onSwitch, onDone }) {
   )
 }
 
-// ------------------------------------------------------------------------------------------------ la frase del bando diventa una regola, la regola un calcolo
-const EXCERPTS = [
-  { ref: 'Avviso · art. 6, comma 2', before: 'Le spese per consulenze specialistiche sono ammissibili ', mark: 'nel limite del 10% del totale', after: ' delle spese ammesse.',
-    rule: ['Consulenze', '≤ 10% del totale'], calc: ['Richieste 40.000,00 €', 'ammesse 24.911,00 €'], verdict: 'ridotta', tone: 'warn' },
-  { ref: 'Avviso · art. 8, comma 1', before: 'L’agevolazione è concessa ', mark: 'nella misura del 50%', after: ' delle spese ritenute ammissibili.',
-    rule: ['Intensità', '50%'], calc: ['Spese ammesse 249.111,00 €', 'contributo 124.555,50 €'], verdict: 'calcolato', tone: 'ok' },
-  { ref: 'Avviso · art. 5, comma 4', before: 'Non sono ammissibili le spese ', mark: 'sostenute prima della presentazione della domanda', after: '.',
-    rule: ['Finestra di spesa', 'dopo la domanda'], calc: ['Fattura del 12/02', 'domanda del 03/03'], verdict: 'esclusa', tone: 'no' },
-]
-function RuleMachine() {
-  const root = useRef(null)
-  const [i, setI] = useState(0)
-  useEffect(() => {
-    if (reduced()) return undefined
-    const el = root.current
-    const q = (s) => el.querySelectorAll(s)
-    const ctx = gsap.context(() => {
-      gsap.timeline({ onComplete: () => setI((n) => (n + 1) % EXCERPTS.length) })
-        .fromTo(q('.rm-text'), { opacity: 0, y: 10 }, { opacity: 1, y: 0, duration: 0.7, ease: 'power3.out' })
-        .fromTo(q('.rm-mark'), { backgroundSize: '0% 42%' }, { backgroundSize: '100% 42%', duration: 1, ease: 'power2.inOut' }, '+=0.3')
-        .fromTo(q('.rm-wire'), { scaleX: 0 }, { scaleX: 1, duration: 0.6, ease: 'power2.inOut' })
-        .fromTo(q('.rm-rule > *'), { opacity: 0, y: 6 }, { opacity: 1, y: 0, duration: 0.5, stagger: 0.08, ease: 'power3.out' })
-        .fromTo(q('.rm-wire2'), { scaleX: 0 }, { scaleX: 1, duration: 0.6, ease: 'power2.inOut' }, '+=0.2')
-        .fromTo(q('.rm-calc > *'), { opacity: 0, y: 6 }, { opacity: 1, y: 0, duration: 0.5, stagger: 0.1, ease: 'power3.out' })
-        .fromTo(q('.rm-verdict'), { opacity: 0, scale: 0.85 }, { opacity: 1, scale: 1, duration: 0.45, ease: 'back.out(2)' })
-        .to(q('.rm-stage'), { opacity: 0, duration: 0.5, ease: 'power1.in' }, '+=2.8')
-    }, el)
-    return () => ctx.revert()
-  }, [i])
-  const x = EXCERPTS[i]
-  return (
-    <div className="rm" ref={root} aria-label="Esempio: una frase del bando diventa una regola e un calcolo">
-      <div className="rm-stage" key={i}>
-        <p className="rm-ref">{x.ref}<span>esempio</span></p>
-        <p className="rm-text">«{x.before}<span className="rm-mark">{x.mark}</span>{x.after}»</p>
-        <div className="rm-flow">
-          <i className="rm-wire" />
-          <div className="rm-rule"><span className="k">Regola</span><span className="v">{x.rule[0]}</span><span className="v strong">{x.rule[1]}</span></div>
-          <i className="rm-wire2" />
-          <div className="rm-calc"><span className="k">Sul budget</span><span className="v">{x.calc[0]}</span><span className="v strong">{x.calc[1]}</span></div>
-          <span className={`rm-verdict ${x.tone}`}>{x.verdict}</span>
-        </div>
-      </div>
-      <div className="rm-dots" aria-hidden="true">{EXCERPTS.map((_, k) => <i key={k} className={k === i ? 'on' : ''} />)}</div>
-    </div>
-  )
-}
 
 // ------------------------------------------------------------------------------------------------ il processo: la pratica si compone mentre si scorre
 const STEPS = [
@@ -116,58 +69,6 @@ const STEPS = [
   { title: 'La domanda', body: 'Confronto tra scenari, documenti di domanda raccolti dal sito ufficiale, dossier per il cliente e un registro firmato che prova che i numeri non sono stati toccati.', line: ['Consegna', 'dossier · documenti di domanda · registro 7f3a…9b1d'] },
 ]
 
-// ------------------------------------------------------------------------------------------------ gli agenti si passano il lavoro
-const AGENTS = [
-  { name: 'Agevolazioni', what: 'Le misure che non chiedono un progetto: esoneri e incentivi alle assunzioni, crediti d’imposta. A ogni persona da assumere assegna la misura più ricca che le spetta.',
-    did: 'Ho letto le assunzioni previste', found: 'Bonus Giovani per una persona, 15.600 € al massimo', need: 'Il mese di assunzione della seconda persona' },
-  { name: 'Allocazione', what: 'Legge il catalogo, giudica ogni bando per l’impresa e compone il piano: quale agevolazione paga quale spesa, con tetti, cumulo e de minimis.',
-    did: 'Ho cercato tra tutti i bandi aperti e ne ho studiati 8', found: '3 bandi adatti alle spese dell’anno, 3 a progetto', need: 'Nulla: puoi preparare i budget' },
-  { name: 'Budget', what: 'Scrive la bozza del budget di progetto dai documenti dell’impresa e la controlla con le regole del bando, prima della domanda.',
-    did: 'Ho scritto la bozza voce per voce', found: '2 voci da ridurre per rientrare nei tetti', need: 'Il registro del personale, per le persone sul progetto' },
-  { name: 'Confronto', what: 'Mette a confronto bandi e scenari sullo stesso progetto, con lo stesso metodo, per decidere con il cliente.',
-    did: 'Ho confrontato due bandi sullo stesso budget', found: 'Quale dei due copre di più, voce per voce', need: 'La scelta del cliente' },
-]
-function AgentRelay() {
-  const root = useRef(null)
-  const [on, setOn] = useState(0)
-  const hold = useRef(0)
-  useEffect(() => {
-    if (reduced()) return undefined
-    const t = setInterval(() => { if (Date.now() - hold.current > 9000) setOn((n) => (n + 1) % AGENTS.length) }, 4400)
-    return () => clearInterval(t)
-  }, [])
-  useEffect(() => {
-    if (reduced()) return undefined
-    const el = root.current
-    const ctx = gsap.context(() => {
-      gsap.fromTo(el.querySelectorAll('.ar-detail > *'), { opacity: 0, y: 12 }, { opacity: 1, y: 0, duration: 0.7, stagger: 0.07, ease: 'power3.out' })
-      gsap.fromTo(el.querySelector('.ar-pulse'), { opacity: 1, scale: 0.4 }, { opacity: 0, scale: 2.6, duration: 1.1, ease: 'power2.out' })
-    }, el)
-    return () => ctx.revert()
-  }, [on])
-  const a = AGENTS[on]
-  const pct = (k) => `${(k / (AGENTS.length - 1)) * 100}%`
-  return (
-    <div className="ar" ref={root}>
-      <div className="ar-track">
-        <i className="ar-line" /><i className="ar-fill" style={{ width: pct(on) }} /><i className="ar-pulse" style={{ left: pct(on) }} />
-        {AGENTS.map((x, k) => (
-          <button key={x.name} type="button" className={`ar-node${k === on ? ' on' : ''}${k < on ? ' done' : ''}`} style={{ left: pct(k) }} onClick={() => { hold.current = Date.now(); setOn(k) }}>
-            <i /><span>{x.name}</span>
-          </button>
-        ))}
-      </div>
-      <div className="ar-detail" aria-live="polite">
-        <p className="ar-what">{a.what}</p>
-        <div className="ar-say">
-          <p><span>Ho fatto</span>{a.did}</p>
-          <p><span>Ho trovato</span>{a.found}</p>
-          <p><span>Mi serve da te</span>{a.need}</p>
-        </div>
-      </div>
-    </div>
-  )
-}
 
 // ------------------------------------------------------------------------------------------------ video che scorre come un'animazione
 function LoopVideo({ src, poster, label }) {
@@ -253,12 +154,13 @@ export default function Landing({ onLogin, onAuditor, onVision }) {
     let last = window.scrollY
     const on = () => {
       const y = window.scrollY
+      const dir = y > last + 4 ? 'down' : y < last - 4 ? 'up' : null      // la direzione si decide qui, prima che «last» cambi
+      last = y
       setNav((n) => {
-        const hide = y < 160 ? false : y > last + 4 ? true : y < last - 4 ? false : n.hide
+        const hide = y < 160 ? false : dir === 'down' ? true : dir === 'up' ? false : n.hide
         const glass = y > 24
         return hide === n.hide && glass === n.glass ? n : { glass, hide }
       })
-      last = y
     }
     window.addEventListener('scroll', on, { passive: true })
     return () => window.removeEventListener('scroll', on)
@@ -276,8 +178,6 @@ export default function Landing({ onLogin, onAuditor, onVision }) {
       gsap.utils.toArray('.mask-in').forEach((el) => gsap.fromTo(el.querySelectorAll('.ln > span'), { yPercent: 110 }, { yPercent: 0, duration: 1.1, ease: 'power4.out', stagger: 0.08, scrollTrigger: { trigger: el, start: 'top 85%' } }))
       gsap.utils.toArray('.fade-in').forEach((el) => gsap.fromTo(el, { opacity: 0, y: 18 }, { opacity: 1, y: 0, duration: 1, ease: 'power3.out', scrollTrigger: { trigger: el, start: 'top 88%' } }))
 
-      // la frase si accende parola per parola
-      gsap.fromTo('.manifesto .w', { opacity: 0.12 }, { opacity: 1, stagger: 0.1, ease: 'none', scrollTrigger: { trigger: '.manifesto', start: 'top 75%', end: 'bottom 45%', scrub: true } })
 
       // i quattro verbi: il contorno si riempie di nero mentre la parola attraversa la pagina, la sottolineatura gialla corre
       gsap.utils.toArray('.verb').forEach((el) => {
@@ -289,16 +189,15 @@ export default function Landing({ onLogin, onAuditor, onVision }) {
       const mm = gsap.matchMedia()
       mm.add('(min-width: 961px)', () => {
         ScrollTrigger.create({
-          trigger: '.proc', start: 'top top', end: () => `+=${window.innerHeight * 0.7 * STEPS.length}`, pin: '.proc-pin', scrub: true,
+          trigger: '.proc', start: 'top top', end: () => `+=${window.innerHeight * 0.42 * STEPS.length}`, pin: '.proc-pin', scrub: true,
           onUpdate: (s) => { setStep(Math.min(STEPS.length - 1, Math.floor(s.progress * STEPS.length))); gsap.set('.proc-progress', { scaleY: s.progress }) },
         })
       })
       mm.add('(max-width: 960px)', () => { setStep(STEPS.length - 1) })
 
-      gsap.utils.toArray('.pr-row').forEach((el) => {
-        gsap.fromTo(el.querySelector('.pr-rule'), { scaleX: 0 }, { scaleX: 1, duration: 1.2, ease: 'power3.inOut', scrollTrigger: { trigger: el, start: 'top 85%' } })
-        gsap.fromTo(el.querySelectorAll('.ln > span'), { yPercent: 110 }, { yPercent: 0, duration: 1.1, ease: 'power4.out', delay: 0.2, scrollTrigger: { trigger: el, start: 'top 85%' } })
-        gsap.fromTo(el.querySelector('p'), { opacity: 0 }, { opacity: 1, duration: 1, delay: 0.45, scrollTrigger: { trigger: el, start: 'top 85%' } })
+      gsap.utils.toArray('.pr-col').forEach((el, i) => {
+        gsap.fromTo(el.querySelector('.pr-rule'), { scaleX: 0 }, { scaleX: 1, duration: 1.1, delay: i * 0.12, ease: 'power3.inOut', scrollTrigger: { trigger: el, start: 'top 88%' } })
+        gsap.fromTo(el.querySelectorAll('h3, p'), { opacity: 0, y: 14 }, { opacity: 1, y: 0, duration: 0.9, delay: 0.2 + i * 0.12, stagger: 0.08, ease: 'power3.out', scrollTrigger: { trigger: el, start: 'top 88%' } })
       })
 
       // prezzi: le cifre salgono, le righe dell'elenco si disegnano una dopo l'altra
@@ -311,23 +210,20 @@ export default function Landing({ onLogin, onAuditor, onVision }) {
   }, [])
 
   const lines = (arr) => arr.map((t, i) => <span key={i} className="ln"><span>{t}</span></span>)
-  const words = (t) => t.split(' ').map((w, i) => <span key={i} className="w">{w} </span>)
 
   return (
     <div className="qt-land" ref={root}>
-      <nav className={`qt-nav${nav.glass ? ' glass' : ''}${navHidden ? ' hide' : ''}`}><div className="nav-pill">
-        <a href="#top" className="brand" aria-label="QUANTO, torna all’inizio"><Wordmark height={15} className="wordmark" /></a>
+      <nav className={`qt-nav${nav.glass ? ' is-glass' : ''}${navHidden ? ' hide' : ''}`}><div className="nav-pill">
+        <a href="#top" className="brand" aria-label="QUANTO, torna all’inizio"><Wordmark height={14} className="wordmark" /></a>
         <div className="links">
-          <a href="#metodo">Il metodo</a>
-          <a href="#agenti">Gli agenti</a>
-          <a href="#portale">Il portale</a>
+          <a href="#metodo">Metodo</a>
+          <a href="#portale">Portale</a>
           <a href="#prezzi">Prezzi</a>
           <a href="#domande">Domande</a>
-          <button onClick={onVision}>La visione</button>
         </div>
         <div className="actions">
-          <button className="btn-ghost" onClick={() => setModal('login')}>Accedi</button>
-          <button className="btn-cta" onClick={() => setModal('register')}>Richiedi accesso</button>
+          <button className="nav-login" onClick={() => setModal('login')}>Accedi</button>
+          <button className="nav-cta" onClick={() => setModal('register')}>Richiedi accesso</button>
         </div>
       </div></nav>
 
@@ -339,14 +235,10 @@ export default function Landing({ onLogin, onAuditor, onVision }) {
           <p className="hero-sub after">QUANTO trova le agevolazioni adatte a ogni cliente, ne studia le regole, costruisce il progetto e il budget e li controlla prima della domanda. Agenti che svolgono il lavoro, ogni numero legato alla sua fonte.</p>
           <div className="hero-ctas after">
             <button className="btn-cta big" onClick={() => setModal('register')}>Richiedi accesso<ArrowRight size={15} /></button>
-            <a className="hero-link" href="#metodo">Il metodo<ArrowRight size={14} /></a>
+            <a className="hero-link" href="#portale">Guarda il portale<ArrowRight size={14} /></a>
           </div>
         </div>
       </header>
-
-      <section className="manifesto"><div className="wrap">
-        <p>{words('Un bando è un testo scritto per essere letto da una persona. QUANTO lo rende calcolabile: legge la regola, la applica al budget del cliente e dice da quale articolo viene, sempre nello stesso modo.')}</p>
-      </div></section>
 
       <section className="sect" id="metodo"><div className="wrap">
         <h2 className="mask-in">{lines(['Tutto il lavoro di una pratica', 'di finanza agevolata.'])}</h2>
@@ -359,11 +251,6 @@ export default function Landing({ onLogin, onAuditor, onVision }) {
             </div>
           ))}
         </div>
-      </div></section>
-
-      <section className="sect calc"><div className="wrap split">
-        <h2 className="mask-in">{lines(['La frase del bando', 'diventa una regola,', 'la regola un calcolo.'])}</h2>
-        <div className="fade-in"><RuleMachine /></div>
       </div></section>
 
       <section className="proc" id="processo">
@@ -392,43 +279,23 @@ export default function Landing({ onLogin, onAuditor, onVision }) {
         </div></div>
       </section>
 
-      <section className="sect" id="agenti"><div className="wrap">
-        <div className="agents-intro">
-          <div className="fade-in"><LoopVideo src="/video/quanto-quattro-agenti.mp4" poster="/landing/quattro-agenti.png" label="I quattro agenti di QUANTO" /></div>
-          <div>
-            <h2 className="mask-in">{lines(['Quattro agenti, in ordine.', 'Lo studio decide e firma.'])}</h2>
-            <p className="para fade-in">Agevolazioni, Allocazione, Budget e Confronto. Ognuno ha un compito preciso, dice sempre che cosa ha fatto, che cosa ha trovato e che cosa gli serve da te, e passa il lavoro al successivo. Nessuno decide cifre: le calcolano le regole.</p>
-          </div>
-        </div>
-        <div className="fade-in"><AgentRelay /></div>
-      </div></section>
-
       <section className="sect portal" id="portale"><div className="wrap">
-        <h2 className="mask-in">{lines(['Dentro QUANTO.'])}</h2>
-        <p className="para fade-in">Una pagina per agente, nell’ordine del lavoro. In cima a ogni pagina l’agente dice cosa ha fatto, cosa ha trovato e cosa gli serve; sotto, i numeri con la loro fonte.</p>
+        <div className="agents-intro">
+          <div>
+            <h2 className="mask-in">{lines(['Quattro agenti.', 'Lo studio decide e firma.'])}</h2>
+            <p className="para fade-in">Agevolazioni, Allocazione, Budget e Confronto, in ordine. Ognuno dice cosa ha fatto, cosa ha trovato e cosa gli serve; i numeri li calcolano le regole.</p>
+          </div>
+          <div className="fade-in"><LoopVideo src="/video/quanto-quattro-agenti.mp4" poster="/landing/quattro-agenti.png" label="I quattro agenti di QUANTO" /></div>
+        </div>
         <PortalPreview />
       </div></section>
 
-      <section className="sect" id="principi"><div className="wrap">
-        {[['Deterministico.', 'Stessi dati, stesso risultato. Gli agenti organizzano il lavoro; i numeri li calcolano regole tracciabili, mai un modello che indovina.'],
-          ['Fonti dichiarate.', 'Ogni regola cita il testo ufficiale da cui è letta e quanto è affidabile la lettura. Quello che le fonti non dicono resta scritto come lacuna.'],
-          ['Verificabile.', 'Ogni budget controllato lascia un’impronta firmata in un registro a catena: un revisore o un ente può controllare che nulla sia cambiato.']].map(([t, b]) => (
-          <div key={t} className="pr-row"><i className="pr-rule" /><h3 className="pr-title">{lines([t])}</h3><p>{b}</p></div>
+      <section className="sect tight" id="principi"><div className="wrap principles">
+        {[['Deterministico', 'Stessi dati, stesso risultato. Mai un modello che indovina una cifra.'],
+          ['Fonti dichiarate', 'Ogni regola cita il testo ufficiale da cui è letta. Ciò che manca resta scritto come lacuna.'],
+          ['Verificabile', 'Ogni budget lascia un’impronta firmata: chiunque può controllare che nulla sia cambiato.']].map(([t, b2]) => (
+          <div key={t} className="pr-col"><i className="pr-rule" /><h3>{t}</h3><p>{b2}</p></div>
         ))}
-      </div></section>
-
-      <section className="sect" id="per-chi"><div className="wrap">
-        <h2 className="mask-in big">{lines(['Per gli studi di commercialisti', 'e le boutique di finanza agevolata', 'che seguono molte imprese', 'e non possono sbagliare un numero.'])}</h2>
-        <p className="para fade-in">Lo studio offre la finanza agevolata ai suoi clienti senza costruire un reparto dedicato: QUANTO fa la ricerca, lo studio delle regole e il budget; il commercialista mostra al cliente da dove viene ogni cifra, e il calcolo rifatto tra un mese dà lo stesso risultato.</p>
-      </div></section>
-
-      <section className="sect" id="visione-breve"><div className="wrap split">
-        <h2 className="mask-in">{lines(['Oggi la finanza agevolata.', 'Domani il sistema', 'operativo dello studio.'])}</h2>
-        <div className="fade-in">
-          <p className="para">Si parte dal lavoro dove un errore costa di più e il tempo manca sempre: le pratiche di finanza agevolata, svolte da agenti che seguono regole dichiarate.</p>
-          <p className="para">Lo stesso metodo (dati letti dai documenti, regole con la fonte, calcolo che si può rifare e verificare) si estende alle altre attività dello studio, una alla volta.</p>
-          <button className="text-link" onClick={onVision}>Leggi la visione<ArrowRight size={14} /></button>
-        </div>
       </div></section>
 
       <section className="sect" id="prezzi"><div className="wrap">

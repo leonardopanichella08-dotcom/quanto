@@ -15,7 +15,7 @@
 /* navigazione in vetro */
 .qt-vision .v-nav { position: fixed; top: 14px; left: 0; right: 0; z-index: 50; display: flex; justify-content: center; padding-inline: 16px; pointer-events: none; }
 .qt-vision .v-pill { pointer-events: auto; width: 100%; max-width: 1180px; height: 56px; display: flex; align-items: center; justify-content: space-between; padding: 0 8px 0 18px; border-radius: 999px; border: 1px solid transparent; transition: background .6s var(--ease), border-color .6s var(--ease), box-shadow .6s var(--ease); }
-.qt-vision .v-nav.glass .v-pill { background: linear-gradient(180deg, rgba(255, 255, 255, 0.72), rgba(255, 255, 255, 0.52)); backdrop-filter: blur(22px) saturate(180%); -webkit-backdrop-filter: blur(22px) saturate(180%);
+.qt-vision .v-nav.is-glass .v-pill { background: linear-gradient(180deg, rgba(255, 255, 255, 0.72), rgba(255, 255, 255, 0.52)); backdrop-filter: blur(22px) saturate(180%); -webkit-backdrop-filter: blur(22px) saturate(180%);
   border-color: rgba(255, 255, 255, 0.7); box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.9), 0 8px 32px rgba(13, 13, 13, 0.08); }
 .qt-vision .v-back { display: inline-flex; align-items: center; gap: 10px; background: none; border: 0; color: var(--ink); cursor: pointer; padding: 6px 0; }
 .qt-vision .v-wordmark { background: var(--ink) !important; }

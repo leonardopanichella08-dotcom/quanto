@@ -80,3 +80,4 @@ per caricare documenti. Utenti di prova locali: solo su localhost, mai in produz
 - GSAP + React StrictMode: usare `fromTo` con valori finali espliciti, non `from` (in sviluppo l'effetto parte due volte).
 - Newsletter: il modulo è stato tolto dalla homepage; `POST /api/v2/newsletter/subscribe` resta (salva solo e-mail e consenso, migrazione 23) per un uso futuro.
 - Il backend locale serve il codice vecchio finché non lo si riavvia.
+- `index.css` definisce già una classe globale `.glass` (riquadro bianco): nelle pagine pubbliche non usarla come nome di stato (si vedevano due barre sovrapposte); si usa `is-glass`.
