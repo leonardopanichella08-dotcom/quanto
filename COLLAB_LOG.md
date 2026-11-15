@@ -6,7 +6,7 @@ quando hai finito sposta la riga nel «Diario» (in cima, la più recente prima)
 ## In corso ora
 | Sessione | Da quando | Su cosa (file o area) | Note |
 |---|---|---|---|
-| — | — | — | — |
+| Leonardo · PC locale | 2026-11-15 | Homepage: redesign editoriale (frontend/src/components/Landing.jsx, Landing.css, asset in frontend/public) | in attesa di immagine dell'hero e video dei 4 agenti |
 
 ## Diario
 ### 2026-11-15 · setup della collaborazione
