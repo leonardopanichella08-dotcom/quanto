@@ -34,7 +34,8 @@ cd backend && python -m venv .venv && .venv/Scripts/activate        # Linux/mac:
 pip install -r requirements-dev.txt
 python -m pytest -q                                                  # suite completa: ~25 min, va lanciata da sola
 python -m pytest tests/test_agents.py -q                             # test mirati: preferirli durante il lavoro
-uvicorn main:app --reload --port 8000                                # http://localhost:8000/docs
+python scripts/run_local.py                                         # backend locale: legge backend/.env, PostgreSQL incorporato in backend/.localdb
+                                                                     # (il backend NON legge .env da solo; senza --prod ignora ogni database del file)
 
 # frontend
 cd frontend && npm install
