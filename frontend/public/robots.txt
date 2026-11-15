@@ -1,0 +1,5 @@
+User-agent: *
+Allow: /
+
+# Domande frequenti per motori di ricerca e assistenti AI
+# https://quanto-self.vercel.app/faq.md

@@ -1,0 +1,7 @@
+# QUANTO
+
+> Piattaforma per studi di commercialisti e boutique di finanza agevolata: trova le agevolazioni adatte a ogni impresa cliente, ne legge le regole dai testi ufficiali, costruisce progetto e budget del bando e li controlla con 60 criteri deterministici. Quattro agenti in ordine: Agevolazioni, Allocazione, Budget, Confronto. Nessuna cifra è decisa da un modello linguistico.
+
+## Documenti
+
+- [Domande frequenti (200)](https://quanto-self.vercel.app/faq.md): come funziona QUANTO, documenti letti, ricerca delle agevolazioni, budget e 60 criteri, sicurezza, prezzi e limiti.

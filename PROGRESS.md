@@ -11,9 +11,9 @@ Aggiornato: 15 novembre 2026 · ultimo commit di riferimento `69f1770` · 676 te
 - **Quattro agenti** (Agevolazioni → Allocazione → Budget → Confronto) con barra «Ho fatto · Ho trovato · Mi serve da te».
 - **Allocazione**: «Fuori da questa somma, e perché»; bandi «non serve» con perché e quando servirebbero; stessa base di spese tra «da solo» e piano.
 - **Bozza di budget**: chiede solo i documenti necessari al bando e li fa caricare sul posto.
-- **Homepage** (15/11) ridisegnata in stile editoriale e istituzionale: fondo bianco, apertura a tutta altezza con lo skyline all'alba, sezione video con i 4 agenti
+- **Homepage** (15/11, seconda versione dopo la revisione del titolare): colori del marchio senza blu, nessun riquadro, animazioni GSAP (contorni che si riempiono, pratica che si compone, staffetta degli agenti), barra in vetro liquido a scomparsa, video in loop senza controlli, prezzi e token in due colonne, 8 domande + «Chiedi a QUANTO» sulle 200; `public/faq.md`, `llms.txt`, dati strutturati FAQPage. Pagina «La visione» nello stesso stile. Prima versione: fondo bianco, apertura a tutta altezza con lo skyline all'alba, sezione video con i 4 agenti
   (video `quanto-quattro-agenti.mp4`) e il video di lancio, griglie a linee sottili, esempio «frase del bando → regola → calcolo», area Insights (articoli «in arrivo»),
-  **newsletter** con consenso (tabella `newsletter_subscribers`, migrazione 23) e **200 FAQ** dal dossier v4.5 con ricerca e argomenti.
+  **newsletter** con consenso (tabella `newsletter_subscribers`, migrazione 23; il modulo ora non è in homepage) e **200 FAQ** dal dossier v4.5.
 - Documenti: manuale dei processi (sezioni fino alla 20), dossier (48 pagine), riassunto (7 pagine), `docs/agenti/I_tre_agenti.md`.
 
 ## A metà
