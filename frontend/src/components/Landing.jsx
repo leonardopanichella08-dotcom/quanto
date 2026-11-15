@@ -1,14 +1,19 @@
 import React, { useEffect, useRef, useState } from 'react'
 import { ArrowRight, Loader2, Lock, ShieldCheck, X } from 'lucide-react'
+import gsap from 'gsap'
+import { ScrollTrigger } from 'gsap/ScrollTrigger'
 import { api, session } from '../lib/api'
 import { Mark, Wordmark } from './ui'
 import './Landing.css'
 import { LaunchVideo } from './TutorialVideo'
 
-/* Homepage pubblica. Fondo quasi nero, uniforme. Una sola tinta di marca (il giallo), usata poco. Niente illustrazioni:
-   solo testo, linee sottili e riquadri che riproducono il prodotto. Le cifre dei riquadri vengono da un'impresa di prova e lo dicono. */
+gsap.registerPlugin(ScrollTrigger)
 
-const reducedMotion = () => typeof window !== 'undefined' && window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches
+/* Homepage pubblica. Fondo quasi nero, uniforme; nessun riquadro, nessuna griglia di schede: solo tipografia, linee e movimento.
+   Ogni animazione racconta una cosa vera di QUANTO: il testo di un bando che diventa una regola e un calcolo, la pratica che si compone
+   passo dopo passo, gli agenti che si passano il lavoro. Le cifre sono di un esempio e lo dicono. Con «riduci movimento» tutto è fermo e leggibile. */
+
+const reduced = () => typeof window !== 'undefined' && window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches
 
 // ------------------------------------------------------------------------------------------------ accesso
 function AuthModal({ mode, onClose, onSwitch, onDone }) {
@@ -40,7 +45,7 @@ function AuthModal({ mode, onClose, onSwitch, onDone }) {
         <input id="ln-pw" type="password" required minLength={isRegister ? 12 : 1} autoComplete={isRegister ? 'new-password' : 'current-password'} value={password} onChange={(e) => setPassword(e.target.value)} />
         {isRegister && <p className="hint">Almeno 12 caratteri, lettere e almeno un numero o simbolo.</p>}
         {error && <p className="error">{error}</p>}
-        <button disabled={busy || !email || !password || (isRegister && !name)} className="btn-solid submit">
+        <button disabled={busy || !email || !password || (isRegister && !name)} className="submit">
           {busy ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : null}{isRegister ? 'Crea account' : 'Entra'}
         </button>
         <p className="switch">
@@ -51,133 +56,129 @@ function AuthModal({ mode, onClose, onSwitch, onDone }) {
   )
 }
 
-/** Gli elementi con .rv compaiono con una dissolvenza breve quando entrano in vista (una volta). Con «riduci movimento» sono già visibili. */
-function useReveal(root) {
+// ------------------------------------------------------------------------------------------------ hero: il testo del bando diventa una regola, la regola un calcolo
+const EXCERPTS = [
+  { ref: 'Avviso · art. 6, comma 2', before: 'Le spese per consulenze specialistiche sono ammissibili ', mark: 'nel limite del 10% del totale', after: ' delle spese ammesse.',
+    rule: ['Consulenze', '≤ 10% del totale'], calc: ['Richieste 40.000,00 €', 'ammesse 24.911,00 €'], verdict: 'ridotta', tone: 'warn' },
+  { ref: 'Avviso · art. 8, comma 1', before: 'L’agevolazione è concessa ', mark: 'nella misura del 50%', after: ' delle spese ritenute ammissibili.',
+    rule: ['Intensità', '50%'], calc: ['Spese ammesse 249.111,00 €', 'contributo 124.555,50 €'], verdict: 'calcolato', tone: 'ok' },
+  { ref: 'Avviso · art. 5, comma 4', before: 'Non sono ammissibili le spese ', mark: 'sostenute prima della presentazione della domanda', after: '.',
+    rule: ['Finestra di spesa', 'dopo la domanda'], calc: ['Fattura del 12/02', 'domanda del 03/03'], verdict: 'esclusa', tone: 'no' },
+]
+
+function RuleMachine() {
+  const root = useRef(null)
+  const [i, setI] = useState(0)
   useEffect(() => {
-    const els = root.current ? [...root.current.querySelectorAll('.rv')] : []
-    if (reducedMotion() || typeof IntersectionObserver === 'undefined') { els.forEach((e) => e.classList.add('in')); return undefined }
-    const io = new IntersectionObserver((entries) => entries.forEach((en) => { if (en.isIntersecting) { en.target.classList.add('in'); io.unobserve(en.target) } }), { threshold: 0.15 })
-    els.forEach((e) => io.observe(e))
-    return () => io.disconnect()
-  }, [root])
-}
-
-// ------------------------------------------------------------------------------------------------ riquadri del prodotto (cifre di un'impresa di prova)
-const Frame = ({ title, note, children }) => (
-  <div className="frame">
-    <div className="frame-head"><span>{title}</span>{note && <span className="frame-note">{note}</span>}</div>
-    <div className="frame-body">{children}</div>
-  </div>
-)
-
-function HeroConsole() {
-  const agents = [
-    ['01', 'Agevolazioni', 'Misure per le assunzioni assegnate persona per persona', 'fatto'],
-    ['02', 'Allocazione', 'Catalogo letto, bandi giudicati per territorio, settore e requisiti', 'fatto'],
-    ['03', 'Budget', 'Bozza del budget di progetto, 60 controlli per voce', 'in corso'],
-    ['04', 'Confronto', 'Scenari a confronto, documenti di domanda', 'in attesa'],
-  ]
+    if (reduced()) return undefined
+    const el = root.current
+    const q = (sel) => el.querySelectorAll(sel)
+    const ctx = gsap.context(() => {                       // fromTo con valori finali espliciti: in sviluppo l'effetto parte due volte e un «from» resterebbe a zero
+      gsap.timeline({ onComplete: () => setI((n) => (n + 1) % EXCERPTS.length) })
+        .fromTo(q('.rm-text'), { opacity: 0, y: 8 }, { opacity: 1, y: 0, duration: 0.6, ease: 'power2.out' })
+        .fromTo(q('.rm-mark'), { backgroundSize: '0% 100%' }, { backgroundSize: '100% 100%', duration: 0.9, ease: 'power2.inOut' }, '+=0.3')
+        .fromTo(q('.rm-wire'), { scaleX: 0 }, { scaleX: 1, duration: 0.5, ease: 'power2.inOut' })
+        .fromTo(q('.rm-rule > *'), { opacity: 0, x: -8 }, { opacity: 1, x: 0, duration: 0.45, stagger: 0.08, ease: 'power2.out' })
+        .fromTo(q('.rm-wire2'), { scaleX: 0 }, { scaleX: 1, duration: 0.5, ease: 'power2.inOut' }, '+=0.2')
+        .fromTo(q('.rm-calc > *'), { opacity: 0, x: -8 }, { opacity: 1, x: 0, duration: 0.45, stagger: 0.1, ease: 'power2.out' })
+        .fromTo(q('.rm-verdict'), { opacity: 0, scale: 0.9 }, { opacity: 1, scale: 1, duration: 0.4, ease: 'back.out(2)' })
+        .to(q('.rm-stage'), { opacity: 0, duration: 0.5, ease: 'power1.in' }, '+=2.6')
+    }, el)
+    return () => ctx.revert()
+  }, [i])
+  const x = EXCERPTS[i]
   return (
-    <Frame title="Impresa di prova · ATECO 62.01" note="esempio">
-      <ol className="console-steps">
-        {agents.map(([n, t, d, s]) => (
-          <li key={n} className={`st-${s.replace(' ', '-')}`}>
-            <span className="cs-n">{n}</span>
-            <div className="cs-txt"><b>{t}</b><span>{d}</span></div>
-            <span className="cs-state">{s}</span>
-          </li>
-        ))}
-      </ol>
-      <div className="console-foot">
-        <div><span className="lbl">Bandi adatti</span><span className="val">3</span></div>
-        <div><span className="lbl">Da verificare</span><span className="val">0</span></div>
-        <div><span className="lbl">Totale agevolato (massimo)</span><span className="val accent">163.949,41 €</span></div>
+    <div className="rm" ref={root} aria-label="Esempio: una frase del bando diventa una regola e un calcolo">
+      <div className="rm-stage" key={i}>
+        <p className="rm-ref">{x.ref} <span className="rm-ex">esempio</span></p>
+        <p className="rm-text">«{x.before}<span className="rm-mark">{x.mark}</span>{x.after}»</p>
+        <div className="rm-flow">
+          <i className="rm-wire" />
+          <div className="rm-rule"><span className="k">Regola</span><span className="v">{x.rule[0]}</span><span className="v strong">{x.rule[1]}</span></div>
+          <i className="rm-wire2" />
+          <div className="rm-calc"><span className="k">Sul budget</span><span className="v">{x.calc[0]}</span><span className="v strong">{x.calc[1]}</span></div>
+          <span className={`rm-verdict ${x.tone}`}>{x.verdict}</span>
+        </div>
       </div>
-    </Frame>
+      <div className="rm-dots" aria-hidden="true">{EXCERPTS.map((_, k) => <i key={k} className={k === i ? 'on' : ''} />)}</div>
+    </div>
   )
 }
 
-const HEAT = 'OOOAOOOROOOOWOOOONOOOAOONOOOOOOAOOONOROOOOONOOOOWOOONOOAOOOO'.split('')
-const HEAT_CLASS = { O: 'ok', A: 'adj', R: 'rej', W: 'wait', N: 'none' }
-function PanelChecks() {
-  return (
-    <Frame title="Budget · 60 controlli per voce" note="esempio">
-      <div className="heat">{HEAT.map((c, i) => <i key={i} className={HEAT_CLASS[c]} />)}</div>
-      <div className="legend"><span><i className="ok" />superato</span><span><i className="adj" />ridotto</span><span><i className="rej" />respinto</span><span><i className="wait" />da documentare</span><span><i className="none" />non valutato</span></div>
-    </Frame>
-  )
-}
-
-const PANELS = {
-  docs: () => (
-    <Frame title="Documenti del cliente">
-      {[['Bilancio 2025', 'letto'], ['Visura camerale', 'letto'], ['Registro del personale', 'letto'], ['F24', 'letto']].map(([a, b]) => <div key={a} className="row"><span>{a}</span><span className="ok">{b}</span></div>)}
-      <p className="foot">Ogni dato del profilo porta il documento e la pagina da cui viene.</p>
-    </Frame>
-  ),
-  search: () => (
-    <Frame title="Ricerca su tutto il catalogo" note="esempio">
-      {[['Nuovo Piano Transizione 5.0', 'adatto'], ['Fondo 394/81 · SIMEST', 'adatto'], ['Investimenti Sostenibili 4.0', 'a progetto'], ['Comune di altra regione', 'escluso']].map(([a, b]) => <div key={a} className="row"><span>{a}</span><span className={b === 'escluso' ? 'no' : b === 'a progetto' ? 'mid' : 'ok'}>{b}</span></div>)}
-      <p className="foot">Ogni esclusione ha il suo motivo scritto: territorio, settore, requisiti dell’impresa.</p>
-    </Frame>
-  ),
-  rules: () => (
-    <Frame title="Regole lette dal bando" note="esempio">
-      <div className="row"><span>Consulenze</span><span className="mono">max 20% del totale</span></div>
-      <div className="row"><span>Intensità di aiuto</span><span className="mono">50%</span></div>
-      <div className="row"><span>Finestra di spesa</span><span className="mono">dopo la domanda</span></div>
-      <p className="foot">Fonte: avviso, art. 6, comma 2 · lettura dal testo ufficiale. Ciò che il bando non scrive resta dichiarato come lacuna.</p>
-    </Frame>
-  ),
-  budget: () => <PanelChecks />,
-  deliver: () => (
-    <Frame title="Consegna">
-      <div className="row"><span>Dossier PDF</span><span className="dim">ogni numero con la fonte</span></div>
-      <div className="row"><span>Budget per bando</span><span className="dim">pronto da presentare</span></div>
-      <div className="row"><span>Documenti di domanda</span><span className="dim">raccolti dal sito ufficiale</span></div>
-      <div className="row"><span>Registro firmato</span><span className="mono dim">7f3a9c1e…6c0e9b1d</span></div>
-    </Frame>
-  ),
-}
-
+// ------------------------------------------------------------------------------------------------ il processo: la pratica si compone mentre si scorre
 const STEPS = [
-  { n: '01', k: 'docs', title: 'Il cliente', body: 'Bilanci o dichiarazione dei redditi, visura, buste paga, F24. QUANTO li legge e compila il profilo dell’impresa; quello che manca lo chiede, non lo stima.' },
-  { n: '02', k: 'search', title: 'Le agevolazioni', body: 'Cerca in tutto il catalogo: bandi nazionali, regionali e camerali, crediti d’imposta, incentivi alle assunzioni. Tiene solo ciò che l’impresa può davvero ottenere, e scrive perché il resto è escluso.' },
-  { n: '03', k: 'rules', title: 'Lo studio del bando', body: 'Legge avvisi, decreti e allegati e ne ricava le regole numeriche: intensità, tetti, spese ammesse, finestre. Ogni regola resta legata al testo da cui viene.' },
-  { n: '04', k: 'budget', title: 'Il progetto e il budget', body: 'Dai bisogni dell’impresa al progetto, dal progetto al budget del bando, controllato voce per voce con 60 criteri. Il piano dice quale agevolazione copre quale spesa, senza contare due volte la stessa.' },
-  { n: '05', k: 'deliver', title: 'La domanda', body: 'Confronto tra scenari, documenti di domanda, dossier per il cliente e un registro firmato che prova che i numeri non sono stati toccati.' },
+  { title: 'Il cliente', body: 'Bilanci o dichiarazione dei redditi, visura, buste paga, F24: QUANTO li legge e compila il profilo dell’impresa. Quello che manca lo chiede, non lo stima.',
+    line: ['Profilo', 'Impresa di prova · ATECO 62.01 · profilo al 93%'] },
+  { title: 'Le agevolazioni', body: 'Cerca in tutto il catalogo: bandi nazionali, regionali e camerali, crediti d’imposta, incentivi alle assunzioni. Tiene solo ciò che l’impresa può ottenere e scrive perché il resto è escluso.',
+    line: ['Agevolazioni', '3 adatte · le escluse con il motivo scritto'] },
+  { title: 'Lo studio del bando', body: 'Legge avvisi, decreti e allegati e ne ricava le regole numeriche, ognuna legata al testo da cui viene. Ciò che il bando non scrive resta dichiarato come lacuna.',
+    line: ['Regole', '7 regole numeriche, ognuna con la sua fonte'] },
+  { title: 'Il progetto e il budget', body: 'Dai bisogni dell’impresa al progetto, dal progetto al budget del bando, controllato voce per voce con 60 criteri. Il piano dice quale agevolazione copre quale spesa, senza contarla due volte.',
+    line: ['Budget', '60 controlli per voce · cosa passa, cosa va ridotto'] },
+  { title: 'La domanda', body: 'Confronto tra scenari, documenti di domanda raccolti dal sito ufficiale, dossier per il cliente e un registro firmato che prova che i numeri non sono stati toccati.',
+    line: ['Consegna', 'dossier · documenti di domanda · registro 7f3a…9b1d'] },
 ]
 
+// ------------------------------------------------------------------------------------------------ gli agenti si passano il lavoro
 const AGENTS = [
-  ['Agevolazioni', 'Le misure che non chiedono un progetto: esoneri e incentivi alle assunzioni, crediti d’imposta. Assegna a ogni persona da assumere la misura più ricca che le spetta.'],
-  ['Allocazione', 'Legge il catalogo, giudica ogni bando per l’impresa e compone il piano: quale agevolazione paga quale spesa, con tetti, cumulo e de minimis.'],
-  ['Budget', 'Scrive la bozza del budget di progetto dai documenti dell’impresa e la controlla con le regole del bando, prima della domanda.'],
-  ['Confronto', 'Mette a confronto bandi e scenari sullo stesso progetto, con lo stesso metodo, per decidere con il cliente.'],
+  { name: 'Agevolazioni', what: 'Le misure che non chiedono un progetto: esoneri e incentivi alle assunzioni, crediti d’imposta. A ogni persona da assumere assegna la misura più ricca che le spetta.',
+    did: 'Ho letto le assunzioni previste', found: 'Bonus Giovani per una persona, 15.600 € al massimo', need: 'Il mese di assunzione della seconda persona' },
+  { name: 'Allocazione', what: 'Legge il catalogo, giudica ogni bando per l’impresa e compone il piano: quale agevolazione paga quale spesa, con tetti, cumulo e de minimis.',
+    did: 'Ho cercato tra tutti i bandi aperti e ne ho studiati 8', found: '3 bandi adatti alle spese dell’anno, 3 a progetto', need: 'Nulla: puoi preparare i budget' },
+  { name: 'Budget', what: 'Scrive la bozza del budget di progetto dai documenti dell’impresa e la controlla con le regole del bando, prima della domanda.',
+    did: 'Ho scritto la bozza voce per voce', found: '2 voci da ridurre per rientrare nei tetti', need: 'Il registro del personale, per le persone sul progetto' },
+  { name: 'Confronto', what: 'Mette a confronto bandi e scenari sullo stesso progetto, con lo stesso metodo, per decidere con il cliente.',
+    did: 'Ho confrontato due bandi sullo stesso budget', found: 'Quale dei due copre di più, voce per voce', need: 'La scelta del cliente' },
 ]
 
-const PRINCIPLES = [
-  ['Deterministico', 'Stessi dati, stesso risultato. Gli agenti organizzano il lavoro; i numeri li calcolano regole tracciabili, mai un modello che indovina.'],
-  ['Fonti dichiarate', 'Ogni regola cita il testo ufficiale da cui è letta e quanto è affidabile la lettura. Quello che le fonti non dicono resta scritto come lacuna.'],
-  ['Verificabile', 'Ogni budget controllato lascia un’impronta firmata in un registro a catena: un revisore o un ente può controllare che nulla sia cambiato.'],
-]
-
-const AUDIENCE = [
-  ['Studi di commercialisti', 'Offrire la finanza agevolata ai clienti dello studio senza costruire un reparto dedicato: QUANTO fa la ricerca, lo studio e il budget, lo studio decide e firma.'],
-  ['Boutique di finanza agevolata', 'Più pratiche nello stesso tempo, con la certezza di cosa verrebbe ridotto o respinto prima di presentare la domanda.'],
-  ['Studi con molti clienti', 'Un account, un lavoro per ogni impresa: documenti, profilo, agevolazioni e budget restano separati e sempre aggiornati.'],
-]
-
-const CHANGES = [
-  ['Ogni numero ha una fonte', 'Il commercialista mostra al cliente da dove viene ogni cifra: il documento dell’impresa o l’articolo del bando.'],
-  ['Il calcolo si rifà, uguale', 'Rifatto davanti al cliente, tra un mese o da un revisore, il risultato è lo stesso.'],
-  ['Niente fogli di calcolo in mezzo', 'Dai documenti del cliente al budget del bando, nello stesso posto.'],
-]
+function AgentRelay() {
+  const root = useRef(null)
+  const [on, setOn] = useState(0)
+  useEffect(() => {
+    if (reduced()) return undefined
+    const el = root.current
+    const st = ScrollTrigger.create({ trigger: el, start: 'top 80%', end: 'bottom 20%' })
+    let n = 0
+    const tick = () => { if (st.isActive) { n = (n + 1) % AGENTS.length; setOn(n) } }
+    const t = setInterval(tick, 4200)
+    return () => { clearInterval(t); st.kill() }
+  }, [])
+  useEffect(() => {
+    if (reduced()) return
+    const el = root.current
+    gsap.fromTo(el.querySelector('.ar-pulse'), { left: `${(Math.max(on - 1, 0) / (AGENTS.length - 1)) * 100}%` }, { left: `${(on / (AGENTS.length - 1)) * 100}%`, duration: 0.9, ease: 'power3.inOut' })
+    gsap.fromTo(el.querySelectorAll('.ar-detail > *'), { opacity: 0, y: 10 }, { opacity: 1, y: 0, duration: 0.6, stagger: 0.07, ease: 'power2.out' })
+  }, [on])
+  const a = AGENTS[on]
+  return (
+    <div className="ar" ref={root}>
+      <div className="ar-track">
+        <i className="ar-line" /><i className="ar-fill" style={{ width: `${(on / (AGENTS.length - 1)) * 100}%` }} /><i className="ar-pulse" />
+        {AGENTS.map((x, k) => (
+          <button key={x.name} type="button" className={`ar-node${k === on ? ' on' : ''}${k < on ? ' done' : ''}`} style={{ left: `${(k / (AGENTS.length - 1)) * 100}%` }} onClick={() => setOn(k)}>
+            <i /><span>{x.name}</span>
+          </button>
+        ))}
+      </div>
+      <div className="ar-detail" aria-live="polite">
+        <p className="ar-what">{a.what}</p>
+        <div className="ar-say">
+          <p><span>Ho fatto</span>{a.did}</p>
+          <p><span>Ho trovato</span>{a.found}</p>
+          <p><span>Mi serve da te</span>{a.need}</p>
+        </div>
+        <p className="ar-ex">esempio</p>
+      </div>
+    </div>
+  )
+}
 
 export default function Landing({ onLogin, onAuditor, onVision }) {
   const root = useRef(null)
   const [modal, setModal] = useState(null)
   const [solid, setSolid] = useState(false)
-  useReveal(root)
+  const [step, setStep] = useState(0)
+
   useEffect(() => {
     const on = () => setSolid(window.scrollY > 16)
     on()
@@ -185,14 +186,53 @@ export default function Landing({ onLogin, onAuditor, onVision }) {
     return () => window.removeEventListener('scroll', on)
   }, [])
 
+  useEffect(() => {
+    if (reduced()) { setStep(STEPS.length - 1); return undefined }
+    const ctx = gsap.context(() => {
+      // titolo: le righe salgono da una maschera
+      gsap.fromTo('.hero .ln > span', { yPercent: 110 }, { yPercent: 0, duration: 1.1, ease: 'power4.out', stagger: 0.09, delay: 0.1 })
+      gsap.fromTo('.hero .after', { opacity: 0, y: 12 }, { opacity: 1, y: 0, duration: 0.9, ease: 'power3.out', stagger: 0.08, delay: 0.55 })
+
+      // titoli di sezione: maschera dal basso
+      gsap.utils.toArray('.mask-in').forEach((el) => gsap.fromTo(el.querySelectorAll('.ln > span'), { yPercent: 110 }, { yPercent: 0, duration: 1, ease: 'power4.out', stagger: 0.08, scrollTrigger: { trigger: el, start: 'top 85%' } }))
+      gsap.utils.toArray('.fade-in').forEach((el) => gsap.fromTo(el, { opacity: 0, y: 14 }, { opacity: 1, y: 0, duration: 0.9, ease: 'power3.out', scrollTrigger: { trigger: el, start: 'top 88%' } }))
+
+      // la frase si accende parola per parola mentre si scorre
+      gsap.fromTo('.manifesto .w', { opacity: 0.14 }, { opacity: 1, stagger: 0.1, ease: 'none', scrollTrigger: { trigger: '.manifesto', start: 'top 75%', end: 'bottom 45%', scrub: true } })
+
+      // il processo: la linea si disegna, il passo attivo si accende, la pratica si compone
+      const mm = gsap.matchMedia()
+      mm.add('(min-width: 961px)', () => {
+        ScrollTrigger.create({
+          trigger: '.proc', start: 'top top', end: () => `+=${window.innerHeight * 0.7 * STEPS.length}`, pin: '.proc-pin', scrub: true,
+          onUpdate: (s) => {
+            setStep(Math.min(STEPS.length - 1, Math.floor(s.progress * STEPS.length)))
+            gsap.set('.proc-progress', { scaleY: s.progress })
+          },
+        })
+      })
+      mm.add('(max-width: 960px)', () => { setStep(STEPS.length - 1) })
+
+      // principi: ogni parola chiave si scopre con una riga che la attraversa
+      gsap.utils.toArray('.pr-row').forEach((el) => {
+        gsap.fromTo(el.querySelector('.pr-rule'), { scaleX: 0 }, { scaleX: 1, duration: 1.1, ease: 'power3.inOut', scrollTrigger: { trigger: el, start: 'top 85%' } })
+        gsap.fromTo(el.querySelectorAll('.ln > span'), { yPercent: 110 }, { yPercent: 0, duration: 1, ease: 'power4.out', delay: 0.2, scrollTrigger: { trigger: el, start: 'top 85%' } })
+        gsap.fromTo(el.querySelector('p'), { opacity: 0 }, { opacity: 1, duration: 0.9, delay: 0.45, scrollTrigger: { trigger: el, start: 'top 85%' } })
+      })
+    }, root)
+    return () => ctx.revert()
+  }, [])
+
+  const lines = (arr) => arr.map((t, i) => <span key={i} className="ln"><span>{t}</span></span>)
+
   return (
     <div className="qt-land" ref={root}>
       <nav className={`qt-nav${solid ? ' solid' : ''}`}><div className="wrap row">
         <div className="brand"><Mark size={26} /><Wordmark height={15} className="wordmark" /></div>
         <div className="links">
-          <a href="#cosa-fa">Cosa fa</a>
-          <a href="#come-funziona">Il processo</a>
+          <a href="#processo">Il processo</a>
           <a href="#agenti">Gli agenti</a>
+          <a href="#principi">Principi</a>
           <a href="#prezzi">Prezzi</a>
           <button onClick={onVision}>La visione</button>
         </div>
@@ -202,145 +242,116 @@ export default function Landing({ onLogin, onAuditor, onVision }) {
         </div>
       </div></nav>
 
-      <header className="hero"><div className="wrap hero-grid">
-        <div className="hero-text">
-          <span className="eyebrow rv">Finanza agevolata per studi professionali</span>
-          <h1 className="rv">La finanza agevolata dello studio, dall’inizio alla fine.</h1>
-          <p className="lead rv">QUANTO trova le agevolazioni adatte a ogni cliente, ne studia le regole, costruisce il progetto e il budget e li controlla prima della domanda. Con agenti che svolgono il lavoro e ogni numero legato alla sua fonte.</p>
-          <div className="ctas rv">
-            <button className="btn-solid big" onClick={() => setModal('register')}>Inizia gratis<ArrowRight size={15} /></button>
-            <a className="btn-line big" href="#come-funziona">Il processo</a>
+      <header className="hero"><div className="wrap">
+        <p className="eyebrow after">Finanza agevolata per studi di commercialisti</p>
+        <h1>{lines(['La finanza agevolata', 'dello studio,', 'dall’inizio alla fine.'])}</h1>
+        <div className="hero-row">
+          <div>
+            <p className="lead after">QUANTO trova le agevolazioni adatte a ogni cliente, ne studia le regole, costruisce il progetto e il budget e li controlla prima della domanda. Agenti che svolgono il lavoro, ogni numero legato alla sua fonte.</p>
+            <div className="ctas after">
+              <button className="btn-solid big" onClick={() => setModal('register')}>Inizia gratis<ArrowRight size={15} /></button>
+              <a className="btn-text" href="#processo">Il processo<ArrowRight size={14} /></a>
+            </div>
           </div>
-          <p className="fine rv">Gratuito in questa fase. Nessuna carta di credito.</p>
+          <div className="after"><RuleMachine /></div>
         </div>
-        <div className="hero-visual rv"><HeroConsole /></div>
       </div></header>
 
-      <section className="band"><div className="wrap stats">
-        <div className="rv"><span className="num">60</span><span className="cap">controlli su ogni voce del budget</span></div>
-        <div className="rv"><span className="num">4</span><span className="cap">agenti, un percorso: dalle agevolazioni alla domanda</span></div>
-        <div className="rv"><span className="num">1</span><span className="cap">fonte dichiarata per ogni numero</span></div>
-        <div className="rv"><span className="num">0</span><span className="cap">cifre stimate a caso o inventate</span></div>
+      <section className="manifesto"><div className="wrap">
+        <p>{'Un bando è un testo scritto per essere letto da una persona. QUANTO lo rende calcolabile: legge la regola, la applica al budget del cliente e dice da quale articolo viene, sempre nello stesso modo.'.split(' ').map((w, i) => <span key={i} className="w">{w} </span>)}</p>
       </div></section>
 
       <section className="sect" id="video"><div className="wrap">
-        <div className="head rv"><span className="eyebrow">In 40 secondi</span><h2>QUANTO al lavoro</h2></div>
-        <div className="video rv"><LaunchVideo /></div>
+        <h2 className="mask-in">{lines(['QUANTO al lavoro,', 'in quaranta secondi.'])}</h2>
+        <div className="video fade-in"><LaunchVideo /></div>
       </div></section>
 
-      <section className="sect" id="cosa-fa"><div className="wrap">
-        <div className="head rv"><span className="eyebrow">Cosa fa</span><h2>Tutto il lavoro di una pratica di finanza agevolata, in un solo posto.</h2>
-          <p>Il cuore è la pratica: capire a quali agevolazioni ha diritto l’impresa, scrivere il progetto, presentare un budget che regge. L’allocazione delle spese ne è la conseguenza: il budget dice quale agevolazione paga cosa.</p></div>
-        <div className="cols4">
-          {[['Trova', 'Le agevolazioni per cui l’impresa ha i requisiti, su tutto il catalogo, con il motivo di ogni esclusione.'],
-            ['Studia', 'Le regole del bando lette dai testi ufficiali: intensità, tetti, spese ammesse, cumulo, de minimis.'],
-            ['Costruisce', 'Il progetto dai bisogni dell’impresa e il budget del bando dai suoi documenti.'],
-            ['Controlla', 'Ogni voce con 60 criteri, prima che lo faccia l’ente: cosa passa, cosa va ridotto, cosa va documentato.']].map(([t, b], i) => (
-            <div key={t} className="cell rv"><span className="idx">{String(i + 1).padStart(2, '0')}</span><h3>{t}</h3><p>{b}</p></div>
-          ))}
-        </div>
-      </div></section>
-
-      <section className="statement"><div className="wrap">
-        <p className="rv">Nessuna stima aleatoria. Nessun testo inventato. <span>Solo regole ufficiali, applicate sempre nello stesso modo.</span></p>
-      </div></section>
-
-      <section className="sect" id="come-funziona"><div className="wrap">
-        <div className="head rv"><span className="eyebrow">Il processo</span><h2>Dal primo documento del cliente alla domanda.</h2></div>
-        <div className="steps">
-          {STEPS.map((s) => {
-            const P = PANELS[s.k]
-            return (
-              <div key={s.n} className="step rv">
-                <div className="step-text"><span className="idx">{s.n}</span><h3>{s.title}</h3><p>{s.body}</p></div>
-                <div className="step-panel"><P /></div>
+      <section className="proc" id="processo">
+        <div className="proc-pin"><div className="wrap proc-grid">
+          <div className="proc-left">
+            <p className="eyebrow">Il processo</p>
+            <h2>Dal primo documento del cliente alla domanda.</h2>
+            <ol className="proc-steps">
+              <i className="proc-rail" /><i className="proc-progress" />
+              {STEPS.map((s, k) => (
+                <li key={s.title} className={k === step ? 'on' : k < step ? 'done' : ''}>
+                  <span className="pn">{String(k + 1).padStart(2, '0')}</span>
+                  <div><h3>{s.title}</h3><p>{s.body}</p></div>
+                </li>
+              ))}
+            </ol>
+          </div>
+          <div className="proc-right" aria-label="La pratica che si compone">
+            <p className="pr-head">Pratica · Impresa di prova <span>esempio</span></p>
+            {STEPS.map((s, k) => (
+              <div key={s.title} className={`pl${k <= step ? ' in' : ''}${k === step ? ' now' : ''}`}>
+                <span className="pl-k">{s.line[0]}</span><span className="pl-v">{s.line[1]}</span>
               </div>
-            )
-          })}
-        </div>
-      </div></section>
+            ))}
+            <p className={`pl-end${step === STEPS.length - 1 ? ' in' : ''}`}>Pronta per la domanda.</p>
+          </div>
+        </div></div>
+      </section>
 
       <section className="sect" id="agenti"><div className="wrap">
-        <div className="head rv"><span className="eyebrow">Gli agenti</span><h2>Quattro agenti, in ordine. Lo studio resta al comando.</h2>
-          <p>Ogni agente ha un compito preciso e dice sempre tre cose: che cosa ha fatto, che cosa ha trovato, che cosa gli serve da te. Con un pulsante passa il lavoro al successivo.</p></div>
-        <div className="agents">
-          {AGENTS.map(([t, b], i) => (
-            <div key={t} className="agent rv">
-              <div className="agent-top"><span className="idx">{i + 1}</span><h3>{t}</h3></div>
-              <p>{b}</p>
-            </div>
-          ))}
-        </div>
-        <div className="agentbar rv">
-          <div><span className="lbl">Ho fatto</span><span>Ho cercato tra tutti i bandi aperti, ne ho studiati 8 e ho giudicato quali sono per l’impresa.</span></div>
-          <div><span className="lbl">Ho trovato</span><span>3 bandi adatti alle spese dell’anno, 3 a progetto.</span></div>
-          <div><span className="lbl">Mi serve da te</span><span>Il registro del personale, per il budget persona per persona.</span></div>
-          <span className="agentbar-note">esempio</span>
-        </div>
+        <p className="eyebrow fade-in">Gli agenti</p>
+        <h2 className="mask-in">{lines(['Quattro agenti, in ordine.', 'Lo studio decide e firma.'])}</h2>
+        <p className="para fade-in">Ognuno ha un compito preciso, dice sempre che cosa ha fatto, che cosa ha trovato e che cosa gli serve da te, e passa il lavoro al successivo.</p>
+        <div className="fade-in"><AgentRelay /></div>
       </div></section>
 
       <section className="sect" id="principi"><div className="wrap">
-        <div className="head rv"><span className="eyebrow">Perché fidarsi</span><h2>Tre principi, verificabili.</h2></div>
-        <div className="cols3">
-          {PRINCIPLES.map(([t, b]) => <div key={t} className="cell rv"><h3>{t}</h3><p>{b}</p></div>)}
-        </div>
+        <p className="eyebrow fade-in">Perché fidarsi</p>
+        {[['Deterministico.', 'Stessi dati, stesso risultato. Gli agenti organizzano il lavoro; i numeri li calcolano regole tracciabili, mai un modello che indovina.'],
+          ['Fonti dichiarate.', 'Ogni regola cita il testo ufficiale da cui è letta e quanto è affidabile la lettura. Quello che le fonti non dicono resta scritto come lacuna.'],
+          ['Verificabile.', 'Ogni budget controllato lascia un’impronta firmata in un registro a catena: un revisore o un ente può controllare che nulla sia cambiato.']].map(([t, b]) => (
+          <div key={t} className="pr-row">
+            <i className="pr-rule" />
+            <h3 className="pr-title">{lines([t])}</h3>
+            <p>{b}</p>
+          </div>
+        ))}
       </div></section>
 
       <section className="sect" id="per-chi"><div className="wrap">
-        <div className="head rv"><span className="eyebrow">Per chi è</span><h2>Per lo studio che segue molte imprese e non può sbagliare un numero.</h2></div>
-        <div className="cols3">
-          {AUDIENCE.map(([t, b]) => <div key={t} className="cell rv"><h3>{t}</h3><p>{b}</p></div>)}
-        </div>
-      </div></section>
-
-      <section className="sect" id="nello-studio"><div className="wrap">
-        <div className="head rv"><span className="eyebrow">Nello studio</span><h2>Che cosa cambia nel lavoro di ogni giorno.</h2></div>
-        <div className="cols3">
-          {CHANGES.map(([t, b]) => <div key={t} className="cell rv"><h3>{t}</h3><p>{b}</p></div>)}
-        </div>
+        <p className="eyebrow fade-in">Per chi è</p>
+        <h2 className="mask-in wide">{lines(['Per gli studi di commercialisti', 'e le boutique di finanza agevolata', 'che seguono molte imprese', 'e non possono sbagliare un numero.'])}</h2>
+        <p className="para fade-in">Lo studio offre la finanza agevolata ai suoi clienti senza costruire un reparto dedicato: QUANTO fa la ricerca, lo studio delle regole e il budget; il commercialista mostra al cliente da dove viene ogni cifra, e il calcolo rifatto tra un mese dà lo stesso risultato.</p>
       </div></section>
 
       <section className="sect" id="visione-breve"><div className="wrap split">
-        <div className="head rv"><span className="eyebrow">Oggi e domani</span><h2>Oggi la finanza agevolata. Domani il sistema operativo dello studio.</h2></div>
-        <div className="rv">
+        <h2 className="mask-in">{lines(['Oggi la finanza agevolata.', 'Domani il sistema', 'operativo dello studio.'])}</h2>
+        <div className="fade-in">
           <p className="para">Si parte dal lavoro dove un errore costa di più e il tempo manca sempre: le pratiche di finanza agevolata, svolte da agenti che seguono regole dichiarate.</p>
-          <p className="para">Lo stesso metodo (dati letti dai documenti, regole con la fonte, calcolo che si può rifare e verificare) si estende alle altre attività dello studio, una alla volta, finché QUANTO diventa il posto in cui lo studio lavora.</p>
-          <button className="text-link" onClick={onVision}>Leggi la visione<ArrowRight size={14} /></button>
+          <p className="para">Lo stesso metodo (dati letti dai documenti, regole con la fonte, calcolo che si può rifare e verificare) si estende alle altre attività dello studio, una alla volta.</p>
+          <button className="btn-text" onClick={onVision}>Leggi la visione<ArrowRight size={14} /></button>
         </div>
       </div></section>
 
       <section className="sect" id="prezzi"><div className="wrap">
-        <div className="head rv"><span className="eyebrow">Prezzi</span><h2>Gratuito oggi. Chiaro sempre.</h2>
-          <p>Il lavoro quotidiano è libero. I token si usano solo dove serve un calcolo grande o un consegnabile: il piano di allocazione, la consegna di un budget, lo studio di un bando nuovo. In questa fase di prova nessun token viene scalato e non serve la carta.</p></div>
-        <div className="pricing">
-          <div className="price rv">
-            <span className="tier">Piano Studio</span>
-            <div className="amount">209 € <small>al mese</small></div>
-            <span className="alt">oppure 1.999 € all’anno · 15 token al mese</span>
-            <ul>
-              <li>Profilo, documenti, stima, allocazione e controllo del budget: sempre liberi</li>
-              <li>Piano di allocazione: da 2 a 4,8 token secondo i dati analizzati (30 giorni per lo stesso lavoro)</li>
-              <li>Consegna di un budget: da 1 a 2 token (30 giorni per lo stesso)</li>
-              <li>Studio di un bando nuovo: 3 token, 1 torna se la lettura è completa</li>
-              <li>+0,5 token per ogni budget pubblicato per tutti · 10 token di benvenuto che non scadono</li>
-            </ul>
-            <button className="btn-solid big" onClick={() => setModal('register')}>Inizia gratis</button>
+        <p className="eyebrow fade-in">Prezzi</p>
+        <h2 className="mask-in">{lines(['Gratuito oggi.', 'Chiaro sempre.'])}</h2>
+        <p className="para fade-in">Il lavoro quotidiano è libero. I token si usano solo dove serve un calcolo grande o un consegnabile. In questa fase di prova nessun token viene scalato e non serve la carta.</p>
+        <div className="prices fade-in">
+          <div>
+            <p className="pt">Piano Studio</p>
+            <p className="pa">209 €<small> al mese · oppure 1.999 € all’anno · 15 token al mese</small></p>
+            <p className="pd">Profilo, documenti, stima, allocazione e controllo del budget sempre liberi. Piano di allocazione da 2 a 4,8 token, consegna di un budget da 1 a 2 token (30 giorni per lo stesso lavoro), studio di un bando nuovo 3 token (1 torna se la lettura è completa). 10 token di benvenuto che non scadono, +0,5 per ogni budget pubblicato per tutti.</p>
           </div>
-          <div className="price rv">
-            <span className="tier">Ricariche</span>
-            <div className="amount">25 € <small>ogni 10 token</small></div>
-            <ul>
-              <li>Quando i token del mese finiscono</li>
-              <li>Il pagamento online arriverà: oggi le ricariche le elabora il titolare</li>
-            </ul>
+          <div>
+            <p className="pt">Ricariche</p>
+            <p className="pa">25 €<small> ogni 10 token</small></p>
+            <p className="pd">Quando i token del mese finiscono. Il pagamento online arriverà: oggi le ricariche le elabora il titolare.</p>
           </div>
         </div>
       </div></section>
 
-      <section className="cta-final"><div className="wrap rv">
-        <h2>La prossima pratica di finanza agevolata, preparala con QUANTO.</h2>
-        <p>Gratuito in questa fase, senza carta di credito. Si comincia caricando i documenti di un cliente.</p>
-        <button className="btn-solid big" onClick={() => setModal('register')}>Crea l’account dello studio<ArrowRight size={15} /></button>
+      <section className="cta-final"><div className="wrap">
+        <h2 className="mask-in">{lines(['La prossima pratica,', 'preparala con QUANTO.'])}</h2>
+        <div className="fade-in cta-row">
+          <button className="btn-solid big" onClick={() => setModal('register')}>Crea l’account dello studio<ArrowRight size={15} /></button>
+          <span>Gratuito in questa fase, senza carta di credito.</span>
+        </div>
       </div></section>
 
       <footer className="qt-foot"><div className="wrap row">
