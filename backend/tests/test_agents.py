@@ -321,3 +321,14 @@ def test_the_draft_asks_only_what_the_bando_needs_and_says_which_document_to_upl
     project = matching._missing_for(plan, ["CAPITAL_ASSETS"], {"needs_project": True}, 2026, [])
     assert project[0]["id"] == "capex" and project[0]["required"] is True                  # per un bando a progetto gli acquisti sono necessari
     assert matching._missing_for(plan, ["CAPITAL_ASSETS"], {"needs_project": False}, 2026, [])[0]["required"] is False
+
+
+def test_newsletter_signup_needs_consent_and_never_duplicates():
+    from app.core import newsletter
+    assert client.post("/api/v2/newsletter/subscribe", json={"email": "studio@example.test", "consent": False}).status_code == 422
+    assert client.post("/api/v2/newsletter/subscribe", json={"email": "non-una-mail", "consent": True}).status_code == 422
+    first = client.post("/api/v2/newsletter/subscribe", json={"email": "Studio@Example.test", "consent": True})
+    assert first.status_code == 200 and first.json() == {"ok": True, "already": False}
+    again = client.post("/api/v2/newsletter/subscribe", json={"email": "studio@example.test", "consent": True}).json()
+    assert again["already"] is True and newsletter.count() == 1
+    assert client.get("/api/v2/newsletter/consent").json()["version"] == newsletter.CONSENT_VERSION

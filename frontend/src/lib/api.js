@@ -200,6 +200,8 @@ export const api = {
   needs: (year, split) => call(`/profile/needs${year || split ? '?' : ''}${year ? `year=${year}` : ''}${year && split ? '&' : ''}${split ? `split=${split}` : ''}`).then((r) => r.json()),
   templateWinRate: (bandoId, ateco) => call(`/templates/win-rate?bando_id=${encodeURIComponent(bandoId)}${ateco ? `&ateco_code=${encodeURIComponent(ateco)}` : ''}`).then((r) => r.json()),
   relevanceSignals: () => call('/bandi/relevance/signals').then((r) => r.json()),
+  newsletterSubscribe: (email, consent) => post('/newsletter/subscribe', { email, consent, source: 'homepage' }),
+  newsletterConsent: () => call('/newsletter/consent').then((r) => r.json()),
   relevanceSignal: (bandoId, signal, engineFit) => post(`/bandi/${encodeURIComponent(bandoId)}/signal`, { signal, engine_fit: engineFit || null }),
   relevanceSignalUndo: (bandoId) => call(`/bandi/${encodeURIComponent(bandoId)}/signal`, { method: 'DELETE' }).then((r) => r.json()),
   profileAids: () => call('/profile/aids').then((r) => r.json()),

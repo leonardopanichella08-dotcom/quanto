@@ -6,9 +6,14 @@ quando hai finito sposta la riga nel «Diario» (in cima, la più recente prima)
 ## In corso ora
 | Sessione | Da quando | Su cosa (file o area) | Note |
 |---|---|---|---|
-| Leonardo · PC locale | 2026-11-15 | Homepage: redesign editoriale (frontend/src/components/Landing.jsx, Landing.css, asset in frontend/public) | in attesa di immagine dell'hero e video dei 4 agenti |
+| — | — | — | — |
 
 ## Diario
+### 2026-11-15 · homepage editoriale, newsletter e 200 FAQ
+- Homepage rifatta su fondo bianco con apertura fotografica, video dei 4 agenti, Insights «in arrivo», newsletter con consenso, 200 FAQ dal dossier.
+- Backend: `app/core/newsletter.py`, `POST /api/v2/newsletter/subscribe`, migrazione 23; test in `tests/test_agents.py` (33 verdi con `test_postgres`).
+- Resta: controllo visivo su telefono e suite completa, entrambi bloccati dal disco C: pieno.
+
 ### 2026-11-15 · setup della collaborazione
 - Creati `CLAUDE.md`, `PROGRESS.md`, `COLLAB_LOG.md`, `COLLAB_GUIDE.md`, `.env.example` (radice) e completato `backend/.env.example` (tutte le variabili, senza valori).
 - `.gitignore`: chiavi e file di ambiente esclusi, esempi e file di collaborazione inclusi.

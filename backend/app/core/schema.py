@@ -573,6 +573,17 @@ CREATE TABLE relevance_signals (
 ALTER TABLE relevance_signals ENABLE ROW LEVEL SECURITY;
 """
 
+_NEWSLETTER = """
+-- Iscritti alla newsletter: solo e-mail, momento e versione del consenso, provenienza. Nessun altro dato.
+CREATE TABLE newsletter_subscribers (
+    email TEXT PRIMARY KEY,
+    consent_at TEXT NOT NULL,
+    consent_version TEXT NOT NULL,
+    source TEXT
+);
+ALTER TABLE newsletter_subscribers ENABLE ROW LEVEL SECURITY;
+"""
+
 MIGRATIONS: List[Tuple[int, str, str]] = [
     (1, "init", _INIT),
     (2, "fonte_b", _FONTE_B),
@@ -596,4 +607,5 @@ MIGRATIONS: List[Tuple[int, str, str]] = [
     (20, "tokens_decimal", _TOKENS_DECIMAL),
     (21, "sources_forms", _SOURCES_FORMS),
     (22, "relevance_signals", _RELEVANCE_SIGNALS),
+    (23, "newsletter", _NEWSLETTER),
 ]

@@ -63,7 +63,9 @@ per caricare documenti. Utenti di prova locali: solo su localhost, mai in produz
 ## Convenzioni
 - **Lingua**: interfaccia, testi, commenti e messaggi di commit in **italiano semplice**. Frasi brevi, esempi concreti.
 - **UI**: minimale, stile Apple; spiegazioni dietro una «i», sezioni di base chiuse; ogni pulsante dice cosa fa e lo fa davvero; niente scorrimenti o
-  riselezioni inutili (ogni azione porta al punto giusto). Homepage: fondo quasi nero, editoriale, senza griglie di riquadri.
+  riselezioni inutili (ogni azione porta al punto giusto). Homepage: editoriale e istituzionale, fondo bianco e off-white, apertura con la
+  fotografia dello skyline, griglie a linee sottili (niente schede con ombre), raggio 4px, giallo del marchio **#F1E21B** solo per i dettagli attivi,
+  curva unica `cubic-bezier(0.16, 1, 0.3, 1)`. Le FAQ stanno in `frontend/src/data/faq.js` (200, dal dossier): niente promesse che il sistema non mantiene.
 - **Codice**: Python con type hint e docstring che spiegano il *perché*; React a funzioni con hook; chiamate solo via `frontend/src/lib/api.js`.
 - Ogni correzione di logica porta un **test** in `backend/tests/` (i test raccontano il caso: `test_un_bando_di_un_comune_fuori_regione_non_si_propone…`).
 - Documentare i cambi di comportamento in `backend/app/data/manuale_processi.md` (sezione numerata) e, se rilevanti, in `docs/agenti/I_tre_agenti.md`.
@@ -73,5 +75,6 @@ per caricare documenti. Utenti di prova locali: solo su localhost, mai in produz
 ## Trappole note
 - La suite completa dura ~25 minuti: non lanciarla insieme al backend locale; spegnere Postgres locale con `pg_ctl ... stop -m fast`.
 - Su Windows gli heredoc bash con apostrofi si rompono: per patch lunghe scrivere uno script Python con il tool Write.
-- GSAP + React StrictMode: usare `fromTo` con valori finali espliciti, non `from` (in sviluppo l'effetto parte due volte).
+- GSAP + React StrictMode: usare `fromTo` con valori finali espliciti, non `from` (in sviluppo l'effetto parte due volte). La homepage non usa più GSAP.
+- Newsletter: `POST /api/v2/newsletter/subscribe` è pubblico e salva solo e-mail e consenso (migrazione 23); mai mostrare gli indirizzi fuori dal Quartier Generale.
 - Il backend locale serve il codice vecchio finché non lo si riavvia.

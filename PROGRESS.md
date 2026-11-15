@@ -11,14 +11,18 @@ Aggiornato: 15 novembre 2026 · ultimo commit di riferimento `69f1770` · 676 te
 - **Quattro agenti** (Agevolazioni → Allocazione → Budget → Confronto) con barra «Ho fatto · Ho trovato · Mi serve da te».
 - **Allocazione**: «Fuori da questa somma, e perché»; bandi «non serve» con perché e quando servirebbero; stessa base di spese tra «da solo» e piano.
 - **Bozza di budget**: chiede solo i documenti necessari al bando e li fa caricare sul posto.
-- **Homepage** editoriale su fondo quasi nero, animazioni GSAP che mostrano il lavoro (regola → calcolo, pratica che si compone, staffetta degli agenti).
+- **Homepage** (15/11) ridisegnata in stile editoriale e istituzionale: fondo bianco, apertura a tutta altezza con lo skyline all'alba, sezione video con i 4 agenti
+  (video `quanto-quattro-agenti.mp4`) e il video di lancio, griglie a linee sottili, esempio «frase del bando → regola → calcolo», area Insights (articoli «in arrivo»),
+  **newsletter** con consenso (tabella `newsletter_subscribers`, migrazione 23) e **200 FAQ** dal dossier v4.5 con ricerca e argomenti.
 - Documenti: manuale dei processi (sezioni fino alla 20), dossier (48 pagine), riassunto (7 pagine), `docs/agenti/I_tre_agenti.md`.
 
 ## A metà
 - Pagina **«La visione»** (`Vision.jsx`) ancora nello stile vecchio: da portare allo stile della nuova homepage.
 - Recensioni in homepage tolte: da rimettere solo con recensioni vere e concordate.
 - Elenco ISTAT dei comuni per collocare ogni Comune dal nome: proposto, serve l'OK del titolare al download del file.
-- Verifica visiva della homepage in un browser visibile (fluidità delle animazioni).
+- Verifica visiva della nuova homepage su telefono e della sezione FAQ dopo l'ultima correzione: non fatta per **disco C: pieno** (78 MB liberi il 15/11).
+- Suite completa dei test dopo la migrazione 23: fatti solo `test_agents` e `test_postgres` (33 verdi); la completa non è partita per lo spazio su disco.
+- Articoli del blog: da scrivere (oggi «in arrivo»). Invio della newsletter e cancellazione dell'iscrizione: da costruire.
 
 ## Prossimi task
 - Sentinella sul testo delle circolari INPS (agevolazioni sul lavoro).
