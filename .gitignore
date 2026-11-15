@@ -1,11 +1,36 @@
+# --- ambiente e segreti: mai nel repository
 .env
 .env.*
+**/.env
+**/.env.*
+*.pem
+*.key
+*.p12
+*.pfx
+id_rsa*
+id_ed25519*
+secrets/
+credentials*.json
+service-account*.json
+# ...ma gli esempi sì
 !.env.example
+!**/.env.example
+
+# --- file di collaborazione e istruzioni: sempre versionati
+!CLAUDE.md
+!PROGRESS.md
+!COLLAB_*.md
+
+# --- Python
 .venv/
 __pycache__/
 *.pyc
 .pytest_cache/
+
+# --- Node / build
 node_modules/
 dist/
+
+# --- Vercel e log locali
 .vercel/
 *.log
