@@ -163,7 +163,8 @@ export default function Landing({ onLogin, onAuditor, onVision }) {
   const [nav, setNav] = useState({ glass: false, hide: false })
   const [step, setStep] = useState(0)
 
-  // navigazione: trasparente sull'apertura, vetro allo scorrimento; sparisce scendendo e torna appena si risale
+  // navigazione: del tutto trasparente sopra l'apertura animata (solo le scritte), vetro solo dopo l'apertura;
+  // sparisce appena si comincia a scendere, così il video resta libero, e torna appena si risale
   useEffect(() => {
     let last = window.scrollY
     const on = () => {
@@ -171,8 +172,8 @@ export default function Landing({ onLogin, onAuditor, onVision }) {
       const dir = y > last + 4 ? 'down' : y < last - 4 ? 'up' : null      // la direzione si decide qui, prima che «last» cambi
       last = y
       setNav((n) => {
-        const hide = y < 160 ? false : dir === 'down' ? true : dir === 'up' ? false : n.hide
-        const glass = y > 24
+        const hide = y < 60 ? false : dir === 'down' ? true : dir === 'up' ? false : n.hide
+        const glass = y > window.innerHeight * 0.85
         return hide === n.hide && glass === n.glass ? n : { glass, hide }
       })
     }

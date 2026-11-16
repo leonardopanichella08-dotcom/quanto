@@ -320,3 +320,11 @@
   .qt-land .nav-pill { height: 48px; padding-left: 18px; }
   .qt-land .nav-login { display: none; }
 }
+
+/* barra trasparente sopra l'apertura: niente vetro, bordo né ombra, solo scritte bianche; il vetro arriva dopo il video */
+.qt-land .nav-pill { transition: background .6s var(--ease), box-shadow .6s var(--ease), border-color .6s var(--ease), backdrop-filter .6s var(--ease), -webkit-backdrop-filter .6s var(--ease); }
+.qt-land .qt-nav:not(.is-glass) .nav-pill { background: transparent; border-color: transparent; box-shadow: none; backdrop-filter: none; -webkit-backdrop-filter: none; }
+.qt-land .qt-nav:not(.is-glass) .brand, .qt-land .qt-nav:not(.is-glass) .links a, .qt-land .qt-nav:not(.is-glass) .nav-login { text-shadow: 0 1px 12px rgba(0, 0, 0, 0.35); }
+.qt-land .qt-nav:not(.is-glass) .wordmark { filter: drop-shadow(0 1px 8px rgba(0, 0, 0, 0.35)); }
+.qt-land .qt-nav.hide { opacity: 0; transition: transform .7s var(--ease), opacity .5s var(--ease), color .5s var(--ease); }
+.qt-land .qt-nav { transition: transform .7s var(--ease), opacity .5s var(--ease), color .5s var(--ease); }
