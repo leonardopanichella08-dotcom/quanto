@@ -6,7 +6,7 @@ quando hai finito sposta la riga nel «Diario» (in cima, la più recente prima)
 ## In corso ora
 | Sessione | Da quando | Su cosa (file o area) | Note |
 |---|---|---|---|
-| — | — | — | — |
+| Claude · terminale quanto | 2026-11-16 | Richieste di accesso (`core/users.py`, `core/access.py`, `endpoints/auth.py`, `endpoints/hq.py`, migrazione 24) e riordino del Quartier Generale (`frontend/src/components/hq/*`) | non toccare questi file |
 
 ## Diario
 ### 2026-11-15 · homepage editoriale, newsletter e 200 FAQ
