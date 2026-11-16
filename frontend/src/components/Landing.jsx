@@ -70,6 +70,20 @@ const STEPS = [
 ]
 
 
+// ------------------------------------------------------------------------------------------------ video di sfondo: parte da solo, senza audio, in loop; con «riduci movimento» resta la foto
+function BgVideo({ className }) {
+  const ref = useRef(null)
+  useEffect(() => {
+    const v = ref.current
+    if (!v) return undefined
+    if (reduced()) { v.pause(); return undefined }
+    const io = new IntersectionObserver(([e]) => { if (e.isIntersecting) v.play().catch(() => {}); else v.pause() }, { threshold: 0.05 })
+    io.observe(v)
+    return () => io.disconnect()
+  }, [])
+  return <video ref={ref} className={className} src="/landing/sfondo.mp4" poster="/landing/skyline-alba.jpg" muted loop playsInline autoPlay preload="auto" aria-hidden="true" tabIndex={-1} disablePictureInPicture />
+}
+
 // ------------------------------------------------------------------------------------------------ video che scorre come un'animazione
 function LoopVideo({ src, poster, label }) {
   const ref = useRef(null)
@@ -228,7 +242,7 @@ export default function Landing({ onLogin, onAuditor, onVision }) {
       </div></nav>
 
       <header className="hero" id="top">
-        <img className="hero-img" src="/landing/skyline-alba.jpg" alt="" />
+        <BgVideo className="hero-img" />
         <div className="hero-shade" aria-hidden="true" />
         <div className="wrap hero-inner">
           <h1>{lines(['La finanza agevolata', 'dello studio,', 'dall’inizio alla fine.'])}</h1>
@@ -339,7 +353,7 @@ export default function Landing({ onLogin, onAuditor, onVision }) {
       </div></section>
 
       <section className="cta-final">
-        <img className="hero-img still" src="/landing/skyline-alba.jpg" alt="" />
+        <BgVideo className="hero-img still" />
         <div className="hero-shade strong" aria-hidden="true" />
         <div className="wrap">
           <h2 className="mask-in">{lines(['La prossima pratica,', 'preparala con QUANTO.'])}</h2>
