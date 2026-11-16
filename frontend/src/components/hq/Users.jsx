@@ -1,25 +1,25 @@
-import React, { useCallback, useEffect, useState } from 'react'
+import React, { useState } from 'react'
 import { Loader2, Unlock, UserPlus } from 'lucide-react'
 import { api } from '../../lib/api'
 import { SectionTitle } from '../ui'
 
-export default function Users({ me }) {
-  const [list, setList] = useState([])
+export default function Users({ me, list: all, hideIds, reload }) {
+  const list = (all || []).filter((u) => !hideIds?.has(u.id))
   const [form, setForm] = useState({ email: '', name: '', password: '', role: 'USER' })
   const [error, setError] = useState(null)
   const [busy, setBusy] = useState(null)
   const [reset, setReset] = useState({})
   const [grant, setGrant] = useState({})
-  const load = useCallback(() => api.users().then(setList).catch((e) => setError(e.message)), [])
-  useEffect(() => { load() }, [load])
+  const load = reload
   const act = async (id, fn) => { setBusy(id); setError(null); try { await fn(); await load() } catch (e) { setError(e.message) } finally { setBusy(null) } }
   const set = (k) => (e) => setForm({ ...form, [k]: e.target.value })
   return (
     <div className="space-y-5">
       {error && <div className="p-3 rounded-xl border border-red-500/30 bg-red-500/10 text-red-700 text-xs">{error}</div>}
-      <div className="card p-5 space-y-3">
-        <SectionTitle icon={UserPlus}>Nuovo utente</SectionTitle>
-        <p className="text-xs text-ink-2">Comunica tu la password iniziale (almeno 12 caratteri, lettere e numeri). L’utente può cambiarla dal suo profilo.</p>
+      <details className="card p-5 group">
+        <summary className="cursor-pointer list-none"><SectionTitle icon={UserPlus}>Crea un utente a mano</SectionTitle></summary>
+        <div className="space-y-3 mt-3">
+        <p className="text-xs text-ink-2">Di norma gli utenti arrivano dalle richieste di accesso. Qui ne crei uno tu: comunica la password iniziale (almeno 12 caratteri, lettere e numeri). L’utente può cambiarla dal suo profilo.</p>
         <div className="grid md:grid-cols-4 gap-3 text-xs">
           <label className="space-y-1"><span className="label">E-mail</span><input className="field" type="email" value={form.email} onChange={set('email')} /></label>
           <label className="space-y-1"><span className="label">Nome</span><input className="field" value={form.name} onChange={set('name')} /></label>
@@ -28,7 +28,8 @@ export default function Users({ me }) {
         </div>
         <button className="btn-primary" disabled={!form.email || !form.name || form.password.length < 12 || busy === 'new'}
           onClick={() => act('new', async () => { await api.createUser(form); setForm({ email: '', name: '', password: '', role: 'USER' }) })}>Crea utente</button>
-      </div>
+        </div>
+      </details>
       <div className="card p-5 space-y-3">
         <SectionTitle>Utenti ({list.length})</SectionTitle>
         {list.map((u) => (

@@ -95,6 +95,7 @@ export const HINTS = {
   auditor_ricalcola: { title: 'Ricalcola dai dati', text: 'Rifà tutto da zero con i dati originali e confronta con il registro. È la prova più forte: non ti fidi di nessuna impronta ricevuta.', example: 'Se qualcuno ha cambiato una cifra, il ricalcolo dà un’impronta diversa.' },
   auditor_manomissione: { title: 'Simula manomissione', text: 'Aggiunge 1 € alla prima riga prima del ricalcolo, per mostrarti che la verifica se ne accorge.', example: 'Attivalo, premi “Ricalcola”: il risultato diventa rosso.' },
 
+  hq_accessi: { title: 'Accessi', text: 'Chi chiede di entrare e a che livello. Tre passi: scegli il livello (Utente o Manager), approva, poi apri l’e-mail già scritta nel tuo programma di posta e segna «inviata». QUANTO non spedisce da solo.', example: 'Laura chiede accesso: scegli «Utente», premi Approva; compare l’e-mail pronta da inviarle.' },
   hq_panoramica: { title: 'Panoramica', text: 'I numeri chiave: validazioni, progetti, bandi, documenti, eventi, registrazioni; stato della memoria e attività recente.', example: 'Se “Registrazioni” è rosso, la catena del registro è stata alterata.' },
   hq_timeline: { title: 'Timeline', text: 'Tutto ciò che è successo, in ordine di tempo. Puoi filtrare per operazione, progetto, bando ed esito. Clicca un evento per i dettagli; le validazioni si rivedono nell’Algoritmo.', example: 'Filtra “progetto PRJ-1” per vedere solo la sua storia.' },
   hq_operazioni: { title: 'Mappa operazioni', text: 'Tutte le cose che l’app sa fare, con i passaggi interni e quante volte sono state eseguite.', example: '“Validare un budget”: 7 fasi, 12 esecuzioni, media 40 ms.' },
@@ -173,8 +174,8 @@ export const GUIDE = {
   hq: {
     title: 'Quartier Generale',
     what: 'Riservato al titolare dell’account (si apre dal Profilo): vede tutto ciò che è successo nel sistema — operazioni, documenti, bandi, progetti — e la memoria del database.',
-    steps: ['Panoramica: numeri chiave e stato.', 'Timeline: ogni operazione in ordine di tempo, con i passaggi.', 'Bandi: ogni documento scaricato (anche il PDF originale), regole, requisiti e la scheda di revisione; puoi correggere, rileggere, esportare o eliminare.', 'Fascicoli, Documenti, Database: cosa è stato lavorato e salvato; nel Database puoi eliminare righe ed esportare in CSV.'],
-    example: 'Apri la Timeline, clicca “Controllare il budget” e poi “Rivedi nell’algoritmo”: rivedi in grafico quella specifica esecuzione.',
+    steps: ['Panoramica: numeri chiave, grafici e cose da fare.', 'Accessi: richieste di chi vuole entrare (livello, approvazione, e-mail pronta) e utenti.', 'Attività: ogni operazione in ordine di tempo, con i passaggi.', 'Dati: bandi (documenti, regole, requisiti, scheda di revisione), catalogo, tabelle ufficiali, storico budget, documenti lavorati e database (righe eliminabili, esportazione CSV).', 'Manuale: come funziona ogni processo, con i PDF da scaricare.'],
+    example: 'Apri Attività, clicca “Controllare il budget” e poi “Rivedi nell’algoritmo”: rivedi in grafico quella specifica esecuzione.',
     terms: ['evento', 'timeline', 'esecuzione'],
   },
 }
@@ -253,12 +254,11 @@ export const FUNCTIONS = [
   { page: 'Quartier Generale', items: [
     { name: 'Accesso riservato', what: 'Si apre solo dal Profilo, ed è visibile solo al titolare dell’account: nessun altro utente vede questo pulsante.', example: 'Un collega con accesso all’app non trova da nessuna parte il Quartier Generale.' },
     { name: 'Panoramica', what: 'Numeri chiave, stato di memoria e sicurezza, attività recente.', example: 'Registro non integro: la voce compromessa è indicata.' },
-    { name: 'Timeline', what: 'Ogni operazione in ordine di tempo, con filtri e dettagli.', example: 'Filtra per esito “FAIL”.' },
-    { name: 'Mappa operazioni', what: 'Tutte le operazioni possibili con i passaggi interni e le statistiche.', example: '“Registrare l’impronta”: 4 passaggi, 3 esecuzioni.' },
+    { name: 'Accessi', what: 'Le richieste di chi vuole entrare: scegli il livello (Utente o Manager), approva o rifiuta, poi apri l’e-mail già scritta e segnala che è partita. Sotto, l’elenco degli utenti.', example: 'Nuova richiesta di Laura: «Utente», Approva, «Apri nella posta».' },
+    { name: 'Attività', what: 'Il grafico delle operazioni (cliccandone una si vedono i passaggi interni e le statistiche), la cronologia con filtri e dettagli, e il fascicolo di ogni progetto.', example: 'Filtra per esito “FAIL”; «Registrare l’impronta»: 4 passaggi, 3 esecuzioni.' },
     { name: 'Catalogo', what: 'Tutte le voci del catalogo nazionale con la descrizione e le caratteristiche lette dalla scheda ufficiale (forma di agevolazione, costi ammessi, regioni, ATECO). Il pulsante legge le schede mancanti.', example: 'Cerca “voucher”: vedi per ogni misura descrizione, scadenza e a chi si rivolge.' },
     { name: 'Bandi', what: 'Ogni bando in memoria: documenti (testo estratto e file originale), regole, requisiti, la linea di finanziamento per l’allocazione e chi lo ha usato. Si corregge, rilegge, esporta in ZIP o elimina da qui.', example: 'Apri “Resto al Sud”, scarica il decreto originale e decidi la regola “75% o 70%”.' },
     { name: 'Scheda di revisione', what: 'Per ogni bando: cosa dicono i documenti, cosa non dicono, quali parole cercare, dove compaiono di solito e come verificare.', example: 'Regola “tetto costo orario” non trovata: la scheda dice di cercare “costo orario” nell’articolo sulle spese di personale.' },
-    { name: 'Fascicoli', what: 'Cartella di un progetto: le sue validazioni, i documenti, la cronologia.', example: 'Progetto X: 3 validazioni, 1 registrazione.' },
     { name: 'Documenti', what: 'File lavorati, con dimensione e impronta.', example: 'Export PDF del progetto X.' },
     { name: 'Database', what: 'Le tabelle della memoria: le leggi, le esporti in CSV e puoi eliminare righe. Il registro delle certificazioni è protetto (append-only).', example: 'Elimini una riga di “events”; non puoi eliminarla da “anchors”.' },
   ] },

@@ -58,12 +58,10 @@ def test_login_gives_a_token_that_opens_the_api_and_wrong_credentials_are_indist
     assert wrong_pw.status_code == unknown.status_code == 401 and wrong_pw.json() == unknown.json()          # nessun elenco degli account
 
 
-def test_self_registration_creates_a_free_user_and_logs_in_immediately(secured):
+def test_self_registration_is_a_request_that_waits_for_approval(secured):
     r = client.post("/api/v2/auth/register", json={"email": "nuova@example.test", "name": "Nuova Utente", "password": PW})
-    assert r.status_code == 200
-    body = r.json()
-    assert body["user"]["role"] == "USER" and body["user"]["is_owner"] is False and body["user"]["email"] == "nuova@example.test"
-    assert client.get("/api/v2/auth/me", headers=bearer(r)).status_code == 200
+    assert r.status_code == 200 and r.json()["pending"] is True and "access_token" not in r.json()      # niente accesso immediato: decide il titolare
+    assert login(email="nuova@example.test").status_code == 403
     dupe = client.post("/api/v2/auth/register", json={"email": "nuova@example.test", "name": "Altra", "password": PW})
     assert dupe.status_code == 422
     weak = client.post("/api/v2/auth/register", json={"email": "altra@example.test", "name": "Altra", "password": "corta"})

@@ -23,33 +23,54 @@ function AuthModal({ mode, onClose, onSwitch, onDone }) {
   const isRegister = mode === 'register'
   const [email, setEmail] = useState('')
   const [name, setName] = useState('')
+  const [studio, setStudio] = useState('')
   const [password, setPassword] = useState('')
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState(null)
+  const [sent, setSent] = useState(null)                 // richiesta inviata: si aspetta l'approvazione
   const submit = async (e) => {
     e.preventDefault()
     setBusy(true); setError(null)
     try {
-      const res = isRegister ? await api.register(email.trim(), name.trim(), password) : await api.login(email.trim(), password)
+      if (isRegister) { setSent(await api.requestAccess(email.trim(), name.trim(), password, studio.trim())); return }
+      const res = await api.login(email.trim(), password)
       session.set(res.access_token, res.user)
       onDone(res.user)
     } catch (err) { setError(err.message) } finally { setBusy(false) }
+  }
+  if (sent) {
+    return (
+      <div className="qt-modal-backdrop" onClick={onClose}>
+        <div className="qt-modal" onClick={(e) => e.stopPropagation()}>
+          <button type="button" className="close" onClick={onClose} aria-label="Chiudi"><X className="w-4 h-4" /></button>
+          <h3>Richiesta inviata</h3>
+          <p className="sub">Controlliamo ogni richiesta a mano. Quando è approvata ti scriviamo a <b>{sent.email}</b>, e potrai entrare con la password che hai appena scelto.</p>
+          <ol className="steps">
+            <li><span>1</span>Ricevi la nostra richiesta di accesso <em>(fatto)</em></li>
+            <li><span>2</span>La approviamo e scegliamo il tuo livello</li>
+            <li><span>3</span>Ricevi un’e-mail e premi «Accedi»</li>
+          </ol>
+          <button type="button" className="submit" onClick={onClose}>Ho capito</button>
+        </div>
+      </div>
+    )
   }
   return (
     <div className="qt-modal-backdrop" onClick={onClose}>
       <form className="qt-modal" onClick={(e) => e.stopPropagation()} onSubmit={submit}>
         <button type="button" className="close" onClick={onClose} aria-label="Chiudi"><X className="w-4 h-4" /></button>
         <h3>{isRegister ? 'Richiedi accesso' : 'Accedi'}</h3>
-        <p className="sub">{isRegister ? 'Crea l’account dello studio. In questa fase è gratuito e non serve la carta di credito.' : 'Usa le credenziali dello studio.'}</p>
-        {isRegister && (<><label htmlFor="ln-name">Nome</label><input id="ln-name" required autoFocus value={name} onChange={(e) => setName(e.target.value)} /></>)}
+        <p className="sub">{isRegister ? 'Compila i dati: la tua richiesta arriva a noi e ti rispondiamo via e-mail. In questa fase è gratuito e non serve la carta di credito.' : 'Usa le credenziali dello studio.'}</p>
+        {isRegister && (<><label htmlFor="ln-name">Nome e cognome</label><input id="ln-name" required autoFocus value={name} onChange={(e) => setName(e.target.value)} /></>)}
         <label htmlFor="ln-email">E-mail</label>
         <input id="ln-email" type="email" required autoFocus={!isRegister} autoComplete="username" value={email} onChange={(e) => setEmail(e.target.value)} />
-        <label htmlFor="ln-pw">Password</label>
+        {isRegister && (<><label htmlFor="ln-studio">Studio o azienda <span className="opt">(facoltativo)</span></label><input id="ln-studio" value={studio} onChange={(e) => setStudio(e.target.value)} /></>)}
+        <label htmlFor="ln-pw">{isRegister ? 'Scegli una password' : 'Password'}</label>
         <input id="ln-pw" type="password" required minLength={isRegister ? 12 : 1} autoComplete={isRegister ? 'new-password' : 'current-password'} value={password} onChange={(e) => setPassword(e.target.value)} />
-        {isRegister && <p className="hint">Almeno 12 caratteri, lettere e almeno un numero o simbolo.</p>}
+        {isRegister && <p className="hint">Almeno 12 caratteri, lettere e almeno un numero o simbolo. La userai quando la richiesta sarà approvata.</p>}
         {error && <p className="error">{error}</p>}
         <button disabled={busy || !email || !password || (isRegister && !name)} className="submit">
-          {busy ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : null}{isRegister ? 'Crea l’account' : 'Entra'}
+          {busy ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : null}{isRegister ? 'Invia la richiesta' : 'Entra'}
         </button>
         <p className="switch">
           {isRegister ? <>Hai già un account? <button type="button" onClick={() => onSwitch('login')}>Accedi</button></> : <>Non hai un account? <button type="button" onClick={() => onSwitch('register')}>Richiedi accesso</button></>}

@@ -6,9 +6,13 @@ quando hai finito sposta la riga nel «Diario» (in cima, la più recente prima)
 ## In corso ora
 | Sessione | Da quando | Su cosa (file o area) | Note |
 |---|---|---|---|
-| Claude · terminale quanto | 2026-11-16 | Richieste di accesso (`core/users.py`, `core/access.py`, `endpoints/auth.py`, `endpoints/hq.py`, migrazione 24) e riordino del Quartier Generale (`frontend/src/components/hq/*`) | non toccare questi file |
+| — | — | — | — |
 
 ## Diario
+### 2026-11-16 · richieste di accesso e Quartier Generale
+- Registrazione come richiesta, approvazione con livello e e-mail pronta (`core/access.py`, `endpoints/hq.py`, migrazione 24); Quartier Generale in 5 sezioni con grafici (`frontend/src/components/hq/*`).
+- Test: `tests/test_access_requests.py` (11), `test_users_auth.py`, `test_hq_bandi.py` verdi (64). Suite completa non rilanciata.
+
 ### 2026-11-15 · homepage editoriale, newsletter e 200 FAQ
 - Homepage rifatta su fondo bianco con apertura fotografica, video dei 4 agenti, Insights «in arrivo», newsletter con consenso, 200 FAQ dal dossier.
 - Backend: `app/core/newsletter.py`, `POST /api/v2/newsletter/subscribe`, migrazione 23; test in `tests/test_agents.py` (33 verdi con `test_postgres`).

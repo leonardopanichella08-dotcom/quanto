@@ -72,7 +72,7 @@ const fbSend = (method, path, body) => call(`/fonte-b${path}`, { method, headers
 
 export const api = {
   login: (email, password) => post('/auth/login', { email, password }),
-  register: (email, name, password) => post('/auth/register', { email, name, password }),
+  requestAccess: (email, name, password, studio_name = '') => post('/auth/register', { email, name, password, studio_name }),
   changePassword: (current_password, new_password) => post('/auth/change-password', { current_password, new_password }),
   meProfile: () => call('/auth/me/profile').then((r) => r.json()),
   updateMe: (body) => call('/auth/me', { method: 'PATCH', headers: json, body: JSON.stringify(body) }).then((r) => r.json()),
@@ -88,6 +88,11 @@ export const api = {
   users: () => hqGet('/users'),
   createUser: (body) => hqSend('POST', '/users', body),
   patchUser: (id, body) => hqSend('PATCH', `/users/${id}`, body),
+  // Richieste di accesso (Quartier Generale)
+  accessRequests: (status) => hqGet(`/access-requests${status ? `?status=${status}` : ''}`),
+  approveAccess: (id, level) => hqSend('POST', `/access-requests/${id}/approve`, { level }),
+  rejectAccess: (id, reason = '') => hqSend('POST', `/access-requests/${id}/reject`, { reason }),
+  accessMailSent: (id) => hqSend('POST', `/access-requests/${id}/mail-sent`, {}),
   // Fonte C: documenti del cliente
   fcDocuments: () => call('/fonte-c/documents').then((r) => r.json()),
   fcDocument: (id) => call(`/fonte-c/documents/${id}`).then((r) => r.json()),

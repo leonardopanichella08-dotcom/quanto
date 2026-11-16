@@ -6,7 +6,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response,
 from pydantic import BaseModel, ConfigDict, Field
 
 from app.api.deps import actor_of, require_hq
-from app.core import analysis, archive, consultant, events, hq, manual, tokens, users
+from app.core import access, analysis, archive, consultant, events, hq, manual, tokens, users
 from app.core.ingestion import Ingestion
 
 router = APIRouter()
@@ -350,6 +350,43 @@ def create_user(body: UserCreate, request: Request) -> dict:
 @router.patch("/users/{user_id}", dependencies=deps, summary="Cambia ruolo, attiva o disattiva, reimposta la password, sblocca")
 def patch_user(user_id: int, body: UserPatch, request: Request) -> dict:
     return _user_guard(users.update_user, user_id, actor_of(request), body.role, body.active, body.name, body.new_password, body.unlock)
+
+
+class AccessApprove(BaseModel):
+    level: str = Field(..., max_length=20)
+
+
+class AccessReject(BaseModel):
+    reason: str = Field(default="", max_length=500)
+
+
+def _access_guard(fn, *a):
+    try:
+        return fn(*a)
+    except access.AccessError as exc:
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(exc)) from exc
+    except KeyError:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Richiesta non trovata") from None
+
+
+@router.get("/access-requests", dependencies=deps, summary="Richieste di accesso (prima quelle da decidere) con i livelli disponibili e le e-mail già pronte")
+def access_list(request_status: Optional[str] = Query(default=None, alias="status")) -> dict:
+    return {"requests": access.list_requests(request_status), "counts": access.counts(), "levels": [{"id": k, "label": v, "help": access.LEVEL_HELP[k]} for k, v in access.LEVELS.items()]}
+
+
+@router.post("/access-requests/{request_id}/approve", dependencies=deps, summary="Approva la richiesta con il livello scelto: l'account si attiva e l'e-mail resta pronta da inviare")
+def access_approve(request_id: int, body: AccessApprove, request: Request) -> dict:
+    return _access_guard(access.approve, request_id, body.level, actor_of(request))
+
+
+@router.post("/access-requests/{request_id}/reject", dependencies=deps, summary="Rifiuta la richiesta (motivo facoltativo, entra nella risposta preparata)")
+def access_reject(request_id: int, body: AccessReject, request: Request) -> dict:
+    return _access_guard(access.reject, request_id, body.reason, actor_of(request))
+
+
+@router.post("/access-requests/{request_id}/mail-sent", dependencies=deps, summary="Segna come inviata l'e-mail preparata")
+def access_mail_sent(request_id: int, request: Request) -> dict:
+    return _access_guard(access.mark_mail_sent, request_id, actor_of(request))
 
 
 class TokenGrant(BaseModel):

@@ -18,7 +18,7 @@ from collections import defaultdict
 from typing import Any, Dict, List, Optional
 
 from app.core import bandi, events
-from app.core import auth, db, users
+from app.core import access, auth, db, users
 from app.core.db import connect
 from app.core.operations import OPERATIONS
 from app.core.registry import Registry, current_public_key
@@ -83,6 +83,7 @@ def overview() -> Dict[str, Any]:
                     "note": "Database PostgreSQL esterno: i dati restano anche quando il server si riavvia."},
         "registry": {"intact": chain.intact, "entries": chain.entries, "head_hash": chain.head_hash, "key_id": key["key_id"], "is_dev_key": key["is_dev_key"]},
         "auth": {"required": auth.auth_required(), "users": users.count_users(), "managers": users.count_users("MANAGER")},
+        "access": access.counts(),
         "operations": operations_catalog(),
         "recent_events": events.list_events(limit=12),
     }

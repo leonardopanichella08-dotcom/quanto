@@ -43,6 +43,14 @@ class AccountLocked(Exception):
         self.retry_after = retry_after
 
 
+class AccessPending(Exception):
+    """Password giusta, ma la richiesta di accesso non è ancora stata approvata."""
+
+
+class AccessRejected(Exception):
+    """Password giusta, ma la richiesta di accesso non è stata accettata."""
+
+
 class UserError(ValueError):
     pass
 
@@ -114,7 +122,7 @@ def _norm_email(email: str) -> str:
     return e
 
 
-def create_user(email: str, name: str, password: str, role: str = "USER", actor: str = "system") -> Dict[str, Any]:
+def create_user(email: str, name: str, password: str, role: str = "USER", actor: str = "system", active: bool = True) -> Dict[str, Any]:
     email = _norm_email(email)
     if role not in ROLES:
         raise UserError("Ruolo sconosciuto")
@@ -124,9 +132,10 @@ def create_user(email: str, name: str, password: str, role: str = "USER", actor:
     with connect() as conn:
         if conn.execute("SELECT 1 FROM users WHERE email=?", (email,)).fetchone():
             raise UserError("Esiste già un utente con questo indirizzo")
-        row = conn.execute("INSERT INTO users (email, name, password_hash, role, active, token_version, failed_logins, created_at) VALUES (?,?,?,?,TRUE,1,0,?) RETURNING *",
-                           (email, name.strip()[:120], hash_password(password), role, events.now_iso())).fetchone()
-    events.record("users.create", f"Utente {email} creato ({role})", actor=actor)
+        row = conn.execute("INSERT INTO users (email, name, password_hash, role, active, token_version, failed_logins, created_at) VALUES (?,?,?,?,?,1,0,?) RETURNING *",
+                           (email, name.strip()[:120], hash_password(password), role, active, events.now_iso())).fetchone()
+    if active:                                                          # una richiesta di accesso lascia la sua traccia (access.request), non questa
+        events.record("users.create", f"Utente {email} creato ({role})", actor=actor)
     return _public(row)
 
 
@@ -160,6 +169,8 @@ def update_user(user_id: int, actor: str, role: Optional[str] = None, active: Op
             raise KeyError(user_id)
         if (role and role != "MANAGER" or active is False) and r["role"] == "MANAGER" and r["active"] and _managers_left(conn, user_id) == 0:
             raise UserError("Deve restare almeno un manager attivo")
+        if active and not r["active"] and conn.execute("SELECT 1 FROM access_requests WHERE user_id=? AND status='PENDING'", (user_id,)).fetchone():
+            raise UserError("Questa è una richiesta di accesso: approvala dalla sezione Accessi, scegliendo il livello")
         sets, params = [], []
         if role is not None:
             if role not in ROLES:
@@ -309,11 +320,19 @@ def authenticate(email: str, password: str, client: str = "unknown") -> Dict[str
         if r["locked_until"] and r["locked_until"] > now:
             left = int((datetime.fromisoformat(r["locked_until"]) - datetime.fromisoformat(now)).total_seconds())
             raise AccountLocked(max(1, left))
-        ok = verify_password(password, r["password_hash"]) and r["active"]
-        if not ok:
+        pw_ok = verify_password(password, r["password_hash"])
+        ok = pw_ok and r["active"]
+        gate = None                                                    # richiesta di accesso ancora aperta o rifiutata: non è una password sbagliata
+        if pw_ok and not r["active"]:
+            q = conn.execute("SELECT status FROM access_requests WHERE user_id=?", (r["id"],)).fetchone()
+            gate = q["status"] if q and q["status"] in ("PENDING", "REJECTED") else None
+        if not ok and gate is None:
             failed = r["failed_logins"] + 1
             locked = (datetime.now(timezone.utc) + timedelta(minutes=LOCK_MINUTES)).isoformat(timespec="seconds") if failed >= MAX_FAILURES else None
             conn.execute("UPDATE users SET failed_logins=?, locked_until=? WHERE id=?", (0 if locked else failed, locked, r["id"]))
+    if gate:
+        events.record("auth.login", f"Accesso non ancora consentito a {email}: richiesta {'in attesa' if gate == 'PENDING' else 'rifiutata'}", status="DENIED", actor=f"ip:{client}")
+        raise AccessPending() if gate == "PENDING" else AccessRejected()
     if not ok:
         events.record("auth.login", f"Accesso negato per {email}", status="DENIED", actor=f"ip:{client}")
         if failed >= MAX_FAILURES:

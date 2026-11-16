@@ -78,6 +78,7 @@ per caricare documenti. Utenti di prova locali: solo su localhost, mai in produz
 - La suite completa dura ~25 minuti: non lanciarla insieme al backend locale; spegnere Postgres locale con `pg_ctl ... stop -m fast`.
 - Su Windows gli heredoc bash con apostrofi si rompono: per patch lunghe scrivere uno script Python con il tool Write.
 - GSAP + React StrictMode: usare `fromTo` con valori finali espliciti, non `from` (in sviluppo l'effetto parte due volte).
+- Accessi: chi si registra crea un account NON attivo e una richiesta (`core/access.py`, migrazione 24); il titolare approva dal Quartier Generale → Accessi con il livello (USER/MANAGER) e QUANTO prepara l'e-mail (non la invia). Il Quartier Generale è solo del titolare (`QUANTO_OWNER_EMAIL`): nessun livello lo apre. Nell'oggetto `api` del frontend non ripetere i nomi delle chiavi (`register` era doppio e la seconda cancellava la prima).
 - Newsletter: il modulo è stato tolto dalla homepage; `POST /api/v2/newsletter/subscribe` resta (salva solo e-mail e consenso, migrazione 23) per un uso futuro.
 - Il backend locale serve il codice vecchio finché non lo si riavvia.
 - `index.css` definisce già una classe globale `.glass` (riquadro bianco): nelle pagine pubbliche non usarla come nome di stato (si vedevano due barre sovrapposte); si usa `is-glass`.

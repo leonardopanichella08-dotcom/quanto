@@ -235,6 +235,12 @@
 .qt-modal .submit:disabled { opacity: .45; cursor: not-allowed; }
 .qt-modal .switch { font-size: 13px; color: #5c5c5a; margin-top: 16px; text-align: center; }
 .qt-modal .switch button { background: none; border: 0; color: #0d0d0d; font: 500 13px 'Inter', sans-serif; cursor: pointer; text-decoration: underline; text-underline-offset: 3px; padding: 0; }
+.qt-modal .opt { color: #9a9a96; font-weight: 400; }
+.qt-modal .steps { list-style: none; margin: 4px 0 6px; padding: 0; display: grid; gap: 12px; }
+.qt-modal .steps li { display: flex; align-items: center; gap: 12px; font-size: 14px; color: #0d0d0d; }
+.qt-modal .steps li span { width: 24px; height: 24px; border-radius: 50%; display: grid; place-items: center; flex: none; font-size: 12px; font-weight: 600; background: rgba(13, 13, 13, 0.07); }
+.qt-modal .steps li:first-child span { background: #F1E21B; }
+.qt-modal .steps em { font-style: normal; color: #9a9a96; }
 .qt-modal .close { position: absolute; top: 14px; right: 14px; background: none; border: 0; color: #5c5c5a; cursor: pointer; padding: 6px; }
 
 /* ------------------------------------------------------------------ schermi stretti */

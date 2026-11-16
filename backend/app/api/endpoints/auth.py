@@ -8,7 +8,7 @@ from fastapi import APIRouter, Depends, HTTPException, Request, status
 from pydantic import BaseModel, Field
 
 from app.api.deps import require_auth, user_of
-from app.core import auth, events, tokens, users
+from app.core import access, auth, events, tokens, users
 
 router = APIRouter()
 
@@ -45,6 +45,7 @@ class RegisterBody(BaseModel):
     email: str = Field(..., max_length=200)
     name: str = Field(..., min_length=1, max_length=120)
     password: str = Field(..., min_length=1, max_length=200)
+    studio_name: str = Field(default="", max_length=160)
 
 
 class PasswordBody(BaseModel):
@@ -63,6 +64,10 @@ def login(body: LoginBody, request: Request) -> dict:
     except users.AccountLocked as exc:
         raise HTTPException(status_code=status.HTTP_429_TOO_MANY_REQUESTS, detail=f"Troppi tentativi: account bloccato, riprova tra {exc.retry_after // 60 + 1} minuti",
                             headers={"Retry-After": str(exc.retry_after)}) from exc
+    except users.AccessPending:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="La tua richiesta di accesso è in attesa di approvazione. Ti scriviamo all'indirizzo che hai indicato appena è approvata.") from None
+    except users.AccessRejected:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="La tua richiesta di accesso non è stata accettata. Per informazioni rispondi all'e-mail che ti abbiamo scritto.") from None
     except users.UserError as exc:                       # bootstrap con password debole
         raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail=str(exc)) from exc
     except auth.AuthConfigError:
@@ -70,16 +75,13 @@ def login(body: LoginBody, request: Request) -> dict:
     return {**token, "user": {k: user[k] for k in ("id", "email", "name", "role", "is_owner")}}
 
 
-@router.post("/register", summary="Iscrizione libera: crea un account USER gratuito e accede subito (nessuna e-mail di conferma)")
-def register(body: RegisterBody, request: Request) -> dict:
+@router.post("/register", summary="Richiesta di accesso: crea un account non attivo e una richiesta per il Quartier Generale; si entra quando il titolare approva")
+def register(body: RegisterBody) -> dict:
     try:
-        user = users.create_user(body.email, body.name, body.password, role="USER", actor="self-signup")
-        token = users.issue_token(user | {"token_version": 1})
-    except users.UserError as exc:
+        req = access.request_access(body.email, body.name, body.password, body.studio_name)
+    except (users.UserError, access.AccessError) as exc:
         raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(exc)) from exc
-    except auth.AuthConfigError:
-        raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="Autenticazione non configurata sul server (QUANTO_JWT_SECRET)") from None
-    return {**token, "user": {k: user[k] for k in ("id", "email", "name", "role", "is_owner")}}
+    return {"pending": True, "email": req["email"], "message": "Richiesta inviata. Ti scriviamo a questo indirizzo appena è approvata."}
 
 
 @router.get("/me", dependencies=[Depends(require_auth)], summary="Chi sono")
