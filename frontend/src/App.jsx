@@ -58,7 +58,7 @@ function AppInner({ bridge }) {
   const [pwOpen, setPwOpen] = useState(false)
   const [notice, setNotice] = useState(null)               // avvisi dopo aver aggiunto voci da documenti o dalla bozza
   const [templateOpen, setTemplateOpen] = useState(false) // arrivo dall'Allocazione: la bozza dal profilo si apre già
-  const [tab, setTab] = useState(TABS.some(([id]) => id === params.get('tab')) ? params.get('tab') : 'bandi')
+  const [tab, setTab] = useState(TABS.some(([id]) => id === params.get('tab')) || params.get('tab') === 'hq' ? params.get('tab') : 'bandi')
   const [bandi, setBandi] = useState([])
   const [bando, setBando] = useState(null)
   const [budgetSet, setBudgetSet] = useState(null)       // i budget dei bandi ricavati dall'allocazione: {fiscal_year, budgets:[…], ok, active}

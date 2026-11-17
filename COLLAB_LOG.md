@@ -6,9 +6,13 @@ quando hai finito sposta la riga nel «Diario» (in cima, la più recente prima)
 ## In corso ora
 | Sessione | Da quando | Su cosa (file o area) | Note |
 |---|---|---|---|
-| Claude · terminale quanto | 2026-11-17 | Quartier Generale ricostruito, datacenter + chatbot interno, Marketing LinkedIn (migrazione 25, `core/datacenter.py`, `core/hq_assistant.py`, `core/marketing.py`, `endpoints/marketing.py`, `frontend/src/components/hq/*`) | non toccare questi file |
+| — | — | — | — |
 
 ## Diario
+### 2026-11-17 · Quartier Generale ricostruito, chatbot, Marketing
+- Nuovi: `core/datacenter.py`, `core/hq_assistant.py`, `core/marketing.py`, `endpoints/marketing.py`, migrazione 25; frontend `hq/HQ.jsx` + Today, Ask, Marketing, Data, System.
+- Test: `tests/test_hq_data_marketing.py` (15) e i test di accessi/HQ/utenti verdi (79). Suite completa non rilanciata.
+
 ### 2026-11-16 · richieste di accesso e Quartier Generale
 - Registrazione come richiesta, approvazione con livello e e-mail pronta (`core/access.py`, `endpoints/hq.py`, migrazione 24); Quartier Generale in 5 sezioni con grafici (`frontend/src/components/hq/*`).
 - Test: `tests/test_access_requests.py` (11), `test_users_auth.py`, `test_hq_bandi.py` verdi (64). Suite completa non rilanciata.

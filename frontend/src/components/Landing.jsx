@@ -16,6 +16,17 @@ gsap.registerPlugin(ScrollTrigger)
    tipografia, linee, fotografia e movimento. Ogni animazione mostra il lavoro vero di QUANTO; le cifre sono di un esempio e lo dicono.
    Animazioni con GSAP (sempre fromTo con valori finali espliciti); con «riduci movimento» tutto è fermo e leggibile. */
 
+// Visite al sito: una sessione casuale per scheda, la pagina, da dove arriva e i parametri utm. Nessun nome, nessun indirizzo, nessun IP.
+function visit(kind, label = '') {
+  try {
+    let sid = sessionStorage.getItem('quanto_visit')
+    if (!sid) { sid = (crypto.randomUUID?.() || String(Math.random()).slice(2) + Date.now()).replace(/[^A-Za-z0-9-]/g, ''); sessionStorage.setItem('quanto_visit', sid) }
+    const u = new URLSearchParams(window.location.search)
+    api.track({ kind, label, session: sid, path: window.location.pathname, referrer: document.referrer || '', utm_source: u.get('utm_source') || '', utm_medium: u.get('utm_medium') || '',
+      utm_campaign: u.get('utm_campaign') || '', device: window.innerWidth < 720 ? 'telefono' : 'computer' })
+  } catch { /* la misura non deve mai fermare la pagina */ }
+}
+
 const reduced = () => typeof window !== 'undefined' && window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches
 
 // ------------------------------------------------------------------------------------------------ accesso
@@ -32,7 +43,7 @@ function AuthModal({ mode, onClose, onSwitch, onDone }) {
     e.preventDefault()
     setBusy(true); setError(null)
     try {
-      if (isRegister) { setSent(await api.requestAccess(email.trim(), name.trim(), password, studio.trim())); return }
+      if (isRegister) { setSent(await api.requestAccess(email.trim(), name.trim(), password, studio.trim())); visit('form', 'richiesta di accesso inviata'); return }
       const res = await api.login(email.trim(), password)
       session.set(res.access_token, res.user)
       onDone(res.user)
@@ -180,7 +191,9 @@ const VERBS = [
 
 export default function Landing({ onLogin, onAuditor, onVision }) {
   const root = useRef(null)
-  const [modal, setModal] = useState(null)
+  const [modal, setModalRaw] = useState(null)
+  const setModal = (m) => { if (m === 'register') visit('cta', 'Richiedi accesso'); setModalRaw(m) }
+  useEffect(() => { visit('view') }, [])
   const [nav, setNav] = useState({ glass: false, hide: false })
   const [step, setStep] = useState(0)
 

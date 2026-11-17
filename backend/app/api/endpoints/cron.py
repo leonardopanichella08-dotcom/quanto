@@ -5,7 +5,7 @@ import os
 from fastapi import APIRouter, HTTPException, Query, Request, status
 
 from app.api.deps import user_of
-from app.core import catalog_job, catalog_meta, lifecycle, official_sources
+from app.core import catalog_job, catalog_meta, lifecycle, marketing, official_sources
 
 router = APIRouter()
 
@@ -17,6 +17,13 @@ def _allowed(request: Request) -> bool:
         return True
     u = user_of(request)
     return bool(u and u["role"] == "MANAGER")
+
+
+@router.api_route("/marketing", methods=["GET", "POST"], summary="Pubblica su LinkedIn i post programmati la cui ora è passata")
+def marketing_tick(request: Request) -> dict:
+    if not _allowed(request):
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Accesso non consentito")
+    return marketing.publish_due(actor="cron")
 
 
 @router.api_route("/catalog-refresh", methods=["GET", "POST"], summary="Stadio 1: aggiorna il catalogo dei bandi (solo metadati)")

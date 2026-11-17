@@ -101,3 +101,49 @@ export function Pills({ items, value, onChange }) {
     </div>
   )
 }
+
+// Linea nel tempo (una o due serie). ``points``: [{x, a, b?}]
+export function LineChart({ points, labels = ['', ''], height = 140 }) {
+  if (!points.length) return <p className="text-xs text-mute italic">Ancora nessun dato.</p>
+  if (points.length === 1) return <p className="text-sm text-ink-2">Un solo giorno di dati ({points[0].x}): <b className="font-mono">{points[0].a}</b> {labels[0]}{points[0].b != null ? <> · <b className="font-mono">{points[0].b}</b> {labels[1]}</> : null}. Il grafico compare dal secondo giorno.</p>
+  const W = 600, H = height, P = 6
+  const top = Math.max(1, ...points.map((p) => Math.max(p.a || 0, p.b || 0)))
+  const xy = (i, v) => [P + (points.length === 1 ? (W - 2 * P) / 2 : (i * (W - 2 * P)) / (points.length - 1)), H - P - ((v || 0) / top) * (H - 2 * P)]
+  const path = (k) => points.map((p, i) => `${i ? 'L' : 'M'}${xy(i, p[k]).map((n) => n.toFixed(1)).join(',')}`).join(' ')
+  const hasB = points.some((p) => p.b != null)
+  return (
+    <div>
+      <svg viewBox={`0 0 ${W} ${H}`} className="w-full" style={{ height }} preserveAspectRatio="none" role="img" aria-label={labels[0]}>
+        {[0.25, 0.5, 0.75].map((f) => <line key={f} x1="0" x2={W} y1={H * f} y2={H * f} stroke="rgba(0,0,0,0.06)" />)}
+        <path d={`${path('a')} L${xy(points.length - 1, 0)[0]},${H - P} L${P},${H - P} Z`} fill="rgba(29,29,31,0.06)" />
+        <path d={path('a')} fill="none" stroke="#1d1d1f" strokeWidth="2" vectorEffect="non-scaling-stroke" />
+        {hasB && <path d={path('b')} fill="none" stroke="#e0cf00" strokeWidth="2" vectorEffect="non-scaling-stroke" />}
+      </svg>
+      <div className="flex justify-between text-[10px] text-mute font-mono mt-1"><span>{String(points[0].x).slice(5) || points[0].x}</span>
+        <span className="flex gap-3">{labels[0] && <span className="inline-flex items-center gap-1"><i className="w-2.5 h-0.5 bg-ink inline-block" />{labels[0]}</span>}{hasB && labels[1] && <span className="inline-flex items-center gap-1"><i className="w-2.5 h-0.5 inline-block" style={{ background: '#e0cf00' }} />{labels[1]}</span>}</span>
+        <span>{String(points[points.length - 1].x).slice(5) || points[points.length - 1].x}</span></div>
+    </div>
+  )
+}
+
+// Il risultato di una ricerca del datacenter: grafico se raggruppato, altrimenti tabella.
+export function ResultView({ result }) {
+  if (!result) return null
+  const { rows, columns, chart } = result
+  if (!rows.length) return <p className="text-xs text-mute italic">Nessun dato con queste condizioni.</p>
+  if (columns.length === 1) return <p className="text-[40px] font-semibold font-mono tracking-tight">{rows[0].valore ?? '—'}</p>
+  return (
+    <div className="space-y-4">
+      {chart === 'line' && <LineChart points={rows.map((r) => ({ x: r.gruppo, a: r.valore }))} />}
+      {chart === 'bar' && <BarList rows={rows.slice(0, 15).map((r) => ({ label: r.gruppo == null ? '(vuoto)' : String(r.gruppo), value: Number(r.valore) || 0 }))} />}
+      {!chart && (
+        <div className="overflow-x-auto max-h-[420px] rounded-xl border border-line">
+          <table className="w-full text-xs">
+            <thead className="sticky top-0 bg-white"><tr>{columns.map((c) => <th key={c} className="text-left font-medium text-mute px-3 py-2 whitespace-nowrap">{c}</th>)}</tr></thead>
+            <tbody>{rows.map((r, i) => <tr key={i} className="border-t border-line">{columns.map((c) => <td key={c} className="px-3 py-1.5 whitespace-nowrap max-w-[280px] truncate">{r[c] == null ? '—' : String(r[c])}</td>)}</tr>)}</tbody>
+          </table>
+        </div>
+      )}
+    </div>
+  )
+}

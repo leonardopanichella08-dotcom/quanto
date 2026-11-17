@@ -555,3 +555,15 @@ Le attività: **calcolare il potenziale massimo** (controlla i dati, chiede quel
 
 **Correzione.** Il pulsante di registrazione del sito chiamava per errore il registro firmato invece della creazione dell'account (due funzioni con lo stesso nome): ora è `requestAccess`.
 
+## 23. Quartier Generale ricostruito, chatbot sui dati e Marketing LinkedIn (17 novembre 2026)
+
+**Cinque voci, ognuna con una riga che dice a cosa serve.** A sinistra: **Oggi** (le cose da fare, quattro numeri, un grafico e il chatbot), **Accessi** (richieste, livelli, utenti), **Marketing** (sito, post e campagne LinkedIn), **Dati** (esplora, chiedi, correggi i contenuti) e **Sistema** (cronologia, salute, manuale). Le cose da fare compaiono in giallo solo quando ci sono: richieste da decidere, e-mail da inviare, post da approvare, account LinkedIn da collegare.
+
+**Il chatbot risponde con i dati veri.** La domanda in italiano diventa una ricerca su un insieme di dati del datacenter. Con la chiave di Claude la traduce Claude; senza, un riconoscitore a parole chiave. La ricerca passa sempre dagli stessi controlli: solo colonne del catalogo, sola lettura, mai password, token, chiavi o testi integrali. La frase di risposta la scrive il codice dai numeri trovati, non il modello. Sotto ogni risposta c'è «Come ho cercato». Esempio: «utenti per livello» → «Utenti per livello: 5 in tutto; il gruppo più grande è USER con 3» e un grafico a barre.
+
+**Il datacenter** (Dati → Esplora) elenca gli insiemi di dati per gruppo (Persone, Lavoro degli studi, Bandi e regole, Marketing). Per ognuno si sceglie come raggrupparlo (per una colonna o per giorno, settimana, mese), cosa misurare e il periodo; il risultato è un grafico o una tabella e si scarica in CSV.
+
+**Marketing.** Ripreso da QUANTO Growth e portato dentro QUANTO. Due account LinkedIn previsti (profilo del fondatore e pagina QUANTO), collegati con il permesso ufficiale e i token cifrati. Un post passa da bozza a da approvare, approvato (o programmato, se ha una data) e pubblicato: senza approvazione non si pubblica (lo impone il database) e, se si modifica dopo, va riapprovato. «Pubblica ora su LinkedIn» lo invia davvero; «L'ho pubblicato a mano» lo segna soltanto. I post programmati partono quando si apre il Quartier Generale o quando uno scheduler esterno chiama `/api/v2/cron/marketing`. Le campagne a pagamento hanno budget, date e dati giornalieri (impressioni, clic, spesa, contatti); QUANTO calcola il costo per clic e per contatto. Finché LinkedIn non concede l'Advertising API i numeri si inseriscono a mano o dal CSV di Campaign Manager. Statistiche, follower, visite e risposte di LinkedIn si aggiungono e non si riscrivono.
+
+**Visite al sito.** La homepage registra le pagine viste e i clic su «Richiedi accesso» con una sessione casuale: niente nomi, indirizzi o IP. Si salvano la provenienza (sito di arrivo senza parametri) e i parametri utm, così si vede quanta gente arriva da LinkedIn e quanti chiedono l'accesso. Esempio: un link nel post con `?utm_source=linkedin&utm_campaign=lancio` fa comparire «linkedin» tra le fonti.
+

@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends
 
 from app.api.deps import require_auth
-from app.api.endpoints import allocation, auth, bandi, budget, cron, fonte_b, fonte_c, hq, ingestion, newsletter, pattern, profile, registry, sources, templates, clients, tokens
+from app.api.endpoints import allocation, auth, bandi, budget, cron, fonte_b, fonte_c, hq, ingestion, marketing, newsletter, pattern, profile, registry, sources, templates, clients, tokens
 
 api_router = APIRouter(prefix="/api/v2")
 protected = [Depends(require_auth)]
@@ -15,6 +15,7 @@ api_router.include_router(profile.router, prefix="/profile", tags=["Profilo azie
 api_router.include_router(cron.router, prefix="/cron", tags=["Lavori periodici"])
 api_router.include_router(newsletter.router, prefix="/newsletter", tags=["Newsletter (pubblica, con consenso)"])
 api_router.include_router(hq.router, prefix="/hq", tags=["Quartier Generale (codice manager)"])
+api_router.include_router(marketing.router, prefix="/marketing", tags=["Marketing: LinkedIn, campagne, visite (Quartier Generale; track e callback pubblici)"])
 api_router.include_router(budget.router, prefix="/budget", tags=["Missione Uno - Budget Validation"], dependencies=protected)
 api_router.include_router(pattern.router, prefix="/pattern", tags=["Confronto con i budget vincenti"], dependencies=protected)
 api_router.include_router(clients.router, prefix="/clients", tags=["Lavori dello studio (aziende clienti)"], dependencies=protected)

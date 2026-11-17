@@ -6,7 +6,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response,
 from pydantic import BaseModel, ConfigDict, Field
 
 from app.api.deps import actor_of, require_hq
-from app.core import access, analysis, archive, consultant, events, hq, manual, tokens, users
+from app.core import access, analysis, archive, consultant, datacenter, events, hq, hq_assistant, manual, tokens, users
 from app.core.ingestion import Ingestion
 
 router = APIRouter()
@@ -350,6 +350,56 @@ def create_user(body: UserCreate, request: Request) -> dict:
 @router.patch("/users/{user_id}", dependencies=deps, summary="Cambia ruolo, attiva o disattiva, reimposta la password, sblocca")
 def patch_user(user_id: int, body: UserPatch, request: Request) -> dict:
     return _user_guard(users.update_user, user_id, actor_of(request), body.role, body.active, body.name, body.new_password, body.unlock)
+
+
+class Ask(BaseModel):
+    question: str = Field(..., min_length=1, max_length=500)
+
+
+class DataQuery(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+    dataset: str = Field(..., max_length=60)
+    filters: list = Field(default_factory=list, max_length=10)
+    group_by: Optional[str] = Field(default=None, max_length=60)
+    bucket: Optional[str] = Field(default=None, max_length=10)
+    measure: Optional[str] = Field(default=None, max_length=10)
+    measure_column: Optional[str] = Field(default=None, max_length=60)
+    columns: list = Field(default_factory=list, max_length=30)
+    order_by: Optional[str] = Field(default=None, max_length=60)
+    order: Optional[str] = Field(default=None, max_length=4)
+    limit: int = Field(default=100, ge=1, le=500)
+
+
+@router.post("/ask", dependencies=deps, summary="Chatbot interno: domanda in italiano sui dati di QUANTO (risposta con dati, grafico e ricerca usata)")
+def hq_ask(body: Ask, request: Request) -> dict:
+    out = hq_assistant.ask(body.question)
+    events.record("hq.ask", "Domanda al chatbot interno", actor=actor_of(request), details={"engine": out.get("engine"), "dataset": (out.get("plan") or {}).get("dataset")})
+    return out
+
+
+@router.get("/datacenter", dependencies=deps, summary="Gli insiemi di dati interrogabili, con colonne e numero di righe")
+def hq_datacenter() -> list:
+    return datacenter.catalog()
+
+
+def _run(body: DataQuery) -> dict:
+    import psycopg
+    try:
+        return datacenter.run(body.model_dump())
+    except (datacenter.QueryError, ValueError, TypeError, psycopg.Error) as exc:
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=f"Ricerca non valida: {exc}") from exc
+
+
+@router.post("/datacenter/query", dependencies=deps, summary="Ricerca controllata in sola lettura su un insieme di dati")
+def hq_datacenter_query(body: DataQuery) -> dict:
+    return _run(body)
+
+
+@router.post("/datacenter/query.csv", dependencies=deps, summary="La stessa ricerca, scaricata in CSV")
+def hq_datacenter_csv(body: DataQuery) -> Response:
+    res = _run(body)
+    return Response(content="\ufeff" + datacenter.to_csv(res), media_type="text/csv; charset=utf-8",
+                    headers={"Content-Disposition": f'attachment; filename="quanto_{res["dataset"]}.csv"'})
 
 
 class AccessApprove(BaseModel):
