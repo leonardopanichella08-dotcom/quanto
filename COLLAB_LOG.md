@@ -6,7 +6,7 @@ quando hai finito sposta la riga nel «Diario» (in cima, la più recente prima)
 ## In corso ora
 | Sessione | Da quando | Su cosa (file o area) | Note |
 |---|---|---|---|
-| — | — | — | — |
+| Claude · terminale quanto | 2026-11-17 | Quartier Generale ricostruito, datacenter + chatbot interno, Marketing LinkedIn (migrazione 25, `core/datacenter.py`, `core/hq_assistant.py`, `core/marketing.py`, `endpoints/marketing.py`, `frontend/src/components/hq/*`) | non toccare questi file |
 
 ## Diario
 ### 2026-11-16 · richieste di accesso e Quartier Generale
