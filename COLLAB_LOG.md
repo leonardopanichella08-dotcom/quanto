@@ -6,9 +6,13 @@ quando hai finito sposta la riga nel «Diario» (in cima, la più recente prima)
 ## In corso ora
 | Sessione | Da quando | Su cosa (file o area) | Note |
 |---|---|---|---|
-| Claude · terminale quanto | 2026-11-18 | Assistente a tutto schermo con le mascotte (`frontend/src/assistant/*`, stili `.asst-*` in `index.css`, `bridge` in `App.jsx`) | non toccare questi file |
+| — | — | — | — |
 
 ## Diario
+### 2026-11-18 · assistente a tutto schermo con le mascotte
+- `assistant/AssistantContext.jsx` riscritto nella parte visiva (Screen, Msg, Peek, RunCard con la mascotte), `assistant/tasks.js` + agevolazioni e confronto, `App.jsx` bridge.isOwner, stili `.asst-*` sostituiti in `index.css`.
+- Provato in locale nel browser (computer e telefono). Nessun test backend toccato.
+
 ### 2026-11-17 · Quartier Generale ricostruito, chatbot, Marketing
 - Nuovi: `core/datacenter.py`, `core/hq_assistant.py`, `core/marketing.py`, `endpoints/marketing.py`, migrazione 25; frontend `hq/HQ.jsx` + Today, Ask, Marketing, Data, System.
 - Test: `tests/test_hq_data_marketing.py` (15) e i test di accessi/HQ/utenti verdi (79). Suite completa non rilanciata.

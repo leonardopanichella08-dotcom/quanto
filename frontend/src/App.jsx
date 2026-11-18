@@ -247,6 +247,7 @@ function AppInner({ bridge }) {
   // cosa può fare l'assistente nell'app: le stesse azioni dell'utente (cambiare pagina, scegliere il bando, mettere voci nel budget, controllarlo)
   bridge.current = {
     go: (t) => nav.go(t),
+    isOwner: () => !!user?.is_owner,
     bandi: () => bandi,
     currentBando: () => bando?.bando_id || null,
     selectBando: (id) => selectBando(id),

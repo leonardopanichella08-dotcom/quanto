@@ -1,7 +1,8 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react'
-import { AlertTriangle, ArrowUp, Check, Loader2, Minus, Sparkles, X } from 'lucide-react'
+import { AlertTriangle, ArrowUp, Check, Eye, Loader2, Minus, Square, X } from 'lucide-react'
 import { TASKS, TASK_ORDER } from './tasks'
 import TutorialVideo from '../components/TutorialVideo'
+import { api } from '../lib/api'
 
 /** L'assistente guidato: una chat. Si scrive cosa si vuole fare (o si sceglie un suggerimento) e l'assistente prende in mano i passaggi in cui l'utente dovrebbe
  *  inserire dati o muoversi nell'app: li esegue lui (cambia pagina, salva, calcola) e, quando gli serve un valore, lo chiede nella chat spiegando in parole semplici
@@ -11,23 +12,48 @@ class Cancelled extends Error {}
 const Ctx = createContext(null)
 export const useAssistant = () => useContext(Ctx) || { start: () => {}, openMenu: () => {}, open: false, busy: false }
 
+// I quattro agenti di QUANTO, con le loro mascotte: ognuno prende il lavoro che sa fare.
+export const AGENTS = {
+  fiuto: { name: 'Fiuto', role: 'Agevolazioni', img: '/landing/mascotte-fiuto.webp', task: 'agevolazioni', line: 'Trovo le agevolazioni che spettano all’azienda' },
+  riparto: { name: 'Riparto', role: 'Allocazione', img: '/landing/mascotte-riparto.webp', task: 'allocazione', line: 'Calcolo il potenziale e divido le spese' },
+  spunta: { name: 'Spunta', role: 'Budget', img: '/landing/mascotte-spunta.webp', task: 'budget', line: 'Scrivo il budget e lo controllo' },
+  duo: { name: 'Duo', role: 'Confronto', img: '/landing/mascotte-duo.webp', task: 'confronto', line: 'Confronto bandi e scenari' },
+}
+const TEAM = { name: 'QUANTO', img: '/landing/mascotte-squadra.webp' }
+const TASK_AGENT = { agevolazioni: 'fiuto', profilo: 'fiuto', allocazione: 'riparto', deminimis: 'riparto', budget: 'spunta', confronto: 'duo' }
+export const agentOf = (task) => AGENTS[TASK_AGENT[task]] || TEAM
+
 const SUGGEST = {
+  agevolazioni: 'Trova le agevolazioni dell’azienda',
   allocazione: 'Calcola il potenziale massimo',
   budget: 'Prepara la bozza di budget',
+  confronto: 'Confronta i bandi',
   deminimis: 'Dichiara gli aiuti già ricevuti',
   profilo: 'Completa i dati dell’azienda',
 }
 // parole chiave (senza accenti) per capire cosa si chiede; vince l'attività con più corrispondenze
 const INTENTS = {
-  allocazione: ['potenziale', 'allocazion', 'massimo', 'bandi adatti', 'quanto copr', 'quanto valgono', 'piano', 'stima', 'quali bandi', 'calcola'],
-  budget: ['budget', 'bozza', 'persone', 'personale', 'candidatura', 'spese del progetto', 'controlla'],
+  agevolazioni: ['agevolazion', 'assunzion', 'incentiv', 'credito d', 'crediti d', 'bonus', 'fiuto'],
+  allocazione: ['potenziale', 'allocazion', 'massimo', 'bandi adatti', 'quanto copr', 'quanto valgono', 'piano', 'stima', 'quali bandi', 'calcola', 'riparto'],
+  budget: ['budget', 'bozza', 'persone', 'personale', 'candidatura', 'spese del progetto', 'controlla', 'spunta'],
+  confronto: ['confront', 'scenari', 'paragon', 'meglio tra', 'duo'],
   deminimis: ['de minimis', 'minimis', 'aiuti', 'contributi ricevuti', 'plafond', 'tetto'],
-  profilo: ['profilo', 'dati', 'visura', 'bilancio', 'azienda', 'mancano', 'partita iva', 'ateco', 'completa'],
+  profilo: ['profilo', 'visura', 'bilancio', 'azienda', 'mancano', 'partita iva', 'ateco', 'completa'],
 }
+// «apri …», «vai a …», «portami …»: si va alla pagina e la chat si chiude
+const PAGES = [
+  ['quartier generale', 'hq', 'Quartier Generale'], ['agevolazion', 'agevolazioni', 'Agevolazioni'], ['allocazion', 'allocation', 'Allocazione'],
+  ['budget', 'canvas', 'Budget'], ['confront', 'pattern', 'Confronto'], ['bandi', 'bandi', 'Bandi'], ['verifica', 'auditor', 'Verifica'],
+  ['guida', 'guida', 'Guida'], ['profilo', 'profilo', 'Profilo'],
+]
 const plain = (s) => String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase()
 function interpret(text) {
   const t = plain(text)
   if (/\b(annulla|interrompi|stop|basta|ferma)\b/.test(t)) return { stop: true }
+  if (/^(apri|vai|portami|mostrami|mostra|torna)\b/.test(t)) {
+    const page = PAGES.find(([w]) => t.includes(w))
+    if (page) return { page: page[1], label: page[2] }
+  }
   let best = null
   let bestScore = 0
   for (const [id, words] of Object.entries(INTENTS)) {
@@ -39,7 +65,7 @@ function interpret(text) {
 
 let uid = 0
 const mid = () => `m${(uid += 1)}`
-const GREETING = 'Ciao, sono l’assistente di QUANTO. Faccio io al posto tuo i passaggi in cui servono dati: scrivimi cosa vuoi fare oppure scegli un suggerimento. Quando mi serve un valore te lo chiedo qui, spiegandoti cos’è e dove lo trovi.'
+const GREETING = 'Ciao! Dimmi cosa ti serve: lo faccio io e ti chiedo solo i dati che mancano.'
 
 export function AssistantProvider({ bridge, enabled, children }) {
   const [chat, setChat] = useState(null)               // null = chiuso; altrimenti l'elenco dei messaggi
@@ -86,7 +112,7 @@ export function AssistantProvider({ bridge, enabled, children }) {
     const run = { id: mid(), type: 'run', token: my, task: taskId, title: t.title, steps: t.steps.map((s) => ({ ...s, status: 'todo' })), prompt: null, answers: [], busy: true, finished: false, summary: null, error: null, params }
     setChat((c) => [...(c || [{ id: mid(), role: 'assistant', type: 'text', text: GREETING }]),
       { id: mid(), role: 'user', type: 'text', text: params.userText || SUGGEST[taskId] || t.title },
-      { id: mid(), role: 'assistant', type: 'text', text: `Va bene: ${t.title.charAt(0).toLowerCase()}${t.title.slice(1)}. Ecco i passaggi.` }, run])
+      { id: mid(), role: 'assistant', type: 'text', agentTask: taskId, text: `Va bene: ${t.title.charAt(0).toLowerCase()}${t.title.slice(1)}. Ecco i passaggi.` }, run])
     const a = makeApi(my)
     Promise.resolve().then(() => t.run(a, params)).catch((e) => {
       if (e instanceof Cancelled) return
@@ -97,7 +123,7 @@ export function AssistantProvider({ bridge, enabled, children }) {
   const cancelRun = useCallback(() => {                    // ferma l'attività ma lascia aperta la chat: riprende l'utente
     token.current += 1
     waiting.current = null
-    setChat((c) => (c ? c.map((m) => (m.type === 'run' && !m.finished ? { ...m, busy: false, prompt: null, cancelled: true } : m)).concat([{ id: mid(), role: 'assistant', type: 'text', text: 'Mi fermo qui. Da questo punto riprendi tu: quello che avevo già fatto resta salvato.' }]) : c))
+    setChat((c) => (c ? c.map((m) => (m.type === 'run' && !m.finished ? { ...m, busy: false, prompt: null, cancelled: true, steps: m.steps.map((x) => (x.status === 'doing' || x.status === 'asking' ? { ...x, status: 'skipped' } : x)) } : m)).concat([{ id: mid(), role: 'assistant', type: 'text', text: 'Mi fermo qui. Da questo punto riprendi tu: quello che avevo già fatto resta salvato.' }]) : c))
   }, [])
   const close = useCallback(() => { token.current += 1; waiting.current = null; setChat(null) }, [])
   const openMenu = useCallback(() => { token.current += 1; waiting.current = null; setChat([{ id: mid(), role: 'assistant', type: 'text', text: GREETING }]) }, [])
@@ -117,8 +143,9 @@ export function AssistantProvider({ bridge, enabled, children }) {
     w.resolve(values)
   }
 
-  // un messaggio scritto dall'utente: si capisce con le parole chiave e si parte (o si risponde)
-  const say = useCallback((text) => {
+  // un messaggio scritto dall'utente: pagina, attività, domanda sui dati (solo titolare) oppure aiuto
+  const [peek, setPeek] = useState(false)
+  const say = useCallback(async (text) => {
     const t = String(text || '').trim()
     if (!t) return
     const intent = interpret(t)
@@ -130,117 +157,156 @@ export function AssistantProvider({ bridge, enabled, children }) {
     }
     if (running) {
       addMsg({ role: 'user', type: 'text', text: t })
-      addMsg({ role: 'assistant', type: 'text', text: waiting.current ? 'Ho bisogno dei dati nel riquadro qui sopra: compilali, oppure scrivi «annulla» per fermarmi.' : 'Sto lavorando: appena finisco ti dico. Scrivi «annulla» se vuoi fermarmi.' })
+      addMsg({ role: 'assistant', type: 'text', text: waiting.current ? 'Mi serve il dato qui sopra: compilalo, oppure scrivi «annulla» per fermarmi.' : 'Sto lavorando: appena finisco te lo dico. Scrivi «annulla» per fermarmi.' })
+      return
+    }
+    if (intent.page) {
+      if (intent.page === 'hq' && !bridge.current.isOwner?.()) {
+        addMsg({ role: 'user', type: 'text', text: t }); addMsg({ role: 'assistant', type: 'text', text: 'Il Quartier Generale è riservato al titolare.' }); return
+      }
+      addMsg({ role: 'user', type: 'text', text: t })
+      addMsg({ role: 'assistant', type: 'text', text: `Ti porto in ${intent.label}.` })
+      bridge.current.go?.(intent.page)
+      setTimeout(() => setPeek(true), 650)
       return
     }
     if (intent.task) { start(intent.task, { userText: t }); return }
     addMsg({ role: 'user', type: 'text', text: t })
-    addMsg({ role: 'assistant', type: 'text', text: 'Non ho capito cosa vuoi che faccia. Posso fare solo queste cose: scegline una dai suggerimenti oppure descrivila con parole come «budget», «potenziale massimo», «aiuti ricevuti» o «dati dell’azienda».' })
-  }, [chat, start, addMsg, cancelRun])
+    if (bridge.current.isOwner?.()) {                        // il titolare può chiedere ai dati di tutto il portale
+      const id = mid()
+      setChat((c) => (c ? [...c, { id, role: 'assistant', type: 'text', text: 'Cerco nei dati…', pending: true }] : c))
+      try {
+        const r = await api.hqAsk(t)
+        setChat((c) => (c ? c.map((m) => (m.id === id ? { ...m, pending: false, text: r.answer, data: r.result } : m)) : c))
+      } catch (e) {
+        setChat((c) => (c ? c.map((m) => (m.id === id ? { ...m, pending: false, text: e.message } : m)) : c))
+      }
+      return
+    }
+    addMsg({ role: 'assistant', type: 'text', text: 'Non ho capito cosa vuoi che faccia. Chiedimi di trovare le agevolazioni, calcolare il potenziale, preparare il budget, confrontare i bandi, oppure «apri» una pagina (per esempio «apri bandi»).' })
+  }, [chat, start, addMsg, cancelRun, bridge])
 
   useEffect(() => {
-    const on = (e) => start(e.detail?.task, e.detail || {})
+    const on = (e) => { setPeek(false); start(e.detail?.task, e.detail || {}) }
     window.addEventListener('quanto-assistant', on)
     const off = () => close()
     window.addEventListener('quanto-logout', off)
     return () => { window.removeEventListener('quanto-assistant', on); window.removeEventListener('quanto-logout', off) }
   }, [start, close])
   useEffect(() => { if (!enabled) close() }, [enabled, close])
+  useEffect(() => { if (!chat) setPeek(false) }, [chat])
+  const shown = open && !peek
   useEffect(() => {
-    if (!open) return undefined
+    if (!shown) return undefined
     const prev = document.body.style.overflow
     document.body.style.overflow = 'hidden'
     return () => { document.body.style.overflow = prev }
-  }, [open])
+  }, [shown])
 
   const lastRun = useMemo(() => [...(chat || [])].reverse().find((m) => m.type === 'run') || null, [chat])
   const busy = !!lastRun && lastRun.busy && !lastRun.finished
-  const value = useMemo(() => ({ start, stop: close, openMenu, open, busy }), [start, close, openMenu, open, busy])
+  const value = useMemo(() => ({ start, stop: close, openMenu: () => { setPeek(false); openMenu() }, open: shown, busy }), [start, close, openMenu, shown, busy])
 
-  // La struttura è la stessa sia aperta sia chiusa (cambiano solo le classi): l'app non si smonta, quindi non perde nulla di ciò che l'utente aveva fatto.
+  // L'app resta montata sotto (non perde nulla); la chat le si appoggia sopra a tutto schermo. «Guarda la pagina» la abbassa per un momento.
   return (
     <Ctx.Provider value={value}>
-      <div className={open ? 'asst-stage' : 'contents'}>
-        <section className={open ? 'asst-left' : 'contents'}>
-          <div className={open ? 'asst-card' : 'contents'}>
-            <div id="app-scroll" className={open ? 'asst-scroll' : 'contents'}>{children}</div>
-            {open && busy && <div className="absolute inset-0 z-40 cursor-progress" aria-hidden="true" />}
-          </div>
-          {open && <Pills lastRun={lastRun} busy={busy} onStop={cancelRun} onClose={close} />}
-        </section>
-        {open && <Panel chat={chat} lastRun={lastRun} busy={busy} onClose={close} onSubmit={submit} onSay={say} onSuggest={(id) => start(id, {})} />}
-      </div>
+      <div id="app-scroll" className="contents">{children}</div>
+      {open && peek && <Peek agent={busy || lastRun?.prompt ? agentOf(lastRun?.task) : TEAM} busy={busy} lastRun={lastRun} onBack={() => setPeek(false)} />}
+      {shown && <Screen chat={chat} lastRun={lastRun} busy={busy} onClose={close} onPeek={() => setPeek(true)} onStop={cancelRun} onSubmit={submit} onSay={say} onSuggest={(id) => start(id, {})} />}
     </Ctx.Provider>
   )
 }
 
-// ------------------------------------------------------------------------------------------------ pillole sotto lo schermo
-function Pills({ lastRun, busy, onStop, onClose }) {
-  const r = lastRun
-  const total = r?.steps.length || 0
-  const doneN = r ? r.steps.filter((s) => s.status === 'done' || s.status === 'skipped').length : 0
-  const current = r?.steps.find((s) => s.status === 'doing' || s.status === 'asking')
-  let label = 'Pronto: scrivimi cosa vuoi fare'
-  let tone = 'idle'
-  if (r && r.cancelled) { label = 'Interrotto: riprendi tu'; tone = 'idle' }
-  else if (r && r.error) { label = 'Mi sono fermato: guarda la chat'; tone = 'error' }
-  else if (r && r.finished) { label = `Fatto · ${r.title}`; tone = 'done' }
-  else if (r && r.prompt) { label = 'Aspetto un tuo dato nella chat'; tone = 'ask' }
-  else if (r && busy) { label = current ? current.title : 'Lavoro…'; tone = 'busy' }
-  const active = r && !r.finished && !r.cancelled && !r.error
+// ------------------------------------------------------------------------------------------------ la pagina abbassata: una mascotte riporta alla chat
+function Peek({ agent, busy, lastRun, onBack }) {
   return (
-    <div className="asst-pillrow">
-      <div className="asst-pill asst-pill-wide" data-tone={tone}>
-        {tone === 'busy' ? <Loader2 className="w-3.5 h-3.5 animate-spin shrink-0" /> : tone === 'done' ? <Check className="w-3.5 h-3.5 shrink-0" /> : tone === 'error' ? <AlertTriangle className="w-3.5 h-3.5 shrink-0" /> : <i className="asst-dot" />}
-        <span className="truncate">{label}</span>
-        {r && active && total > 0 && <span className="asst-count">{Math.min(doneN + 1, total)}/{total}</span>}
-        {r && active && total > 0 && <span className="asst-bar" style={{ width: `${(doneN / total) * 100}%` }} />}
-      </div>
-      {active ? <button className="asst-pill asst-pill-btn" onClick={onStop}>Interrompi</button> : <button className="asst-pill asst-pill-btn" onClick={onClose}>Chiudi</button>}
+    <button className="asst-peek" onClick={onBack}>
+      <img src={agent.img} alt="" className={busy ? 'asst-bob' : ''} />
+      <span>{busy ? `${agent.name} sta lavorando…` : lastRun?.prompt ? `${agent.name} ti aspetta nella chat` : 'Torna alla chat'}</span>
+    </button>
+  )
+}
+
+// ------------------------------------------------------------------------------------------------ la chat a tutto schermo
+function Screen({ chat, lastRun, busy, onClose, onPeek, onStop, onSubmit, onSay, onSuggest }) {
+  const [text, setText] = useState('')
+  const scroller = useRef(null)
+  const input = useRef(null)
+  useEffect(() => { scroller.current?.scrollTo({ top: scroller.current.scrollHeight, behavior: 'smooth' }) }, [chat, lastRun?.prompt])
+  useEffect(() => { input.current?.focus() }, [])
+  const empty = chat.length <= 1 && !lastRun
+  const active = lastRun && !lastRun.finished && !lastRun.cancelled && !lastRun.error
+  const send = (e) => { e?.preventDefault(); if (!text.trim()) return; onSay(text); setText('') }
+  const composer = (
+    <form className="asst-input" onSubmit={send}>
+      <input ref={input} id="asst-input" value={text} onChange={(e) => setText(e.target.value)} autoComplete="off"
+        placeholder={busy ? 'Sto lavorando… scrivi «annulla» per fermarmi' : lastRun?.prompt ? 'Compila il riquadro qui sopra, o scrivi «annulla»' : 'Chiedi qualcosa ai tuoi agenti…'} aria-label="Scrivi all’assistente" />
+      {active ? <button type="button" className="asst-send" onClick={onStop} aria-label="Ferma"><Square className="w-3.5 h-3.5" fill="currentColor" /></button>
+        : <button type="submit" className="asst-send" disabled={!text.trim()} aria-label="Invia"><ArrowUp className="w-4 h-4" /></button>}
+    </form>
+  )
+  return (
+    <div className="asst-screen" role="dialog" aria-label="Assistente QUANTO">
+      <header className="asst-top">
+        <span className="asst-brand">quanto</span>
+        <span className="flex-1" />
+        <button className="asst-ghost" onClick={onPeek}><Eye className="w-4 h-4" />Guarda la pagina</button>
+        <button className="asst-ghost asst-ghost-icon" onClick={onClose} aria-label="Chiudi l’assistente"><X className="w-4 h-4" /></button>
+      </header>
+
+      {empty ? (
+        <main className="asst-home">
+          <img src={TEAM.img} alt="Fiuto, Riparto, Spunta e Duo" className="asst-team" />
+          <h1>Cosa facciamo oggi?</h1>
+          <p>Quattro agenti lavorano per te. Scrivi cosa ti serve: muovo io il portale e ti chiedo solo i dati che mancano.</p>
+          <div className="asst-home-input">{composer}</div>
+          <div className="asst-agents">
+            {Object.values(AGENTS).map((ag) => (
+              <button key={ag.name} className="asst-agent" onClick={() => onSuggest(ag.task)}>
+                <img src={ag.img} alt="" /><span><b>{ag.name}</b><small>{ag.line}</small></span>
+              </button>
+            ))}
+          </div>
+          <div className="asst-more">
+            <button onClick={() => onSuggest('profilo')}>{SUGGEST.profilo}</button><span>·</span>
+            <button onClick={() => onSuggest('deminimis')}>{SUGGEST.deminimis}</button><span>·</span>
+            <TutorialVideo id="T16" variant="link" />
+          </div>
+        </main>
+      ) : (
+        <>
+          <div ref={scroller} className="asst-thread">
+            <div className="asst-col">
+              {chat.map((m) => (m.type === 'run'
+                ? <RunCard key={m.id} run={m} onSubmit={onSubmit} onRetry={() => onSuggest(m.task)} onPeek={onPeek} />
+                : <Msg key={m.id} m={m} />))}
+            </div>
+          </div>
+          <footer className="asst-foot"><div className="asst-col">{composer}<p className="asst-note">Non invento nessun dato: uso solo ciò che scrivi tu o che è già nel portale.</p></div></footer>
+        </>
+      )}
     </div>
   )
 }
 
-// ------------------------------------------------------------------------------------------------ pannello a destra: la chat
-function Panel({ chat, lastRun, busy, onClose, onSubmit, onSay, onSuggest }) {
-  const [text, setText] = useState('')
-  const endRef = useRef(null)
-  const scroller = useRef(null)
-  useEffect(() => { scroller.current?.scrollTo({ top: scroller.current.scrollHeight, behavior: 'smooth' }) }, [chat, lastRun?.prompt])
-  const idle = !busy && !lastRun?.prompt
-  const send = (e) => { e?.preventDefault(); if (!text.trim()) return; onSay(text); setText('') }
+function Msg({ m }) {
+  const agent = m.agentTask ? agentOf(m.agentTask) : TEAM
+  if (m.role === 'user') return <div className="asst-row asst-row-user"><div className="asst-user">{m.text}</div></div>
   return (
-    <aside className="asst-panel" aria-label="Assistente QUANTO">
-      <header className="asst-head">
-        <span className="asst-avatar"><Sparkles className="w-4 h-4" /></span>
-        <div className="min-w-0 flex-1"><p className="text-[14px] font-semibold leading-tight">Assistente</p><p className="text-[11px] text-ink-2/80 truncate">{busy ? 'Sto lavorando per te' : lastRun?.prompt ? 'Ho bisogno di un dato' : 'Pronto ad aiutarti'}</p></div>
-        <button className="asst-icon" onClick={onClose} aria-label="Chiudi l’assistente" title="Chiudi"><X className="w-4 h-4" /></button>
-      </header>
-      <div ref={scroller} className="asst-chat">
-        {chat.map((m) => (m.type === 'run'
-          ? <RunCard key={m.id} run={m} onSubmit={onSubmit} onRetry={() => onSuggest(m.task)} />
-          : <Bubble key={m.id} role={m.role}>{m.text}</Bubble>))}
-        <div ref={endRef} />
-      </div>
-      <div className="asst-composer">
-        <p className="asst-note">Non invento mai nessun dato: uso solo ciò che scrivi tu o che è già nel profilo.</p>
-        {idle && (
-          <div className="asst-suggest" aria-label="Suggerimenti">
-            {TASK_ORDER.map((id) => <button key={id} type="button" className="asst-chip" onClick={() => onSuggest(id)}>{SUGGEST[id]}</button>)}
-            <TutorialVideo id="T16" variant="link" />
-          </div>
+    <div className="asst-row">
+      <img src={agent.img} alt="" className={`asst-face ${agent === TEAM ? 'asst-face-team' : ''} ${m.pending ? 'asst-bob' : ''}`} />
+      <div className="asst-say">
+        <p>{m.text}</p>
+        {m.data?.rows?.length > 0 && (
+          <ul className="asst-data">{m.data.rows.slice(0, 8).map((r, i) => <li key={i}>{Object.values(r).map((v) => (v == null ? '—' : String(v))).join(' · ')}</li>)}</ul>
         )}
-        <form className="asst-input" onSubmit={send}>
-          <input id="asst-input" value={text} onChange={(e) => setText(e.target.value)} placeholder={busy ? 'Sto lavorando… scrivi «annulla» per fermarmi' : lastRun?.prompt ? 'Compila il riquadro, o scrivi «annulla»' : 'Scrivi cosa vuoi che faccia…'} autoComplete="off" aria-label="Scrivi all’assistente" />
-          <button type="submit" className="asst-send" disabled={!text.trim()} aria-label="Invia"><ArrowUp className="w-4 h-4" /></button>
-        </form>
       </div>
-    </aside>
+    </div>
   )
 }
 
 function Bubble({ role, children }) {
-  return <div className={`asst-row ${role === 'user' ? 'asst-row-user' : ''}`}><div className={role === 'user' ? 'asst-bubble asst-bubble-user' : 'asst-bubble'}>{children}</div></div>
+  return role === 'user' ? <div className="asst-row asst-row-user"><div className="asst-user">{children}</div></div> : <div className="asst-row"><div className="asst-say"><p>{children}</p></div></div>
 }
 
 const ICON = {
@@ -252,9 +318,18 @@ const ICON = {
   todo: <span className="asst-st asst-st-todo" />,
 }
 
-function RunCard({ run, onSubmit, onRetry }) {
+function RunCard({ run, onSubmit, onRetry, onPeek }) {
+  const ag = agentOf(run.task)
+  const now = run.steps.find((s) => s.status === 'doing' || s.status === 'asking')
   return (
-    <div className="space-y-2.5">
+    <div className="space-y-3">
+      <div className="asst-agentline">
+        <img src={ag.img} alt="" className={run.busy && !run.finished ? 'asst-bob' : ''} />
+        <div className="min-w-0">
+          <p className="asst-agentname">{ag.name}<span>{ag.role || 'Squadra'}</span></p>
+          <p className="asst-agentnow">{run.finished ? 'Ho finito.' : run.cancelled ? 'Mi sono fermato.' : now ? `${now.title}${now.detail ? ` — ${now.detail}` : '…'}` : 'Comincio…'}</p>
+        </div>
+      </div>
       <div className="asst-steps">
         <p className="asst-steps-title">{run.title}</p>
         <ol className="space-y-2.5">
@@ -281,7 +356,8 @@ function RunCard({ run, onSubmit, onRetry }) {
       {run.finished && (
         <div className="asst-done">
           <p className="text-[13px] font-semibold inline-flex items-center gap-1.5"><Check className="w-4 h-4" />Fatto</p>
-          {run.summary && <p className="text-[12px] leading-relaxed whitespace-pre-line">{run.summary}</p>}
+          {run.summary && <p className="text-[13px] leading-relaxed whitespace-pre-line">{run.summary}</p>}
+          <button className="asst-chip mt-1" onClick={onPeek}>Vedi il risultato nella pagina</button>
         </div>
       )}
     </div>

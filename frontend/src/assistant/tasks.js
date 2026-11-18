@@ -301,6 +301,29 @@ export const TASKS = {
     },
   },
 
+  agevolazioni: {
+    title: 'Trovare le agevolazioni dell’azienda',
+    blurb: 'Controllo i dati dell’azienda e apro le Agevolazioni: crediti d’imposta, incentivi alle assunzioni e bandi che le spettano.',
+    steps: [{ id: 'dati', title: 'Controllo i dati dell’azienda' }, { id: 'vai', title: 'Apro le Agevolazioni' }],
+    async run(a) {
+      const b = a.bridge()
+      const ov = await ensureProfile(a, 'dati')
+      a.begin('vai'); b.go('agevolazioni'); await a.pause(800); a.done('vai', 'Pagina aperta.')
+      a.finish(ov ? 'Le agevolazioni sono nella pagina: per ogni misura c’è cosa serve e quanto vale. Le assunzioni previste fanno trovare anche gli incentivi sul lavoro.' : 'Pagina aperta. Senza i dati dell’azienda alcune misure restano «da verificare».')
+    },
+  },
+
+  confronto: {
+    title: 'Confrontare i bandi',
+    blurb: 'Apro il Confronto: due bandi o due scenari sullo stesso progetto, con lo stesso metodo.',
+    steps: [{ id: 'vai', title: 'Apro il Confronto' }],
+    async run(a) {
+      const b = a.bridge()
+      a.begin('vai'); b.go('pattern'); await a.pause(800); a.done('vai', 'Pagina aperta.')
+      a.finish('Nel Confronto scegli i bandi o gli scenari da mettere uno accanto all’altro: il calcolo è lo stesso per tutti, così la differenza è vera.')
+    },
+  },
+
   profilo: {
     title: 'Completare i dati dell’azienda',
     blurb: 'Ti chiedo i dati che mancano nel profilo (visura e bilancio), spiegandoti dove trovarli, e li salvo io.',
@@ -313,4 +336,4 @@ export const TASKS = {
     },
   },
 }
-export const TASK_ORDER = ['allocazione', 'budget', 'deminimis', 'profilo']
+export const TASK_ORDER = ['agevolazioni', 'allocazione', 'budget', 'confronto', 'deminimis', 'profilo']

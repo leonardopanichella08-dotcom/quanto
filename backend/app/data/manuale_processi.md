@@ -567,3 +567,13 @@ Le attività: **calcolare il potenziale massimo** (controlla i dati, chiede quel
 
 **Visite al sito.** La homepage registra le pagine viste e i clic su «Richiedi accesso» con una sessione casuale: niente nomi, indirizzi o IP. Si salvano la provenienza (sito di arrivo senza parametri) e i parametri utm, così si vede quanta gente arriva da LinkedIn e quanti chiedono l'accesso. Esempio: un link nel post con `?utm_source=linkedin&utm_campaign=lancio` fa comparire «linkedin» tra le fonti.
 
+## 24. L'assistente a tutto schermo con i quattro agenti (18 novembre 2026)
+
+**Una chat, come quelle che si usano tutti i giorni.** «Assistente» apre una schermata bianca a tutto schermo: in alto solo «quanto», «Guarda la pagina» e la chiusura. Al centro le quattro mascotte, la domanda «Cosa facciamo oggi?» e la barra per scrivere; sotto, i quattro agenti: **Fiuto** (agevolazioni), **Riparto** (allocazione e aiuti già ricevuti), **Spunta** (budget) e **Duo** (confronto). Un clic su un agente gli dà il suo lavoro.
+
+**Gli agenti si fanno vedere mentre lavorano.** Ogni attività mostra la mascotte dell'agente che la fa, con il passaggio in corso scritto accanto (la mascotte si muove finché lavora), l'elenco dei passaggi e, quando serve un dato, il riquadro per scriverlo con «perché serve», «dove lo trovi» ed esempio. A fine lavoro: «Vedi il risultato nella pagina».
+
+**Si agisce su tutto il portale.** Oltre alle attività (trovare le agevolazioni, calcolare il potenziale, preparare il budget, confrontare i bandi, dichiarare gli aiuti ricevuti, completare i dati dell'azienda) si può scrivere «apri …» con il nome di una pagina: l'assistente ci porta e si abbassa. Per esempio «apri bandi», «vai al budget». «Guarda la pagina» abbassa la chat in qualunque momento; una mascotte in basso a destra riporta indietro e dice se l'agente sta ancora lavorando o aspetta un dato. Il titolare può anche fare domande sui dati («quanti utenti per livello?»): la risposta arriva dal datacenter del Quartier Generale, con i numeri veri.
+
+**Cosa non fa.** Non è un modello che inventa: capisce le richieste con parole chiave, esegue le stesse azioni dell'utente e chiede i dati che mancano. Se non capisce, dice cosa sa fare.
+
