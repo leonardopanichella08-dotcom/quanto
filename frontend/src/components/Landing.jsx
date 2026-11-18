@@ -182,6 +182,45 @@ function AskQuanto() {
   )
 }
 
+// I quattro agenti, ognuno con la sua mascotte: l'antenna fiuta le agevolazioni, il cubo divide le spese, la spunta controlla, il doppio confronta.
+const AGENTS = [
+  { img: '/landing/mascotte-fiuto.webp', name: 'Fiuto', role: 'Agevolazioni', job: 'Ha l’antenna sempre accesa: legge assunzioni e spese dell’impresa e trova le misure che le spettano davvero, crediti d’imposta e incentivi compresi.',
+    say: ['Ho letto', 'le 2 assunzioni previste'], found: 'Bonus Giovani: fino a 15.600 €' },
+  { img: '/landing/mascotte-riparto.webp', name: 'Riparto', role: 'Allocazione', job: 'Mette ogni spesa sotto l’agevolazione giusta, rispettando tetti, cumulo e de minimis, senza mai contare due volte la stessa voce.',
+    say: ['Ho studiato', '8 bandi aperti'], found: '3 adatti alle spese dell’anno' },
+  { img: '/landing/mascotte-spunta.webp', name: 'Spunta', role: 'Budget', job: 'Scrive la bozza del budget dai documenti e la passa ai 60 controlli prima della domanda: cosa passa, cosa va ridotto, cosa va documentato.',
+    say: ['Ho controllato', '60 criteri per voce'], found: '2 voci da ridurre' },
+  { img: '/landing/mascotte-duo.webp', name: 'Duo', role: 'Confronto', job: 'Ha due facce perché guarda due strade insieme: confronta bandi e scenari sullo stesso progetto, con lo stesso metodo.',
+    say: ['Ho confrontato', '2 bandi sullo stesso budget'], found: 'il primo copre di più' },
+]
+
+// Il gestionale vero: due schermate reali della scheda di un bando, che si alternano da sole.
+const SHOTS = [
+  { src: '/landing/app-bando-regole.webp', tab: 'Le regole', text: 'Ogni bando ha la sua scheda: tipo di aiuto, regole numeriche e controlli che attivano, ognuna con la frase del testo ufficiale da cui è letta.' },
+  { src: '/landing/app-bando-fonti.webp', tab: 'Le fonti', text: 'Sotto ogni scheda le fonti consultate: atti citati, documenti ufficiali e data di lettura. Ciò che manca resta scritto come lacuna.' },
+]
+function RealApp() {
+  const [i, setI] = useState(0)
+  const hold = useRef(0)
+  useEffect(() => {
+    if (reduced()) return undefined
+    const t = setInterval(() => { if (Date.now() - hold.current > 9000) setI((n) => (n + 1) % SHOTS.length) }, 5500)
+    return () => clearInterval(t)
+  }, [])
+  return (
+    <div className="real">
+      <div className="real-tabs" role="tablist">
+        {SHOTS.map((x, k) => <button key={x.tab} role="tab" aria-selected={k === i} className={k === i ? 'on' : ''} onClick={() => { hold.current = Date.now(); setI(k) }}>{x.tab}<i style={{ animationPlayState: k === i ? 'running' : 'paused' }} key={`${k}-${i}`} /></button>)}
+      </div>
+      <div className="real-frame">
+        <div className="real-bar"><i /><i /><i /><span>quanto · archivio dei bandi</span></div>
+        <div className="real-view">{SHOTS.map((x, k) => <img key={x.src} src={x.src} alt={`Schermata reale di QUANTO: ${x.tab.toLowerCase()} di un bando`} className={k === i ? 'on' : ''} loading="lazy" />)}</div>
+      </div>
+      <p className="real-text" key={i}>{SHOTS[i].text}</p>
+    </div>
+  )
+}
+
 const VERBS = [
   ['Trova', 'Le agevolazioni per cui l’impresa ha i requisiti, su tutto il catalogo: bandi nazionali, regionali e camerali, crediti d’imposta, incentivi alle assunzioni. Ogni esclusione ha il suo motivo.'],
   ['Studia', 'Le regole del bando lette dai testi ufficiali: intensità, tetti, spese ammesse, cumulo, de minimis. Ogni regola resta legata all’articolo da cui viene.'],
@@ -249,6 +288,9 @@ export default function Landing({ onLogin, onAuditor, onVision }) {
         gsap.fromTo(el.querySelectorAll('h3, p'), { opacity: 0, y: 14 }, { opacity: 1, y: 0, duration: 0.9, delay: 0.2 + i * 0.12, stagger: 0.08, ease: 'power3.out', scrollTrigger: { trigger: el, start: 'top 88%' } })
       })
 
+      gsap.fromTo('.agent', { opacity: 0, y: 30 }, { opacity: 1, y: 0, duration: 0.9, stagger: 0.12, ease: 'power3.out', scrollTrigger: { trigger: '.agent-row', start: 'top 85%' } })
+      gsap.fromTo('.team-img', { opacity: 0, y: 40, scale: 0.96 }, { opacity: 1, y: 0, scale: 1, duration: 1.2, ease: 'power3.out', scrollTrigger: { trigger: '.team', start: 'top 85%' } })
+
       // prezzi: le cifre salgono, le righe dell'elenco si disegnano una dopo l'altra
       gsap.utils.toArray('.price').forEach((el) => {
         gsap.fromTo(el.querySelector('.amount'), { yPercent: 60, opacity: 0 }, { yPercent: 0, opacity: 1, duration: 1.1, ease: 'power4.out', scrollTrigger: { trigger: el, start: 'top 80%' } })
@@ -266,7 +308,7 @@ export default function Landing({ onLogin, onAuditor, onVision }) {
         <a href="#top" className="brand" aria-label="QUANTO, torna all’inizio"><Wordmark height={14} className="wordmark" /></a>
         <div className="links">
           <a href="#metodo">Metodo</a>
-          <a href="#portale">Portale</a>
+          <a href="#agenti">Agenti</a>
           <a href="#prezzi">Prezzi</a>
           <a href="#domande">Domande</a>
         </div>
@@ -284,7 +326,7 @@ export default function Landing({ onLogin, onAuditor, onVision }) {
           <p className="hero-sub after">QUANTO trova le agevolazioni adatte a ogni cliente, ne studia le regole, costruisce il progetto e il budget e li controlla prima della domanda. Agenti che svolgono il lavoro, ogni numero legato alla sua fonte.</p>
           <div className="hero-ctas after">
             <button className="btn-cta big" onClick={() => setModal('register')}>Richiedi accesso<ArrowRight size={15} /></button>
-            <a className="hero-link" href="#portale">Guarda il portale<ArrowRight size={14} /></a>
+            <a className="hero-link" href="#agenti">Conosci gli agenti<ArrowRight size={14} /></a>
           </div>
         </div>
       </header>
@@ -300,6 +342,14 @@ export default function Landing({ onLogin, onAuditor, onVision }) {
             </div>
           ))}
         </div>
+      </div></section>
+
+      <section className="sect real-sect" id="gestionale"><div className="wrap split real-split">
+        <div>
+          <h2 className="mask-in">{lines(['Il gestionale,', 'com’è davvero.'])}</h2>
+          <p className="para fade-in">Non un’illustrazione: sono schermate di QUANTO. A sinistra l’archivio dei bandi, a destra la scheda di quello scelto, con le sue regole e da dove vengono.</p>
+        </div>
+        <div className="fade-in"><RealApp /></div>
       </div></section>
 
       <section className="proc" id="processo">
@@ -328,15 +378,31 @@ export default function Landing({ onLogin, onAuditor, onVision }) {
         </div></div>
       </section>
 
-      <section className="sect portal" id="portale"><div className="wrap">
-        <div className="agents-intro">
-          <div>
-            <h2 className="mask-in">{lines(['Quattro agenti.', 'Lo studio decide e firma.'])}</h2>
-            <p className="para fade-in">Agevolazioni, Allocazione, Budget e Confronto, in ordine. Ognuno dice cosa ha fatto, cosa ha trovato e cosa gli serve; i numeri li calcolano le regole.</p>
-          </div>
-          <div className="fade-in"><LoopVideo src="/video/quanto-quattro-agenti.mp4" poster="/landing/quattro-agenti.png" label="I quattro agenti di QUANTO" /></div>
+      <section className="sect agents" id="agenti"><div className="wrap">
+        <div className="team">
+          <img src="/landing/mascotte-squadra.webp" alt="Le quattro mascotte di QUANTO: Fiuto, Riparto, Spunta e Duo" className="team-img" loading="lazy" />
+          <h2 className="mask-in">{lines(['Quattro agenti.', 'Una squadra per ogni pratica.'])}</h2>
+          <p className="para fade-in">Lavorano in ordine e si passano il lavoro. Ognuno ti dice cosa ha fatto, cosa ha trovato e cosa gli serve. I numeri li calcolano le regole; tu decidi e firmi.</p>
         </div>
-        <PortalPreview />
+        <ol className="agent-row">
+          {AGENTS.map((g, k) => (
+            <li key={g.name} className="agent">
+              <div className="agent-pic"><img src={g.img} alt={`${g.name}, l’agente ${g.role}`} loading="lazy" style={{ animationDelay: `${k * 0.4}s` }} /></div>
+              <p className="agent-n"><span>{k + 1}</span>{g.role}</p>
+              <h3>{g.name}</h3>
+              <p className="agent-job">{g.job}</p>
+              <p className="agent-say"><b>{g.say[0]}</b> {g.say[1]} · <b>ho trovato</b> {g.found}</p>
+            </li>
+          ))}
+        </ol>
+        <div className="agents-video">
+          <div className="fade-in"><LoopVideo src="/video/quanto-quattro-agenti.mp4" poster="/landing/quattro-agenti.png" label="I quattro agenti di QUANTO al lavoro" /></div>
+          <div className="fade-in">
+            <h3>Guardali lavorare.</h3>
+            <p className="para">Dal primo documento del cliente al budget pronto: Fiuto trova, Riparto divide, Spunta controlla, Duo confronta. Sotto, il portale con i dati di un’impresa di prova.</p>
+          </div>
+        </div>
+        <div id="portale"><PortalPreview /></div>
       </div></section>
 
       <section className="sect tight" id="principi"><div className="wrap principles">

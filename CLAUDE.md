@@ -65,7 +65,9 @@ per caricare documenti. Utenti di prova locali: solo su localhost, mai in produz
 - **UI**: minimale, stile Apple; spiegazioni dietro una «i», sezioni di base chiuse; ogni pulsante dice cosa fa e lo fa davvero; niente scorrimenti o
   riselezioni inutili (ogni azione porta al punto giusto). Homepage e «La visione»: solo i colori del marchio (bianco, nero, grigi neutri,
   giallo **#F1E21B**; **niente blu**), nessun riquadro né griglia di schede, animazioni GSAP che mostrano il lavoro, barra in vetro liquido che sparisce scendendo,
-  niente logo «Q» giallo (solo la scritta), poche parole. Il video dei 4 agenti parte da solo, in loop, senza controlli. FAQ: 8 in pagina; tutte le 200 in
+  niente logo «Q» giallo da nessuna parte, né in app né come favicon (solo la scritta: `public/brand/favicon.svg` si inverte col tema scuro), poche parole.
+  Mascotte dei 4 agenti in `public/landing/mascotte-*.webp` (sfondo tolto): Fiuto = Agevolazioni, Riparto = Allocazione, Spunta = Budget, Duo = Confronto.
+  Le schermate «vere» del gestionale stanno in `public/landing/app-*.webp`: si rifanno dall'app reale, mai inventate. Il video dei 4 agenti parte da solo, in loop, senza controlli. FAQ: 8 in pagina; tutte le 200 in
   `frontend/src/data/faq.js`, servite come `public/faq.md` (rigenerato a ogni build, non collegato dall'interfaccia, per motori di ricerca e AI) e interrogabili
   da «Chiedi a QUANTO» (`lib/faqSearch.js`: confronto di parole, nessun modello).
 - **Codice**: Python con type hint e docstring che spiegano il *perché*; React a funzioni con hook; chiamate solo via `frontend/src/lib/api.js`.

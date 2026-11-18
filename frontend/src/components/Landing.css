@@ -334,3 +334,99 @@
 .qt-land .qt-nav:not(.is-glass) .wordmark { filter: drop-shadow(0 1px 8px rgba(0, 0, 0, 0.35)); }
 .qt-land .qt-nav.hide { opacity: 0; transition: transform .7s var(--ease), opacity .5s var(--ease), color .5s var(--ease); }
 .qt-land .qt-nav { transition: transform .7s var(--ease), opacity .5s var(--ease), color .5s var(--ease); }
+
+
+/* ================================================================== 18 novembre: gestionale vero, agenti con le mascotte, telefono */
+/* il gestionale vero */
+.qt-land .real-split { align-items: center; }
+.qt-land .real-tabs { display: flex; gap: 6px; margin-bottom: 14px; }
+.qt-land .real-tabs button { position: relative; overflow: hidden; border: 0; border-radius: 999px; padding: 8px 16px; font: 500 13px 'Inter', sans-serif; background: rgba(13,13,13,.06); color: var(--gray); cursor: pointer; }
+.qt-land .real-tabs button.on { background: var(--ink); color: #fff; }
+.qt-land .real-tabs button i { position: absolute; left: 0; bottom: 0; height: 2px; width: 100%; background: var(--yellow); transform-origin: left; transform: scaleX(0); }
+.qt-land .real-tabs button.on i { animation: qt-tab 5.5s linear forwards; }
+@keyframes qt-tab { to { transform: scaleX(1); } }
+.qt-land .real-frame { border-radius: 16px; overflow: hidden; background: #fff; box-shadow: 0 30px 70px -24px rgba(13,13,13,.28), 0 0 0 1px rgba(13,13,13,.06); }
+.qt-land .real-bar { display: flex; align-items: center; gap: 6px; height: 34px; padding: 0 14px; background: #fbfbfa; border-bottom: 1px solid var(--hair); }
+.qt-land .real-bar i { width: 9px; height: 9px; border-radius: 50%; background: rgba(13,13,13,.12); }
+.qt-land .real-bar span { margin-left: 10px; font: 500 11px 'JetBrains Mono', monospace; color: var(--mute); }
+.qt-land .real-view { position: relative; aspect-ratio: 1400 / 822; }
+.qt-land .real-view img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: top left; opacity: 0; transform: scale(1.02); transform-origin: top left; transition: opacity .9s var(--ease), transform 6s linear; }
+.qt-land .real-view img.on { opacity: 1; transform: scale(1.06); }
+.qt-land .real-text { font-size: 15px; line-height: 1.6; color: var(--gray); margin-top: 16px; max-width: 56ch; animation: qt-up .7s var(--ease) both; }
+
+/* agenti con le mascotte */
+.qt-land .agents { background: var(--off); overflow: hidden; }
+.qt-land .team { text-align: center; }
+.qt-land .team-img { display: block; width: min(860px, 100%); margin: 0 auto 36px; }
+.qt-land .team h2, .qt-land .team .para { margin-left: auto; margin-right: auto; }
+.qt-land .team .para { max-width: 56ch; }
+.qt-land .agent-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 40px; margin-top: 90px; }
+.qt-land .agent { text-align: left; }
+.qt-land .agent-pic { height: 170px; display: flex; align-items: flex-end; justify-content: flex-start; margin-bottom: 22px; }
+.qt-land .agent-pic img { height: 150px; width: auto; max-width: 200px; object-fit: contain; animation: qt-bob 3.4s ease-in-out infinite; transform-origin: bottom center; }
+@keyframes qt-bob { 0%, 100% { transform: translateY(0) rotate(0); } 50% { transform: translateY(-8px) rotate(-1.5deg); } }
+.qt-land .agent-n { display: flex; align-items: center; gap: 8px; font-size: 12px; letter-spacing: .08em; text-transform: uppercase; color: var(--gray); }
+.qt-land .agent-n span { width: 22px; height: 22px; border-radius: 50%; display: grid; place-items: center; font-size: 11px; font-weight: 600; background: var(--yellow); color: var(--ink); letter-spacing: 0; }
+.qt-land .agent h3 { font-size: 26px; letter-spacing: -0.03em; margin-top: 8px; }
+.qt-land .agent-job { font-size: 15px; line-height: 1.6; color: var(--gray); margin-top: 10px; }
+.qt-land .agent-say { font-size: 13px; line-height: 1.5; color: var(--ink); margin-top: 14px; padding: 10px 14px; border-radius: 16px 16px 16px 4px; background: #fff; box-shadow: 0 1px 0 rgba(13,13,13,.04); }
+.qt-land .agent-say b { font-weight: 600; }
+.qt-land .agents-video { display: grid; grid-template-columns: 1fr 1fr; gap: 56px; align-items: center; margin-top: 110px; }
+.qt-land .agents-video .loop-video { margin: 0; max-width: 520px; }
+.qt-land .agents-video h3 { font-size: clamp(26px, 3vw, 38px); letter-spacing: -0.035em; }
+
+/* prezzi più contenuti */
+.qt-land .price .amount { font-size: clamp(44px, 5vw, 68px); }
+.qt-land .price .amount small { font-size: 15px; }
+.qt-land .price li { font-size: 14.5px; padding: 9px 0 9px 22px; }
+.qt-land .price li::before { top: 18px; }
+
+@media (max-width: 1080px) {
+  .qt-land .agent-row { grid-template-columns: repeat(2, 1fr); gap: 48px 32px; }
+  .qt-land .agents-video { grid-template-columns: 1fr; gap: 28px; }
+  .qt-land .real-split { gap: 32px; }
+}
+@media (max-width: 720px) {
+  .qt-land .sect { padding: 76px 0; }
+  .qt-land h2 { font-size: clamp(28px, 8vw, 38px); }
+  .qt-land .para { font-size: 16px; margin-top: 18px; }
+  .qt-land .hero h1 { font-size: clamp(38px, 11vw, 52px); }
+  .qt-land .hero-sub { font-size: 15.5px; margin-top: 20px; }
+  .qt-land .hero-inner { padding-bottom: 56px; }
+  .qt-land .hero-ctas { gap: 18px; margin-top: 28px; }
+  .qt-land .verbs { margin-top: 36px; }
+  .qt-land .verb-word { font-size: clamp(44px, 14vw, 64px); }
+  .qt-land .verb p { font-size: 15px; }
+  .qt-land .proc-pin { padding: 70px 0; }
+  .qt-land .proc-left h2 { font-size: 28px; }
+  .qt-land .proc-steps { margin-top: 26px; }
+  .qt-land .proc-steps h3 { font-size: 16px; }
+  .qt-land .proc-steps p { font-size: 14px; }
+  .qt-land .pl { padding: 12px 0; }
+  .qt-land .pl-v { font-size: 14.5px; }
+  .qt-land .team-img { margin-bottom: 24px; }
+  /* agenti: si scorrono di lato, uno per schermata */
+  .qt-land .agent-row { display: flex; gap: 16px; overflow-x: auto; scroll-snap-type: x mandatory; margin: 48px -16px 0; padding: 0 16px 12px; scrollbar-width: none; }
+  .qt-land .agent-row::-webkit-scrollbar { display: none; }
+  .qt-land .agent { flex: 0 0 82%; scroll-snap-align: start; }
+  .qt-land .agent-pic { height: 140px; }
+  .qt-land .agent-pic img { height: 128px; }
+  .qt-land .agents-video { margin-top: 64px; }
+  .qt-land .principles { gap: 28px; }
+  .qt-land .prices { gap: 56px; margin-top: 40px; }
+  .qt-land .price .amount { font-size: 44px; }
+  .qt-land .price ul { margin: 22px 0 26px; }
+  .qt-land .faq-item dt button { font-size: 15px; padding: 16px 0; }
+  .qt-land .ask { min-height: 0; }
+  .qt-land .cta-final { padding: 96px 0; }
+  .qt-land .real-tabs button { padding: 7px 13px; font-size: 12.5px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .qt-land .agent-pic img { animation: none; }
+  .qt-land .real-view img { transition: none; transform: none; }
+}
+@media (max-width: 720px) {
+  .qt-land .real-view { aspect-ratio: 4 / 3; }
+  .qt-land .real-view img { object-position: top right; transform-origin: top right; }
+  .qt-land .proc-steps li, .qt-land .proc-steps li.done { opacity: 1; }
+}

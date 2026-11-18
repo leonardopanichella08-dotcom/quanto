@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react'
 import { Briefcase, Building2, ChevronDown, LogOut, Menu, Plus, Sparkles, X } from 'lucide-react'
-import { Mark, Wordmark } from './ui'
+import { Wordmark } from './ui'
 import { api } from '../lib/api'
 import { CreditsRing } from './CreditsBadge'
 import { fmtTok, useTokens } from './Tokens'
@@ -62,8 +62,7 @@ export default function Sidebar({ onAssistant, user, isOwner, tab, onGo, clients
   const body = (
     <div className="h-full flex flex-col gap-5 px-3 py-4 overflow-y-auto">
       <div className="flex items-center gap-2.5 px-1">
-        <Mark size={28} />
-        <Wordmark height={17} className="text-ink" />
+        <Wordmark height={18} className="text-ink" />
         <button className="md:hidden ml-auto btn !px-2 !py-1.5" onClick={onClose} aria-label="Chiudi il menu"><X className="w-4 h-4" /></button>
       </div>
       <Workspace clients={clients} clientId={clientId} onChange={onClient} onNew={onNewClient} />
@@ -108,7 +107,7 @@ export function MobileBar({ onOpen }) {
   return (
     <div className="md:hidden sticky top-0 z-40 flex items-center gap-3 bg-white border-b border-line px-4 py-2.5">
       <button className="btn !px-2 !py-1.5" onClick={onOpen} aria-label="Apri il menu"><Menu className="w-4 h-4" /></button>
-      <Mark size={24} /><Wordmark height={15} className="text-ink" />
+      <Wordmark height={16} className="text-ink" />
     </div>
   )
 }

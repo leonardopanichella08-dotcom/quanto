@@ -6,11 +6,6 @@ export function Wordmark({ height = 22, className = '' }) {
   return <span role="img" aria-label="Quanto" className={`block bg-current ${className}`} style={{ ...mask, height, width: Math.round(height * 2.936) }} />
 }
 
-// La Q del marchio: quadrato giallo con la Q bianca.
-export function Mark({ size = 36, className = '' }) {
-  return <img src="/brand/quanto-mark.png" alt="" width={size} height={size} className={`rounded-[22%] shrink-0 ${className}`} />
-}
-
 // Titolo di pagina: titolo e una riga che dice a cosa serve la pagina; a destra, lo stato (registro, bando in uso).
 export function PageHead({ title, sub, children }) {
   return (
