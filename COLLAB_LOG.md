@@ -6,7 +6,7 @@ quando hai finito sposta la riga nel «Diario» (in cima, la più recente prima)
 ## In corso ora
 | Sessione | Da quando | Su cosa (file o area) | Note |
 |---|---|---|---|
-| — | — | — | — |
+| Claude · terminale quanto | 2026-11-18 | Homepage: prezzi, agenti con pagine dedicate, squadra, processo, apertura e video (`Landing.jsx/.css`, nuovo `AgentPage.jsx`, `public/landing/`) | non toccare questi file |
 
 ## Diario
 ### 2026-11-18 · assistente a tutto schermo con le mascotte
