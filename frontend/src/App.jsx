@@ -12,6 +12,7 @@ import Guida from './components/Guida'
 import Profile from './components/Profile'
 import Landing from './components/Landing'
 import Vision from './components/Vision'
+import AgentPage from './components/AgentPage'
 import Sidebar, { MobileBar } from './components/Sidebar'
 import { NeedClient } from './components/Clients'
 import { ArrowLeft, BookOpen, Calculator, GitCompare, HandCoins, Library, ShieldCheck, Split, User } from 'lucide-react'
@@ -336,7 +337,8 @@ function AppInner({ bridge }) {
   const isOwner = !!user?.is_owner
 
   if (!user && tab === 'visione') return <Vision onGoHome={() => nav.go('bandi')} onStart={() => nav.go('bandi')} />
-  if (!user && tab !== 'auditor') return <Landing onLogin={setUser} onAuditor={() => setTab('auditor')} onVision={() => nav.go('visione')} />
+  if (!user && String(tab).startsWith('agente-')) return <AgentPage id={tab.slice(7)} onHome={() => nav.go('bandi')} onAgent={(id) => nav.go(`agente-${id}`)} onStart={() => { window.location.hash = 'richiedi'; nav.go('bandi') }} />
+  if (!user && tab !== 'auditor') return <Landing onLogin={setUser} onAuditor={() => setTab('auditor')} onVision={() => nav.go('visione')} onAgent={(id) => nav.go(`agente-${id}`)} />
 
   return (
     <NavContext.Provider value={nav}>

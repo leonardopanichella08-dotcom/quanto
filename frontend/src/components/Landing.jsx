@@ -184,13 +184,13 @@ function AskQuanto() {
 
 // I quattro agenti, ognuno con la sua mascotte: l'antenna fiuta le agevolazioni, il cubo divide le spese, la spunta controlla, il doppio confronta.
 const AGENTS = [
-  { img: '/landing/mascotte-fiuto.webp', name: 'Fiuto', role: 'Agevolazioni', job: 'Ha l’antenna sempre accesa: legge assunzioni e spese dell’impresa e trova le misure che le spettano davvero, crediti d’imposta e incentivi compresi.',
+  { id: 'fiuto', short: 'Trova le misure che spettano all’impresa.', img: '/landing/mascotte-fiuto.webp', name: 'Fiuto', role: 'Agevolazioni', job: 'Ha l’antenna sempre accesa: legge assunzioni e spese dell’impresa e trova le misure che le spettano davvero, crediti d’imposta e incentivi compresi.',
     say: ['Ho letto', 'le 2 assunzioni previste'], found: 'Bonus Giovani: fino a 15.600 €' },
-  { img: '/landing/mascotte-riparto.webp', name: 'Riparto', role: 'Allocazione', job: 'Mette ogni spesa sotto l’agevolazione giusta, rispettando tetti, cumulo e de minimis, senza mai contare due volte la stessa voce.',
+  { id: 'riparto', short: 'Decide quale agevolazione paga quale spesa.', img: '/landing/mascotte-riparto.webp', name: 'Riparto', role: 'Allocazione', job: 'Mette ogni spesa sotto l’agevolazione giusta, rispettando tetti, cumulo e de minimis, senza mai contare due volte la stessa voce.',
     say: ['Ho studiato', '8 bandi aperti'], found: '3 adatti alle spese dell’anno' },
-  { img: '/landing/mascotte-spunta.webp', name: 'Spunta', role: 'Budget', job: 'Scrive la bozza del budget dai documenti e la passa ai 60 controlli prima della domanda: cosa passa, cosa va ridotto, cosa va documentato.',
+  { id: 'spunta', short: 'Scrive il budget e lo passa ai 60 controlli.', img: '/landing/mascotte-spunta.webp', name: 'Spunta', role: 'Budget', job: 'Scrive la bozza del budget dai documenti e la passa ai 60 controlli prima della domanda: cosa passa, cosa va ridotto, cosa va documentato.',
     say: ['Ho controllato', '60 criteri per voce'], found: '2 voci da ridurre' },
-  { img: '/landing/mascotte-duo.webp', name: 'Duo', role: 'Confronto', job: 'Ha due facce perché guarda due strade insieme: confronta bandi e scenari sullo stesso progetto, con lo stesso metodo.',
+  { id: 'duo', short: 'Confronta bandi e scenari sullo stesso progetto.', img: '/landing/mascotte-duo.webp', name: 'Duo', role: 'Confronto', job: 'Ha due facce perché guarda due strade insieme: confronta bandi e scenari sullo stesso progetto, con lo stesso metodo.',
     say: ['Ho confrontato', '2 bandi sullo stesso budget'], found: 'il primo copre di più' },
 ]
 
@@ -228,11 +228,11 @@ const VERBS = [
   ['Controlla', 'Ogni voce con 60 criteri, prima che lo faccia l’ente: cosa passa, cosa va ridotto, cosa va documentato.'],
 ]
 
-export default function Landing({ onLogin, onAuditor, onVision }) {
+export default function Landing({ onLogin, onAuditor, onVision, onAgent }) {
   const root = useRef(null)
   const [modal, setModalRaw] = useState(null)
   const setModal = (m) => { if (m === 'register') visit('cta', 'Richiedi accesso'); setModalRaw(m) }
-  useEffect(() => { visit('view') }, [])
+  useEffect(() => { visit('view'); if (window.location.hash === '#richiedi') { setModalRaw('register'); history.replaceState(null, '', window.location.pathname) } }, [])
   const [nav, setNav] = useState({ glass: false, hide: false })
   const [step, setStep] = useState(0)
 
@@ -289,7 +289,6 @@ export default function Landing({ onLogin, onAuditor, onVision }) {
       })
 
       gsap.fromTo('.agent', { opacity: 0, y: 30 }, { opacity: 1, y: 0, duration: 0.9, stagger: 0.12, ease: 'power3.out', scrollTrigger: { trigger: '.agent-row', start: 'top 85%' } })
-      gsap.fromTo('.team-img', { opacity: 0, y: 40, scale: 0.96 }, { opacity: 1, y: 0, scale: 1, duration: 1.2, ease: 'power3.out', scrollTrigger: { trigger: '.team', start: 'top 85%' } })
 
       // prezzi: le cifre salgono, le righe dell'elenco si disegnano una dopo l'altra
       gsap.utils.toArray('.price').forEach((el) => {
@@ -322,8 +321,9 @@ export default function Landing({ onLogin, onAuditor, onVision }) {
         <BgVideo className="hero-img" />
         <div className="hero-shade" aria-hidden="true" />
         <div className="wrap hero-inner">
-          <h1>{lines(['La finanza agevolata', 'dello studio,', 'dall’inizio alla fine.'])}</h1>
-          <p className="hero-sub after">QUANTO trova le agevolazioni adatte a ogni cliente, ne studia le regole, costruisce il progetto e il budget e li controlla prima della domanda. Agenti che svolgono il lavoro, ogni numero legato alla sua fonte.</p>
+          <p className="hero-kicker after">Per studi di commercialisti e consulenti</p>
+          <h1>{lines(['La finanza agevolata,', 'dall’inizio alla fine.'])}</h1>
+          <p className="hero-sub after">Quattro agenti trovano le agevolazioni, scrivono il budget e lo controllano. Ogni numero con la sua fonte.</p>
           <div className="hero-ctas after">
             <button className="btn-cta big" onClick={() => setModal('register')}>Richiedi accesso<ArrowRight size={15} /></button>
             <a className="hero-link" href="#agenti">Conosci gli agenti<ArrowRight size={14} /></a>
@@ -366,8 +366,8 @@ export default function Landing({ onLogin, onAuditor, onVision }) {
               ))}
             </ol>
           </div>
-          <div className="proc-right" aria-label="La pratica che si compone">
-            <p className="pr-head">Pratica · impresa di prova</p>
+          <div className="proc-right proc-card" aria-label="La pratica che si compone">
+            <p className="pr-head"><span>Pratica · impresa di prova</span><i className="pr-dot" /></p>
             {STEPS.map((s, k) => (
               <div key={s.title} className={`pl${k <= step ? ' in' : ''}${k === step ? ' now' : ''}`}>
                 <span className="pl-k">{s.line[0]}</span><span className="pl-v">{s.line[1]}</span>
@@ -380,9 +380,8 @@ export default function Landing({ onLogin, onAuditor, onVision }) {
 
       <section className="sect agents" id="agenti"><div className="wrap">
         <div className="team">
-          <img src="/landing/mascotte-squadra.webp" alt="Le quattro mascotte di QUANTO: Fiuto, Riparto, Spunta e Duo" className="team-img" loading="lazy" />
           <h2 className="mask-in">{lines(['Quattro agenti.', 'Una squadra per ogni pratica.'])}</h2>
-          <p className="para fade-in">Lavorano in ordine e si passano il lavoro. Ognuno ti dice cosa ha fatto, cosa ha trovato e cosa gli serve. I numeri li calcolano le regole; tu decidi e firmi.</p>
+          <p className="para fade-in">Lavorano in ordine e si passano il lavoro. I numeri li calcolano le regole; tu decidi e firmi.</p>
         </div>
         <ol className="agent-row">
           {AGENTS.map((g, k) => (
@@ -390,8 +389,9 @@ export default function Landing({ onLogin, onAuditor, onVision }) {
               <div className="agent-pic"><img src={g.img} alt={`${g.name}, l’agente ${g.role}`} loading="lazy" style={{ animationDelay: `${k * 0.4}s` }} /></div>
               <p className="agent-n"><span>{k + 1}</span>{g.role}</p>
               <h3>{g.name}</h3>
-              <p className="agent-job">{g.job}</p>
+              <p className="agent-job">{g.short}</p>
               <p className="agent-say"><b>{g.say[0]}</b> {g.say[1]} · <b>ho trovato</b> {g.found}</p>
+              <button className="agent-more" onClick={() => onAgent?.(g.id)} aria-label={`Come lavora ${g.name}`}>Come lavora<ArrowRight size={13} /></button>
             </li>
           ))}
         </ol>
@@ -429,9 +429,9 @@ export default function Landing({ onLogin, onAuditor, onVision }) {
               <li>+0,5 token per ogni budget pubblicato per tutti</li>
               <li>10 token di benvenuto che non scadono</li>
             </ul>
-            <button className="btn-cta big" onClick={() => setModal('register')}>Inizia gratis<ArrowRight size={15} /></button>
+            <button className="btn-cta" onClick={() => setModal('register')}>Inizia gratis<ArrowRight size={14} /></button>
           </div>
-          <div className="price">
+          <div className="price price-alt">
             <span className="tier">Token in più</span>
             <div className="amount-wrap"><div className="amount">25 €<small> ogni 10 token</small></div></div>
             <span className="alt">2,50 € a token</span>
@@ -441,6 +441,7 @@ export default function Landing({ onLogin, onAuditor, onVision }) {
               <li>Prima di spendere vedi il costo e il perché; se un calcolo fallisce i token tornano</li>
               <li>Il pagamento online arriverà: oggi le ricariche le elabora il titolare</li>
             </ul>
+            <p className="price-foot">In questa fase di prova nessun token viene scalato.</p>
           </div>
         </div>
       </div></section>

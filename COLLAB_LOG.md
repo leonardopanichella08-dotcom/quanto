@@ -6,9 +6,12 @@ quando hai finito sposta la riga nel «Diario» (in cima, la più recente prima)
 ## In corso ora
 | Sessione | Da quando | Su cosa (file o area) | Note |
 |---|---|---|---|
-| Claude · terminale quanto | 2026-11-18 | Homepage: prezzi, agenti con pagine dedicate, squadra, processo, apertura e video (`Landing.jsx/.css`, nuovo `AgentPage.jsx`, `public/landing/`) | non toccare questi file |
+| — | — | — | — |
 
 ## Diario
+### 2026-11-18 · homepage: agenti con pagine dedicate, prezzi, apertura
+- `AgentPage.jsx/.css` nuovi (tab `agente-<id>`), `Landing.jsx/.css`, `App.jsx`, video `public/landing/sfondo.mp4` sostituito (1920×1080). Build ok, controllato da computer e telefono.
+
 ### 2026-11-18 · assistente a tutto schermo con le mascotte
 - `assistant/AssistantContext.jsx` riscritto nella parte visiva (Screen, Msg, Peek, RunCard con la mascotte), `assistant/tasks.js` + agevolazioni e confronto, `App.jsx` bridge.isOwner, stili `.asst-*` sostituiti in `index.css`.
 - Provato in locale nel browser (computer e telefono). Nessun test backend toccato.

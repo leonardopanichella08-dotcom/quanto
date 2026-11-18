@@ -430,3 +430,71 @@
   .qt-land .real-view img { object-position: top right; transform-origin: top right; }
   .qt-land .proc-steps li, .qt-land .proc-steps li.done { opacity: 1; }
 }
+
+/* ================================================================== revisione 18 novembre: apertura, squadra, tessera del processo, prezzi */
+/* apertura: una riga per dire a chi è, titolo più corto, testo leggibile sul video */
+.qt-land .hero-kicker { display: inline-flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 500; letter-spacing: .02em; color: rgba(255, 255, 255, 0.86);
+  padding: 6px 12px; border-radius: 999px; background: rgba(0, 0, 0, 0.28); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); margin-bottom: 22px; }
+.qt-land .hero-kicker::before { content: ''; width: 7px; height: 7px; border-radius: 50%; background: var(--yellow); }
+.qt-land .hero h1 { font-size: clamp(38px, 5vw, 72px); line-height: 1.02; text-shadow: 0 2px 30px rgba(0, 0, 0, 0.35); }
+.qt-land .hero-sub { font-size: clamp(15px, 1.2vw, 17.5px); max-width: 46ch; margin-top: 20px; color: rgba(255, 255, 255, 0.92); text-shadow: 0 1px 16px rgba(0, 0, 0, 0.4); }
+.qt-land .hero-ctas { margin-top: 30px; }
+.qt-land .hero-shade { background: linear-gradient(180deg, rgba(0, 0, 0, 0.38) 0%, rgba(0, 0, 0, 0.06) 30%, rgba(0, 0, 0, 0.32) 58%, rgba(0, 0, 0, 0.82) 100%), linear-gradient(90deg, rgba(0, 0, 0, 0.55), rgba(0, 0, 0, 0) 60%); }
+
+/* squadra: quattro immagini singole, nitide */
+.qt-land .team-img { display: flex; justify-content: center; align-items: flex-end; gap: clamp(12px, 3vw, 40px); width: auto; margin: 0 auto 36px; }
+.qt-land .team-img img { height: clamp(110px, 14vw, 180px); width: auto; object-fit: contain; }
+
+/* agenti: meno parole e una freccia verso la pagina di ognuno */
+.qt-land .agent h3 { font-size: 21px; }
+.qt-land .agent-job { font-size: 14px; line-height: 1.5; margin-top: 6px; }
+.qt-land .agent-say { font-size: 12px; padding: 8px 12px; }
+.qt-land .agent-more { display: inline-flex; align-items: center; gap: 6px; margin-top: 14px; padding: 7px 12px 7px 14px; border-radius: 999px; border: 0; cursor: pointer;
+  font: 500 12.5px 'Inter', sans-serif; color: var(--ink); background: rgba(13, 13, 13, 0.05); transition: background .3s, gap .4s var(--ease); }
+.qt-land .agent-more:hover { background: var(--yellow); gap: 10px; }
+
+/* processo: la pratica che si compone dentro una tessera */
+.qt-land .proc-card { padding: 26px 28px 24px; border-radius: 22px; background: #fff; box-shadow: 0 0 0 1px rgba(13, 13, 13, 0.08), 0 30px 60px -36px rgba(13, 13, 13, 0.3); }
+.qt-land .proc-card .pr-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
+.qt-land .pr-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--yellow); box-shadow: 0 0 0 4px rgba(241, 226, 27, 0.25); animation: qt-pulse 1.8s ease-in-out infinite; }
+@keyframes qt-pulse { 50% { box-shadow: 0 0 0 8px rgba(241, 226, 27, 0); } }
+.qt-land .proc-card .pl { padding: 13px 0; grid-template-columns: 110px 1fr; }
+.qt-land .proc-card .pl:first-of-type { border-top: 0; }
+.qt-land .proc-card .pl-k { font-size: 10.5px; }
+.qt-land .proc-card .pl-v { font-size: 14px; }
+.qt-land .proc-card .pl-end { margin-top: 16px; font-size: 16px; }
+
+/* prezzi: due schede sottili, numeri e testi più piccoli */
+.qt-land .prices { grid-template-columns: 1fr 1fr; gap: 16px; margin-top: 48px; }
+.qt-land .price { display: flex; flex-direction: column; padding: 30px 30px 26px; border-radius: 22px; background: #fff; box-shadow: 0 0 0 1px rgba(13, 13, 13, 0.08), 0 24px 50px -36px rgba(13, 13, 13, 0.25); }
+.qt-land .price-alt { background: #fafaf8; }
+.qt-land .price .tier { font-size: 11.5px; }
+.qt-land .price .amount-wrap { margin-top: 10px; }
+.qt-land .price .amount { font-size: clamp(36px, 3.6vw, 48px); }
+.qt-land .price .amount small { font-size: 13.5px; }
+.qt-land .price .alt { font-size: 12.5px; margin-top: 8px; }
+.qt-land .price ul { margin: 22px 0 24px; flex: 1; }
+.qt-land .price li { font-size: 13.5px; padding: 8px 0 8px 20px; border-top: 1px solid rgba(13, 13, 13, 0.06); }
+.qt-land .price li:first-child { border-top: 0; }
+.qt-land .price li::before { top: 17px; width: 8px; }
+.qt-land .price .btn-cta { align-self: flex-start; }
+.qt-land .price-foot { font-size: 12.5px; color: var(--gray); }
+@media (max-width: 860px) { .qt-land .prices { grid-template-columns: 1fr; } .qt-land .price { padding: 24px 20px 22px; } }
+@media (max-width: 720px) {
+  .qt-land .hero h1 { font-size: clamp(34px, 9.5vw, 46px); }
+  .qt-land .hero-kicker { font-size: 12px; margin-bottom: 16px; }
+  .qt-land .proc-card { padding: 20px 18px; }
+  .qt-land .proc-card .pl { grid-template-columns: 1fr; }
+}
+@media (prefers-reduced-motion: reduce) { .qt-land .pr-dot { animation: none; } }
+/* le righe della pratica non ancora raggiunte si vedono sbiadite: la tessera non resta vuota */
+.qt-land .proc-card .pl { opacity: .28; transform: none; }
+.qt-land .proc-card .pl.in { opacity: .6; }
+.qt-land .proc-card .pl.now { opacity: 1; }
+.qt-land .proc-card .pl-end { opacity: .28; transform: none; }
+.qt-land .proc-card .pl-end.in { opacity: 1; }
+/* prezzi: titolo e testo più piccoli */
+.qt-land #prezzi h2 { font-size: clamp(28px, 3vw, 40px); }
+.qt-land #prezzi .para { font-size: 15px; max-width: 58ch; margin-top: 18px; }
+.qt-land .agents .team h2 { margin-top: 0; }
+
