@@ -6,7 +6,7 @@ quando hai finito sposta la riga nel «Diario» (in cima, la più recente prima)
 ## In corso ora
 | Sessione | Da quando | Su cosa (file o area) | Note |
 |---|---|---|---|
-| — | — | — | — |
+| QUANTO (chat principale) | 23/11 | homepage: `Landing.jsx`, `Landing.css`, `index.html` | apertura in alto, iPhone, rifinitura |
 
 ## Diario
 ### 2026-11-18 · homepage: agenti con pagine dedicate, prezzi, apertura
