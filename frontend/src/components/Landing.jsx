@@ -11,6 +11,10 @@ import PortalPreview from './PortalPreview'
 import './PortalPreview.css'
 
 gsap.registerPlugin(ScrollTrigger)
+// su iPhone la barra degli indirizzi cambia l'altezza mentre si scorre: senza questo le animazioni si ricalcolano e la pagina salta
+ScrollTrigger.config({ ignoreMobileResize: true })
+
+const SECTIONS = [['metodo', 'Metodo'], ['agenti', 'Agenti'], ['prezzi', 'Prezzi'], ['domande', 'Domande']]
 
 /* Homepage pubblica. Colori del marchio: bianco, nero, giallo #F1E21B. Nessun riquadro, nessuna griglia di schede:
    tipografia, linee, fotografia e movimento. Ogni animazione mostra il lavoro vero di QUANTO; le cifre sono di un esempio e lo dicono.
@@ -39,6 +43,14 @@ function AuthModal({ mode, onClose, onSwitch, onDone }) {
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState(null)
   const [sent, setSent] = useState(null)                 // richiesta inviata: si aspetta l'approvazione
+  // Esc chiude; la pagina sotto non scorre mentre il modulo è aperto (su iPhone scorreva dietro)
+  useEffect(() => {
+    const key = (e) => { if (e.key === 'Escape') onClose() }
+    const prev = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+    window.addEventListener('keydown', key)
+    return () => { document.body.style.overflow = prev; window.removeEventListener('keydown', key) }
+  }, [onClose])
   const submit = async (e) => {
     e.preventDefault()
     setBusy(true); setError(null)
@@ -108,6 +120,7 @@ function BgVideo({ className }) {
   useEffect(() => {
     const v = ref.current
     if (!v) return undefined
+    v.muted = true; v.defaultMuted = true                     // Safari su iPhone parte da solo solo se il video è davvero muto
     if (reduced()) { v.pause(); return undefined }
     const io = new IntersectionObserver(([e]) => { if (e.isIntersecting) v.play().catch(() => {}); else v.pause() }, { threshold: 0.05 })
     io.observe(v)
@@ -122,6 +135,7 @@ function LoopVideo({ src, poster, label }) {
   useEffect(() => {
     const v = ref.current
     if (!v) return undefined
+    v.muted = true; v.defaultMuted = true
     if (reduced()) { v.pause(); return undefined }
     const io = new IntersectionObserver(([e]) => { if (e.isIntersecting) v.play().catch(() => {}); else v.pause() }, { threshold: 0.25 })
     io.observe(v)
@@ -153,18 +167,28 @@ function FaqShort() {
 function AskQuanto() {
   const [q, setQ] = useState('')
   const [log, setLog] = useState([])
-  const end = useRef(null)
+  const box = useRef(null)
   const ask = (text) => {
     const t = (text ?? q).trim()
     if (!t) return
     setLog((l) => [...l, { q: t, r: answer(t) }])
     setQ('')
   }
-  useEffect(() => { end.current?.scrollIntoView?.({ block: 'nearest', behavior: reduced() ? 'auto' : 'smooth' }) }, [log])
+  // scorre solo dentro la chat e solo dopo una domanda: prima usava scrollIntoView, che all'apertura portava tutta la pagina giù alle domande
+  useEffect(() => {
+    const el = box.current
+    if (!el || log.length === 0) return
+    el.scrollTo({ top: el.scrollHeight, behavior: reduced() ? 'auto' : 'smooth' })
+  }, [log])
   return (
     <div className="ask">
-      <div className="ask-log" aria-live="polite">
-        {log.length === 0 && <p className="ask-hint">Scrivi una domanda su QUANTO. Rispondo con le risposte scritte dal team, non con un modello che inventa.</p>}
+      <div className="ask-log" aria-live="polite" ref={box}>
+        {log.length === 0 && (
+          <div className="ask-start">
+            <p className="ask-hint">Scrivi una domanda su QUANTO. Rispondo con le risposte scritte dal team, non con un modello che inventa.</p>
+            <div className="ask-rel">{['Quanto costa?', 'I documenti sono cifrati?', 'Scrive il progetto al posto mio?'].map((s) => <button key={s} type="button" onClick={() => ask(s)}>{s}</button>)}</div>
+          </div>
+        )}
         {log.map((m, k) => (
           <div key={k} className="ask-turn">
             <p className="ask-q">{m.q}</p>
@@ -172,10 +196,9 @@ function AskQuanto() {
             {m.r.related.length > 0 && <div className="ask-rel">{m.r.related.map(([rq]) => <button key={rq} type="button" onClick={() => ask(rq)}>{rq}</button>)}</div>}
           </div>
         ))}
-        <span ref={end} />
       </div>
       <form className="ask-bar" onSubmit={(e) => { e.preventDefault(); ask() }}>
-        <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Chiedi a QUANTO…" aria-label="Fai una domanda su QUANTO" />
+        <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Chiedi a QUANTO…" aria-label="Fai una domanda su QUANTO" enterKeyHint="send" autoComplete="off" />
         <button type="submit" disabled={!q.trim()} aria-label="Invia la domanda"><ArrowUp size={16} /></button>
       </form>
     </div>
@@ -232,9 +255,33 @@ export default function Landing({ onLogin, onAuditor, onVision, onAgent }) {
   const root = useRef(null)
   const [modal, setModalRaw] = useState(null)
   const setModal = (m) => { if (m === 'register') visit('cta', 'Richiedi accesso'); setModalRaw(m) }
-  useEffect(() => { visit('view'); if (window.location.hash === '#richiedi') { setModalRaw('register'); history.replaceState(null, '', window.location.pathname) } }, [])
+  useEffect(() => {
+    visit('view')
+    // la pagina si apre sempre in alto, sul titolo: il browser non deve riportarla dove era rimasta l'ultima volta
+    if ('scrollRestoration' in history) history.scrollRestoration = 'manual'
+    // anche con un indirizzo rimasto come …/#domande (dal menu, poi ricaricato) si riparte dal titolo
+    if (window.location.hash === '#richiedi') setModalRaw('register')
+    if (window.location.hash) history.replaceState(null, '', window.location.pathname + window.location.search)
+    window.scrollTo({ top: 0, behavior: 'instant' })
+  }, [])
   const [nav, setNav] = useState({ glass: false, hide: false })
+  const [menu, setMenu] = useState(false)
+  const [here, setHere] = useState('')
   const [step, setStep] = useState(0)
+
+  // la voce della barra si accende sulla sezione che si sta leggendo
+  useEffect(() => {
+    const els = SECTIONS.map(([id]) => document.getElementById(id)).filter(Boolean)
+    const io = new IntersectionObserver((es) => { es.forEach((e) => { if (e.isIntersecting) setHere(e.target.id) }) }, { rootMargin: '-45% 0px -50% 0px' })
+    els.forEach((el) => io.observe(el))
+    return () => io.disconnect()
+  }, [])
+  useEffect(() => {
+    if (!menu) return undefined
+    const key = (e) => { if (e.key === 'Escape') setMenu(false) }
+    window.addEventListener('keydown', key)
+    return () => window.removeEventListener('keydown', key)
+  }, [menu])
 
   // navigazione: del tutto trasparente sopra l'apertura animata (solo le scritte), vetro solo dopo l'apertura;
   // sparisce appena si comincia a scendere, così il video resta libero, e torna appena si risale
@@ -303,25 +350,27 @@ export default function Landing({ onLogin, onAuditor, onVision, onAgent }) {
 
   return (
     <div className="qt-land" ref={root}>
-      <nav className={`qt-nav${nav.glass ? ' is-glass' : ''}${navHidden ? ' hide' : ''}`}><div className="nav-pill">
-        <a href="#top" className="brand" aria-label="QUANTO, torna all’inizio"><Wordmark height={14} className="wordmark" /></a>
+      <nav className={`qt-nav${nav.glass || menu ? ' is-glass' : ''}${navHidden && !menu ? ' hide' : ''}${menu ? ' menu-open' : ''}`}><div className="nav-pill">
+        <a href="#top" className="brand" aria-label="QUANTO, torna all’inizio" onClick={() => setMenu(false)}><Wordmark height={14} className="wordmark" /></a>
         <div className="links">
-          <a href="#metodo">Metodo</a>
-          <a href="#agenti">Agenti</a>
-          <a href="#prezzi">Prezzi</a>
-          <a href="#domande">Domande</a>
+          {SECTIONS.map(([id, t]) => <a key={id} href={`#${id}`} className={here === id ? 'on' : ''} aria-current={here === id ? 'true' : undefined}>{t}</a>)}
         </div>
         <div className="actions">
           <button className="nav-login" onClick={() => setModal('login')}>Accedi</button>
           <button className="nav-cta" onClick={() => setModal('register')}>Richiedi accesso</button>
+          <button className="nav-burger" aria-label={menu ? 'Chiudi il menu' : 'Apri il menu'} aria-expanded={menu} aria-controls="qt-menu" onClick={() => setMenu((m) => !m)}><i /><i /></button>
         </div>
+      </div>
+      <div id="qt-menu" className={`nav-sheet${menu ? ' open' : ''}`} aria-hidden={!menu}>
+        {SECTIONS.map(([id, t], k) => <a key={id} href={`#${id}`} tabIndex={menu ? 0 : -1} style={{ transitionDelay: menu ? `${0.04 * k + 0.05}s` : '0s' }} onClick={() => setMenu(false)}>{t}<ArrowRight size={18} /></a>)}
+        <button type="button" tabIndex={menu ? 0 : -1} className="sheet-login" onClick={() => { setMenu(false); setModal('login') }}><Lock size={14} />Accedi</button>
       </div></nav>
+      {menu && <div className="nav-scrim" onClick={() => setMenu(false)} aria-hidden="true" />}
 
       <header className="hero" id="top">
         <BgVideo className="hero-img" />
         <div className="hero-shade" aria-hidden="true" />
         <div className="wrap hero-inner">
-          <p className="hero-kicker after">Per studi di commercialisti e consulenti</p>
           <h1>{lines(['La finanza agevolata,', 'dall’inizio alla fine.'])}</h1>
           <p className="hero-sub after">Quattro agenti trovano le agevolazioni, scrivono il budget e lo controllano. Ogni numero con la sua fonte.</p>
           <div className="hero-ctas after">

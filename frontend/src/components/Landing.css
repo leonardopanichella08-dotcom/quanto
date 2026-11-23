@@ -432,10 +432,7 @@
 }
 
 /* ================================================================== revisione 18 novembre: apertura, squadra, tessera del processo, prezzi */
-/* apertura: una riga per dire a chi è, titolo più corto, testo leggibile sul video */
-.qt-land .hero-kicker { display: inline-flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 500; letter-spacing: .02em; color: rgba(255, 255, 255, 0.86);
-  padding: 6px 12px; border-radius: 999px; background: rgba(0, 0, 0, 0.28); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); margin-bottom: 22px; }
-.qt-land .hero-kicker::before { content: ''; width: 7px; height: 7px; border-radius: 50%; background: var(--yellow); }
+/* apertura: titolo corto, testo leggibile sul video (la riga «Per studi di…» è stata tolta il 23/11) */
 .qt-land .hero h1 { font-size: clamp(38px, 5vw, 72px); line-height: 1.02; text-shadow: 0 2px 30px rgba(0, 0, 0, 0.35); }
 .qt-land .hero-sub { font-size: clamp(15px, 1.2vw, 17.5px); max-width: 46ch; margin-top: 20px; color: rgba(255, 255, 255, 0.92); text-shadow: 0 1px 16px rgba(0, 0, 0, 0.4); }
 .qt-land .hero-ctas { margin-top: 30px; }
@@ -482,7 +479,6 @@
 @media (max-width: 860px) { .qt-land .prices { grid-template-columns: 1fr; } .qt-land .price { padding: 24px 20px 22px; } }
 @media (max-width: 720px) {
   .qt-land .hero h1 { font-size: clamp(34px, 9.5vw, 46px); }
-  .qt-land .hero-kicker { font-size: 12px; margin-bottom: 16px; }
   .qt-land .proc-card { padding: 20px 18px; }
   .qt-land .proc-card .pl { grid-template-columns: 1fr; }
 }
@@ -498,3 +494,71 @@
 .qt-land #prezzi .para { font-size: 15px; max-width: 58ch; margin-top: 18px; }
 .qt-land .agents .team h2 { margin-top: 0; }
 
+
+/* ================================================================== 23 novembre: apertura in alto, menu da telefono, iPhone, rifiniture */
+html:has(.qt-land) { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
+@media (prefers-reduced-motion: no-preference) { html:has(.qt-land) { scroll-behavior: smooth; } }
+.qt-land { -webkit-tap-highlight-color: transparent; }
+/* i titoli delle sezioni non finiscono sotto la barra quando ci si arriva dal menu */
+.qt-land section[id], .qt-land header[id] { scroll-margin-top: 84px; }
+
+/* barra: la voce della sezione in lettura si accende con un trattino giallo */
+.qt-land .nav-pill .links a { position: relative; }
+.qt-land .nav-pill .links a::after { content: ''; position: absolute; left: 0; right: 0; bottom: -6px; height: 2px; border-radius: 2px; background: var(--yellow); transform: scaleX(0); transition: transform .5s var(--ease); }
+.qt-land .nav-pill .links a.on { opacity: 1; }
+.qt-land .nav-pill .links a.on::after { transform: scaleX(1); }
+
+/* menu da telefono e tablet: due linee che diventano una croce, foglio in vetro sotto la barra */
+.qt-land .nav-burger { display: none; position: relative; width: 40px; height: 40px; margin-left: 2px; border: 0; border-radius: 50%; background: transparent; color: inherit; cursor: pointer; }
+.qt-land .nav-burger i { position: absolute; left: 12px; right: 12px; height: 1.6px; border-radius: 2px; background: currentColor; transition: transform .5s var(--ease), top .5s var(--ease); }
+.qt-land .nav-burger i:first-child { top: 16px; }
+.qt-land .nav-burger i:last-child { top: 23px; }
+.qt-land .menu-open .nav-burger i:first-child { top: 19.5px; transform: rotate(45deg); }
+.qt-land .menu-open .nav-burger i:last-child { top: 19.5px; transform: rotate(-45deg); }
+.qt-land .nav-sheet { position: absolute; top: calc(100% + 8px); left: 16px; right: 16px; max-width: 860px; margin: 0 auto; pointer-events: none; opacity: 0; transform: translateY(-8px) scale(.98); transform-origin: top center;
+  padding: 10px 10px 12px; border-radius: 26px; color: var(--ink); background: rgba(255, 255, 255, 0.86); backdrop-filter: blur(24px) saturate(180%); -webkit-backdrop-filter: blur(24px) saturate(180%);
+  box-shadow: 0 0 0 0.5px rgba(13, 13, 13, 0.08), 0 24px 60px -20px rgba(13, 13, 13, 0.35); transition: opacity .35s var(--ease), transform .5s var(--ease); }
+.qt-land .nav-sheet.open { opacity: 1; transform: none; pointer-events: auto; }
+.qt-land .nav-sheet a { display: flex; align-items: center; justify-content: space-between; padding: 15px 14px; border-radius: 16px; font: 600 22px 'Inter', sans-serif; letter-spacing: -0.03em;
+  opacity: 0; transform: translateY(6px); transition: opacity .4s var(--ease), transform .5s var(--ease), background .3s; }
+.qt-land .nav-sheet.open a { opacity: 1; transform: none; }
+.qt-land .nav-sheet a svg { opacity: .35; transition: transform .4s var(--ease), opacity .3s; }
+.qt-land .nav-sheet a:active { background: rgba(13, 13, 13, 0.05); }
+.qt-land .nav-sheet .sheet-login { display: flex; align-items: center; gap: 8px; width: 100%; margin-top: 6px; padding: 14px; border: 0; border-top: 1px solid var(--hair); border-radius: 0; background: none; font: 500 15px 'Inter', sans-serif; color: var(--gray); cursor: pointer; }
+.qt-land .nav-scrim { position: fixed; inset: 0; z-index: 49; background: rgba(13, 13, 13, 0.18); animation: qt-fade .3s ease both; }
+@keyframes qt-fade { from { opacity: 0; } }
+@media (max-width: 1080px) { .qt-land .nav-burger { display: block; } }
+@media (min-width: 1081px) { .qt-land .nav-sheet, .qt-land .nav-scrim { display: none; } }
+
+/* «Chiedi a QUANTO»: tre domande pronte quando la chat è vuota */
+.qt-land .ask-start .ask-rel { padding-left: 0; margin-top: 16px; }
+.qt-land .ask-log { overscroll-behavior: contain; }
+
+/* iPhone: niente zoom quando si tocca un campo (serve testo da 16px), spazio per la tacca e per la barra in basso */
+@media (max-width: 720px) {
+  .qt-land .ask-bar input, .qt-modal input { font-size: 16px; }
+  .qt-land .qt-nav { top: max(10px, env(safe-area-inset-top)); }
+  .qt-land .nav-pill { padding-right: 4px; }
+  .qt-land .nav-cta { padding: 9px 13px; font-size: 12.5px; }
+  .qt-land .hero-inner { padding-bottom: calc(48px + env(safe-area-inset-bottom)); }
+  .qt-land .hero-ctas { flex-direction: column; align-items: flex-start; }
+  .qt-land .hero-ctas .btn-cta.big { width: 100%; justify-content: center; padding: 15px 22px; }
+  .qt-land .qt-foot .row { padding-bottom: calc(20px + env(safe-area-inset-bottom)); }
+  .qt-land .agent-row { overscroll-behavior-x: contain; -webkit-overflow-scrolling: touch; }
+  .qt-land .ask { max-height: none; }
+  .qt-land .ask-log { max-height: 60vh; }
+  .qt-land .ask-bar { position: sticky; bottom: calc(10px + env(safe-area-inset-bottom)); box-shadow: 0 10px 30px -14px rgba(13, 13, 13, 0.3); background: var(--white); }
+  .qt-land .faq-item dt button { min-height: 52px; }
+  .qt-modal-backdrop { align-items: flex-end; padding: 0; }
+  .qt-modal { max-width: none; border-radius: 24px 24px 0 0; padding: 30px 22px calc(24px + env(safe-area-inset-bottom)); max-height: 92svh; overflow-y: auto; animation: qt-sheet .45s cubic-bezier(0.16, 1, 0.3, 1) both; }
+  @keyframes qt-sheet { from { transform: translateY(40px); opacity: 0; } }
+}
+/* sugli schermi a tocco gli effetti «al passaggio» non restano accesi dopo il dito */
+@media (hover: none) {
+  .qt-land .btn-cta:hover, .qt-land .nav-cta:hover { transform: none; }
+  .qt-land .btn-cta:hover svg { transform: none; }
+  .qt-land .btn-cta:active, .qt-land .nav-cta:active, .qt-land .agent-more:active { transform: scale(.97); }
+  .qt-land .hero-link:hover, .qt-land .text-link:hover { background-size: 100% 1px; }
+  .qt-land .agent-more:hover { background: rgba(13, 13, 13, 0.05); gap: 6px; }
+}
+@media (prefers-reduced-motion: reduce) { .qt-land .nav-sheet, .qt-land .nav-sheet a { transition: none; } .qt-modal { animation: none !important; } }

@@ -6,9 +6,14 @@ quando hai finito sposta la riga nel «Diario» (in cima, la più recente prima)
 ## In corso ora
 | Sessione | Da quando | Su cosa (file o area) | Note |
 |---|---|---|---|
-| QUANTO (chat principale) | 23/11 | homepage: `Landing.jsx`, `Landing.css`, `index.html` | apertura in alto, iPhone, rifinitura |
+| — | — | — | — |
 
 ## Diario
+### 2026-11-23 · homepage: si apre sul titolo, menu da telefono, iPhone
+- La pagina si apriva sulle domande: «Chiedi a QUANTO» usava `scrollIntoView` all'avvio. Ora scorre solo dentro la chat e solo dopo una domanda; la homepage parte sempre dall'alto (anche con `#sezione` nell'indirizzo, che viene tolto).
+- Tolta la pillola grigia «Per studi di commercialisti e consulenti». Menu a tendina sotto 1080 px, voce della sezione in lettura accesa, tre domande pronte nella chat, Esc chiude modulo e menu.
+- iPhone: `viewport-fit=cover` e margini per tacca e barra, campi a 16 px (niente zoom), modulo di accesso come foglio dal basso, pagina ferma dietro il modulo, video forzati muti per l'avvio automatico, `ignoreMobileResize` di ScrollTrigger, effetti al passaggio spenti sugli schermi a tocco.
+- Build ok; provato nel browser a 1440 e 390 px. Nessun test backend toccato.
 ### 2026-11-18 · homepage: agenti con pagine dedicate, prezzi, apertura
 - `AgentPage.jsx/.css` nuovi (tab `agente-<id>`), `Landing.jsx/.css`, `App.jsx`, video `public/landing/sfondo.mp4` sostituito (1920×1080). Build ok, controllato da computer e telefono.
 
