@@ -678,3 +678,83 @@ html:has(.qt-land) { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
   .qt-land .split, .qt-land .real-split, .qt-land .faq-split { gap: 36px; }
 }
 @media (prefers-reduced-motion: reduce) { .qt-land .vs-word, .qt-land .vs-text { animation: none; } .qt-land .vs-tabs button.on i { animation: none; transform: scaleX(1); } }
+
+/* ================================================================== 24 novembre (2): apertura bianca senza foto, meno testi, riquadri con immagini */
+/* apertura: fondo bianco, titolo nero, i riquadri subito sotto */
+.qt-land .hero { min-height: 0; color: var(--ink); background: var(--white); overflow: visible; justify-content: flex-start; }
+.qt-land .hero-inner { padding-top: 150px; padding-bottom: 0; }
+.qt-land .hero h1 { text-shadow: none; font-size: clamp(40px, 6vw, 86px); line-height: 1; }
+.qt-land .hero-sub { color: var(--gray); text-shadow: none; margin-top: 22px; font-size: clamp(16px, 1.3vw, 18px); }
+.qt-land .hero-link { color: var(--ink); }
+.qt-land .qt-nav:not(.is-glass) { color: var(--ink); }
+.qt-land .qt-nav:not(.is-glass) .brand, .qt-land .qt-nav:not(.is-glass) .links a, .qt-land .qt-nav:not(.is-glass) .nav-login { text-shadow: none; }
+.qt-land .qt-nav:not(.is-glass) .wordmark { filter: none; }
+
+/* riquadri: sette cornici arrotondate con schermate vere, mascotte e numeri */
+.qt-land .bento { display: grid; grid-template-columns: repeat(4, 1fr); grid-auto-rows: 232px; gap: 14px; margin: 72px 0 0; }
+.qt-land .tile { position: relative; margin: 0; overflow: hidden; border-radius: 28px; background: var(--off); isolation: isolate; transition: transform .7s var(--ease), box-shadow .7s var(--ease); }
+.qt-land .tile:hover { transform: translateY(-4px); box-shadow: 0 30px 60px -34px rgba(13, 13, 13, 0.35); }
+.qt-land .tile-img { position: absolute; inset: 0; transition: transform 1.2s var(--ease); }
+.qt-land .tile:hover .tile-img { transform: scale(1.035); }
+.qt-land .tile-img img { display: block; width: 100%; height: 100%; object-fit: contain; }
+.qt-land .tile figcaption { position: absolute; left: 16px; right: 16px; bottom: 18px; z-index: 2; text-align: center; }
+.qt-land .tile figcaption b { display: block; font-size: 16px; font-weight: 600; letter-spacing: -0.02em; }
+.qt-land .tile figcaption span { display: block; font-size: 13px; color: var(--gray); margin-top: 2px; }
+
+.qt-land .tile-team { grid-column: 1 / 3; grid-row: 1 / 3; background: var(--white); box-shadow: inset 0 0 0 1px var(--hair); }
+.qt-land .tile-team .tile-img { inset: 6% 4% 18%; }
+.qt-land .tile-team figcaption b { font-size: clamp(20px, 2vw, 26px); letter-spacing: -0.035em; }
+
+.qt-land .tile-shot, .qt-land .tile-shot2 { grid-column: 3 / 5; }
+.qt-land .tile-shot2 { grid-column: 2 / 4; grid-row: 3; background: #efefec; }
+.qt-land .tile-shot .tile-img, .qt-land .tile-shot2 .tile-img { inset: 22px 22px 58px; border-radius: 14px; overflow: hidden; background: #fff; box-shadow: 0 0 0 1px rgba(13, 13, 13, 0.06), 0 18px 40px -22px rgba(13, 13, 13, 0.35); }
+.qt-land .tile-shot .tile-img img, .qt-land .tile-shot2 .tile-img img { height: 112%; margin-top: -6%; object-fit: cover; object-position: top left; }
+.qt-land .tile-shot2 .tile-img img { object-position: top right; }
+
+.qt-land .tile-num { grid-column: 3; grid-row: 2; background: var(--yellow); display: grid; place-items: center; }
+.qt-land .tile-n { font-size: clamp(76px, 8vw, 120px); font-weight: 700; letter-spacing: -0.07em; line-height: 1; margin-top: -24px; font-variant-numeric: tabular-nums; }
+.qt-land .tile-num figcaption b { font-weight: 500; font-size: 14px; }
+
+.qt-land .tile-mas { grid-column: 4; grid-row: 2; }
+.qt-land .tile-mas2 { grid-column: 4; grid-row: 3; background: var(--white); box-shadow: inset 0 0 0 1px var(--hair); }
+.qt-land .tile-mas .tile-img, .qt-land .tile-mas2 .tile-img { inset: 16px 16px 54px; }
+.qt-land .tile-mas img, .qt-land .tile-mas2 img { animation: qt-bob 3.4s ease-in-out infinite; transform-origin: bottom center; }
+.qt-land .tile-mas2 img { animation-delay: -1.2s; }
+
+.qt-land .tile-sig { grid-column: 1; grid-row: 3; background: var(--ink); color: #fff; display: grid; place-items: center; }
+.qt-land .tile-hash { margin-top: -26px; font: 500 15px 'JetBrains Mono', monospace; color: var(--yellow); white-space: nowrap; overflow: hidden; width: 0; border-right: 2px solid var(--yellow);
+  animation: qt-type 2.6s steps(19, end) 1.4s forwards, qt-caret .8s step-end 1.4s infinite; }
+@keyframes qt-type { to { width: 19ch; } }
+@keyframes qt-caret { 50% { border-color: transparent; } }
+.qt-land .tile-sig figcaption span { color: rgba(255, 255, 255, 0.6); }
+
+/* meno testi: nota dei prezzi in una riga, liste più corte */
+.qt-land .price-note { display: flex; align-items: center; justify-content: center; gap: 8px; margin-top: 18px; font-size: 14px; font-weight: 500; color: var(--ink); }
+.qt-land .price-note i { width: 7px; height: 7px; border-radius: 50%; background: var(--yellow); box-shadow: 0 0 0 4px rgba(241, 226, 27, 0.25); }
+.qt-land .price li { font-size: 14px; color: var(--ink); }
+.qt-land .verbs, .qt-land .vs { margin-top: 56px; }
+.qt-land .vs-text { min-height: 0; font-size: 18px; color: var(--ink); opacity: .7; }
+.qt-land .real-split, .qt-land .faq-split { gap: 40px; }
+.qt-land .agents-video h3 { margin-top: 4px; }
+.qt-land .agent-job { color: var(--gray); }
+
+@media (max-width: 1080px) {
+  .qt-land .bento { grid-auto-rows: 196px; gap: 12px; }
+}
+@media (max-width: 720px) {
+  .qt-land .hero-inner { padding-top: 120px; padding-bottom: 0; }
+  .qt-land .bento { grid-template-columns: 1fr 1fr; grid-auto-rows: 172px; grid-auto-flow: row dense; gap: 10px; margin-top: 44px; }
+  .qt-land .bento .tile { grid-column: auto; grid-row: auto; border-radius: 22px; }
+  .qt-land .bento .tile-team { grid-column: 1 / 3; grid-row: span 2; }
+  .qt-land .bento .tile-shot, .qt-land .bento .tile-shot2 { grid-column: 1 / 3; }
+  .qt-land .tile-shot .tile-img, .qt-land .tile-shot2 .tile-img { inset: 14px 14px 50px; }
+  .qt-land .tile-n { font-size: 72px; margin-top: -20px; }
+  .qt-land .tile-hash { font-size: 12px; }
+  .qt-land .tile figcaption { bottom: 14px; }
+  .qt-land .tile figcaption b { font-size: 14.5px; }
+}
+@media (hover: none) { .qt-land .tile:hover { transform: none; box-shadow: none; } .qt-land .tile:hover .tile-img { transform: none; } }
+@media (prefers-reduced-motion: reduce) {
+  .qt-land .tile-mas img, .qt-land .tile-mas2 img { animation: none; }
+  .qt-land .tile-hash { animation: none; width: auto; border-right: 0; }
+}

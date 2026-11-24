@@ -106,12 +106,37 @@ function AuthModal({ mode, onClose, onSwitch, onDone }) {
 
 // ------------------------------------------------------------------------------------------------ il processo: la pratica si compone mentre si scorre
 const STEPS = [
-  { title: 'Il cliente', body: 'Bilanci o dichiarazione dei redditi, visura, buste paga, F24: QUANTO li legge e compila il profilo dell’impresa. Quello che manca lo chiede, non lo stima.', line: ['Profilo', 'Impresa di prova · ATECO 62.01 · profilo al 93%'] },
-  { title: 'Le agevolazioni', body: 'Cerca in tutto il catalogo: bandi nazionali, regionali e camerali, crediti d’imposta, incentivi alle assunzioni. Tiene solo ciò che l’impresa può ottenere e scrive perché il resto è escluso.', line: ['Agevolazioni', '3 adatte · le escluse con il motivo scritto'] },
-  { title: 'Lo studio del bando', body: 'Legge avvisi, decreti e allegati e ne ricava le regole numeriche, ognuna legata al testo da cui viene. Ciò che il bando non scrive resta dichiarato come lacuna.', line: ['Regole', '7 regole numeriche, ognuna con la sua fonte'] },
-  { title: 'Il progetto e il budget', body: 'Dai bisogni dell’impresa al progetto, dal progetto al budget del bando, controllato voce per voce con 60 criteri. Il piano dice quale agevolazione copre quale spesa, senza contarla due volte.', line: ['Budget', '60 controlli per voce · cosa passa, cosa va ridotto'] },
-  { title: 'La domanda', body: 'Confronto tra scenari, documenti di domanda raccolti dal sito ufficiale, dossier per il cliente e un registro firmato che prova che i numeri non sono stati toccati.', line: ['Consegna', 'dossier · documenti di domanda · registro 7f3a…9b1d'] },
+  { title: 'Il cliente', body: 'Legge i documenti e compila il profilo.', line: ['Profilo', 'Impresa di prova · ATECO 62.01 · profilo al 93%'] },
+  { title: 'Le agevolazioni', body: 'Tiene solo ciò che l’impresa può ottenere.', line: ['Agevolazioni', '3 adatte · le escluse con il motivo scritto'] },
+  { title: 'Lo studio del bando', body: 'Ogni regola legata al testo da cui viene.', line: ['Regole', '7 regole numeriche, ognuna con la sua fonte'] },
+  { title: 'Il progetto e il budget', body: 'Controllato voce per voce con 60 criteri.', line: ['Budget', '60 controlli per voce · cosa passa, cosa va ridotto'] },
+  { title: 'La domanda', body: 'Dossier, documenti e registro firmato.', line: ['Consegna', 'dossier · documenti di domanda · registro 7f3a…9b1d'] },
 ]
+
+// ------------------------------------------------------------------------------------------------ riquadri con immagini sotto il titolo: schermate vere, mascotte, numeri
+const TILES = [
+  { k: 'team', img: '/landing/quattro-agenti.png', t: 'Quattro agenti.', s: 'Una squadra per ogni pratica.' },
+  { k: 'shot', img: '/landing/app-bando-regole.webp', t: 'Le regole, dal testo ufficiale.' },
+  { k: 'num', n: 60, t: 'controlli per voce' },
+  { k: 'mas', img: '/landing/mascotte-fiuto.webp', t: 'Trova.' },
+  { k: 'sig', t: 'Registro firmato.' },
+  { k: 'shot2', img: '/landing/app-bando-fonti.webp', t: 'Ogni fonte dichiarata.' },
+  { k: 'mas2', img: '/landing/mascotte-spunta.webp', t: 'Controlla.' },
+]
+function Bento() {
+  return (
+    <div className="bento" aria-label="QUANTO in sette riquadri">
+      {TILES.map((x) => (
+        <figure key={x.k} className={`tile tile-${x.k}`}>
+          {x.img && <div className="tile-img"><img src={x.img} alt="" loading="eager" decoding="async" /></div>}
+          {x.k === 'num' && <span className="tile-n" data-n={x.n}>{x.n}</span>}
+          {x.k === 'sig' && <span className="tile-hash" aria-hidden="true">7f3a·e91c·04b2·9b1d</span>}
+          <figcaption><b>{x.t}</b>{x.s && <span>{x.s}</span>}</figcaption>
+        </figure>
+      ))}
+    </div>
+  )
+}
 
 
 // ------------------------------------------------------------------------------------------------ immagine di sfondo (24/11: sostituisce il video); il telefono scarica la versione piccola
@@ -207,7 +232,7 @@ function AskQuanto() {
       <div className="ask-log" aria-live="polite" ref={box}>
         {log.length === 0 && (
           <div className="ask-start">
-            <p className="ask-hint">Scrivi una domanda su QUANTO. Rispondo con le risposte scritte dal team, non con un modello che inventa.</p>
+            <p className="ask-hint">Chiedi qualcosa su QUANTO.</p>
             <div className="ask-rel">{['Quanto costa?', 'I documenti sono cifrati?', 'Scrive il progetto al posto mio?'].map((s) => <button key={s} type="button" onClick={() => ask(s)}>{s}</button>)}</div>
           </div>
         )}
@@ -261,16 +286,15 @@ function RealApp() {
         <div className="real-bar"><i /><i /><i /><span>quanto · archivio dei bandi</span></div>
         <div className="real-view">{SHOTS.map((x, k) => <img key={x.src} src={x.src} alt={`Schermata reale di QUANTO: ${x.tab.toLowerCase()} di un bando`} className={k === i ? 'on' : ''} loading="lazy" />)}</div>
       </div>
-      <p className="real-text" key={i}>{SHOTS[i].text}</p>
     </div>
   )
 }
 
 const VERBS = [
-  ['Trova', 'Le agevolazioni per cui l’impresa ha i requisiti, su tutto il catalogo: bandi nazionali, regionali e camerali, crediti d’imposta, incentivi alle assunzioni. Ogni esclusione ha il suo motivo.'],
-  ['Studia', 'Le regole del bando lette dai testi ufficiali: intensità, tetti, spese ammesse, cumulo, de minimis. Ogni regola resta legata all’articolo da cui viene.'],
-  ['Costruisce', 'Il progetto dai bisogni dell’impresa e il budget del bando dai suoi documenti, persona per persona e voce per voce.'],
-  ['Controlla', 'Ogni voce con 60 criteri, prima che lo faccia l’ente: cosa passa, cosa va ridotto, cosa va documentato.'],
+  ['Trova', 'Le agevolazioni che spettano davvero all’impresa.'],
+  ['Studia', 'Le regole del bando, dai testi ufficiali.'],
+  ['Costruisce', 'Progetto e budget, voce per voce.'],
+  ['Controlla', '60 criteri, prima che lo faccia l’ente.'],
 ]
 
 export default function Landing({ onLogin, onAuditor, onVision, onAgent }) {
@@ -315,7 +339,7 @@ export default function Landing({ onLogin, onAuditor, onVision, onAgent }) {
       last = y
       setNav((n) => {
         const hide = y < 60 ? false : dir === 'down' ? true : dir === 'up' ? false : n.hide
-        const glass = y > window.innerHeight * 0.85
+        const glass = y > 40                                          // apertura bianca: il vetro arriva appena si scende
         return hide === n.hide && glass === n.glass ? n : { glass, hide }
       })
     }
@@ -329,8 +353,11 @@ export default function Landing({ onLogin, onAuditor, onVision, onAgent }) {
     const ctx = gsap.context(() => {
       gsap.fromTo('.hero .ln > span', { yPercent: 110 }, { yPercent: 0, duration: 1.2, ease: 'power4.out', stagger: 0.09, delay: 0.15 })
       gsap.fromTo('.hero .after', { opacity: 0, y: 14 }, { opacity: 1, y: 0, duration: 1, ease: 'power3.out', stagger: 0.1, delay: 0.6 })
-      gsap.fromTo('.hero .hero-img', { scale: 1.08 }, { scale: 1, duration: 2.4, ease: 'power2.out' })
-      gsap.fromTo('.hero .hero-img', { yPercent: 0 }, { yPercent: 12, ease: 'none', scrollTrigger: { trigger: '.hero', start: 'top top', end: 'bottom top', scrub: true } })
+      // riquadri: salgono uno dopo l'altro, le immagini scorrono piano dentro la cornice, il 60 conta, la firma si scrive
+      gsap.fromTo('.bento .tile', { opacity: 0, y: 48, scale: 0.96 }, { opacity: 1, y: 0, scale: 1, duration: 1.1, ease: 'power4.out', stagger: 0.07, delay: 0.55 })
+      gsap.utils.toArray('.bento .tile-img img').forEach((el) => gsap.fromTo(el, { yPercent: -4 }, { yPercent: 4, ease: 'none', scrollTrigger: { trigger: el.closest('.tile'), start: 'top bottom', end: 'bottom top', scrub: true } }))
+      const n = document.querySelector('.bento .tile-n')
+      if (n) { const o = { v: 0 }; gsap.fromTo(o, { v: 0 }, { v: Number(n.dataset.n), duration: 1.8, delay: 0.9, ease: 'power2.out', onUpdate: () => { n.textContent = Math.round(o.v) } }) }
 
       gsap.utils.toArray('.mask-in').forEach((el) => gsap.fromTo(el.querySelectorAll('.ln > span'), { yPercent: 110 }, { yPercent: 0, duration: 1.1, ease: 'power4.out', stagger: 0.08, scrollTrigger: { trigger: el, start: 'top 85%' } }))
       gsap.utils.toArray('.fade-in').forEach((el) => gsap.fromTo(el, { opacity: 0, y: 18 }, { opacity: 1, y: 0, duration: 1, ease: 'power3.out', scrollTrigger: { trigger: el, start: 'top 88%' } }))
@@ -383,28 +410,25 @@ export default function Landing({ onLogin, onAuditor, onVision, onAgent }) {
       {menu && <div className="nav-scrim" onClick={() => setMenu(false)} aria-hidden="true" />}
 
       <header className="hero" id="top">
-        <BgImage className="hero-img" eager />
-        <div className="hero-shade" aria-hidden="true" />
         <div className="wrap hero-inner">
           <h1>{lines(['La finanza agevolata,', 'dall’inizio alla fine.'])}</h1>
-          <p className="hero-sub after">Quattro agenti trovano le agevolazioni, scrivono il budget e lo controllano. Ogni numero con la sua fonte.</p>
+          <p className="hero-sub after">Quattro agenti. Ogni numero con la sua fonte.</p>
           <div className="hero-ctas after">
             <button className="btn-cta big" onClick={() => setModal('register')}>Richiedi accesso<ArrowRight size={15} /></button>
             <a className="hero-link" href="#agenti">Conosci gli agenti<ArrowRight size={14} /></a>
           </div>
         </div>
+        <div className="wrap"><Bento /></div>
       </header>
 
       <section className="sect" id="metodo"><div className="wrap">
         <h2 className="mask-in">{lines(['Tutto il lavoro di una pratica', 'di finanza agevolata.'])}</h2>
-        <p className="para fade-in">Il cuore è la pratica: capire a quali agevolazioni ha diritto l’impresa, scrivere il progetto, presentare un budget che regge. L’allocazione delle spese ne è la conseguenza: il budget dice quale agevolazione paga cosa.</p>
         <Verbs />
       </div></section>
 
       <section className="sect real-sect" id="gestionale"><div className="wrap split real-split">
         <div>
           <h2 className="mask-in">{lines(['Il gestionale,', 'com’è davvero.'])}</h2>
-          <p className="para fade-in">Non un’illustrazione: sono schermate di QUANTO. A sinistra l’archivio dei bandi, a destra la scheda di quello scelto, con le sue regole e da dove vengono.</p>
         </div>
         <div className="fade-in"><RealApp /></div>
       </div></section>
@@ -438,7 +462,6 @@ export default function Landing({ onLogin, onAuditor, onVision, onAgent }) {
       <section className="sect agents" id="agenti"><div className="wrap">
         <div className="team">
           <h2 className="mask-in">{lines(['Quattro agenti.', 'Una squadra per ogni pratica.'])}</h2>
-          <p className="para fade-in">Lavorano in ordine e si passano il lavoro. I numeri li calcolano le regole; tu decidi e firmi.</p>
         </div>
         <ol className="agent-row">
           {AGENTS.map((g, k) => (
@@ -447,7 +470,6 @@ export default function Landing({ onLogin, onAuditor, onVision, onAgent }) {
               <p className="agent-n"><span>{k + 1}</span>{g.role}</p>
               <h3>{g.name}</h3>
               <p className="agent-job">{g.short}</p>
-              <p className="agent-say"><b>{g.say[0]}</b> {g.say[1]} · <b>ho trovato</b> {g.found}</p>
               <button className="agent-more" onClick={() => onAgent?.(g.id)} aria-label={`Come lavora ${g.name}`}>Come lavora<ArrowRight size={13} /></button>
             </li>
           ))}
@@ -456,7 +478,6 @@ export default function Landing({ onLogin, onAuditor, onVision, onAgent }) {
           <div className="fade-in"><LoopVideo src="/video/quanto-quattro-agenti.mp4" poster="/landing/quattro-agenti.png" label="I quattro agenti di QUANTO al lavoro" /></div>
           <div className="fade-in">
             <h3>Guardali lavorare.</h3>
-            <p className="para">Dal primo documento del cliente al budget pronto: Fiuto trova, Riparto divide, Spunta controlla, Duo confronta. Sotto, il portale con i dati di un’impresa di prova.</p>
           </div>
         </div>
         <div id="portale"><PortalPreview /></div>
@@ -472,19 +493,18 @@ export default function Landing({ onLogin, onAuditor, onVision, onAgent }) {
 
       <section className="sect" id="prezzi"><div className="wrap">
         <h2 className="mask-in">{lines(['Gratuito oggi.', 'Chiaro sempre.'])}</h2>
-        <p className="para fade-in">Il lavoro quotidiano è libero. I token si usano solo dove serve un calcolo grande o un consegnabile: il piano di allocazione, la consegna di un budget, lo studio di un bando nuovo. In questa fase di prova nessun token viene scalato e non serve la carta.</p>
+        <p className="price-note fade-in"><i />Gratis durante la prova. Nessuna carta.</p>
         <div className="prices">
           <div className="price">
             <span className="tier">Piano Studio</span>
             <div className="amount-wrap"><div className="amount">209 €<small> al mese</small></div></div>
             <span className="alt">oppure 1.999 € all’anno · 15 token al mese inclusi</span>
             <ul>
-              <li>Profilo, documenti, stima, allocazione e controllo del budget: sempre liberi</li>
-              <li>Piano di allocazione: da 2 a 4,8 token secondo i dati analizzati (30 giorni per lo stesso lavoro)</li>
-              <li>Consegna di un budget: da 1 a 2 token (30 giorni per lo stesso)</li>
-              <li>Studio di un bando nuovo: 3 token, 1 torna se la lettura è completa</li>
-              <li>+0,5 token per ogni budget pubblicato per tutti</li>
-              <li>10 token di benvenuto che non scadono</li>
+              <li>Lavoro quotidiano sempre libero</li>
+              <li>Piano di allocazione · 2–4,8 token</li>
+              <li>Consegna di un budget · 1–2 token</li>
+              <li>Studio di un bando nuovo · 3 token</li>
+              <li>10 token di benvenuto</li>
             </ul>
             <button className="btn-cta" onClick={() => setModal('register')}>Inizia gratis<ArrowRight size={14} /></button>
           </div>
@@ -493,12 +513,10 @@ export default function Landing({ onLogin, onAuditor, onVision, onAgent }) {
             <div className="amount-wrap"><div className="amount">25 €<small> ogni 10 token</small></div></div>
             <span className="alt">2,50 € a token</span>
             <ul>
-              <li>Quando i token del mese finiscono</li>
-              <li>Il lavoro non si ferma: senza token si fermano solo piano, consegne e studi nuovi</li>
-              <li>Prima di spendere vedi il costo e il perché; se un calcolo fallisce i token tornano</li>
-              <li>Il pagamento online arriverà: oggi le ricariche le elabora il titolare</li>
+              <li>Quando finiscono quelli del mese</li>
+              <li>Vedi il costo prima di spendere</li>
+              <li>Se un calcolo fallisce, tornano</li>
             </ul>
-            <p className="price-foot">In questa fase di prova nessun token viene scalato.</p>
           </div>
         </div>
       </div></section>
