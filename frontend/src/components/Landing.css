@@ -562,3 +562,119 @@ html:has(.qt-land) { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
   .qt-land .agent-more:hover { background: rgba(13, 13, 13, 0.05); gap: 6px; }
 }
 @media (prefers-reduced-motion: reduce) { .qt-land .nav-sheet, .qt-land .nav-sheet a { transition: none; } .qt-modal { animation: none !important; } }
+
+/* ================================================================== 24 novembre: immagine al posto del video, tutto centrato, i verbi uno alla volta */
+/* apertura: immagine ferma (parallasse leggera da GSAP), testo al centro */
+.qt-land img.hero-img { display: block; object-position: 42% 50%; }
+.qt-land .hero { justify-content: center; text-align: center; }
+.qt-land .hero-inner { padding-top: 120px; padding-bottom: 96px; display: flex; flex-direction: column; align-items: center; }
+.qt-land .hero-sub { margin-left: auto; margin-right: auto; }
+.qt-land .hero-ctas { justify-content: center; }
+.qt-land .hero-shade { background: radial-gradient(ellipse 70% 60% at 50% 55%, rgba(0, 0, 0, 0.42), rgba(0, 0, 0, 0.12) 70%), linear-gradient(180deg, rgba(0, 0, 0, 0.36) 0%, rgba(0, 0, 0, 0) 30%, rgba(0, 0, 0, 0) 70%, rgba(0, 0, 0, 0.5) 100%); }
+.qt-land .cta-final { text-align: center; }
+.qt-land .cta-final h2 { margin: 0 auto; }
+.qt-land .cta-final .hero-ctas { justify-content: center; }
+
+/* sezioni: titoli e testi al centro, colonne una sotto l altra */
+.qt-land .sect h2, .qt-land .proc-left h2 { text-align: center; margin-left: auto; margin-right: auto; }
+.qt-land .sect .para { text-align: center; margin-left: auto; margin-right: auto; }
+.qt-land .split, .qt-land .real-split, .qt-land .faq-split { display: flex; flex-direction: column; align-items: center; gap: 48px; }
+.qt-land .split > div { width: 100%; }
+
+/* i verbi: QUANTO trova. grande al centro, la parola cambia da sola, quattro schede sotto con la barra che corre */
+.qt-land .vs { margin: 72px auto 0; max-width: 880px; text-align: center; }
+.qt-land .vs-stage { display: flex; justify-content: center; align-items: baseline; gap: .26em; font-size: clamp(44px, 7.2vw, 104px); font-weight: 700; letter-spacing: -0.055em; line-height: 1.05; overflow: hidden; padding-bottom: .08em; }
+.qt-land .vs-q { color: transparent; -webkit-text-stroke: 1.2px rgba(13, 13, 13, 0.3); }
+.qt-land .vs-word { display: inline-block; color: var(--ink); animation: qt-word .8s var(--ease) both; }
+.qt-land .vs-word i { font-style: normal; color: var(--yellow); }
+@keyframes qt-word { from { transform: translateY(70%); opacity: 0; filter: blur(6px); } to { transform: none; opacity: 1; filter: none; } }
+.qt-land .vs-text { max-width: 54ch; min-height: 3.4em; margin: 22px auto 0; font-size: 17px; line-height: 1.65; color: var(--gray); animation: qt-up .7s var(--ease) both; }
+.qt-land .vs-tabs { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-top: 44px; }
+.qt-land .vs-tabs button { position: relative; overflow: hidden; display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 14px 8px 16px; border: 0; background: none; cursor: pointer;
+  font: 600 16px 'Inter', sans-serif; letter-spacing: -0.02em; color: var(--mute); transition: color .4s; }
+.qt-land .vs-tabs button span { font: 500 11px 'JetBrains Mono', monospace; letter-spacing: 0; color: var(--mute); }
+.qt-land .vs-tabs button::before { content: ''; position: absolute; left: 0; right: 0; bottom: 0; height: 2px; background: var(--hair); }
+.qt-land .vs-tabs button i { position: absolute; left: 0; bottom: 0; width: 100%; height: 2px; background: var(--yellow); transform: scaleX(0); transform-origin: left; }
+.qt-land .vs-tabs button.on { color: var(--ink); }
+.qt-land .vs-tabs button.on i { animation: qt-tab 3.6s linear forwards; }
+.qt-land .vs-tabs button:hover { color: var(--ink); }
+
+/* il gestionale vero: schermate al centro, più larghe */
+.qt-land .real-split > div:last-child { max-width: 980px; }
+.qt-land .real-tabs { justify-content: center; }
+.qt-land .real-text { margin-left: auto; margin-right: auto; text-align: center; }
+
+/* il processo: titolo, cinque tappe in fila, il passo corrente sotto, la pratica al centro */
+.qt-land .proc-grid { display: flex; flex-direction: column; align-items: center; gap: 36px; text-align: center; }
+.qt-land .proc-left { width: 100%; max-width: 860px; }
+.qt-land .proc-left h2 { max-width: 22ch; }
+.qt-land .proc-card { width: 100%; max-width: 560px; text-align: left; }
+@media (min-width: 961px) {
+  .qt-land .proc-pin { padding: 56px 0; }
+  .qt-land .proc-grid { gap: 28px; }
+  .qt-land .proc-steps { display: grid; grid-template-columns: repeat(5, 1fr); grid-template-rows: auto auto; padding: 0; margin-top: 36px; }
+  .qt-land .proc-steps li { display: contents; }
+  .qt-land .proc-steps .pn { grid-row: 1; justify-self: center; position: relative; z-index: 1; width: 34px; height: 34px; padding: 0; border-radius: 50%; display: grid; place-items: center;
+    background: var(--white); box-shadow: inset 0 0 0 1.5px var(--hair-2); color: var(--mute); transition: background .5s var(--ease), color .5s var(--ease), box-shadow .5s var(--ease); }
+  .qt-land .proc-steps li.done .pn { background: var(--ink); color: #fff; box-shadow: none; }
+  .qt-land .proc-steps li.on .pn { background: var(--yellow); color: var(--ink); box-shadow: 0 0 0 6px rgba(241, 226, 27, 0.25); }
+  .qt-land .proc-steps li > div { grid-row: 2; grid-column: 1 / -1; margin-top: 22px; opacity: 0; transform: translateY(8px); pointer-events: none; transition: opacity .5s var(--ease), transform .6s var(--ease); }
+  .qt-land .proc-steps li.on > div { opacity: 1; transform: none; }
+  .qt-land .proc-steps h3 { font-size: 20px; }
+  .qt-land .proc-steps p { max-height: none; max-width: 60ch; margin: 8px auto 0; }
+  .qt-land .proc-rail, .qt-land .proc-progress { top: 16px; bottom: auto; left: 10%; right: 10%; width: auto; height: 2px; }
+  .qt-land .proc-progress { transform-origin: left center; transform: scaleX(0); }
+}
+@media (max-width: 960px) {
+  .qt-land .proc-steps { padding: 0; margin-top: 28px; }
+  .qt-land .proc-rail, .qt-land .proc-progress { display: none; }
+  .qt-land .proc-steps li { display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 14px 0; opacity: 1; }
+  .qt-land .proc-steps .pn { padding: 0; width: 28px; height: 28px; border-radius: 50%; display: grid; place-items: center; background: var(--yellow); color: var(--ink); }
+  .qt-land .proc-steps p { max-height: none; max-width: 46ch; margin: 6px auto 0; }
+}
+
+/* agenti, principi, prezzi: al centro */
+.qt-land .agent { text-align: center; }
+.qt-land .agent-pic { justify-content: center; }
+.qt-land .agent-n { justify-content: center; }
+.qt-land .agent-say { border-radius: 16px; }
+.qt-land .agents-video { display: flex; flex-direction: column; align-items: center; text-align: center; gap: 28px; }
+.qt-land .agents-video > div { width: 100%; max-width: 760px; }
+.qt-land .agents-video .loop-video { max-width: 760px; margin: 0 auto; }
+.qt-land .agents-video .para { margin-left: auto; margin-right: auto; }
+.qt-land .pr-col { text-align: center; }
+.qt-land .pr-col p { margin-left: auto; margin-right: auto; }
+.qt-land .prices { max-width: 900px; margin-left: auto; margin-right: auto; }
+.qt-land .price { align-items: center; text-align: center; }
+.qt-land .price ul { width: 100%; }
+.qt-land .price li { padding-left: 0; }
+.qt-land .price li::before { display: none; }
+.qt-land .price .btn-cta { align-self: center; }
+
+/* domande: una colonna al centro, la chat sotto */
+.qt-land .faq-split > div { max-width: 760px; }
+.qt-land .faq-item dt button { text-align: center; }
+.qt-land .faq-item dt button::before { content: ''; width: 12px; flex: none; }
+.qt-land .faq-item dd p { margin: 0 auto; text-align: center; }
+.qt-land .ask { position: static; min-height: 0; }
+.qt-land .ask-start { text-align: center; padding-top: 8px; }
+.qt-land .ask-start .ask-hint { margin: 0 auto; }
+.qt-land .ask-start .ask-rel { justify-content: center; }
+
+/* piè di pagina al centro */
+.qt-land .qt-foot .row { justify-content: center; flex-wrap: wrap; }
+.qt-land .qt-foot .sp { display: none; }
+
+@media (max-width: 720px) {
+  .qt-land .hero-inner { padding-top: 110px; padding-bottom: calc(64px + env(safe-area-inset-bottom)); }
+  .qt-land .hero-ctas { align-items: center; }
+  .qt-land img.hero-img { object-position: 30% 50%; }
+  .qt-land .vs { margin-top: 44px; }
+  .qt-land .vs-stage { flex-direction: column; align-items: center; gap: 0; font-size: clamp(44px, 14vw, 64px); }
+  .qt-land .vs-text { font-size: 15.5px; min-height: 5em; }
+  .qt-land .vs-tabs { grid-template-columns: repeat(2, 1fr); gap: 4px 10px; margin-top: 24px; }
+  .qt-land .vs-tabs button { font-size: 15px; padding: 10px 6px 12px; }
+  .qt-land .agent { flex-basis: 78%; }
+  .qt-land .split, .qt-land .real-split, .qt-land .faq-split { gap: 36px; }
+}
+@media (prefers-reduced-motion: reduce) { .qt-land .vs-word, .qt-land .vs-text { animation: none; } .qt-land .vs-tabs button.on i { animation: none; transform: scaleX(1); } }

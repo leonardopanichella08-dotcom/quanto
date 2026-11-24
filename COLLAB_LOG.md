@@ -6,9 +6,14 @@ quando hai finito sposta la riga nel «Diario» (in cima, la più recente prima)
 ## In corso ora
 | Sessione | Da quando | Su cosa (file o area) | Note |
 |---|---|---|---|
-| QUANTO (chat principale) | 24/11 | homepage: `Landing.jsx`, `Landing.css`, `public/landing/` | immagine al posto del video, tutto centrato, sezione dei verbi |
+| — | — | — | — |
 
 ## Diario
+### 2026-11-24 · homepage: immagine al posto del video, tutto centrato, verbi uno alla volta
+- Tolto il video di sfondo (`public/landing/sfondo.mp4`, 4,8 MB) e `skyline-alba.jpg`: al loro posto `apertura.webp` (1920×1080, fotogramma del video) e `apertura-1080.webp` per il telefono, componente `BgImage`.
+- Tutto centrato: apertura, titoli e testi, gestionale, processo (5 tappe in fila con il passo corrente sotto, su telefono tutte in colonna), agenti, principi, prezzi, domande con la chat sotto, piè di pagina.
+- Sezione «Trova / Studia / Costruisce / Controlla» rifatta: «QUANTO trova.» al centro, la parola cambia da sola ogni 3,6 s (solo quando è in vista), quattro schede sotto con la barra gialla.
+- Build ok; provato nel browser a 1024, 1440 e 390 px, nessuno scorrimento laterale.
 ### 2026-11-23 · homepage: si apre sul titolo, menu da telefono, iPhone
 - La pagina si apriva sulle domande: «Chiedi a QUANTO» usava `scrollIntoView` all'avvio. Ora scorre solo dentro la chat e solo dopo una domanda; la homepage parte sempre dall'alto (anche con `#sezione` nell'indirizzo, che viene tolto).
 - Tolta la pillola grigia «Per studi di commercialisti e consulenti». Menu a tendina sotto 1080 px, voce della sezione in lettura accesa, tre domande pronte nella chat, Esc chiude modulo e menu.

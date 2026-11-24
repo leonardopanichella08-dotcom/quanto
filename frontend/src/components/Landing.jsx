@@ -114,19 +114,41 @@ const STEPS = [
 ]
 
 
-// ------------------------------------------------------------------------------------------------ video di sfondo: parte da solo, senza audio, in loop; con «riduci movimento» resta la foto
-function BgVideo({ className }) {
+// ------------------------------------------------------------------------------------------------ immagine di sfondo (24/11: sostituisce il video); il telefono scarica la versione piccola
+function BgImage({ className, eager = false }) {
+  return <img className={className} src="/landing/apertura.webp" srcSet="/landing/apertura-1080.webp 1080w, /landing/apertura.webp 1920w" sizes="100vw"
+    alt="" aria-hidden="true" loading={eager ? 'eager' : 'lazy'} fetchPriority={eager ? 'high' : 'auto'} decoding="async" />
+}
+
+// ------------------------------------------------------------------------------------------------ i quattro verbi: una parola alla volta, al centro, che cambia da sola
+function Verbs() {
+  const [i, setI] = useState(0)
+  const hold = useRef(0)
   const ref = useRef(null)
+  const seen = useRef(false)
   useEffect(() => {
-    const v = ref.current
-    if (!v) return undefined
-    v.muted = true; v.defaultMuted = true                     // Safari su iPhone parte da solo solo se il video è davvero muto
-    if (reduced()) { v.pause(); return undefined }
-    const io = new IntersectionObserver(([e]) => { if (e.isIntersecting) v.play().catch(() => {}); else v.pause() }, { threshold: 0.05 })
-    io.observe(v)
-    return () => io.disconnect()
+    if (reduced()) return undefined
+    const io = new IntersectionObserver(([e]) => { seen.current = e.isIntersecting }, { threshold: 0.3 })
+    if (ref.current) io.observe(ref.current)
+    const t = setInterval(() => { if (seen.current && Date.now() - hold.current > 8000) setI((n) => (n + 1) % VERBS.length) }, 3600)
+    return () => { clearInterval(t); io.disconnect() }
   }, [])
-  return <video ref={ref} className={className} src="/landing/sfondo.mp4" poster="/landing/skyline-alba.jpg" muted loop playsInline autoPlay preload="auto" aria-hidden="true" tabIndex={-1} disablePictureInPicture />
+  return (
+    <div className="vs fade-in" ref={ref}>
+      <div className="vs-stage" aria-live="polite">
+        <span className="vs-q">QUANTO</span>
+        <span className="vs-word" key={i}>{VERBS[i][0].toLowerCase()}<i>.</i></span>
+      </div>
+      <p className="vs-text" key={`t${i}`}>{VERBS[i][1]}</p>
+      <div className="vs-tabs" role="tablist" aria-label="Cosa fa QUANTO">
+        {VERBS.map(([v], k) => (
+          <button key={v} type="button" role="tab" aria-selected={k === i} className={k === i ? 'on' : ''} onClick={() => { hold.current = Date.now(); setI(k) }}>
+            <span>{String(k + 1).padStart(2, '0')}</span>{v}<i key={`${k}-${i}`} />
+          </button>
+        ))}
+      </div>
+    </div>
+  )
 }
 
 // ------------------------------------------------------------------------------------------------ video che scorre come un'animazione
@@ -314,18 +336,11 @@ export default function Landing({ onLogin, onAuditor, onVision, onAgent }) {
       gsap.utils.toArray('.fade-in').forEach((el) => gsap.fromTo(el, { opacity: 0, y: 18 }, { opacity: 1, y: 0, duration: 1, ease: 'power3.out', scrollTrigger: { trigger: el, start: 'top 88%' } }))
 
 
-      // i quattro verbi: il contorno si riempie di nero mentre la parola attraversa la pagina, la sottolineatura gialla corre
-      gsap.utils.toArray('.verb').forEach((el) => {
-        gsap.fromTo(el.querySelector('.verb-fill'), { clipPath: 'inset(0 100% 0 0)' }, { clipPath: 'inset(0 0% 0 0)', ease: 'none', scrollTrigger: { trigger: el, start: 'top 80%', end: 'top 35%', scrub: true } })
-        gsap.fromTo(el.querySelector('.verb-line'), { scaleX: 0 }, { scaleX: 1, ease: 'none', scrollTrigger: { trigger: el, start: 'top 70%', end: 'top 35%', scrub: true } })
-        gsap.fromTo(el.querySelector('p'), { opacity: 0, x: 24 }, { opacity: 1, x: 0, duration: 1, ease: 'power3.out', scrollTrigger: { trigger: el, start: 'top 60%' } })
-      })
-
       const mm = gsap.matchMedia()
       mm.add('(min-width: 961px)', () => {
         ScrollTrigger.create({
           trigger: '.proc', start: 'top top', end: () => `+=${window.innerHeight * 0.42 * STEPS.length}`, pin: '.proc-pin', scrub: true,
-          onUpdate: (s) => { setStep(Math.min(STEPS.length - 1, Math.floor(s.progress * STEPS.length))); gsap.set('.proc-progress', { scaleY: s.progress }) },
+          onUpdate: (s) => { setStep(Math.min(STEPS.length - 1, Math.floor(s.progress * STEPS.length))); gsap.set('.proc-progress', { scaleX: s.progress }) },
         })
       })
       mm.add('(max-width: 960px)', () => { setStep(STEPS.length - 1) })
@@ -368,7 +383,7 @@ export default function Landing({ onLogin, onAuditor, onVision, onAgent }) {
       {menu && <div className="nav-scrim" onClick={() => setMenu(false)} aria-hidden="true" />}
 
       <header className="hero" id="top">
-        <BgVideo className="hero-img" />
+        <BgImage className="hero-img" eager />
         <div className="hero-shade" aria-hidden="true" />
         <div className="wrap hero-inner">
           <h1>{lines(['La finanza agevolata,', 'dall’inizio alla fine.'])}</h1>
@@ -383,14 +398,7 @@ export default function Landing({ onLogin, onAuditor, onVision, onAgent }) {
       <section className="sect" id="metodo"><div className="wrap">
         <h2 className="mask-in">{lines(['Tutto il lavoro di una pratica', 'di finanza agevolata.'])}</h2>
         <p className="para fade-in">Il cuore è la pratica: capire a quali agevolazioni ha diritto l’impresa, scrivere il progetto, presentare un budget che regge. L’allocazione delle spese ne è la conseguenza: il budget dice quale agevolazione paga cosa.</p>
-        <div className="verbs">
-          {VERBS.map(([v, d]) => (
-            <div key={v} className="verb">
-              <h3 className="verb-word" aria-label={v}><span className="verb-out" aria-hidden="true">{v}</span><span className="verb-fill" aria-hidden="true">{v}</span><i className="verb-line" /></h3>
-              <p>{d}</p>
-            </div>
-          ))}
-        </div>
+        <Verbs />
       </div></section>
 
       <section className="sect real-sect" id="gestionale"><div className="wrap split real-split">
@@ -408,7 +416,7 @@ export default function Landing({ onLogin, onAuditor, onVision, onAgent }) {
             <ol className="proc-steps">
               <i className="proc-rail" /><i className="proc-progress" />
               {STEPS.map((s, k) => (
-                <li key={s.title} className={k === step ? 'on' : k < step ? 'done' : ''}>
+                <li key={s.title} className={k === step ? 'on' : k < step ? 'done' : ''} style={{ '--k': k }}>
                   <span className="pn">{String(k + 1).padStart(2, '0')}</span>
                   <div><h3>{s.title}</h3><p>{s.body}</p></div>
                 </li>
@@ -504,7 +512,7 @@ export default function Landing({ onLogin, onAuditor, onVision, onAgent }) {
       </div></section>
 
       <section className="cta-final">
-        <BgVideo className="hero-img still" />
+        <BgImage className="hero-img still" />
         <div className="hero-shade strong" aria-hidden="true" />
         <div className="wrap">
           <h2 className="mask-in">{lines(['La prossima pratica,', 'preparala con QUANTO.'])}</h2>

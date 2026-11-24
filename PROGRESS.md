@@ -11,6 +11,7 @@ Aggiornato: 15 novembre 2026 · ultimo commit di riferimento `69f1770` · 676 te
 - **Quattro agenti** (Agevolazioni → Allocazione → Budget → Confronto) con barra «Ho fatto · Ho trovato · Mi serve da te».
 - **Allocazione**: «Fuori da questa somma, e perché»; bandi «non serve» con perché e quando servirebbero; stessa base di spese tra «da solo» e piano.
 - **Bozza di budget**: chiede solo i documenti necessari al bando e li fa caricare sul posto.
+- **Homepage** (24/11): immagine ferma al posto del video, tutto allineato al centro, sezione dei verbi rifatta («QUANTO trova.» che cambia parola da sola).
 - **Homepage** (23/11): si apre sempre sul titolo (prima finiva sulle domande per colpa della chat), tolta la pillola «Per studi di…», menu da telefono, ottimizzata per iPhone (tacca, zoom dei campi, modulo dal basso, video muti).
 - **Homepage** (18/11): mascotte dei 4 agenti senza sfondo (Fiuto, Riparto, Spunta, Duo) con video, sezione «Il gestionale, com'è davvero» con schermate reali della scheda di un bando, prezzi più piccoli, layout da telefono rivisto (agenti scorrevoli di lato). Logo «Q» tolto ovunque, favicon con la scritta.
 - **Assistente a tutto schermo** (18/11): chat minimale come ChatGPT con le mascotte dei 4 agenti, attività nuove Agevolazioni (Fiuto) e Confronto (Duo), comandi «apri <pagina>», domande sui dati per il titolare, «Guarda la pagina» con mascotte che riporta alla chat.
