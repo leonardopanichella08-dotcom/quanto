@@ -6,7 +6,7 @@ quando hai finito sposta la riga nel «Diario» (in cima, la più recente prima)
 ## In corso ora
 | Sessione | Da quando | Su cosa (file o area) | Note |
 |---|---|---|---|
-| — | — | — | — |
+| QUANTO (chat principale) | 24/11 | homepage: `Landing.jsx`, `Landing.css` | apertura bianca, meno testi, riquadri con immagini |
 
 ## Diario
 ### 2026-11-24 · homepage: immagine al posto del video, tutto centrato, verbi uno alla volta
