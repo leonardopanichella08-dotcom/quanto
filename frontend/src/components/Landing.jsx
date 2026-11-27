@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react'
+import React, { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { ArrowRight, ArrowUp, Loader2, Lock, ShieldCheck, X } from 'lucide-react'
 import gsap from 'gsap'
 import { ScrollTrigger } from 'gsap/ScrollTrigger'
@@ -7,8 +7,6 @@ import { Wordmark } from './ui'
 import { FAQ } from '../data/faq.js'
 import { answer } from '../lib/faqSearch'
 import './Landing.css'
-import PortalPreview from './PortalPreview'
-import './PortalPreview.css'
 
 gsap.registerPlugin(ScrollTrigger)
 // su iPhone la barra degli indirizzi cambia l'altezza mentre si scorre: senza questo le animazioni si ricalcolano e la pagina salta
@@ -145,32 +143,71 @@ function BgImage({ className, eager = false }) {
     alt="" aria-hidden="true" loading={eager ? 'eager' : 'lazy'} fetchPriority={eager ? 'high' : 'auto'} decoding="async" />
 }
 
-// ------------------------------------------------------------------------------------------------ i quattro verbi: una parola alla volta, al centro, che cambia da sola
+// ------------------------------------------------------------------------------------------------ i quattro verbi in una riga: una capsula gialla scivola da uno all'altro, la frase cambia sotto
 function Verbs() {
   const [i, setI] = useState(0)
+  const [pill, setPill] = useState(null)
   const hold = useRef(0)
   const ref = useRef(null)
   const seen = useRef(false)
+  const btns = useRef([])
   useEffect(() => {
     if (reduced()) return undefined
     const io = new IntersectionObserver(([e]) => { seen.current = e.isIntersecting }, { threshold: 0.3 })
     if (ref.current) io.observe(ref.current)
-    const t = setInterval(() => { if (seen.current && Date.now() - hold.current > 8000) setI((n) => (n + 1) % VERBS.length) }, 3600)
+    const t = setInterval(() => { if (seen.current && Date.now() - hold.current > 8000) setI((n) => (n + 1) % VERBS.length) }, 3200)
     return () => { clearInterval(t); io.disconnect() }
   }, [])
+  // la capsula si misura sulla parola accesa (anche dopo il caricamento dei caratteri e quando la finestra cambia)
+  useLayoutEffect(() => {
+    const place = () => { const b = btns.current[i]; if (b) setPill({ x: b.offsetLeft, y: b.offsetTop, w: b.offsetWidth, h: b.offsetHeight }) }
+    place()
+    document.fonts?.ready?.then(place)
+    window.addEventListener('resize', place)
+    return () => window.removeEventListener('resize', place)
+  }, [i])
   return (
-    <div className="vs fade-in" ref={ref}>
-      <div className="vs-stage" aria-live="polite">
-        <span className="vs-q">QUANTO</span>
-        <span className="vs-word" key={i}>{VERBS[i][0].toLowerCase()}<i>.</i></span>
-      </div>
-      <p className="vs-text" key={`t${i}`}>{VERBS[i][1]}</p>
-      <div className="vs-tabs" role="tablist" aria-label="Cosa fa QUANTO">
+    <div className="vs2 fade-in" ref={ref}>
+      <div className="vs2-row" role="tablist" aria-label="Cosa fa QUANTO">
+        {pill && <i className="vs2-pill" aria-hidden="true" style={{ transform: `translate(${pill.x}px, ${pill.y}px)`, width: pill.w, height: pill.h }} />}
         {VERBS.map(([v], k) => (
-          <button key={v} type="button" role="tab" aria-selected={k === i} className={k === i ? 'on' : ''} onClick={() => { hold.current = Date.now(); setI(k) }}>
-            <span>{String(k + 1).padStart(2, '0')}</span>{v}<i key={`${k}-${i}`} />
-          </button>
+          <button key={v} ref={(el) => { btns.current[k] = el }} type="button" role="tab" aria-selected={k === i} className={k === i ? 'on' : ''}
+            onClick={() => { hold.current = Date.now(); setI(k) }}>{v}</button>
         ))}
+      </div>
+      <p className="vs2-text" key={i} aria-live="polite">{VERBS[i][1]}</p>
+      <div className="vs2-bar" aria-hidden="true"><i key={`b${i}`} /></div>
+    </div>
+  )
+}
+
+// ------------------------------------------------------------------------------------------------ la pratica: una carta in 3D che segue il mouse e si compone mentre si scorre
+function PracticeCard({ step }) {
+  const card = useRef(null)
+  const move = (e) => {
+    if (reduced() || e.pointerType !== 'mouse' || !card.current) return
+    const r = e.currentTarget.getBoundingClientRect()
+    const x = (e.clientX - r.left) / r.width - 0.5
+    const y = (e.clientY - r.top) / r.height - 0.5
+    const s = card.current.style
+    s.setProperty('--ry', `${(x * 16).toFixed(2)}deg`); s.setProperty('--rx', `${(-y * 12).toFixed(2)}deg`)
+    s.setProperty('--mx', `${((x + 0.5) * 100).toFixed(1)}%`); s.setProperty('--my', `${((y + 0.5) * 100).toFixed(1)}%`)
+  }
+  const leave = () => { const s = card.current?.style; if (s) { s.setProperty('--rx', '0deg'); s.setProperty('--ry', '0deg') } }
+  return (
+    <div className="pc-stage" onPointerMove={move} onPointerLeave={leave}>
+      <div className="pc-card" ref={card} aria-label="La pratica che si compone">
+        <p className="pc-head"><span>Pratica · impresa di prova</span><i className="pr-dot" /></p>
+        <p className="pc-step" key={step}><b>{String(step + 1).padStart(2, '0')}</b>{STEPS[step].title}</p>
+        <div className="pc-rows">
+          {STEPS.map((s, k) => (
+            <div key={s.title} className={`pl${k <= step ? ' in' : ''}${k === step ? ' now' : ''}`}>
+              <span className="pl-k">{s.line[0]}</span><span className="pl-v">{s.line[1]}</span>
+            </div>
+          ))}
+        </div>
+        <p className={`pc-end${step === STEPS.length - 1 ? ' in' : ''}`}>Pronta per la domanda.</p>
+        <i className="proc-progress" aria-hidden="true" />
       </div>
     </div>
   )
@@ -372,6 +409,9 @@ export default function Landing({ onLogin, onAuditor, onVision, onAgent }) {
       })
       mm.add('(max-width: 960px)', () => { setStep(STEPS.length - 1) })
 
+      // la carta della pratica entra inclinata e si raddrizza mentre arriva al centro dello schermo
+      gsap.fromTo('.pc-stage', { rotateX: 22, y: 60, opacity: 0.4 }, { rotateX: 0, y: 0, opacity: 1, ease: 'none', scrollTrigger: { trigger: '.proc', start: 'top 85%', end: 'top 15%', scrub: true } })
+
       gsap.utils.toArray('.pr-col').forEach((el, i) => {
         gsap.fromTo(el.querySelector('.pr-rule'), { scaleX: 0 }, { scaleX: 1, duration: 1.1, delay: i * 0.12, ease: 'power3.inOut', scrollTrigger: { trigger: el, start: 'top 88%' } })
         gsap.fromTo(el.querySelectorAll('h3, p'), { opacity: 0, y: 14 }, { opacity: 1, y: 0, duration: 0.9, delay: 0.2 + i * 0.12, stagger: 0.08, ease: 'power3.out', scrollTrigger: { trigger: el, start: 'top 88%' } })
@@ -435,27 +475,8 @@ export default function Landing({ onLogin, onAuditor, onVision, onAgent }) {
 
       <section className="proc" id="processo">
         <div className="proc-pin"><div className="wrap proc-grid">
-          <div className="proc-left">
-            <h2>Dal primo documento del cliente alla domanda.</h2>
-            <ol className="proc-steps">
-              <i className="proc-rail" /><i className="proc-progress" />
-              {STEPS.map((s, k) => (
-                <li key={s.title} className={k === step ? 'on' : k < step ? 'done' : ''} style={{ '--k': k }}>
-                  <span className="pn">{String(k + 1).padStart(2, '0')}</span>
-                  <div><h3>{s.title}</h3><p>{s.body}</p></div>
-                </li>
-              ))}
-            </ol>
-          </div>
-          <div className="proc-right proc-card" aria-label="La pratica che si compone">
-            <p className="pr-head"><span>Pratica · impresa di prova</span><i className="pr-dot" /></p>
-            {STEPS.map((s, k) => (
-              <div key={s.title} className={`pl${k <= step ? ' in' : ''}${k === step ? ' now' : ''}`}>
-                <span className="pl-k">{s.line[0]}</span><span className="pl-v">{s.line[1]}</span>
-              </div>
-            ))}
-            <p className={`pl-end${step === STEPS.length - 1 ? ' in' : ''}`}>Pronta per la domanda.</p>
-          </div>
+          <h2 className="proc-title">Dal primo documento del cliente alla domanda.</h2>
+          <PracticeCard step={step} />
         </div></div>
       </section>
 
@@ -480,7 +501,6 @@ export default function Landing({ onLogin, onAuditor, onVision, onAgent }) {
             <h3>Guardali lavorare.</h3>
           </div>
         </div>
-        <div id="portale"><PortalPreview /></div>
       </div></section>
 
       <section className="sect tight" id="principi"><div className="wrap principles">

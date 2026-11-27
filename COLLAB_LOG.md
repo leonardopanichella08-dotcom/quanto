@@ -6,9 +6,14 @@ quando hai finito sposta la riga nel «Diario» (in cima, la più recente prima)
 ## In corso ora
 | Sessione | Da quando | Su cosa (file o area) | Note |
 |---|---|---|---|
-| QUANTO (chat principale) | 27/11 | homepage: `Landing.jsx`, `Landing.css`, `PortalPreview` | verbi compatti, processo come carta 3D, via l anteprima del portale |
+| — | — | — | — |
 
 ## Diario
+### 2026-11-27 · homepage: verbi compatti, pratica come carta 3D, via l'anteprima del portale
+- Verbi: al posto della scritta enorme «QUANTO trova.», una riga con i quattro verbi e una capsula gialla che scivola da uno all'altro ogni 3,2 s (`Verbs`, misura con `useLayoutEffect`); sotto la frase e un filo che si riempie. Su telefono 2×2.
+- Processo: tolta la linea temporale con i cinque cerchi; resta il titolo e una carta (`PracticeCard`) che entra inclinata e si raddrizza scorrendo, segue il mouse in 3D con un riflesso giallo, ondeggia piano; il passo corrente sta in testa alla carta, la barra di avanzamento sul bordo in basso.
+- Tolta la sezione «quanto · impresa di prova» (ricostruzione del portale): eliminati `PortalPreview.jsx` e `PortalPreview.css`, usati solo lì.
+- Build ok; provato nel browser a 1280 e 390 px, nessuno scorrimento laterale.
 ### 2026-11-24 · homepage: apertura bianca, meno testi, riquadri con immagini
 - Tolta la foto dell'apertura: fondo bianco, titolo nero, barra con scritte nere. Sotto il titolo sette riquadri (`Bento`, `TILES`): squadra dei 4 agenti, due schermate vere, «60 controlli per voce» che conta, Fiuto e Spunta che ondeggiano, registro firmato che si scrive. Entrano a scaglioni, le schermate scorrono piano dentro la cornice.
 - Tolti i paragrafi grigi descrittivi (metodo, gestionale, agenti, video, prezzi, didascalie delle schermate, fumetti degli agenti); passi del processo, verbi e liste dei prezzi accorciati a una riga.

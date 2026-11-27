@@ -11,6 +11,7 @@ Aggiornato: 15 novembre 2026 · ultimo commit di riferimento `69f1770` · 676 te
 - **Quattro agenti** (Agevolazioni → Allocazione → Budget → Confronto) con barra «Ho fatto · Ho trovato · Mi serve da te».
 - **Allocazione**: «Fuori da questa somma, e perché»; bandi «non serve» con perché e quando servirebbero; stessa base di spese tra «da solo» e piano.
 - **Bozza di budget**: chiede solo i documenti necessari al bando e li fa caricare sul posto.
+- **Homepage** (27/11): verbi in una riga con la capsula gialla che scivola, processo come carta 3D senza linea temporale, tolta l'anteprima del portale.
 - **Homepage** (24/11, 2): apertura bianca senza foto, sette riquadri animati con immagini sotto il titolo, testi grigi tolti o ridotti a una riga.
 - **Homepage** (24/11): immagine ferma al posto del video, tutto allineato al centro, sezione dei verbi rifatta («QUANTO trova.» che cambia parola da sola).
 - **Homepage** (23/11): si apre sempre sul titolo (prima finiva sulle domande per colpa della chat), tolta la pillola «Per studi di…», menu da telefono, ottimizzata per iPhone (tacca, zoom dei campi, modulo dal basso, video muti).
