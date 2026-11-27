@@ -6,7 +6,7 @@ quando hai finito sposta la riga nel «Diario» (in cima, la più recente prima)
 ## In corso ora
 | Sessione | Da quando | Su cosa (file o area) | Note |
 |---|---|---|---|
-| — | — | — | — |
+| QUANTO (chat principale) | 27/11 | homepage: `Landing.css` | tutto più piccolo e più lontano dai bordi |
 
 ## Diario
 ### 2026-11-27 · homepage: verbi compatti, pratica come carta 3D, via l'anteprima del portale
