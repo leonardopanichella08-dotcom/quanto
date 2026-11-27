@@ -6,9 +6,12 @@ quando hai finito sposta la riga nel «Diario» (in cima, la più recente prima)
 ## In corso ora
 | Sessione | Da quando | Su cosa (file o area) | Note |
 |---|---|---|---|
-| QUANTO (chat principale) | 27/11 | homepage: `Landing.css` | tutto più piccolo e più lontano dai bordi |
+| — | — | — | — |
 
 ## Diario
+### 2026-11-27 · homepage: tutto più piccolo e più lontano dai bordi
+- Solo `Landing.css` (blocco «27 novembre (2)» in coda): contenuto largo al massimo 1080 px con margini laterali fino a 88 px, titoli, testi, pulsanti, riquadri, carta della pratica, agenti, prezzi e domande ridotti del 10-25%, spazi tra le sezioni più corti. I riquadri a 1280 px passano da ~720 a 516 px di altezza (900 px di larghezza).
+- Build ok; provato nel browser a 1280×720.
 ### 2026-11-27 · homepage: verbi compatti, pratica come carta 3D, via l'anteprima del portale
 - Verbi: al posto della scritta enorme «QUANTO trova.», una riga con i quattro verbi e una capsula gialla che scivola da uno all'altro ogni 3,2 s (`Verbs`, misura con `useLayoutEffect`); sotto la frase e un filo che si riempie. Su telefono 2×2.
 - Processo: tolta la linea temporale con i cinque cerchi; resta il titolo e una carta (`PracticeCard`) che entra inclinata e si raddrizza scorrendo, segue il mouse in 3D con un riflesso giallo, ondeggia piano; il passo corrente sta in testa alla carta, la barra di avanzamento sul bordo in basso.

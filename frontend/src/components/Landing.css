@@ -819,3 +819,101 @@ html:has(.qt-land) { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
   .qt-land .vs2-bar i { animation: none; transform: scaleX(1); }
   .qt-land .pc-card { animation: none; transition: none; }
 }
+
+/* ================================================================== 27 novembre (2): tutto un po' più piccolo e più lontano dai bordi, pagina più pulita */
+.qt-land .wrap { max-width: 1080px; padding-inline: clamp(24px, 6vw, 88px); }
+.qt-land .sect { padding: 96px 0; }
+.qt-land .sect.tight { padding: 24px 0 80px; }
+.qt-land h2 { font-size: clamp(26px, 3.1vw, 42px); }
+.qt-land .proc-title { font-size: clamp(24px, 2.6vw, 36px); }
+
+/* barra */
+.qt-land .nav-pill { max-width: 820px; height: 46px; }
+.qt-land .nav-cta { padding: 8px 14px; font-size: 12.5px; }
+
+/* apertura */
+.qt-land .hero-inner { padding-top: 132px; }
+.qt-land .hero h1 { font-size: clamp(34px, 4.6vw, 64px); }
+.qt-land .hero-sub { font-size: clamp(15px, 1.15vw, 16.5px); margin-top: 18px; }
+.qt-land .hero-ctas { margin-top: 26px; gap: 22px; }
+.qt-land .btn-cta.big { padding: 12px 20px; font-size: 14px; }
+.qt-land .hero-link { font-size: 14px; }
+
+/* riquadri: più stretti e più bassi */
+.qt-land .bento { max-width: 900px; margin: 56px auto 0; grid-auto-rows: 164px; gap: 12px; }
+.qt-land .tile { border-radius: 22px; }
+.qt-land .tile figcaption { bottom: 14px; }
+.qt-land .tile figcaption b { font-size: 14px; }
+.qt-land .tile figcaption span { font-size: 12px; }
+.qt-land .tile-team figcaption b { font-size: clamp(17px, 1.6vw, 21px); }
+.qt-land .tile-shot .tile-img, .qt-land .tile-shot2 .tile-img { inset: 16px 16px 46px; border-radius: 12px; }
+.qt-land .tile-mas .tile-img, .qt-land .tile-mas2 .tile-img { inset: 14px 14px 44px; }
+.qt-land .tile-n { font-size: clamp(54px, 5.6vw, 80px); margin-top: -20px; }
+.qt-land .tile-num figcaption b { font-size: 13px; }
+.qt-land .tile-hash { font-size: 12.5px; margin-top: -20px; }
+
+/* verbi */
+.qt-land .vs2 { margin-top: 40px; }
+.qt-land .vs2-row button { padding: 9px 18px; font-size: clamp(15px, 1.45vw, 18px); }
+.qt-land .vs2-text { font-size: clamp(17px, 1.7vw, 22px); margin-top: 22px; }
+
+/* gestionale vero */
+.qt-land .real-split > div:last-child { max-width: 860px; }
+.qt-land .real-split { gap: 32px; }
+
+/* la pratica */
+.qt-land .proc-pin { padding: 48px 0; }
+.qt-land .proc-grid { gap: 32px; }
+.qt-land .pc-stage { max-width: 500px; }
+.qt-land .pc-card { padding: 22px 24px 26px; border-radius: 22px; }
+.qt-land .pc-step { font-size: 19px; margin: 12px 0 8px; }
+.qt-land .pc-rows .pl { padding: 10px 0; grid-template-columns: 100px 1fr; }
+.qt-land .pc-rows .pl-v { font-size: 13.5px; }
+.qt-land .pc-end { font-size: 15px; }
+
+/* agenti */
+.qt-land .agent-row { max-width: 900px; margin: 56px auto 0; gap: 28px; }
+.qt-land .agent-pic { height: 124px; margin-bottom: 16px; }
+.qt-land .agent-pic img { height: 108px; }
+.qt-land .agent h3 { font-size: 18px; }
+.qt-land .agent-job { font-size: 13.5px; }
+.qt-land .agent-more { font-size: 12px; padding: 6px 11px 6px 13px; margin-top: 12px; }
+.qt-land .agents-video { margin-top: 72px; gap: 20px; }
+.qt-land .agents-video > div, .qt-land .agents-video .loop-video { max-width: 600px; }
+.qt-land .agents-video h3 { font-size: clamp(20px, 2.2vw, 28px); }
+
+/* principi */
+.qt-land .principles { max-width: 900px; margin: 0 auto; gap: 40px; }
+.qt-land .pr-col h3 { font-size: clamp(19px, 1.9vw, 24px); }
+.qt-land .pr-col p { font-size: 14.5px; }
+
+/* prezzi */
+.qt-land #prezzi h2 { font-size: clamp(24px, 2.6vw, 34px); }
+.qt-land .prices { max-width: 780px; margin-top: 36px; gap: 14px; }
+.qt-land .price { padding: 24px 24px 22px; border-radius: 20px; }
+.qt-land .price .amount { font-size: clamp(30px, 3vw, 40px); }
+.qt-land .price li { font-size: 13.5px; padding: 7px 0; }
+
+/* domande e chiusura */
+.qt-land .faq-split > div { max-width: 660px; }
+.qt-land .faq { margin-top: 28px; }
+.qt-land .faq-item dt button { font-size: 15px; padding: 15px 0; }
+.qt-land .faq-item dd p { font-size: 14px; }
+.qt-land .cta-final { padding: 104px 0; }
+.qt-land .qt-foot .row { height: 64px; font-size: 12.5px; }
+
+@media (max-width: 1080px) {
+  .qt-land .bento { grid-auto-rows: 150px; gap: 10px; }
+}
+@media (max-width: 720px) {
+  .qt-land .wrap { padding-inline: 20px; }
+  .qt-land .sect { padding: 72px 0; }
+  .qt-land .hero-inner { padding-top: 112px; }
+  .qt-land .hero h1 { font-size: clamp(30px, 8.6vw, 40px); }
+  .qt-land .bento { grid-auto-rows: 148px; gap: 10px; margin-top: 40px; }
+  .qt-land .tile-n { font-size: 60px; }
+  .qt-land .agent-row { margin: 40px -20px 0; padding: 0 20px 12px; }
+  .qt-land .agent-pic { height: 116px; }
+  .qt-land .agent-pic img { height: 100px; }
+  .qt-land .cta-final { padding: 80px 0; }
+}
